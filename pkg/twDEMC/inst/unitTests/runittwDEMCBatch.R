@@ -37,8 +37,8 @@ test.goodStart <- function(){
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
 	
+	#mtrace(twDEMCInt)
 	#mtrace(twDEMCBatchInt)
-	#undebug(twDEMCBatchInt)
 	res <-  twDEMCBatch(
 		Zinit=Zinit, nGen=200, nBatch=50,
 		restartFilename=NULL,
@@ -63,6 +63,9 @@ test.goodStart <- function(){
 			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
 	checkInterval( .pthetaTrue ) 
+	
+	#mtrace(twDEMCBatchInt)
+	res2 <- twDEMCBatch( res, nGen=250, T0=50, nGenBurnin=240 )
 }
 
 #twUtestF(twDEMCBatch,"test.saveAndRestart")
@@ -82,7 +85,8 @@ test.saveAndRestart <- function(){
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
 	
-	restartFilename="runittwDEMCBatch_saveAndRestart.RData"
+	suppressWarnings(dir.create("tmp"))
+	restartFilename=file.path("tmp","runittwDEMCBatch_saveAndRestart.RData")
 	unlink(restartFilename)
 	checkTrue( !file.exists(restartFilename) )
 	
@@ -168,6 +172,7 @@ test.badStart <- function(){
 	dim(Zinit)
 	
 	#mtrace(twDEMCBatchInt)
+	#mtrace(calcDEMCTempDiffLogLik3)
 	res <-  twDEMCBatch(
 		Zinit=Zinit,  
 		300, 50,

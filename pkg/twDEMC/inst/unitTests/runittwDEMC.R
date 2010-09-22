@@ -68,7 +68,7 @@ test.twCalcLogLikPar <- function(){
 }
 
 test.goodStartSeqData <- function(){
-	#mtrace(test_int.goodStartSeqData)
+	#mtrace(test_int.goodStartSeqData.plot2d)
 	test_int.goodStartSeqData.plot2d()
 }
 
@@ -623,7 +623,8 @@ test.dump <- function(){
 	))
 	checkException( eval(body))
 
-	.remoteDumpfileBasename="testDump"
+	suppressWarnings(dir.create("tmp"))
+	.remoteDumpfileBasename=file.path("tmp","testDump")
 	.remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
 
 	# dump on initial parallel calculation
@@ -702,7 +703,7 @@ test.dump <- function(){
 	}
 	
 	#load( .remoteDumpfile )
-	#debugger(testDump)
+	#debugger(get(.remoteDumpfileBasename))
 	#choose last column (18)
 	#interactively execute commands from body of doDEMCStep
 }

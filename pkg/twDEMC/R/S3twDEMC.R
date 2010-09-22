@@ -429,7 +429,7 @@ getAcceptedPos.twDEMCProps <- function(
 }
 
 getDiffLogLik.twDEMCProps <- function(
-	### Extract the 
+	### Extract the Differences in Log-Likelihood between accepted states and proposals.
 	Y					##<< matrix of proposals with row "accepted" and first step (column) initial state, rows: results components of fLogLik and third dimension chains.
 	,resCols			##<< the rows of Y with result components, either names or positions
 	,nLastSteps = 128	##<< number of last steps of Y for which to extract diffs

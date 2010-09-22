@@ -65,7 +65,9 @@ logLikDs2MultiTemp <- function(
 }
 
 
-.tmp.f <- function(){
+.tmp.f <- function(
+	### plotting the 2d case with need for temperated prior
+){
 	#thetaPrior=0.8
 	#sdTheta=0.25
 	thetaPrior=0.5
