@@ -970,7 +970,8 @@ twDEMCBatchInt <- function(
 	, T0=1
 		### initial temperature of burnin , defaults to 1 or if Zinit is twDEMC to the temperature of the last row
 	, nGenBurnin=0
-		### number of generations of burnin (Temperature decrease to 0, and probUpDirBurnin)
+		### initial number of generations of burnin (Temperature decrease to 0, and usage of probUpDirBurnin)
+		### either numeric vector of length nPops or scalar
 	, doResetOutlierN=256
 		### if > 0, outlier chains are reset to best chain
 	, nPops = 1
@@ -1002,12 +1003,13 @@ twDEMCBatchInt <- function(
 		try( cl[i] <- list(eval.parent(cl[[i]])) )
 	#cl[ names(cl)[-1] ] <- lapply(as.list(cl)[-1],eval.parent) 	#substitute all variables by their values, -1 needed for not substituting the function name
 	iRun <- if( is(Zinit,"twDEMC") ) calcNGen(Zinit) else 0   #already completed generations
-	nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)
+	if( length(nGenBurnin)==1 ) nGenBurnin=rep(nGenBurnin,nPops)    # maybe different for each generation
+	nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
 	
 	ctrl <- controlTwDEMC
 	ctrl$T0=T0
 	ctrl$Tend=T0 	#no Temp decrease in first batch (if Zinit is not twDEMC see below) 
-	ctrl$probUpDir=(if(nRun<=nGenBurnin) probUpDirBurnin else NULL)
+	ctrl$probUpDir=(if(nRun<=min(nGenBurnin)) probUpDirBurnin else NULL)
 	minAccepRateTempDecrease <- minPCompAcceptTempDecr <- if(is.numeric(ctrl$minPCompAcceptTempDecr)) ctrl$minPCompAcceptTempDecr else 0.16
 	TFix <- if(is.numeric(ctrl$TFix)) ctrl$TFix else numeric(0) 
 	thin <- if(is.numeric(ctrl$thin)) 	ctrl$thin else 1
@@ -1044,16 +1046,16 @@ twDEMCBatchInt <- function(
 			TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
 			maxTiPop <- max(TiPop)	
 			pAcceptTVar[iPop] <- attr(TiPop,"pAcceptTVar") # acceptance rate of the Temperature dependent step
-			tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin, nRun=nRun),argsFCalcTGlobal) )
+			tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin[iPop], nRun=nRun),argsFCalcTGlobal) )
 			TGlobal <- tmp$TGlobal
 			newNGenBurnin[iPop] <- tmp$nGenBurnin
 			Ti[,iPop] <- TGlobal * TiPop/maxTiPop		
 		}
 		ctrl$Tend <- Ti			# standard is using Multi-temperature
 		if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ) ctrl$Tend <- max(Ti) # explicitely switched off
-		nGenBurnin <- min(maxNGenBurnin, max(newNGenBurnin))
+		nGenBurnin <- pmin(maxNGenBurnin, newNGenBurnin)
 		#recalculate nRun with possibly changed nGenBurnin
-		nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)
+		nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
 
 		##details<< \describe{\item{Temperature estimate from proposal distribution}{
 		## The distribution of differences between Likelihood of proposals Lp and of accepted state La
@@ -1095,7 +1097,7 @@ twDEMCBatchInt <- function(
 		}
 		nRunPrev <- nRun
 		zGen <- dim(res$parms)[2]
-		if( (doResetOutlierN>0) & (iRun <= nGenBurnin) ){
+		if( (doResetOutlierN>0) & (iRun <= min(nGenBurnin)) ){
 			iGenOmega <- max(1,zGen-doResetOutlierN+1):zGen #(zGen%/%2):zGen
 			# according to Vrugt09
 			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogLik[iGenOmega,iChain], na.rm=TRUE)}) #mean logLik across last halv of chain
@@ -1110,7 +1112,7 @@ twDEMCBatchInt <- function(
 				}
 			}
 		}
-		nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)		#iRun: Generation after batch run
+		nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)		#iRun: Generation after batch run
 		.dots <- list(...)
 		.dots[c("logLikX","resFLogLikX")] <- NULL;	#those will be inferred from res
 		clArgs <- c(list(Zinit=res), .dots)	#Zinit must be first argument 
@@ -1123,7 +1125,7 @@ twDEMCBatchInt <- function(
 		#clArgs$Tend=max(1,b*exp(-a*(iRun+nRun)))
 		##--calculating end temperature
 		clArgs$controlTwDEMC$Tend <- 1
-		if((iRun+nRun)<nGenBurnin) {
+		if((iRun+nRun)<min(nGenBurnin)) {
 			diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
 			diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			
@@ -1141,18 +1143,18 @@ twDEMCBatchInt <- function(
 				TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
 				maxTiPop <- max(TiPop)	
 				pAcceptTVar[iPop] <- attr(TiPop,"pAcceptTVar") # acceptance rate of the Temperature dependent step
-				tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin, nRun=nRun),argsFCalcTGlobal) )
+				tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin[iPop], nRun=nRun),argsFCalcTGlobal) )
 				TGlobal <- tmp$TGlobal
 				newNGenBurnin[iPop] <- tmp$nGenBurnin
 				Ti[,iPop] <- TGlobal * TiPop/maxTiPop		
 			}
 			ctrl$Tend <- Ti			# standard is using Multi-temperature
 			if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ) ctrl$Tend <- max(Ti) # explicitely switched off
-			nGenBurnin <- min(maxNGenBurnin, max(newNGenBurnin))
+			nGenBurnin <- pmin(maxNGenBurnin, newNGenBurnin)
 			#recalculate nRun with possibly changed nGenBurnin
-			nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)
+			nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
 		}
-		clArgs$controlTwDEMC$probUpDir <- (if((iRun+nRun)<=nGenBurnin) probUpDirBurnin else NULL)	#set to NULL after burnin
+		clArgs$controlTwDEMC$probUpDir <- (if((iRun+nRun)<=min(nGenBurnin)) probUpDirBurnin else NULL)	#set to NULL after burnin
 		res <- do.call( twDEMC, clArgs, quote=TRUE )
 		attr(res,"batchCall") <- cl
 		#res <- twDEMC( Zinit=res, nGen=nRun, ... ) problems with double Zinit 

@@ -131,7 +131,7 @@ test.saveAndRestart <- function(){
 	
 	rescoda <- as.mcmc.list(res5) 
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res5,start=attr(res5,"batchCall")$nGenBurnin) 
+	rescoda <- as.mcmc.list(res5,start=min(res5$nGenBurnin)) 
 	plot(rescoda)
 
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
@@ -186,7 +186,7 @@ test.badStart <- function(){
 	
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res,start=attr(res,"batchCall")$nGenBurnin) 
+	rescoda <- as.mcmc.list(res,start=min(res5$nGenBurnin)) 
 	plot(rescoda)
 	suppressWarnings({
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
@@ -235,7 +235,7 @@ test.probUpDir <- function(){
 	
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res,start=attr(res,"batchCall")$nGenBurnin) 
+	rescoda <- as.mcmc.list(res,start=min(res5$nGenBurnin)) 
 	plot(rescoda)
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
 	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))

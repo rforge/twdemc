@@ -21,8 +21,10 @@
 	twUtestF()
 	
 	twUtestF(transOrigPopt)
+	twUtestF(twDEMCBatch)
 	twUtestF(twDEMCBatch,"test.goodStart")
 	twUtestF(twDEMCBatch,"test.badStart")
+	twUtestF(twDEMCBatch,"test.saveAndRestart")
 	twUtestF(twDEMC)
 	twUtestF(constrainNStack)
 }
