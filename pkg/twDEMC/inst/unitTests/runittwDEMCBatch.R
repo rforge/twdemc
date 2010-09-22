@@ -206,6 +206,44 @@ test.badStart <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
+t_est.badStartGelmanCooling <- function(){
+	#test burnin with bad starting information, 
+	# in the meantime became standard argument, and tested with other tests
+	.nPops=2
+	argsFLogLik <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,				### vector of data to compare with
+		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior=thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	
+	.sdThetaBad <- sdTheta*c(1/10,10)
+	.theta0Bad <- theta0*c(10,1/10)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPops=.nPops)
+	Zinit[,,1:4] <- Zinit[,,1:4] * c(2,1) 
+	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
+	dim(Zinit)
+	
+	#mtrace(twDEMCBatchInt)
+	#mtrace(calcDEMCTempDiffLogLik3)
+	#mtrace(calcDEMCTempGlobal2)
+	res <-  twDEMCBatch(
+		Zinit=Zinit,  
+		300, 50,
+		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		nPops=.nPops
+		#,probUpDirBurnin=0.8		
+		,nGenBurnin=200
+		,T0=100
+		,fCalcTGlobal=calcDEMCTempGlobal2	# Gelman diagnostics for cooling
+	)
+	str(res)
+	matplot(res$temp)
+}
+
 test.probUpDir <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
 	.nPops=2

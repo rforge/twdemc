@@ -14,7 +14,7 @@ calcDEMCTempDiffLogLik3(diffLogLik, pTarget = 0.18, TFix = numeric(0), Tmax = .M
   \item{doConstrainNeg}{if given, likelihood of accepted jumps (positive) is constrained to 0}
 }
 
-\value{numeric vector of result components 
+\value{numeric vector of result components Temperatures
 yielding acceptance rates closest to pTarget
 attribute pAcceptTVar giving the calculated acceptance rate for Temperature dependent step}
 

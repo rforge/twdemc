@@ -1,7 +1,7 @@
 \name{checkConvergenceGelman}
 \alias{checkConvergenceGelman}
 \title{checkConvergenceGelman}
-\description{Gelman RHat criterion applied to twDEMC result}
+\description{Gelman RHat criterion applied to twDEMC result assuming all chains one population.}
 \usage{
 checkConvergenceGelman(res, burninFrac = 0.5, rHatMin = 1.1)
 }

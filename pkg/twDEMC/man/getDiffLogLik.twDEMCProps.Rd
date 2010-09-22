@@ -1,7 +1,7 @@
 \name{getDiffLogLik.twDEMCProps}
 \alias{getDiffLogLik.twDEMCProps}
 \title{getDiffLogLik twDEMCProps}
-\description{Extract the }
+\description{Extract the Differences in Log-Likelihood between accepted states and proposals.}
 \usage{
 getDiffLogLik.twDEMCProps(Y, resCols, nLastSteps = 128, temp = 1, ...)
 }

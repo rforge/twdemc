@@ -202,10 +202,13 @@ twDEMCInt <- function(
 	
 	#calculate temperature steps: exponentially decreasing from T0 to Tend
 	if( is.null(ctrl$T0)) ctrl$T0=1
-	if( length(ctrl$T0) != nPops) ctrl$T0=rep(ctrl$T0[1],nPops)  #provide Temp for each population
-	if( length(ctrl$Tend) != nPops) ctrl$Tend=rep(ctrl$Tend[1],nPops)  #provide Temp for each population
+	if( length(ctrl$T0) == 1) ctrl$T0=rep(ctrl$T0[1],nPops)  #provide Temp for each population
+	if( length(ctrl$Tend) == 1) ctrl$Tend=rep(ctrl$Tend[1],nPops)  #provide Temp for each population
+#cat("twDEMCInt: ctrl$Tend=",paste(round(ctrl$Tend),collapse=","),"\n",sep="")	
 	temp[d$gen,] <- ctrl$T0
 	TstepFixed = matrix( sapply( 1:nPops, function(iPop){ pmax(1,calcDEMCTemp( ctrl$T0[iPop], ctrl$Tend[iPop], nGen ))}), nrow=nGen, ncol=nPops)
+#cat("twDEMCInt: TstepFixed[1,]=",paste(round(TstepFixed[1,]),collapse=","),"\n",sep="")	
+#cat("twDEMCInt: TstepFixed[nGen,]=",paste(round(TstepFixed[nGen,]),collapse=","),"\n",sep="")	
 
 	# initialize further parameters to parallel and snooker steps
 	ctrl$Npar12  =(d$parms - 1)/2  # factor for Metropolis ratio DE Snooker update
@@ -987,8 +990,8 @@ twDEMCBatchInt <- function(
 	, maxNGenBurnin=50000	##<< maximum burnin beyond which can not be extendend on too low acceptance rate
 	, fCalcTStreamDiffLogLik=calcDEMCTempDiffLogLik3	##<< function calculate optimal Temperature and acceptance rates based on Lp-La 
 	, argsFCalcTStreamDiffLogLik=list()		##<< further arguments to fCalcTStreamDiffLogLik  
-	, fCalcTGlobal=calcDEMCTempGlobal1		##<< function calculating global target temperature
-	, argsFCalcTGlobal=list(minPCompAcceptTempDecr=0.16)		##<< further arguments to fCalcTStreamDiffLogLik  
+	, fCalcTGlobal=calcDEMCTempGlobal2		##<< function calculating global target temperature
+	, argsFCalcTGlobal=list()				##<< further arguments to fCalcTStreamDiffLogLik  
 	){
 	# twDEMCBatchInt
 	##seealso<<   
@@ -1004,12 +1007,15 @@ twDEMCBatchInt <- function(
 	#cl[ names(cl)[-1] ] <- lapply(as.list(cl)[-1],eval.parent) 	#substitute all variables by their values, -1 needed for not substituting the function name
 	iRun <- if( is(Zinit,"twDEMC") ) calcNGen(Zinit) else 0   #already completed generations
 	if( length(nGenBurnin)==1 ) nGenBurnin=rep(nGenBurnin,nPops)    # maybe different for each generation
-	nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
+	newNGenBurnin <- nGenBurnin	#initialize
+	nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
+	
+	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 	
 	ctrl <- controlTwDEMC
 	ctrl$T0=T0
-	ctrl$Tend=T0 	#no Temp decrease in first batch (if Zinit is not twDEMC see below) 
-	ctrl$probUpDir=(if(nRun<=min(nGenBurnin)) probUpDirBurnin else NULL)
+	ctrl$Tend=T0 	#no Temp decrease in first batch (different for Zinit is not twDEMC, see below) 
+	ctrl$probUpDir=(if(nRun<=max(nGenBurnin)) probUpDirBurnin else NULL)
 	minAccepRateTempDecrease <- minPCompAcceptTempDecr <- if(is.numeric(ctrl$minPCompAcceptTempDecr)) ctrl$minPCompAcceptTempDecr else 0.16
 	TFix <- if(is.numeric(ctrl$TFix)) ctrl$TFix else numeric(0) 
 	thin <- if(is.numeric(ctrl$thin)) 	ctrl$thin else 1
@@ -1037,26 +1043,27 @@ twDEMCBatchInt <- function(
 		#diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
 		diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=128) 	#in twDEMC S3twDEMC.R
 		diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
-		Ti <- matrix(1,nrow=nrow(res$resFLogLikX),ncol=nPops, dimnames=list(comp=.getResFLogLikNames(res$resFLogLikX),pop=NULL))
+		Ti <- matrix(1,nrow=nrow(res$resFLogLikX),ncol=nPops, dimnames=list(comp=.getResFLogLikNames(res$resFLogLikX),pop=NULL)) #temperature by component x population 
 		pAcceptTVar <- numeric(nPops)
-		newNGenBurnin <- integer(nPops)
-		for( iPop in 1:nPops){
+		#newNGenBurnin <- res$nGenBurnin #keep previous, do not reinitialize: res from twDEMC has no nGenBurnin
+		TGlobal <- T0c
+		for( iPop in which( TGlobal>1 )){
 			resPop <- subChains(res,iPops=iPop) 
 			dLp=adrop(diffLogLikPops[,,iPop,drop=FALSE],3)
-			TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
+			Ti[,iPop] <- TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
 			maxTiPop <- max(TiPop)	
 			pAcceptTVar[iPop] <- attr(TiPop,"pAcceptTVar") # acceptance rate of the Temperature dependent step
 			tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin[iPop], nRun=nRun),argsFCalcTGlobal) )
-			TGlobal <- tmp$TGlobal
+			TGlobal[iPop] <- tmp$TGlobal
 			newNGenBurnin[iPop] <- tmp$nGenBurnin
-			Ti[,iPop] <- TGlobal * TiPop/maxTiPop		
 		}
-		ctrl$Tend <- Ti			# standard is using Multi-temperature
-		if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ) ctrl$Tend <- max(Ti) # explicitely switched off
+		ctrl$Tprop <- Ti		# will be scaled in twDEMC
+		ctrl$Tend <- TGlobal			# standard is using Multi-temperature
 		nGenBurnin <- pmin(maxNGenBurnin, newNGenBurnin)
+		cat(paste("  burnin=",paste(nGenBurnin,collapse="  "),"\n",sep=""))			
 		#recalculate nRun with possibly changed nGenBurnin
-		nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
-
+		nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
+		
 		##details<< \describe{\item{Temperature estimate from proposal distribution}{
 		## The distribution of differences between Likelihood of proposals Lp and of accepted state La
 		## can be used to estimate an optimal temperature per data stream, so that each
@@ -1070,7 +1077,7 @@ twDEMCBatchInt <- function(
 	}
 		
 	#--------- do the twDEMC ------
-	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
+	nRun <- (nRun%/%thin)*thin  #make nRun multiple of thin
 	res <- twDEMC( Zinit=Zinit, nGen=nRun, nPops=nPops, controlTwDEMC=ctrl, ... )
 	attr(res,"batchCall") <- cl
 	boConverged=FALSE
@@ -1097,7 +1104,7 @@ twDEMCBatchInt <- function(
 		}
 		nRunPrev <- nRun
 		zGen <- dim(res$parms)[2]
-		if( (doResetOutlierN>0) & (iRun <= min(nGenBurnin)) ){
+		if( (doResetOutlierN>0) & (iRun <= max(nGenBurnin)) ){
 			iGenOmega <- max(1,zGen-doResetOutlierN+1):zGen #(zGen%/%2):zGen
 			# according to Vrugt09
 			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogLik[iGenOmega,iChain], na.rm=TRUE)}) #mean logLik across last halv of chain
@@ -1112,11 +1119,10 @@ twDEMCBatchInt <- function(
 				}
 			}
 		}
-		nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)		#iRun: Generation after batch run
+		nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)		#iRun: Generation after batch run
 		.dots <- list(...)
 		.dots[c("logLikX","resFLogLikX")] <- NULL;	#those will be inferred from res
 		clArgs <- c(list(Zinit=res), .dots)	#Zinit must be first argument 
-		clArgs$nGen<-nRun
 		clArgs$nPops<-nPops
 		#clArgs$T0=max(1,b*exp(-a*iRun))		# if temp did not decrease start from this temperature
 		clArgs$controlTwDEMC <- controlTwDEMC
@@ -1125,7 +1131,7 @@ twDEMCBatchInt <- function(
 		#clArgs$Tend=max(1,b*exp(-a*(iRun+nRun)))
 		##--calculating end temperature
 		clArgs$controlTwDEMC$Tend <- 1
-		if((iRun+nRun)<min(nGenBurnin)) {
+		if((iRun+nRun)<max(nGenBurnin)) {
 			diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
 			diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			
@@ -1136,25 +1142,29 @@ twDEMCBatchInt <- function(
 			## }}
 			Ti <- matrix(1,nrow=nrow(res$resFLogLikX),ncol=nPops, dimnames=list(comp=.getResFLogLikNames(res$resFLogLikX),pop=NULL))
 			pAcceptTVar <- numeric(nPops)
-			newNGenBurnin <- integer(nPops)
-			for( iPop in 1:nPops){
+			#newNGenBurnin <- res$nGenBurnin # use old one, do not re-initialize, res from twDEMCInt has no entry nGenBurnin
+			TGlobal <- T0c
+			for( iPop in which( TGlobal>1 )){
 				resPop <- subChains(res,iPops=iPop) 
 				dLp=adrop(diffLogLikPops[,,iPop,drop=FALSE],3)
-				TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
+				Ti[,iPop] <- TiPop <- do.call( fCalcTStreamDiffLogLik, c(list(diffLogLik=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogLik) ) # optimal Temperature estimated by dLp for each variable
 				maxTiPop <- max(TiPop)	
 				pAcceptTVar[iPop] <- attr(TiPop,"pAcceptTVar") # acceptance rate of the Temperature dependent step
 				tmp <- do.call( fCalcTGlobal, c(list(resPop=resPop,diffLogLik=dLp,TLp=maxTiPop,pAcceptTVar=pAcceptTVar[iPop],iRun=iRun, nGenBurnin=nGenBurnin[iPop], nRun=nRun),argsFCalcTGlobal) )
-				TGlobal <- tmp$TGlobal
+				TGlobal[iPop] <- tmp$TGlobal
 				newNGenBurnin[iPop] <- tmp$nGenBurnin
-				Ti[,iPop] <- TGlobal * TiPop/maxTiPop		
 			}
-			ctrl$Tend <- Ti			# standard is using Multi-temperature
-			if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ) ctrl$Tend <- max(Ti) # explicitely switched off
+			clArgs$controlTwDEMC$Tprop <- Ti		# will be scaled in twDEMC
+			clArgs$controlTwDEMC$Tend <- TGlobal			
 			nGenBurnin <- pmin(maxNGenBurnin, newNGenBurnin)
+			#cat(paste("burnin=",paste(nGenBurnin,collapse="  "),"T=",paste(round(Ti),collapse="  "),"\n",sep=""))			
+			cat(paste("  burnin=",paste(nGenBurnin,collapse="  "),"\n",sep=""))			
 			#recalculate nRun with possibly changed nGenBurnin
-			nRun <- min(nBatch, (if(iRun<min(nGenBurnin)) min(nGenBurnin,nGen) else nGen) -iRun)
+			nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
 		}
-		clArgs$controlTwDEMC$probUpDir <- (if((iRun+nRun)<=min(nGenBurnin)) probUpDirBurnin else NULL)	#set to NULL after burnin
+		nRun <- (nRun%/%thin)*thin  #make nRun multiple of thin
+		clArgs$nGen<-nRun
+		clArgs$controlTwDEMC$probUpDir <- (if((iRun+nRun)<=max(nGenBurnin)) probUpDirBurnin else NULL)	#set to NULL after burnin
 		res <- do.call( twDEMC, clArgs, quote=TRUE )
 		attr(res,"batchCall") <- cl
 		#res <- twDEMC( Zinit=res, nGen=nRun, ... ) problems with double Zinit 
@@ -1163,7 +1173,7 @@ twDEMCBatchInt <- function(
 		iRun <- calcNGen(res)
 	}
 	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
-	res$nGenBurnin <- nGenBurnin
+	res$nGenBurnin <- newNGenBurnin
 	res
 	### List of class twDEMC (see \code{\link{twDEMCInt}}) with additional entry nGenBurnin
 }

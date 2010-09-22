@@ -1,6 +1,7 @@
 \name{twDEMC-internal}
 \title{Internal twDEMC objects}
 \alias{.calcTemperatedDiffLogLik}
+\alias{.checkConvergenceGelmanPops}
 \alias{.doDEMCStep}
 \alias{.doDEMCSteps}
 \alias{.generateXPropThin}

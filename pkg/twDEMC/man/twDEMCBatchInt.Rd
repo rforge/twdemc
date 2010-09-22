@@ -5,7 +5,7 @@
 \usage{
 twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fCheckConvergence = function(res, addArgs) {
     FALSE
-}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000)
+}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000, fCalcTStreamDiffLogLik = calcDEMCTempDiffLogLik3, argsFCalcTStreamDiffLogLik = list(), fCalcTGlobal = calcDEMCTempGlobal2, argsFCalcTGlobal = list())
 }
 \arguments{
   \item{Zinit}{the initial population}
@@ -16,7 +16,8 @@ twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fChe
   \item{fCheckConvergence}{checking convergence of a DEMC and interrupting }
   \item{fCheckConvergenceArgs}{additional arguments to the DEMC convergence checking function}
   \item{T0}{initial temperature of burnin , defaults to 1 or if Zinit is twDEMC to the temperature of the last row}
-  \item{nGenBurnin}{number of generations of burnin (Temperature decrease to 0, and probUpDirBurnin)}
+  \item{nGenBurnin}{initial number of generations of burnin (Temperature decrease to 0, and usage of probUpDirBurnin)
+either numeric vector of length nPops or scalar}
   \item{doResetOutlierN}{if > 0, outlier chains are reset to best chain}
   \item{nPops}{number of independent populations}
   \item{probUpDirBurnin}{probUbDir during burnin (see twDEMC argument propuUpDir)}
@@ -24,6 +25,10 @@ twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fChe
   \item{doRepeatLowAcceptanceChains}{
 }
   \item{maxNGenBurnin}{maximum burnin beyond which can not be extendend on too low acceptance rate}
+  \item{fCalcTStreamDiffLogLik}{function calculate optimal Temperature and acceptance rates based on Lp-La}
+  \item{argsFCalcTStreamDiffLogLik}{further arguments to fCalcTStreamDiffLogLik}
+  \item{fCalcTGlobal}{function calculating global target temperature}
+  \item{argsFCalcTGlobal}{further arguments to fCalcTStreamDiffLogLik}
 }
 \details{Usually invoked by \code{\link{twDEMCBatch}}.
 
@@ -34,11 +39,11 @@ and the number of generations already in Zinit are skipped.
 The distribution of differences between Likelihood of proposals Lp and of accepted state La
 can be used to estimate an optimal temperature per data stream, so that each
 datastream contributes to rejections in about the same magnitude and the overall
-acceptance rate is aobut a specified value.
+acceptance rate is about a specified value.
 The proportions of the so calculated datastream specific temperature are multiplied 
 with the global temperature on Metropolis decisions.
-Further, if the temperatures of the datasteams are all below the goal of the global
-temperature Tend, Tend is also lowered.
+deprecated[Further, if the temperatures of the datasteams are all below the goal of the global
+temperature Tend, Tend is also lowered]
 }}
 
 \describe{\item{Saving and restarting}{ 
@@ -50,15 +55,6 @@ This is helpful with expensive models and long cluster runs for cases where the 
 \describe{\item{cooling and acceptance rate}{ 
 If acceptance rate of some population drops below rate=minAccepRateTempDecrease then cooling is too fast.
 In this moderate case do not repeat the rund but keep the current temperature for the next period for this population.
-and extend the burnin phase by the length of this period.
-}}
-
-\describe{\item{cooling and expected difference in Log-Likelihood}{ 
-If the difference of temperated Log-Likelihoods between Proposed stepds and accepted steps
-of the component with highest difference (which is negative)
-drops below rate=minPCompAcceptTempDecr then cooling is too fast.
-The median of the last 128 steps is used
-In this case keep the current temperature for the next period for this population.
 and extend the burnin phase by the length of this period.
 }}}
 \value{List of class twDEMC (see \code{\link{twDEMCInt}}) with additional entry nGenBurnin}

@@ -8,8 +8,8 @@ calcDEMCTemp(T0, Tend = 1, nGen, iGen = 1:nGen)
 \arguments{
   \item{T0}{the initial temperature (before the first step at iGen=0)}
   \item{Tend}{the temperature at the last step}
-  \item{nGen}{the number of genrations	}
-  \item{iGen}{the steps for which to calculate the Temperature	}
+  \item{nGen}{the number of genrations}
+  \item{iGen}{the steps for which to calculate the Temperature}
 }
 
 \value{vector of Temperatures corresponding to steps iGen}

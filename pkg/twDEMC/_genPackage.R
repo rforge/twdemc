@@ -22,6 +22,7 @@
 	
 	twUtestF(transOrigPopt)
 	twUtestF(twDEMCBatch)
+	twUtestF("runTwDEMC")
 	twUtestF(twDEMCBatch,"test.goodStart")
 	twUtestF(twDEMCBatch,"test.badStart")
 	twUtestF(twDEMCBatch,"test.saveAndRestart")
