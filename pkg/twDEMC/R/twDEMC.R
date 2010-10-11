@@ -1010,8 +1010,6 @@ twDEMCBatchInt <- function(
 	newNGenBurnin <- nGenBurnin	#initialize
 	nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
 	
-	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
-	
 	ctrl <- controlTwDEMC
 	ctrl$T0=T0
 	ctrl$Tend=T0 	#no Temp decrease in first batch (different for Zinit is not twDEMC, see below) 
@@ -1020,6 +1018,8 @@ twDEMCBatchInt <- function(
 	TFix <- if(is.numeric(ctrl$TFix)) ctrl$TFix else numeric(0) 
 	thin <- if(is.numeric(ctrl$thin)) 	ctrl$thin else 1
 	nGen <- (nGen %/% thin)*thin
+
+	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 	
 	##details<< 
 	## If Zinit is of class twDEMC, initial temperature is set to the temperature of the last row

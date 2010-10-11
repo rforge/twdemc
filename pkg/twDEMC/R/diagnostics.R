@@ -1,3 +1,19 @@
+.calcRhat2 <- function(
+	### calculate squared RHat Gelman Diagnostics for a single dimension for several chains
+	parmsi			##<< numeric matrix steps x chains 
+	,n=nrow(parmsi)	##<< number of steps: maybe passed for efficiency in repeated calculations 
+	,m=ncol(parmsi)	##<< number of chains: maybe passed for efficiency in repeated calculations
+){
+	muyj <- sapply(1:m, function(j){ mean(parmsi[,j]) }) # mean of each chain
+	muy <- mean(muyj)	# mean across chains
+	B <- n/(m-1)*sum((muyj-muy)^2) # between chain variance
+	s2j <- sapply(1:m, function(j){sum((parmsi[,j]-muyj[j])^2) })/(n-1) #squared sums of each chain
+	W <- sum(s2j)/m	# within chain variance
+	VarPlus=(n-1)/n*W + 1/n*B
+	#c( B=B, W=W, VarPlus=VarPlus, Rhat=round(sqrt(VarPlus/W),3), effSize=min(n*m,n*m*VarPlus/B) )
+	VarPlus/W
+}
+
 checkConvergenceGelman <- function(
 	### Gelman RHat criterion applied to twDEMC result assuming all chains one population.
 	res					##<< see return value of \code{\link{twDEMCInt}} ($parms (d x nStep x nChain) )
@@ -8,20 +24,11 @@ checkConvergenceGelman <- function(
 	##details<< 
 	## see Gelman04 (twutz:Gelman04_3#Inference_and_assessing_convergence)
 	l <- dim(res$parms)[2]
-	res2 <- res$parms[ ,max(1,ceiling(l*burninFrac)):l, ]	# later part of all the chains
-	n <- dim(res2)[2]	# number of steps
-	m <- dim(res2)[3]   # number of chains
-	rl <- sqrt(sapply( 1:dim(res2)[1], function(vn){	#over all variables (estimands)
-			muyj <- sapply(1:m, function(j){ mean(res2[vn,,j]) }) # mean of each chain
-			muy <- mean(muyj)	# mean across chains
-			B <- n/(m-1)*sum((muyj-muy)^2) # between chain variance
-			s2j <- sapply(1:m, function(j){sum((res2[vn,,j]-muyj[j])^2) })/(n-1) #squared sums of each chain
-			W <- sum(s2j)/m	# within chain variance
-			VarPlus=(n-1)/n*W + 1/n*B
-			#c( B=B, W=W, VarPlus=VarPlus, Rhat=round(sqrt(VarPlus/W),3), effSize=min(n*m,n*m*VarPlus/B) )
-			VarPlus/W
-		}))
-	names(rl) <- rownames(res2)
+	parms <- res$parms[ ,max(1,ceiling(l*burninFrac)):l, ]	# later part of all the chains
+	n <- dim(parms)[2]	# number of steps
+	m <- dim(parms)[3]   # number of chains
+	rl <- sqrt(apply( parms, 1, .calcRhat2, n=n, m=m  ))
+	names(rl) <- rownames(parms)
 	res <- all(rl <= rHatMin )
 	attr(res,"rHat") <- rl
 	res

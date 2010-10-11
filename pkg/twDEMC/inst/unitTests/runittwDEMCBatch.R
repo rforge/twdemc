@@ -108,6 +108,7 @@ test.saveAndRestart <- function(){
 	
 	checkTrue( file.exists(restartFilename) )
 	if( exists("resRestart.twDEMC")) rm( resRestart.twDEMC )
+	if( exists("resRestart.twDEMC")) rm( resRestart.twDEMC )	#may be in several attached frames
 	checkTrue( !exists( "resRestart.twDEMC" ) )
 	load( file=restartFilename )
 	checkTrue( exists( "resRestart.twDEMC" ) )
@@ -123,15 +124,17 @@ test.saveAndRestart <- function(){
 	res3 <- twDEMCBatch(resRestart.twDEMC, nGen=70)
 	checkEquals(70/.thin+1, nrow(res3$rLogLik) )
 	res4 <- twDEMCBatch(resRestart.twDEMC, nGen=40)	
-	checkEquals(50/.thin+1, nrow(res4$rLogLik) )
-	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=300)	#exeeding burnin	
-	checkEquals(300/.thin+1, nrow(res5$rLogLik) )
+	checkEquals(50/.thin+1, nrow(res4$rLogLik) )	# was already 50
+	#mtrace(calcDEMCTempGlobal2)
+	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=1500)	#exeeding burnin	
+	checkEquals(1500/.thin+1, nrow(res5$rLogLik) )
 	
+	matplot(res5$temp, type="l")
 	plot(res5$temp[,1])
 	
 	rescoda <- as.mcmc.list(res5) 
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res5,start=min(res5$nGenBurnin)) 
+	rescoda <- as.mcmc.list(res5,start=max(res5$nGenBurnin)) 
 	plot(rescoda)
 
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
@@ -178,7 +181,6 @@ test.badStart <- function(){
 		300, 50,
 		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
 		nPops=.nPops,
-		
 		#probUpDirBurnin=0.8,		
 		nGenBurnin=200
 	)
@@ -186,7 +188,7 @@ test.badStart <- function(){
 	
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res,start=min(res5$nGenBurnin)) 
+	rescoda <- as.mcmc.list(res,start=min(calcNGen(res)*0.8,max(res$nGenBurnin))) 
 	plot(rescoda)
 	suppressWarnings({
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
@@ -273,7 +275,7 @@ test.probUpDir <- function(){
 	
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res,start=min(res5$nGenBurnin)) 
+	rescoda <- as.mcmc.list(res,start=min(res$nGenBurnin)) 
 	plot(rescoda)
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
 	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))

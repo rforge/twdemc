@@ -253,24 +253,30 @@ ggplotDensity.poptDistr <- function(
 	,pMin=0.005		##<< range of the distribution from pMin to 1-pMin
 	,parmsBounds=NULL	##<< list parName <- c(mode, upperQuantile)
 	#,upperBoundProb = 0.99	##<< percentile of the upper bound
+	,plotUpperQuantile=TRUE	##<< wheter to include upper quantile (set to FALSE if this inflates the displayed domain)
+	,doTransOrig=TRUE		##<< set to FALSE to display transform to normal scale
 ){
 	pRange = c(pMin,1-pMin)
 	pNames <- names(poptDistr$mu) 
 	#iPar=1
 	qRange <- t(sapply( seq_along(poptDistr$mu), function(iPar){
 			qNorm <- qnorm(pRange,mean=poptDistr$mu[iPar],sd=poptDistr$sigmaDiag[iPar])
-			transOrigPopt(qNorm, poptDistr$trans[iPar])
+			if(doTransOrig) transOrigPopt(qNorm, poptDistr$trans[iPar]) else qNorm
 		}))
 	dimnames(qRange)<-list(parms=pNames, iRec=NULL)
 	tmpDs4 <- melt(qRange)
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value),geom="blank")+ #, colour=pops, fill=pops
 		opts(axis.title.x = theme_blank())
 	p2 <- p1 + facet_wrap(~parms, scales="free_x") 
-	p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=TRUE)
+	p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
 	p5 <- p6 <- p4 + xlab("Parameter") + ylab("Scaled density")
 	if( is.list(parmsBounds)){
-		tmpDs5 <- melt(parmsBounds[names(poptDistr$mu)])
+		tmpDs5 <- if(plotUpperQuantile)
+			melt(parmsBounds[names(poptDistr$mu)])
+		else
+			melt(lapply(parmsBounds[names(poptDistr$mu)],"[",1,drop=FALSE))
 		colnames(tmpDs5) <- c("value","parms")
+		if( !doTransOrig ) tmpDs5$value <- transNormPopt(tmpDs5$value, poptDistr$trans[tmpDs5$parms])
 		p6 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color="blue") 
 	}
 	p6
