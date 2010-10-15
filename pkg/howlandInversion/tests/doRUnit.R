@@ -5,15 +5,26 @@ if(require("RUnit", quietly=TRUE)) {
 	
 	#pkg <- "PKG" # <-- Change to package name!
 	pkg <- "howlandInversion" # <-- Change to package name!
+	pkgPath <- getwd()		# the default for debugging in package workspace
 	if(Sys.getenv("RCMDCHECK") == "FALSE") {
 		## Path to unit tests for standalone running under Makefile (not R CMD check)
 		## PKG/tests/../inst/unitTests
-		path <- file.path(getwd(), "..", "inst", "unitTests")
+		pkgPath <- file.path(getwd(),"..")
+		instPath <- file.path(pkgPath,"inst")
+		path <- file.path(instPath, "unitTests")
 	} else {
 		## Path to unit tests for R CMD check
 		## PKG.Rcheck/tests/../PKG/unitTests
-		path <- system.file(package=pkg, "unitTests")
+		pkgPath <- system.file(package=pkg)
+		instPath <- pkgPath
+		path <- file.path(instPath, "unitTests")
 	}
+	cat("\nSetting up snowfall cluster\n")
+	#library(snowfall)
+	#sfInit(parallel=TRUE,cpus=4)
+	#source(instPath,"cluster","setupCluster.R")
+	#setupClusterHowlandDev(pkgPath)
+	
 	cat("\nRunning unit tests\n")
 	print(list(pkg=pkg, getwd=getwd(), pathToUnitTests=path))
 	

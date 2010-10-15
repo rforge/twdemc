@@ -24,7 +24,7 @@ test.calcLagged14CSeries <- function(){
 
 test.decay <- function(){
 	# unit is tC/ha
-	mm <- modMeta.ICBM1()
+	mm <- modMetaICBM1()
 	parms0 <- list(
 		tLagLeaf=1	# other is recent-C, which is not accounted in the Howland study
 		,tLagRoot=5
@@ -43,12 +43,12 @@ test.decay <- function(){
 	tvrOld <- 1000 #1/parms0$kO	#1000 yr old carbon
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
-	#mtrace(initState.SoilMod)
-	x0 <- initState.ICBM1( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	#mtrace(initStateSoilMod)
+	x0 <- initStateICBM1( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
-	#mtrace(solve.ICBM1)
-	#mtrace(deriv.ICBM1)
-	res <- solve.ICBM1(
+	#mtrace(solveICBM1)
+	#mtrace(derivICBM1)
+	res <- solveICBM1(
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input0
@@ -61,7 +61,7 @@ test.decay <- function(){
 	matplot(res[,"time"], res[,c("F14C_Y","F14C_O","respF14CT")], type="l" )
 	#matplot(res[,"time"], res[,c("respF14C_Y","respF14C_O")], type="l" ) # same as pool
 	
-	res <- solve.ICBM1(
+	res <- solveICBM1(
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input0
@@ -73,7 +73,7 @@ test.decay <- function(){
 
 test.constInput <- function(){
 	# unit is tC/ha
-	mm <- modMeta.ICBM1()
+	mm <- modMetaICBM1()
 	parms0 <- list(
 		tLagLeaf=1	# other is recent-C, which is not accounted in the Howland study
 		,tLagRoot=5
@@ -94,11 +94,11 @@ test.constInput <- function(){
 	tvrOld <- 1000 #1/parms0$kO	#1000 yr old carbon
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
-	#mtrace(initState.SoilMod)
-	x0 <- initState.ICBM1( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	#mtrace(initStateSoilMod)
+	x0 <- initStateICBM1( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
-	#mtrace(deriv.ICBM1)
-	res <- solve.ICBM1(
+	#mtrace(derivICBM1)
+	res <- solveICBM1(
 		x0=x0,	times=times
 		,parms=parms0
 		,input=input1
@@ -115,8 +115,10 @@ test.constInput <- function(){
 
 
 test.steadStateHowland <- function(){
+	data(Howland14C)
+	
 	# unit is tC/ha
-	mm <- modMeta.ICBM1()
+	mm <- modMetaICBM1()
 	parms0 <- list(
 		tLagLeaf=1	# other is recent-C, which is not accounted in the Howland study
 		,tLagRoot=5
@@ -129,7 +131,7 @@ test.steadStateHowland <- function(){
 	Ctot <- obs$somStock[1,2]
 	input <- lapply(Howland14C$litter, "[", ,1:2, drop=FALSE)
 	sumInput <- sum(sapply(input,"[",2))
-	parms0[c("kY","kO")] <- calcSteadyK.ICBM(Ctot=Ctot,cY=parms0$cY,h=parms0$h,iY=sumInput)
+	parms0[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=Ctot,cY=parms0$cY,h=parms0$h,iY=sumInput)
 	yr0 <- 1940
 	yrEnd <- 2007
 	times <- yr0:yrEnd
@@ -138,12 +140,12 @@ test.steadStateHowland <- function(){
 	tvrOld <- 1/parms0$kO	#1000 yr old carbon
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
-	#mtrace(initState.SoilMod)
-	x0 <- initState.ICBM1( xc12=Ctot*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	#mtrace(initStateSoilMod)
+	x0 <- initStateICBM1( xc12=Ctot*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
-	#mtrace(deriv.ICBM1)
-	#mtrace(solve.ICBM1)
-	system.time(res <- resR <- resSolve <- solve.ICBM1(
+	#mtrace(derivICBM1)
+	#mtrace(solveICBM1)
+	system.time(res <- resR <- resSolve <- solveICBM1(
 		x0=x0,	times=times
 		,parms=parms0
 		,input=input
@@ -154,11 +156,14 @@ test.steadStateHowland <- function(){
 	matplot(res[,"time"], res[,c("inputLeaf_c12","inputLeaf_c14","inputRoot_c12","inputRoot_c14")], type="l" )
 	matplot(res[,"time"], res[,c("Y_c12","Y_c14","O_c12","O_c14","cStock")], type="l" )
 	matplot(res[,"time"], res[,c("respY_c12","respY_c14","respO_c12","respO_c14")], type="l" )
-	matplot(res[,"time"], res[,c("F14C_Y","F14C_O","F14CT","respF14CT")], type="l" )
-	lines( delta2iR14C(delta14C)/mm$iR14CStandard ~ yr, data=delta14Catm, col="blue")
+	matplot(res[,"time"], res[,c("respF14CT", "F14CT", "F14C_Y","F14C_O")], type="l" )
+	lines( delta2iR14C(delta14C)/mm$iR14CStandard ~ yr, data=delta14Catm, col="gray")
 
-	#mtrace(solve.ICBM1)
-	system.time(res <- resc <- solve.ICBM1(
+	#must be steady state
+	checkEqualsNumeric( rep(0, nrow(res)-1), diff(res[,"cStock"]) )
+	
+	#mtrace(solveICBM1)
+	system.time(res <- resc <- solveICBM1(
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input
@@ -169,7 +174,7 @@ test.steadStateHowland <- function(){
 	
 	profile.f <- function(){
 		Rprof()
-		for( i in 1:10 ) solve.ICBM1(
+		for( i in 1:10 ) solveICBM1(
 				x0=x0,	times=times
 				,parms=parms0
 				,input=input
@@ -180,7 +185,7 @@ test.steadStateHowland <- function(){
 		head(summaryRprof()$by.self, n=12)
 		
 		system.time({ Rprof()
-		for( i in 1:500 ) solve.ICBM1(
+		for( i in 1:500 ) solveICBM1(
 				x0=x0,	times=times
 				,parms=parms0
 				,input=input

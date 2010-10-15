@@ -1,5 +1,6 @@
 setupClusterHowlandDev <- function(
-	### cluster setup for Howland with local development installation 
+	### cluster setup for Howland with local development installation
+	pkgDir = "../eclipse_R/howlandInversion"		#relative path to asom execution directory
 ){
 	
 	sfLibrary(twMisc)
@@ -8,8 +9,7 @@ setupClusterHowlandDev <- function(
 	#library(debug)
 	#library(logitnorm)
 	
-	pkgDir = "../howlandhowlandInversion"		#relative path to asom
-	dynFilename <- file.path(pkgDir,"src",paste("twMDIHamer", .Platform$dynlib.ext, sep = ""))
+	dynFilename <- file.path(pkgDir,"src",paste("howlandInversion", .Platform$dynlib.ext, sep = ""))
 	sfExport("dynFilename")
 	sfClusterEval( dyn.load(dynFilename) )
 	dyn.load(dynFilename)
@@ -20,11 +20,15 @@ setupClusterHowlandDev <- function(
 	#dsNames <- twStripFileExt(basename(dsFileNames))
 	#data( list=dsNames,  )
 	#sfExport(list=dsNames)
+
+	sfClusterCall( data, c("Howland14C"))	
 	
 	#tmp <- sapply(Sys.glob(file.path(pkgDir,"R","*.R")), source)
-	tmp <- sapply(Sys.glob(file.path(pkgDir,"R","SoilMod*.R")), sfSource)
+	tmp <- sapply(Sys.glob(file.path(pkgDir,"R","ICBM*.R")), sfSource)
 	sfSource(file.path(pkgDir,"R","ModMeta.R"))	#init soil mod
-	#sfSource(file.path(pkgDir,"R","of_Hamer_Bayes_FS.R"))	#further arguments to ofb.hamer and subfunctions 
+	sfSource(file.path(pkgDir,"R","c14Utils.R"))	#init soil mod
+	#sfSource(file.path(pkgDir,"R","of_Hamer_Bayes_FS.R"))	#further arguments to ofb.hamer and subfunctions
+	
 }
 
 setupClusterMDIHamer <- function(

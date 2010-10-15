@@ -1,4 +1,6 @@
 data(delta14Catm)
+
+### Constants used with 14C calculations.
 c14Constants <- list(
 	#iR14CUnit = 1e-12
 	#,iR14CStandard = 1.176	# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968),

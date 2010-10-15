@@ -1,14 +1,14 @@
 initState.howland.ICBM1SteadyState  <- function(
 	### Initial states from parms for ICBM1 in steady state
-	padj
-	,modMeta=modMeta.ICBM1()
+	padj		##<< must contain cY, kO, Ctot, yr0
+	,modMeta=modMetaICBM1()
 	,delta14Catm=c14Constants$delta14Catm
 ){
-	iRNew <- delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==yr0])
+	iRNew <- delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
 	tvrOld <- 1/padj$kO	#1000 yr old carbon
-	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
-	#mtrace(initState.SoilMod)
-	x0 <- initState.ICBM1( xc12=Ctot*c(padj$cY,(1-padj$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	iROld <- decayIR14C( yr=padj$yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
+	#mtrace(initStateSoilMod)
+	x0 <- initStateICBM1( xc12=padj$Ctot*c(padj$cY,(1-padj$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 }
 
 meanInput <- function(
@@ -28,9 +28,9 @@ of.howlandSteady <- function(
 	, ...			##<< further parameters to model$fSolve
 	, model		
 	### model to evaluate. A list with following components \describe{
-	### \item{modMeta}{meta information about the model. see \code{\link{twCreateModMeta} }
-	### \item{fInitState}{function to initialize state based on parameters and amendment. see \code{\link{initStateHamer.SoilMod_FS}}
-	### \item{fSolve}{function to ODE across time. see \code{\link{solve.SoilMod_FS} }
+	### \item{modMeta}{meta information about the model. see \code{\link{twCreateModMeta}} }
+	### \item{fInitState}{function to initialize state based on parameters and amendment. see \code{\link{initStateSoilMod}} }
+	### \item{fSolve}{function to ODE across time. see \code{\link{solveICBM1}} }
 	### }
 	, poptDistr	
 	### information on parameter distributions, list with entries \describe{
@@ -40,20 +40,20 @@ of.howlandSteady <- function(
 	### }
 	### See also \code{\link{twQuantiles2Coef}}.
 	### Parameters order must correspond to normpopt. Use \code{\link{twConstrainPoptDistr}} to select a constrained subset from all parameters.
-	, obs=Howland14C$obsNutrientSite	# #<< see \code\link{obsHowlandNutrient}}
+	, obs=Howland14C$obsNutrientSite	##<< see \code{\link{Howland14C}}
 	#, times=c(1950, sort( unique(unlist(lapply(obs,"[",,1))) ))
-	, times=1950:2007
-	, input=Howland14C$litter
-	, parms=HowlandParameterPriors$parms0		##<< default parameters to the model
+	, times=1950:2007				##<< time points in yr to be modelled and compared.
+	, input=Howland14C$litter		##<< carbon inputs to reservoir C see \code{\link{Howland14C}$litter}.
+	, parms=HowlandParameterPriors$parms0		##<< default parameters (for the non-optimized ones)
 	, fCalcBiasedObs=NULL			##<< function(obs,padj,...){obs} possibility to account for bias and to optimize bias parameters 
 	, argsFCalcBiasedObs=list()		##<< further arguments to fCalcBiasedObs
 	, fCalcBiasedInput=meanInput	##<< function(input,padj,...){obs} possibility to account for bias and to optimize bias parameters 
 	, argsFCalcBiasedInput=list()	##<< further arguments to fCalcBiasedInput
 	, popt.names=names(normpopt)	##<< names of the parameters. They are sometimes stripped by fitting algorithms.
 	, fTransOrigPopt=transOrigPopt.default	##<< function that translates parameters from normal to original scale
-	, doStopOnError=FALSE
+	, doStopOnError=FALSE					##<< by default -Inf is returned on error, set to TRUE for debugging
 	, includeStreams=c(names(obs),"parms") 	##<< character vector of subset of data streams to include
-	, delta14Catm=c14Constants$delta14Catm
+	, delta14Catm=c14Constants$delta14Catm	##<< 14C signature of the atmosphere: signature of litter inputs after a time lag.
 ){
 	# ofb_FS.hamer
 	##details<< objective function for fitting SoilMod_FS to respRate timeseries of Hamer incubation experiment of both control, amendm and c14obs
@@ -86,7 +86,7 @@ of.howlandSteady <- function(
 			#usually misfitFail is called before all components of misfit are changed away from NA.
 			#if all components are initialized one is set to NA trigger rejection
 			#in order to allow inspection of proposals avoid using the same component for this purpose
-			misfit( sample_int(length(misfit),1)) <- NA
+			misfit[ sample.int(length(misfit),1)] <- NA
 		}
 		#misfit[ extComp[sample.int(length(extComp),1)] ] <- Inf 	#will cause rejection
 		rLogLik <- -1/2*misfit
@@ -124,10 +124,11 @@ of.howlandSteady <- function(
 	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(input,padj),argsFCalcBiasedInput)) else input	# biased input data
 	
 	#initial states for all three treatments
-	Ctot <- obs$somStock[1,2]
+	padj$Ctot <- obs$somStock[1,2]
 	sumInput <- sum(sapply(inputadj,"[",1,2))
-	padj[c("kY","kO")] <- calcSteadyK.ICBM(Ctot=Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
-
+	padj[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=padj$Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
+	
+	padj$yr0 <- times[1]
 	x0 <- model$fInitState(padj, modMeta=model$modMeta, delta14Catm=delta14Catm)
 	
 	checkModelErr <- function(resSolve){

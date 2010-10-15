@@ -1,6 +1,6 @@
 #---------- process knowledge: the model relating microbial parameters to observations
 
-modMeta.ICBM1 <- function(
+modMetaICBM1 <- function(
 ### Creating Meta-information for ICBM1.
 ){
 	##seealso<< \code{\link{twCreateModMeta}}, \code{\link{twSetModMetaAuxGroups}}
@@ -30,32 +30,32 @@ modMeta.ICBM1 <- function(
 		,respF14CT = "respF14CT" 					#fraction modern of total respiration
 	)
 	modMeta <- twSetModMetaAuxGroups(modMeta,auxGroups)
-	#copy2clip(paste("enum AUX_OUTPUT_NAMES {",paste(c(modMeta.ICBM1()$auxOutputNames,"N_AUX"),collapse=","),"}; //generated in ICBM1.R",sep=""))	#to adjust icbm1.c 
+	#copy2clip(paste("enum AUX_OUTPUT_NAMES {",paste(c(modMetaICBM1()$auxOutputNames,"N_AUX"),collapse=","),"}; //generated in ICBM1.R",sep=""))	#to adjust icbm1.c 
 }
 #twUtestF("ICBM1",test="modMeta")
-#mtrace(modMeta.ICBM1)
+#mtrace(modMetaICBM1)
 
-initState.ICBM1 <- function(
+initStateICBM1 <- function(
 	### Creating initial state variables for ICBM1.
 	xc12,	cn=0, 	iR 
-	,modMeta=modMeta.ICBM1()	##<< may pass pre-calulated modMeta for efficiency.
+	,modMeta=modMetaICBM1()	##<< may pass pre-calulated modMeta for efficiency.
 	,... 
 ){
 	##seealso<< 
-	x <- initState.SoilMod(xc12,cn,iR,modMeta=modMeta)
+	x <- initStateSoilMod(xc12,cn,iR,modMeta=modMeta)
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
 }
 #twUtestF("ICBM1",test="init")
 
 
-solve.ICBM1 <- function(
-	### solve the ODE of \code{\link{deriv.ICBM1}}
+solveICBM1 <- function(
+	### solve the ODE of \code{\link{derivICBM1}}
 	x0		##<< numeric vector or matrix at t=0
 	,times	##<< times at which explicit estimates for y are desired. The first value in times must be the initial time.
 	,parms	##<< list of model parameters
 	,input  ##<< list with dataframes entries leaf and root each with columns yr and obs
 	,delta14Catm=c14Constants$delta14Catm	##<< dataframe (columns yr, delta14C) of absolute delta14C of the atmosphere
-	,modMeta=modMeta.ICBM1()	##<< metaInformation from model. Pass for efficiency or when using different units. 
+	,modMeta=modMetaICBM1()	##<< metaInformation from model. Pass for efficiency or when using different units. 
 	,useRImpl=FALSE		##<< flag indicating to use the R implementation instead of C implementation.
 ){
 	##seealso<< \code{\link[deSolve]{lsoda}}
@@ -72,14 +72,14 @@ solve.ICBM1 <- function(
 	input$leaf14C <- cbind( yr=iTimes, obs=calcLagged14CSeries(lag=parms$tLagLeaf, inputValue=fLeaf12C(times), inputYr=times, delta14Catm=delta14Catm, iR14CStandard=modMeta$iR14CStandard)) 
 	input$root14C <- cbind( yr=iTimes, obs=calcLagged14CSeries(lag=parms$tLagRoot, inputValue=fRoot12C(times), inputYr=times, delta14Catm=delta14Catm, iR14CStandard=modMeta$iR14CStandard)) 
 	res0 <- if( useRImpl ){ 
-		#lsoda( x0, times, deriv.ICBM1, parms, atol = 0 )
+		#lsoda( x0, times, derivICBM1, parms, atol = 0 )
 		# the forcing functions; rule = 2 avoids NaNs in interpolation
 		fLeaf14C = approxfun(x=input$leaf14C[,1], y=input$leaf14C[,2], method="linear", rule=2)
 		fRoot14C = approxfun(x=input$root14C[,1], y=input$root14C[,2], method="linear", rule=2)
 		parms$fInput <- function(t){ 
 					c(leaf12C = fLeaf12C(t), leaf14C=fLeaf14C(t), root12C=fRoot12C(t), root14C=fRoot14C(t))    
 				}
-		lsoda( x0, times, deriv.ICBM1, parms ) 
+		lsoda( x0, times, derivICBM1, parms ) 
 	}else {
 		forcings <- input[c("leaf","root","leaf14C","root14C")] 
 		lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings)		#head(res0 <- lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings))
@@ -95,10 +95,10 @@ solve.ICBM1 <- function(
 			,respF14CT=rowSums(res0[,c("respY_c14","respO_c14")])/rowSums(res0[,c("respY_c12","respO_c12")]) / modMeta$iR14CStandard
 			,auxF14C
 		)
-	### \code{\link[deSolve]{lsoda}  
+	### result of \code{\link{lsoda}}  
 }
 
-deriv.ICBM1 <- function(
+derivICBM1 <- function(
 	### Derivative function of Basic Colimitation model.
 	t, x, p 
 ){
@@ -146,7 +146,7 @@ deriv.ICBM1 <- function(
 	list(dx,a)
 }
 
-calcSteadyK.ICBM <- function(
+calcSteadyK_ICBM1 <- function(
 	### calculte decay constants from assuming steady state and remaining parameters
 	Ctot	##<< SOM C-Stock
 	,cY		##<< proportion of C-Stock in young pool

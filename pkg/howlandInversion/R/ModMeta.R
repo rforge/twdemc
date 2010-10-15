@@ -135,7 +135,7 @@ DLLfuncTest <- function (
 	return(out)
 }
 
-initState.SoilMod <- function(
+initStateSoilMod <- function(
 	### Creating initial state variables for Basic Colimitation submodel.
 	xc12 		
 	### numeric vector: 12C mass for each pool \cr
@@ -150,7 +150,7 @@ initState.SoilMod <- function(
 	### If it is a vector (nIsotopes), the same atomic ratio is assumed for all pools   
 	### If colnames/names are given they comprise code{modMeta$colNames}
 	### Default 1 is added for columns c12 and n15.
-	,modMeta	##<< model meta information, see \code{\link{modMeta.SoilMod_FS}}
+	,modMeta	##<< model meta information, see \code{\link{modMetaICBM1}}
 ){
 	# check arguments
 	rowNamesSOM <- modMeta$rowNames[ modMeta$rowNames != "R"]

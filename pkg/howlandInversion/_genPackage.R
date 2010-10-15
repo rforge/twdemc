@@ -6,18 +6,16 @@
 	#library(twMisc)
 	#library(snowfall)
 	library(twDEMC)
+	library(deSolve)
 	sfInit(parallel=TRUE,cpus=4)
 	#library(inlinedocs) #with twMisc
 	
 	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
 	data( list=twStripFileExt(basename(Sys.glob(file.path("data","*.RData")))))
-	
-	dynFilename <- file.path("src",paste("howlandInversion", .Platform$dynlib.ext, sep = ""))
-	sfExport("dynFilename")
-	dyn.load(dynFilename)
-	sfClusterEval( dyn.load(dynFilename) )
-	#dyn.unload(dynFilename)
-	
+	source(file.path("inst","cluster","setupCluster.R"))
+	#mtrace(setupClusterHowlandDev)
+	setupClusterHowlandDev(pkgDir = ".")
+
 	twUtestF()
 	sfInit(parallel=FALSE)
 	twUtestF()
@@ -37,11 +35,13 @@
 
 .tmp.compile <- function(){
 	# compile and test dll on windows
-	sfClusterEval( dyn.unload(dynFilename) )
-	dyn.unload(dynFilename)
+	dynFilenameLocal <- file.path("src",paste("howlandInversion", .Platform$dynlib.ext, sep = ""))
+	sfClusterEval( dyn.unload(dynFilenameLocal) )
+	dyn.unload(dynFilenameLocal)
 	system("R CMD SHLIB -o src/howlandInversion.dll src/icbm1.c src/rc_helpers.c")
-	dyn.load(dynFilename)
-	sfClusterEval( dyn.load(dynFilename) )
+	dyn.load(dynFilenameLocal)
+	sfExport("dynFilenameLocal")
+	sfClusterEval( dyn.load(dynFilenameLocal) )
 	
 	#needs to be done on host linux machine (pc026):
 	system("rm src/*.o")
