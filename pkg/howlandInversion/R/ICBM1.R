@@ -155,6 +155,7 @@ calcSteadyK_ICBM1 <- function(
 ){
 	kY = iY/(cY*Ctot)
 	kO = (iY*h)/((1-cY)*Ctot)
-	c(kY,kO)
-	### named numeric vector with components kY and kO
+	cbind(kY,kO)
+	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
 }
+

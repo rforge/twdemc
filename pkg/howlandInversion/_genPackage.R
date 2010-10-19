@@ -51,6 +51,11 @@
 	#system("R CMD SHLIB src/icbm1.c src/rc_helpers.c")
 }
 
+.tmp.installCluster <- function(){
+	# install from repository
+	install.packages("twDEMC", repos="http://R-Forge.R-project.org")
+}
+
 
 
 

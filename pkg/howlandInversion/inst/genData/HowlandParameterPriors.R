@@ -10,8 +10,9 @@ parms = parms0 = within( list(), {
 		tLagRoot=5	##<< time lag between C-fixation and root turnover
 		kY=2.4		##<< decay constant
 		kO=0.1		
-		h=0.2		##<< humification coefficient
-		cY=0.2		##<< initial proportion of total C in young pool
+		h=0.01		##<< humification coefficient
+		cY=0.1		##<< initial proportion of total C in young pool
+		iROLayerCalcRelErr = 0.01 #1% error of reconstruction of O-Layer iR-ratio
 	})	
 		
 #-------------- a priori knowlege about the parameters ----------
@@ -22,8 +23,8 @@ parmsBounds = list(
 		,tLagRoot = parms$tLagRoot * c(1,3)
 		,kY = parms$kY *c(1,1000) 
 		,kO = parms$kO *c(1,1000)
-		,h = c(parms$h, 0.8)
-		,cY= c(parms$cY, 0.8)
+		,h = c(parms$h, 0.977)
+		,cY= c(parms$cY, 0.965)
 		)
 #which(sapply(parmsBounds,length)!=2)
 		
@@ -43,7 +44,13 @@ varDistr[c("h","cY")] <- "logitnorm" #logit-normal (0,1)
 
 #----------------- calculate the standard mu and sd at normal scale from quantiles
 #mtrace(twQuantiles2Coef)
+#mtrace(
 parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb )
+
+# do the flattest logitnormal distribution possible for cY and h
+parDistr$mu[c("cY","h")] <-0
+parDistr$sigmaDiag[c("cY","h")] <- twSigmaLogitnorm(unlist(parms0[c("cY","h")]))[,2]
+
 
 HowlandParameterPriors <- list(
 	parDistr=parDistr

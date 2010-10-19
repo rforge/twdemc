@@ -54,6 +54,8 @@ of.howlandSteady <- function(
 	, doStopOnError=FALSE					##<< by default -Inf is returned on error, set to TRUE for debugging
 	, includeStreams=c(names(obs),"parms") 	##<< character vector of subset of data streams to include
 	, delta14Catm=c14Constants$delta14Catm	##<< 14C signature of the atmosphere: signature of litter inputs after a time lag.
+	, fCalcIROLayer=calcIROLayer			##<< function to calculate iRofO-Layer
+	#, facPrior=1							##<< factor to scale prior information (we have only weak data), detoriates the prior for transformed data so that DEMC does not work any more
 ){
 	# ofb_FS.hamer
 	##details<< objective function for fitting SoilMod_FS to respRate timeseries of Hamer incubation experiment of both control, amendm and c14obs
@@ -101,7 +103,7 @@ of.howlandSteady <- function(
 	#check parameters outside range before calculating model
 	if( any(!is.finite(popt)))	return( misfitFail(errmsg="Encountered nonfinite parameters.") )	#exponent function produced non-finite numbers
 	
-	if( "parms" %in% includeStreams) misfit["parms"] = t(diff.p) %*% poptDistr$invSigma %*% diff.p
+	if( "parms" %in% includeStreams) misfit["parms"] =  t(diff.p) %*% poptDistr$invSigma %*% diff.p
 	
 	##details<<
 	## Supports a multi-step Metropolis descision. If \code{logLikAccept["parms"]} is provided, 
@@ -121,6 +123,8 @@ of.howlandSteady <- function(
 	}
 	
 	obsadj <- if( is.function(fCalcBiasedObs) ) do.call( fCalcBiasedObs, c(list(obs,padj),argsFCalcBiasedObs)) else obs	# biased observation data
+	# assume steady state: litter inputs = respiration, recalculate root input
+	input$root[1,"obs"] <- obsadj$respCum[1,"obs"] - input$leaf[1,"obs"]
 	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(input,padj),argsFCalcBiasedInput)) else input	# biased input data
 	
 	#initial states for all three treatments
@@ -154,9 +158,17 @@ of.howlandSteady <- function(
 	
 	resSolve <- try( model$fSolve(x0=x0, times=times, parms=padj, input=inputadj, delta14Catm=delta14Catm, modMeta=model$modMeta, ...) )
 	if( 0<length(errmsg<-checkModelErr(resSolve))) return( misfitFail(errmsg=errmsg))
+	# estimate isotopic ratio of O-Layer
+	resT <- resSolve	# calculate for all years
+	iROLayer <- fCalcIROLayer(
+		somStockMineral = obsadj$somStock[1,2]-obsadj$somOStock[1,2]
+		,somStock = resT[,"cStock",drop=FALSE]
+		,irS = resT[,"F14CT",drop=FALSE]
+		,irM = resSolve[1,"F14C_O"]	#assume equals slow pool at beginning of the observation
+	)
 	if( "respCum" %in% includeStreams ){
 		resT <- resSolve[ resSolve[,1] %in% obsadj$respCum[,"times"], ,drop=FALSE]	
-		misfit["respCum"] <- sum( ((resT[,"R_c12"]-obsadj$respCum[,"obs"])/obsadj$respCum[,"sdObs"])^2 )
+		misfit["respCum"] <- sum( ((resT[,"R_c12"]/diff(range(times))-obsadj$respCum[,"obs"])/obsadj$respCum[,"sdObs"])^2 )
 	}
 	if( "respFM" %in% includeStreams ){
 		resT <- resSolve[ resSolve[,1] %in% obsadj$respFM[,"times"], ,drop=FALSE]	
@@ -167,19 +179,15 @@ of.howlandSteady <- function(
 		misfit["somStock"] <- sum( ((resT[,"cStock",drop=FALSE]-obsadj$somStock[,"obs"])/obsadj$somStock[,"sdObs"])^2 )
 	}
 	if( "somOFM" %in% includeStreams ){
-		# mixing model irS = (1-cM)*irO + cM*irM)
-		#    irO = (irS - cM*irM)/(1-cM)	
-		# 	 cM: proportion of mineral soil to entire = (somStockMineral)/somStock
-		#	 irM: isotopic ratio of mineral soil: assume initial of old pool
-		resT <- resSolve[ resSolve[,1] %in% obsadj$somOFM[,"times"], ,drop=FALSE]	
-		somStockMineral <- obsadj$somStock[1,2]-obsadj$somOStock[1,2]
-		somStock <- resT[,"cStock",drop=FALSE] 
-		ifM <- x0
-		cM <- somStockMineral/somStock
-		irS <- resT[,"F14CT",drop=FALSE]
-		irM <- resSolve[1,"F14C_O"]
-		irO <- (irS - cM*irM)/(1-cM)
-		misfit["somOFM"] <- sum( ((irO-obsadj$somOFM[,"obs"])/obsadj$somOFM[,"sdObs"])^2 )
+		#-- wrong assumption c14 old pool does not change: assumption mineral=old pool
+		iROLayerObsYears <- iROLayer[ resSolve[,1] %in% obsadj$somOFM[,"times"], ,drop=FALSE]
+		# add 10% uncertainty due to reconstruction of iRO
+		misfit["somOFM"] <- sum( ((iROLayerObsYears-obsadj$somOFM[,"obs"])/(obsadj$somOFM[,"sdObs"]+padj$iROLayerCalcRelErr*obsadj$somOFM[,"obs"]))^2 )
+		#-- does not work: assume old pool is mineral soil yong pools is organic layer
+		#resT <- resSolve[ resSolve[,1] %in% obsadj$somOFM[,"times"], ,drop=FALSE]	
+		#misfit["somOFM"] <- sum( ((resT[,"F14C_Y",drop=FALSE]-obsadj$somOFM[,"obs"])/obsadj$somOFM[,"sdObs"])^2 )
+		#-- assumption: somOFM = somFM (same as fraction of total soil)
+		#misfit["somOFM"] <- sum( ((resT[,"F14CT",drop=FALSE]-obsadj$somOFM[,"obs"])/obsadj$somOFM[,"sdObs"])^2 )
 	}
 	if( "somOStock" %in% includeStreams ){
 		# not modelled
@@ -196,8 +204,37 @@ of.howlandSteady <- function(
 	attr(rLogLik,"parms") = padj	# includes calibrations of parameters (F0 to maximum etc)
 	attr(rLogLik,"obs") = obsadj	# includes calibrations of parameters (F0 to maximum etc)
 	attr(rLogLik,"input") = inputadj	# includes calibrations of parameters (F0 to maximum etc)
+	attr(rLogLik,"iROLayer") = iROLayer 
 	#t(diff.p) %*% poptDistr$invSigma %*% diff.p
 	attr(rLogLik,"logLikParms") = logLikParms  
 	#if( any(rLogLik == Inf) ) stop("InfError: rLogLik=",rLogLik)
 	rLogLik
 }
+
+
+calcIROLayer <- function(
+	### Calculate the isotopic ratio of the O-Layer.
+	somStockMineral		##<< numeric scalar: the CStock of the mineral soil (assumed not to change)
+	, somStock			##<< numeric vector: the CStock of the total soil
+	, irS				##<< isotopic ratio of the total SOM carbon
+	, irM				##<< isotopic ratio of the mineral SOM carbon (assumed not to change during this time)
+){
+	# mixing model irS = (1-cM)*irO + cM*irM)
+	#    irO = (irS - cM*irM)/(1-cM)	
+	# 	 cM: proportion of mineral soil to entire = (somStockMineral)/somStock
+	#	 irM: isotopic ratio of mineral soil: assume initial of old pool
+	#ifM <- x0
+	cM <- somStockMineral/somStock
+	irO <- (irS - cM*irM)/(1-cM)
+	### numeric vector
+}
+attr(calcIROLayer,"ofCall") <- function(){
+	resT <- resSolve	# calculate for all years
+	iROLayer <- calcIROLayer(
+		somStockMineral = obsadj$somStock[1,2]-obsadj$somOStock[1,2]
+		,somStock = resT[,"cStock",drop=FALSE]
+		,irS = resT[,"F14CT",drop=FALSE]
+		,irM = resSolve[1,"F14C_O"]	#assume equals slow pool
+	)
+}
+
