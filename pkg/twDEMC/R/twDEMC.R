@@ -252,7 +252,7 @@ twDEMCInt <- function(
 		Tprop <- ctrl$Tprop[ .getResFLogLikNames(resFLogLikX), ,drop=FALSE]
 		if( nrow(Tprop) != nrow(resFLogLikX))
 			stop("ctrl$Tprop must have a named entry for each component of fLoglik")
-		Tprop = apply(Tprop,2,function(Tprop){Tprop / max(Tprop)}) #scale to maximum 1 per population
+		Tprop[] = apply(Tprop,2,function(Tprop){Tprop / max(Tprop)}) #scale to maximum 1 per population
 	}
 
 	argsDEMCStep = list(
@@ -315,6 +315,7 @@ twDEMCInt <- function(
 			, quote=TRUE )
 		chainState <- resDo[ names(chainState) ]
 		
+
 		#XXTODO: adapt acceptPos 
 		#row in acceptance Window to record acceptance, if exceeds window, copy second part to first (rewind)
 		acceptPos0 <- aThinWinW + (iThin0 %% aThinWinW)
@@ -800,6 +801,7 @@ attr(twDEMCInt,"ex") <- function(){
 					}else TRUE
 				if(accepted){
 					x <- xProp
+					logLikAcc <- logLikProp
 					resFLogLikAcc <- res
 				}				
 			} # if( acceptedFixed
@@ -815,7 +817,7 @@ attr(twDEMCInt,"ex") <- function(){
 	### \item{accepted}{boolean scalar: if step was accepted}
 	### \item{x}{numeric vector: current position in parameter space}
 	### \item{resFLogLikAcc}{numeric vector: result components of fLogLik for current position }
-	### \item{logLikAcc}{numeric vector: summed fLogLik for proposal}
+	### \item{logLikAcc}{numeric vector: summed fLogLik for current accepted position}
 	### \item{xProp}{numeric vector: proposal}
 	### \item{resFLogLikProp}{numeric vector: result components of fLogLik for proposal }
 	### \item{logLikProp}{numeric vector: summed fLogLik for proposal}

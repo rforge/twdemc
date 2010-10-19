@@ -33,7 +33,7 @@
 .tmp.f <- function(){
 	# generate documentation	
 	library(inlinedocs)
-	unlink( "man", recursive=TRUE)	# take care, entire man directory deleted
+	unlink( file.path("man","*.Rd"))	
 	package.skeleton.dx(".")
 	file.copy( Sys.glob(file.path("inst","genData","*.Rd")), "man" )	# copy descriptions of data
 	unlink(file.path("man","twDEMC.Rd"))   # else overwrites alias twDEMC to twDEMCInt 

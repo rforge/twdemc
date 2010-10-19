@@ -1,7 +1,9 @@
 \name{twDEMC-internal}
 \title{Internal twDEMC objects}
+\alias{.calcRhat2}
 \alias{.calcTemperatedDiffLogLik}
 \alias{.checkConvergenceGelmanPops}
+\alias{.detrendMatrix}
 \alias{.doDEMCStep}
 \alias{.doDEMCSteps}
 \alias{.generateXPropThin}
