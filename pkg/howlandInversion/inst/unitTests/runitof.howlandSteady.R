@@ -9,7 +9,7 @@
 
 test.ofHowland <- function(){
 	parms0 <- HowlandParameterPriors$parms0
-	poptnames <- c("h","cY")
+	poptnames <- c("kY","kO")
 	poptDistr <- twConstrainPoptDistr(poptnames, HowlandParameterPriors$parDistr)
 	model <- list(
 		modMeta=modMetaICBM1()

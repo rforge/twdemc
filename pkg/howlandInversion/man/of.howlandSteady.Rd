@@ -3,7 +3,7 @@
 \title{of howlandSteady}
 \description{Objective function for comparing against Howland data, assuming constant input and steady state C-stocks, which determines k-Values.}
 \usage{
-of.howlandSteady(normpopt, logLikAccept = numeric(0), metropolisStepTemp = structure(rep(1, length(logLikAccept)), names = names(logLikAccept)), ..., model, poptDistr, obs = Howland14C$obsNutrientSite, times = 1950:2007, input = Howland14C$litter, parms = HowlandParameterPriors$parms0, fCalcBiasedObs = NULL, argsFCalcBiasedObs = list(), fCalcBiasedInput = meanInput, argsFCalcBiasedInput = list(), popt.names = names(normpopt), fTransOrigPopt = transOrigPopt.default, doStopOnError = FALSE, includeStreams = c(names(obs), "parms"), delta14Catm = c14Constants$delta14Catm, fCalcIROLayer = calcIROLayer)
+of.howlandSteady(normpopt, logLikAccept = numeric(0), metropolisStepTemp = structure(rep(1, length(logLikAccept)), names = names(logLikAccept)), ..., model, poptDistr, obs = Howland14C$obsNutrientSite, times = 1950:2007, input = Howland14C$litter, parms = HowlandParameterPriors$parms0, fCalcBiasedObs = NULL, argsFCalcBiasedObs = list(), fCalcBiasedInput = NULL, argsFCalcBiasedInput = list(), popt.names = names(normpopt), fTransOrigPopt = transOrigPopt.default, doStopOnError = FALSE, includeStreams = c(names(obs), "parms"), fFmAtmosphere = fmAtmosphere, fCalcIROLayer = calcIROLayer, fCalcSteadyPars = calcSteadyHcY_ICBM1)
 }
 \arguments{
   \item{normpopt}{numeric vector: the point in normal parameter space}
@@ -28,14 +28,16 @@ Parameters order must correspond to normpopt. Use \code{\link{twConstrainPoptDis
   \item{parms}{default parameters (for the non-optimized ones)}
   \item{fCalcBiasedObs}{function(obs,padj,...){obs} possibility to account for bias and to optimize bias parameters}
   \item{argsFCalcBiasedObs}{further arguments to fCalcBiasedObs}
-  \item{fCalcBiasedInput}{function(input,padj,...){obs} possibility to account for bias and to optimize bias parameters}
+  \item{fCalcBiasedInput}{function(input,padj,...){obs} possibility to account fluctuations}
   \item{argsFCalcBiasedInput}{further arguments to fCalcBiasedInput}
   \item{popt.names}{names of the parameters. They are sometimes stripped by fitting algorithms.}
   \item{fTransOrigPopt}{function that translates parameters from normal to original scale}
   \item{doStopOnError}{by default -Inf is returned on error, set to TRUE for debugging}
   \item{includeStreams}{character vector of subset of data streams to include}
-  \item{delta14Catm}{14C signature of the atmosphere: signature of litter inputs after a time lag.}
+  \item{fFmAtmosphere}{
+}
   \item{fCalcIROLayer}{function to calculate iRofO-Layer}
+  \item{fCalcSteadyPars}{function that adjusts parameters to steady state}
 }
 \details{objective function for fitting SoilMod_FS to respRate timeseries of Hamer incubation experiment of both control, amendm and c14obs
 inclDataSeries can be set to a subset of 1:3 corresponding to control, amendment_large, and amendment_small respectively to save computing time

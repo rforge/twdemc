@@ -8,6 +8,7 @@
 	library(twDEMC)
 	library(deSolve)
 	sfInit(parallel=TRUE,cpus=4)
+	library(debug)
 	#library(inlinedocs) #with twMisc
 	
 	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
@@ -17,6 +18,9 @@
 	setupClusterHowlandDev(pkgDir = ".")
 
 	twUtestF()
+	twUtestF("ICBM1")
+	twUtestF("ICBM1", "test.steadyStateHowland" )
+	twUtestF("of.howlandSteady")
 	sfInit(parallel=FALSE)
 	twUtestF()
 	

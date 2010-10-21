@@ -22,6 +22,27 @@ test.calcLagged14CSeries <- function(){
 	checkEqualsNumeric( delta2iR14C(delta14Catm$delta14C[ delta14Catm$yr==1996-2])*6/c14Constants$iR14CStandard, res[6])
 }
 
+test.calcSteadyHcY_ICBM1 <- function(){
+	p0 <- list(
+		kY=1
+		,kO=1/30
+		,iY=480
+		,Ctot=1010
+		,h=NA
+		,cY=NA
+	)
+	p1 <- with(p0, {calcSteadyHcY_ICBM1(Ctot=Ctot,iY=iY,parms=p0)})
+	#p0[c("h","cY")]
+	#attach(p1)
+	with(p1,{
+		checkEqualsNumeric( iY, kY*cY*Ctot )	
+		checkEqualsNumeric( h*iY, kO*(1-cY)*Ctot )	
+	})
+	#detach()
+	p2 <- with(p1, {calcSteadyK_ICBM1(Ctot=Ctot,iY=iY,parms=p1)})
+	checkEqualsNumeric( unlist(p1[c("kY","kO")]), unlist(p2[c("kY","kO")]) )
+}
+
 test.decay <- function(){
 	# unit is tC/ha
 	mm <- modMetaICBM1()
@@ -52,7 +73,6 @@ test.decay <- function(){
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input0
-		,delta14Catm=delta14Catm
 		,useRImpl=TRUE
 	)
 	#colnames(res)
@@ -65,7 +85,6 @@ test.decay <- function(){
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input0
-		,delta14Catm=delta14Catm
 		,useRImpl=FALSE
 	)
 	
@@ -102,7 +121,6 @@ test.constInput <- function(){
 		x0=x0,	times=times
 		,parms=parms0
 		,input=input1
-		,delta14Catm=delta14Catm
 	)
 	#colnames(res)
 	matplot(res[,"time"], res[,c("inputLeaf_c12","inputLeaf_c14","inputRoot_c12","inputRoot_c14")], type="l" )
@@ -114,7 +132,7 @@ test.constInput <- function(){
 
 
 
-test.steadStateHowland <- function(){
+test.steadyStateHowland <- function(){
 	data(Howland14C)
 	
 	# unit is tC/ha
@@ -131,7 +149,7 @@ test.steadStateHowland <- function(){
 	Ctot <- obs$somStock[1,2]
 	input <- lapply(Howland14C$litter, "[", ,1:2, drop=FALSE)
 	sumInput <- sum(sapply(input,"[",2))
-	parms0[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=Ctot,cY=parms0$cY,h=parms0$h,iY=sumInput)
+	parms0 <- calcSteadyHcY_ICBM1(Ctot=Ctot,iY=sumInput,parms=parms0)
 	yr0 <- 1940
 	yrEnd <- 2007
 	times <- yr0:yrEnd
@@ -141,7 +159,7 @@ test.steadStateHowland <- function(){
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
 	#mtrace(initStateSoilMod)
-	x0 <- initStateICBM1( xc12=Ctot*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	x0 <- initStateICBM1( xc12=as.vector(Ctot*c(parms0$cY,(1-parms0$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
 	#mtrace(derivICBM1)
 	#mtrace(solveICBM1)
@@ -149,7 +167,6 @@ test.steadStateHowland <- function(){
 		x0=x0,	times=times
 		,parms=parms0
 		,input=input
-		,delta14Catm=delta14Catm
 		,useRImpl=TRUE
 	))
 	#colnames(res)
@@ -167,7 +184,6 @@ test.steadStateHowland <- function(){
 		x0=x0,	times=yr0:2007	
 		,parms=parms0
 		,input=input
-		,delta14Catm=delta14Catm
 		,useRImpl=FALSE
 	))
 	checkEqualsNumeric( resR, resc, tol=1e-5 )
@@ -178,7 +194,6 @@ test.steadStateHowland <- function(){
 				x0=x0,	times=times
 				,parms=parms0
 				,input=input
-				,delta14Catm=delta14Catm
 				,useRImpl=TRUE
 		)
 		Rprof(NULL)
@@ -189,7 +204,6 @@ test.steadStateHowland <- function(){
 				x0=x0,	times=times
 				,parms=parms0
 				,input=input
-				,delta14Catm=delta14Catm
 				,useRImpl=FALSE
 			)
 		Rprof(NULL)})

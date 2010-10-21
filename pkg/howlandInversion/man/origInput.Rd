@@ -1,9 +1,9 @@
-\name{meanInput}
-\alias{meanInput}
-\title{meanInput}
-\description{provide only the mean of the litter fall}
+\name{origInput}
+\alias{origInput}
+\title{origInput}
+\description{provide and unperturbed data series, neglect the standard deviation}
 \usage{
-meanInput(input, padj)
+origInput(input, padj)
 }
 \arguments{
   \item{input}{list of datastream matrices with first two columns time and value}

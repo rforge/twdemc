@@ -15,7 +15,10 @@ precision <- precisionSpatHet
 Howland14C <- list(
 	obsNutrientSite = list( 
 		##describe<<
-		respCum = cbind(times = 2007, obs = 365, sdObs = 30)	##<< cumulated carbon in respiration from Reservour-C (non-recent C) in gC/m2
+		respCum = cbind(
+			times = c(1997,1998,1999,2000,2001,2002,2003,2007)
+			, obs = c(305,380,375,365,365,375,405,365)
+			, sdObs = rep(30,8))	##<< cumulated carbon in respiration from Reservour-C (non-recent C) in gC/m2/yr
 		,respFM = {tmp=delta2FM(127.5); cbind(times=1999, obs = tmp, sdObs = precision*tmp)} ##<< fraction modern of respiration	
 		,somStock = cbind(times = 2007, obs = 1010, sdObs = 100) #AP not given!	##<< C-stock in SOM gC/m2
 		,somOStock = cbind(times = 2007, obs = 920, sdObs = 100) #AP not given!	##<< C-stock in O-horizon gC/m2

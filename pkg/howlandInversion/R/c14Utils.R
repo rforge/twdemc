@@ -1,16 +1,5 @@
 data(delta14Catm)
 
-### Constants used with 14C calculations.
-c14Constants <- list(
-	#iR14CUnit = 1e-12
-	#,iR14CStandard = 1.176	# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968),
-	iR14CUnit = 1.176*1e-12		##<< atomic ratio of standard, i.e. output in fraction modern
-	,iR14CStandard = 1			# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968), 
-	,yr14CStandard=1950
-	,lambda=1/8267	#radioactive decay constant
-	,delta14Catm=delta14Catm
-)
-
 calcLagged14CSeries <- function(
 	### Calculate the 14C flux by applying the atmospheric 14C concentration with a time lag.
 	inputYr			##<< the year of the carbon flux 
@@ -84,3 +73,19 @@ attr(decayIR14C,"ex") <- function(){
 	yr=seq(-10000,2000,length.out=30)
 	plot( decayIR14C(yr)~yr )
 }
+
+### Constants used with 14C calculations.
+c14Constants <- list(
+	#iR14CUnit = 1e-12
+	#,iR14CStandard = 1.176	# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968),
+	iR14CUnit = 1.176*1e-12		##<< atomic ratio of standard, i.e. output in fraction modern
+	,iR14CStandard = 1			# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968), 
+	,yr14CStandard=1950
+	,lambda=1/8267	#radioactive decay constant
+	,delta14Catm=delta14Catm
+	,fmAtm=cbind(yr=delta14Catm[,"yr"], fm14C=delta2FM(delta14Catm[,"delta14C"]))	##<< fraction modern of the athmosphere
+)
+
+### Fraction modern of the atmosphere for year given as a real number
+fmAtmosphere <- approxfun( c14Constants$fmAtm[,"yr"], c14Constants$fmAtm[,"fm14C"], rule=2)
+

@@ -47,14 +47,14 @@ initStateICBM1 <- function(
 }
 #twUtestF("ICBM1",test="init")
 
-
+#mtrace(solveICBM1)
 solveICBM1 <- function(
 	### solve the ODE of \code{\link{derivICBM1}}
 	x0		##<< numeric vector or matrix at t=0
 	,times	##<< times at which explicit estimates for y are desired. The first value in times must be the initial time.
 	,parms	##<< list of model parameters
 	,input  ##<< list with dataframes entries leaf and root each with columns yr and obs
-	,delta14Catm=c14Constants$delta14Catm	##<< dataframe (columns yr, delta14C) of absolute delta14C of the atmosphere
+	,fFmAtmosphere=fmAtmosphere  
 	,modMeta=modMetaICBM1()	##<< metaInformation from model. Pass for efficiency or when using different units. 
 	,useRImpl=FALSE		##<< flag indicating to use the R implementation instead of C implementation.
 ){
@@ -69,8 +69,8 @@ solveICBM1 <- function(
 	   approxfun(x=input$root[,1], y=input$root[,2], method="linear", rule=2)
 	#for 14C we need an input each year, because it changes with atmospheric 14c-Activity
 	iTimes <- seqRange( range(times), by=1 )
-	input$leaf14C <- cbind( yr=iTimes, obs=calcLagged14CSeries(lag=parms$tLagLeaf, inputValue=fLeaf12C(times), inputYr=times, delta14Catm=delta14Catm, iR14CStandard=modMeta$iR14CStandard)) 
-	input$root14C <- cbind( yr=iTimes, obs=calcLagged14CSeries(lag=parms$tLagRoot, inputValue=fRoot12C(times), inputYr=times, delta14Catm=delta14Catm, iR14CStandard=modMeta$iR14CStandard)) 
+	input$leaf14C <- cbind( yr=iTimes, obs=fLeaf12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagLeaf) ) 
+	input$root14C <- cbind( yr=iTimes, obs=fRoot12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagRoot) ) 
 	res0 <- if( useRImpl ){ 
 		#lsoda( x0, times, derivICBM1, parms, atol = 0 )
 		# the forcing functions; rule = 2 avoids NaNs in interpolation
@@ -149,13 +149,55 @@ derivICBM1 <- function(
 calcSteadyK_ICBM1 <- function(
 	### calculte decay constants from assuming steady state and remaining parameters
 	Ctot	##<< SOM C-Stock
-	,cY		##<< proportion of C-Stock in young pool
-	,h		##<< humification coefficient
 	,iY		##<< steady state input
+	,parms	##<< list with entries kY,kO and cY and h
 ){
-	kY = iY/(cY*Ctot)
-	kO = (iY*h)/((1-cY)*Ctot)
-	cbind(kY,kO)
+	padj <- parms
+	padj$kY = iY/(padj$cY*Ctot)
+	padj$kO = (iY*padj$h)/((1-padj$cY)*Ctot)
+	padj
 	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
 }
+
+calcSteadyK_ICBM1_mat <- function(
+	### calculte decay constants from assuming steady state and remaining parameters
+	Ctot	##<< SOM C-Stock
+	,iY		##<< steady state input
+	,parms	##<< named numeric vector with entries kY,kO and cY and h
+){
+	padj <- parms
+	padj[,"kY"] = iY/(padj[,"cY"]*Ctot)
+	padj[,"kO"] = (iY*padj[,"h"])/((1-padj[,"cY"])*Ctot)
+	padj
+	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
+}
+
+
+calcSteadyHcY_ICBM1 <- function(
+	### calculte cY and h from assuming steady state and decay constants
+	Ctot	##<< SOM C-Stock
+	,iY		##<< steady state input
+	,parms	##<< named numeric vector with entries kY,kO and cY and h
+){
+	padj <- parms
+	padj$cY = cY = iY/padj$kY/Ctot
+	padj$h = padj$kO*(1-cY) / (padj$kY*cY)
+	padj
+	### parms with entries cY and h replaced
+}
+
+calcSteadyHcY_ICBM1_mat <- function(
+	### calculte cY and h from assuming steady state and decay constants
+	Ctot	##<< SOM C-Stock
+	,iY		##<< steady state input
+	,parms	##<< named numeric matrix with columns kY,kO and cY and h
+){
+	padj <- parms
+	padj[,"cY"] = cY = iY/padj[,"kY"]/Ctot
+	padj[,"h"] = padj[,"kO"]*(1-cY) / (padj[,"kY"]*cY)
+	padj
+	### parms with columns cY and h replaced
+}
+
+
 

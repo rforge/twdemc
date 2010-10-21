@@ -2,22 +2,61 @@ initState.howland.ICBM1SteadyState  <- function(
 	### Initial states from parms for ICBM1 in steady state
 	padj		##<< must contain cY, kO, Ctot, yr0
 	,modMeta=modMetaICBM1()
-	,delta14Catm=c14Constants$delta14Catm
+	,fFmAtmosphere=fmAtmosphere
 ){
-	iRNew <- delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
+	iRNew <- fFmAtmosphere(padj$yr0) #delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
 	tvrOld <- 1/padj$kO	#1000 yr old carbon
-	iROld <- decayIR14C( yr=padj$yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
+	iROld <- decayIR14C( yr=padj$yr0, iR0=fFmAtmosphere(1950-tvrOld), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	#mtrace(initStateSoilMod)
-	x0 <- initStateICBM1( xc12=padj$Ctot*c(padj$cY,(1-padj$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	x0 <- initStateICBM1( xc12=as.vector(padj$Ctot*c(padj$cY,(1-padj$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 }
 
-meanInput <- function(
+origInput <- function(
 	### provide and unperturbed data series, neglect the standard deviation
 	input	##<< list of datastream matrices with first two columns time and value 
 	,padj	##<< parameters
 ){
-	lapply(input, "[", ,1:2, drop=FALSE)
+	input
 }
+
+meanInput <- function(
+	### provide only the mean of the litter fall
+	input	##<< list of datastream matrices with first two columns time and value 
+	,padj	##<< parameters
+){
+	lapply(input, function(comp){ cbind(times=comp[1,"times"], obs=mean(comp[,"obs"],na.rm=TRUE), sdObs=sqrt(sum(mean(comp[,"sdObs"]^2)))) })
+}
+
+meanInputFluctuating <- function(
+	### provide mean + normal year to year error
+	input	##<< list of datastream matrices with first two columns time and value 
+	,padj	##<< parameters
+){
+	times <- 1900:2010
+	#generate correlated 2D random number
+	#d <- diag(unlist(lapply(input,"[",,"sdObs")))
+	m <- meanInput(input,padj)
+	sd <- mean(input$leaf[,"sdObs"])* c(1,input$root[1,"obs"]/input$leaf[1,"obs"])
+	sdMat <- diag( sd, nrow=length(sd) )
+	sigma =  sdMat %*% matrix(c(1,0.8,0.8,1), ncol=2) %*% t(sdMat) 
+	r <- rmvnorm(length(times),sigma=sigma)
+	colnames(r) <- names(m)
+	res <- lapply(names(m), function(compName){ cbind(times=times
+				, obs=pmax(0, m[[compName]][1,"obs"]+r[,compName])
+				, sdObs=mean(input[[compName]][,"sdObs"])
+			) })
+	names(res) <- names(m)
+	#plot( res$leaf[,2] ~ res$root[,2] )
+	res
+}
+attr(meanInputFluctuating,"ex") <- function(){
+	data(Howland14C)
+	str(tmp <- meanInputFluctuating( Howland14C$litter ))
+	plot( obs ~ times, data=tmp$leaf)
+	plot( tmp$leaf[,2] ~ tmp$root[,2] )
+}
+
+
 
 of.howlandSteady <- function(
 	### Objective function for comparing against Howland data, assuming constant input and steady state C-stocks, which determines k-Values.
@@ -47,14 +86,16 @@ of.howlandSteady <- function(
 	, parms=HowlandParameterPriors$parms0		##<< default parameters (for the non-optimized ones)
 	, fCalcBiasedObs=NULL			##<< function(obs,padj,...){obs} possibility to account for bias and to optimize bias parameters 
 	, argsFCalcBiasedObs=list()		##<< further arguments to fCalcBiasedObs
-	, fCalcBiasedInput=meanInput	##<< function(input,padj,...){obs} possibility to account for bias and to optimize bias parameters 
+	, fCalcBiasedInput=NULL			##<< function(input,padj,...){obs} possibility to account fluctuations 
 	, argsFCalcBiasedInput=list()	##<< further arguments to fCalcBiasedInput
 	, popt.names=names(normpopt)	##<< names of the parameters. They are sometimes stripped by fitting algorithms.
 	, fTransOrigPopt=transOrigPopt.default	##<< function that translates parameters from normal to original scale
 	, doStopOnError=FALSE					##<< by default -Inf is returned on error, set to TRUE for debugging
 	, includeStreams=c(names(obs),"parms") 	##<< character vector of subset of data streams to include
-	, delta14Catm=c14Constants$delta14Catm	##<< 14C signature of the atmosphere: signature of litter inputs after a time lag.
+	#, delta14Catm=c14Constants$delta14Catm	##<< 14C signature of the atmosphere: signature of litter inputs after a time lag.
+	, fFmAtmosphere=fmAtmosphere
 	, fCalcIROLayer=calcIROLayer			##<< function to calculate iRofO-Layer
+	, fCalcSteadyPars=calcSteadyHcY_ICBM1	##<< function that adjusts parameters to steady state
 	#, facPrior=1							##<< factor to scale prior information (we have only weak data), detoriates the prior for transformed data so that DEMC does not work any more
 ){
 	# ofb_FS.hamer
@@ -81,6 +122,8 @@ of.howlandSteady <- function(
 	logLikParms <- structure( -0.5 * as.vector(diff.p^2 %*% poptDistr$invSigma), names=names(normpopt) )
 	
 	resSolve <- NULL
+	obsadj <- obs
+	
 	misfitFail <- function(msg=NULL, errmsg=NULL){
 		if( doStopOnError & !is.null(errmsg) ) stop(errmsg)
 		if( !any(is.na(misfit)) ){
@@ -124,16 +167,23 @@ of.howlandSteady <- function(
 	
 	obsadj <- if( is.function(fCalcBiasedObs) ) do.call( fCalcBiasedObs, c(list(obs,padj),argsFCalcBiasedObs)) else obs	# biased observation data
 	# assume steady state: litter inputs = respiration, recalculate root input
-	input$root[1,"obs"] <- obsadj$respCum[1,"obs"] - input$leaf[1,"obs"]
-	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(input,padj),argsFCalcBiasedInput)) else input	# biased input data
+	inputadj <- input
+	# here put the entire bias of difference to between litterfall and respiration to litterfall
+	inputadj$leaf[,"obs"] <- pmax(0,inputadj$leaf[,"obs"] + padj$biasDiffRespLitterfall)
+	#adjust root input by a fraction so that mean of root+leaf matches resp again
+	fRoot <- (mean(obsadj$respCum[,"obs"]) - mean(inputadj$leaf[,"obs"]))/mean(inputadj$root[,"obs"])
+	inputadj$root[,c("obs","sdObs")] <- inputadj$root[,c("obs","sdObs")]*fRoot   
+	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(inputadj,padj),argsFCalcBiasedInput)) else inputadj	# biased input data
 	
 	#initial states for all three treatments
-	padj$Ctot <- obs$somStock[1,2]
-	sumInput <- sum(sapply(inputadj,"[",1,2))
-	padj[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=padj$Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
+	padj$Ctot <- obsadj$somStock[1,2]		# needed in fInitState
+	iY <- sum(sapply(inputadj,"[",1,2))
+	padj <- fCalcSteadyPars( Ctot=padj$Ctot, iY=iY, parms=padj)
+	#padj[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=padj$Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
 	
 	padj$yr0 <- times[1]
-	x0 <- model$fInitState(padj, modMeta=model$modMeta, delta14Catm=delta14Catm)
+	#tmpf <- model$fInitState; mtrace(tmpf); model$fInitState<-tmpf
+	x0 <- model$fInitState(padj, modMeta=model$modMeta, fFmAtmosphere=fFmAtmosphere)
 	
 	checkModelErr <- function(resSolve){
 		if( inherits(resSolve, "try-error")){
@@ -156,7 +206,7 @@ of.howlandSteady <- function(
 		### side effect: misfit[1] is set to -Inf
 	}
 	
-	resSolve <- try( model$fSolve(x0=x0, times=times, parms=padj, input=inputadj, delta14Catm=delta14Catm, modMeta=model$modMeta, ...) )
+	resSolve <- try( model$fSolve(x0=x0, times=times, parms=padj, input=lapply(inputadj,"[",,1:2,drop=FALSE), fFmAtmosphere=fFmAtmosphere, modMeta=model$modMeta, ...) )
 	if( 0<length(errmsg<-checkModelErr(resSolve))) return( misfitFail(errmsg=errmsg))
 	# estimate isotopic ratio of O-Layer
 	resT <- resSolve	# calculate for all years
