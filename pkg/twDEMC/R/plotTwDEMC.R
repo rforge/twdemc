@@ -1,3 +1,54 @@
+plotMarginal2D <- function(
+	### Plot the 2D marginal Likelihood of a sample
+	smp			##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	,xCol=2		##<< index (column number or column name) of column for x ordinate
+	,yCol=3		##<< index (column number or column name) of column for y ordinate
+	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
+	, ...		##<< additional arguments to FUN 
+	, grains=20	 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
+	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
+	, col=rev(heat.colors(100))	##<< vector of colors
+){
+	##details<< 
+	## The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
+	## Within the bin the values are aggregated. By default the mean is calculated.
+	
+	##seealso<<  
+	## \code{\link{twDEMCInt}}
+	
+	##details<< 
+	## There are several plotting methods related to twDEMC run. \itemize{
+	## \item{ TODO: link methods  } 
+	## \item{ the Gelman criterion: this method  } 
+	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	##}
+	
+	if( length(grains)==1) grains=c(grains,grains)	
+	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol])
+	smpGrained[,1] <- {tmp<-cut2( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained[,2] <- {tmp<-cut2( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	#smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN )
+	smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN, ... )
+	names(smpMarginal) <- c("x","y","z")
+	levelplot(z~x*y, data=smpMarginal, col.regions=col, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2])
+}
+
+plotConditional2D <- function(
+	### Plot the 2D conditional profile-Likelihood of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.
+	smp			
+	,xCol
+	,yCol
+	,intCol=1
+	,...
+){
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
+	
+	plotMarginal2D(smp,xCol,yCol,intCol,FUN=max,...)
+}
+
+
 ggplotChainPopMoves <- function(
 	### Plot boxplots of the distribution of first and last fifth of steps for each population 
 	resB			##<< the twDEMC to examine
@@ -6,6 +57,10 @@ ggplotChainPopMoves <- function(
 	, doSort=TRUE	##<< if TRUE result $rLogLik is sorted
 ){
 	# ggplotChainPopMoves
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
+	
 	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
 	tmp1 <- melt(resB$rLogLik[iGen[1,1]:iGen[2,1],]); tmp1$pos="from"
@@ -58,6 +113,10 @@ plotChainPopMoves <-function(
 ){
 	##details<< 
 	## \code{\link{ggplotChainPopMoves}} gives nicer results, but this functions i faster.
+	
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
 	
 	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
 	#iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
@@ -122,10 +181,14 @@ plotThinned.mcmc.list <- function(
 	...
 ){
 	# plotThinned.mcmc.list
-	##seealso<<   
-	## \code{\link{subChains.twDEMC}}
+	
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
+	
 	##details<< 
 	## default coda plot for mcmc.list squeezes all variables in one window
+	
 	# before plotting, take only up to maxVars variables and thin so that each chain has no more than maxN entries
 	# may specify vars: the columns of x to plot
 	thinFac <- max(1, ceiling(nrow(x[[1]]) / maxN )) 
@@ -192,6 +255,10 @@ ggplotDensity.twDEMC <- function(
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
 	,doDispLogLik=TRUE	##<< include density of LogLikelihoods
 ){
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
+	
 	nPop = 	ncol(res$temp)
 	nChainsPop = ncol(res$rLogLik)%/%nPop
 	#thin result to about 500 cases per constrainted population, to save calculation time
@@ -256,6 +323,10 @@ ggplotDensity.poptDistr <- function(
 	,plotUpperQuantile=TRUE	##<< wheter to include upper quantile (set to FALSE if this inflates the displayed domain)
 	,doTransOrig=TRUE		##<< set to FALSE to display transform to normal scale
 ){
+	##seealso<<  
+	## \code{\link{plotMarginal2D}}
+	## \code{\link{twDEMCInt}}
+	
 	pRange = c(pMin,1-pMin)
 	pNames <- names(poptDistr$mu) 
 	#iPar=1
@@ -281,3 +352,6 @@ ggplotDensity.poptDistr <- function(
 	}
 	p6
 }
+
+
+

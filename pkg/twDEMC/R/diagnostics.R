@@ -21,8 +21,19 @@ checkConvergenceGelman <- function(
 	,rHatMin = 1.1		##<< rHat criterion, upper bound that is regarded as convergence 
 ){
 	# checkConvergenceGelman
+	
 	##details<< 
 	## see Gelman04 (twutz:Gelman04_3#Inference_and_assessing_convergence)
+	
+	##seealso<<  
+	## \code{\link{twDEMCInt}}
+	
+	##details<< 
+	## There are several methods to get diagnostics for a twDEMC run. \itemize{
+	## \item{ the Gelman criterion: this method  } 
+	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	##}
+	
 	l <- dim(res$parms)[2]
 	parms <- res$parms[ ,max(1,ceiling(l*burninFrac)):l, ]	# later part of all the chains
 	n <- dim(parms)[2]	# number of steps
@@ -76,3 +87,20 @@ checkConvergenceGelman <- function(
 	### all rl <= criterion for each chain
 }
 #mtrace( checkConvergenceGelman )
+
+getRLogLikQuantile <- function(
+	### Quantile of logLikelihood below which models are significantly different from the best model, i.e. parameterization
+	stackedSample				##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	,maxLogLik=max(stackedSample[,1])	##<< maximum logLik Likelihood
+	,df=ncol(stackedSample)-1	##<< degress of freedom: number of fitted parameters
+	,perc=0.95					##<< percentile of significance
+){
+	##seealso<<  
+	## \code{\link{checkConvergenceGelman}}
+	## \code{\link{twDEMCInt}}
+	
+	x2 <- qchisq(perc, df=df )
+	maxLogLik -x2/2
+	### numeric scalar: minimum Log-Likelihood below which models are significantly different 
+}
+

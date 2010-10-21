@@ -22,5 +22,6 @@ plotChainPopMoves(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogLi
 
 
 
-
+\seealso{\code{\link{plotMarginal2D}}
+\code{\link{twDEMCInt}}}
 

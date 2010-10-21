@@ -19,5 +19,6 @@ ggplotDensity.twDEMC(res, poptDistr = NULL, pMin = 0.05, doTransOrig = FALSE, do
 
 
 
-
+\seealso{\code{\link{plotMarginal2D}}
+\code{\link{twDEMCInt}}}
 

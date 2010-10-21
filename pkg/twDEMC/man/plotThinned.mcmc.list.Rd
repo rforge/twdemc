@@ -22,5 +22,6 @@
 
 
 
-\seealso{\code{\link{subChains.twDEMC}}}
+\seealso{\code{\link{plotMarginal2D}}
+\code{\link{twDEMCInt}}}
 

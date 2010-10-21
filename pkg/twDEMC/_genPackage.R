@@ -3,6 +3,7 @@
 # install.packages("inlinedocs")
 
 .tmp.f <- function(){
+	library(Hmisc)
 	library(twMisc)
 	library(twSnowfall)
 	library(debug)

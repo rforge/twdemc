@@ -50,6 +50,9 @@ twDEMCInt <- function(
 	## \item{ Transforming the results of twDEMC: \code{\link{subChains.twDEMC}}  }
 	## \item{ Transforming the parameter space: \code{\link{transOrigPopt.default}}  }
 	## \item{ Invoking fLoglik with proposal in a parallel load balanced way: \code{\link{twCalcLogLikPar}}  }
+	## \item{ Plotting routines: \code{\link{plotMarginal2D}}  }
+	## \item{ Calculating marginal aggregates: \code{\link{marginals1d}}  }
+	## \item{ Diagnostics for MCMC samples: \code{\link{checkConvergenceGelman}}  }
 	## }
 	## \code{\link{calcDEMCTemp}}
 	## \code{\link{logLikGaussian}}

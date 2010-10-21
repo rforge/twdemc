@@ -19,5 +19,6 @@ ggplotDensity.poptDistr(poptDistr, pMin = 0.005, parmsBounds = NULL, plotUpperQu
 
 
 
-
+\seealso{\code{\link{plotMarginal2D}}
+\code{\link{twDEMCInt}}}
 

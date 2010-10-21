@@ -3,6 +3,9 @@
 \alias{.calcRhat2}
 \alias{.calcTemperatedDiffLogLik}
 \alias{.checkConvergenceGelmanPops}
+\alias{.colNames}
+\alias{.cut2dim2}
+\alias{.cut2dim3}
 \alias{.detrendMatrix}
 \alias{.doDEMCStep}
 \alias{.doDEMCSteps}
