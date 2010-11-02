@@ -29,24 +29,31 @@ meanInput <- function(
 
 meanInputFluctuating <- function(
 	### provide mean + normal year to year error
-	input	##<< list of datastream matrices with first two columns time and value 
-	,padj	##<< parameters
+	obsLitter	##<< list of datastream matrices leaf and root with first three columns time, obs, and sdObs 
+	,padj		##<< parameters 
 ){
+	##details<< 
+	## generates a series of fluctuating input.
+	## Mean and sd of both leaf and root litter are calculated from provied obs and sdObs assuming independent errors
+	## Correlation between leaf and root input is taken from padj$corrLeafRootLitter. 
+	## If this is missing, correlation of 0.8 is assumed. 
 	times <- 1900:2010
 	#generate correlated 2D random number
 	#d <- diag(unlist(lapply(input,"[",,"sdObs")))
-	m <- meanInput(input,padj)
-	sd <- mean(input$leaf[,"sdObs"])* c(1,input$root[1,"obs"]/input$leaf[1,"obs"])
+	m <- meanInput(obsLitter,padj)
+	sd <- mean(obsLitter$leaf[,"sdObs"])* c(1,obsLitter$root[1,"obs"]/obsLitter$leaf[1,"obs"])
 	sdMat <- diag( sd, nrow=length(sd) )
-	sigma =  sdMat %*% matrix(c(1,0.8,0.8,1), ncol=2) %*% t(sdMat) 
+	corrLR <- if( 0<length(padj$corrLeafRootLitter) ) padj$corrLeafRootLitter else 0.8   
+	sigma =  sdMat %*% matrix(c(1,corrLR,corrLR,1), ncol=2) %*% t(sdMat) 
 	r <- rmvnorm(length(times),sigma=sigma)
 	colnames(r) <- names(m)
 	res <- lapply(names(m), function(compName){ cbind(times=times
 				, obs=pmax(0, m[[compName]][1,"obs"]+r[,compName])
-				, sdObs=mean(input[[compName]][,"sdObs"])
+				, sdObs=mean(obsLitter[[compName]][,"sdObs"])
 			) })
 	names(res) <- names(m)
 	#plot( res$leaf[,2] ~ res$root[,2] )
+	#plot( obs ~ times, res$leaf)
 	res
 }
 attr(meanInputFluctuating,"ex") <- function(){

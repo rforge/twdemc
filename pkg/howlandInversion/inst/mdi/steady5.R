@@ -1,4 +1,4 @@
-# same as steady 5 but stochastic year to year variability of litter fall
+# same as steady 4 but stochastic year to year variability of litter fall
 
 .tmp.init <- function(){
 	setupClusterHowlandDev(pkgDir = ".")
@@ -32,8 +32,16 @@
 	
 }
 
-.generateFluctuatingInput <- function(){
-	inputFluctuating <- inputF <- input <- meanInputFluctuating(Howland14C$litter)
+.generateFluctuatingInput <- function(
+){
+	set.seed(0815)
+	obsLitter = Howland14C$litter
+	padj=HowlandParameterPriors$parms0
+	filename=file.path("data","inputFluctuating.RData")
+	
+	#padj <- HowlandParameterPriors$parms0 
+	inputFluctuating <- inputF <- input <- meanInputFluctuating(obsLitter, padj=padj)	# in of_steadyState.R
+	# root input and associated sd will be adjusted in of.howlandSteady by a factor 
 	#inputF <- inputadj
 	plot(obs~times,data=inputF$leaf)
 	plot(obs~times,data=inputF$root)
@@ -41,22 +49,88 @@
 	mean(inputF$root[,"obs"]+inputF$leaf[,"obs"])
 	plot(inputF$root[,"obs"]~inputF$leaf[,"obs"])
 	
-	save(inputFluctuating,file=file.path("data","inputFluctuating.RData"))
+	save(inputFluctuating,file=filename)
+	
+	#second: try to decrease
+	relErr <- 0.05
+	obsLitter$leaf[,"sdObs"] <- mean(obsLitter$leaf[,"obs"])*relErr 
+	inputFluctuating <- inputF <- input <- meanInputFluctuating(obsLitter, padj=padj)	# in of_steadyState.R
+	plot(obs~times,data=inputF$leaf)
+	
+	filename2=file.path("data",paste("inputFluctuating_",relErr*100,".RData",sep=""))
+	save(inputFluctuating,file=filename2)
+
+	# generate entire series
+	inputFluctuatingEnsemble <- lapply(1:30, function(i){
+		inputFluctuating <- inputF <- input <- meanInputFluctuating(obsLitter, padj=padj)	# in of_steadyState.R
+	})
+	filename3=file.path("data",paste("inputFluctuatingEnsemble",relErr*100,".RData",sep=""))
+	save(inputFluctuatingEnsemble,file=filename3)
 }
 
 
 mdi.kLagLitterVar <- function(){
+	#.generateFluctuatingInput()
 	#from steady4-fit:
 	normpopt <- structure(c(1.31004509263524, 0.0276374254632283, 1.0829503483462,6.65177437410762, 38.9279591345289), .Names = c("kY", "kO", "tLagLeaf","tLagRoot", "biasDiffRespLitterfall"))
 	poptnames <- names(normpopt)
 	poptDistr <- argsFLogLik$poptDistr <- twConstrainPoptDistr(poptnames, HowlandParameterPriors$parDistr)
 	popt <- transOrigPopt(normpopt,poptDistr$trans)
 
-	load(file.path("data","inputFluctuating.RData"))	#inputFluctuating
+	#.generateFluctuatingInput
+	load(file.path("data","inputFluctuating.RData"))	#inputFluctuating, generated above
+	load(file.path("data","inputFluctuating_5.RData"))	#inputFluctuating, generated above
 	argsFLogLik$input <- inputFluctuating
 	sfExport("argsFLogLik")
 
 	# gradient method will not work with stochastic nature of litter inputs, which vary between runs
+	# instead of generating stochastic litter input, use several previously generated scenarios 
+	
+	#mtrace(of.howlandSteady)
+	#resOf <- sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik)	
+	fOpt <- function(normpopt){
+		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik ))
+	}
+	fOpt <- function(normpopt, argsFLogLik){
+		sum(do.call( of.howlandSteady, c(list(normpopt=normpopt),argsFLogLik)))
+	}
+	#fOpt(normpopt)
+	resOpt <- optim(normpopt, fOpt, method="Nelder-Mead", hessian = TRUE, control=list(maxit=1000, fnscale=-1), argsFLogLik=argsFLogLik)
+	#resOpt <- optim(normpopt, fOpt, method="BFGS", control=list(fnscale=-1), hessian = TRUE)
+	transOrigPopt(poptDistr$mu, HowlandParameterPriors$parDistr$trans[poptnames])
+	transOrigPopt(normpopt, HowlandParameterPriors$parDistr$trans[poptnames])
+	(tmp <- transOrigPopt(resOpt$par, HowlandParameterPriors$parDistr$trans[poptnames]))
+	#copy2clip(deparse(tmp))
+	#structure(c(1.31004509263524, 0.0276374254632283, 1.0829503483462,6.65177437410762, 38.9279591345289), .Names = c("kY", "kO", "tLagLeaf","tLagRoot", "biasDiffRespLitterfall"))
+	
+	argsFLogLik2 <- argsFLogLik
+	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
+	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	sort(resOf)
+	sort(attr(resOf,"logLikParms"))
+	
+	res <- attr(resOf,"out")
+	#colnames(res)
+	matplot(res[,"time"], res[,c("inputLeaf_c12","inputLeaf_c14","inputRoot_c12","inputRoot_c14")], type="l" )
+	matplot(res[,"time"], res[,c("Y_c12","Y_c14","O_c12","O_c14","cStock")], type="l", ylim=c(0,1100) )
+	matplot(res[,"time"], res[,c("respY_c12","respY_c14","respO_c12","respO_c14")], type="l" )
+	plotHowlandFM( res, attr(resOf,"obs"))
+	
+	#------ determine by ensemble
+	load(file.path("data","inputFluctuatingEnsemble5.RData"))	#inputFluctuatingEnsemble, generated above
+	i=1
+	sfExport("of.howlandSteady")
+	parEnsNorm <- t(sfSapply( seq_along(inputFluctuatingEnsemble), function(i, argsFLogLik, inputFluctuatingEnsemble, normpopt, fOpt){
+			argsFLogLik$input <- inputFluctuatingEnsemble[[i]]
+			#sfExport("argsFLogLik")
+			resOpt <- optim(normpopt, fOpt, method="Nelder-Mead", hessian = TRUE, control=list(maxit=1000, fnscale=-1), argsFLogLik=argsFLogLik)
+			resOpt$par
+		},argsFLogLik=argsFLogLik, inputFluctuatingEnsemble=inputFluctuatingEnsemble, normpopt=normpopt, fOpt=fOpt))
+	parEns <- transOrigPopt(parEnsNorm, HowlandParameterPriors$parDistr$trans[poptnames])
+	hist(parEns[,"tLagRoot"])
+	plot( tLagRoot ~ biasDiffRespLitterfall, data=parEns)
+	qplot( 1/kO, tLagRoot, data=as.data.frame(parEns))
 	
 	#------ explore posterior with MCMC using prior
 	tmp.fcovarPrior <- function(){
