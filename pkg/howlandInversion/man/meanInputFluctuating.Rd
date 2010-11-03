@@ -3,10 +3,10 @@
 \title{meanInputFluctuating}
 \description{provide mean + normal year to year error}
 \usage{
-meanInputFluctuating(obsLitter, padj)
+meanInputFluctuating(input, padj)
 }
 \arguments{
-  \item{obsLitter}{list of datastream matrices leaf and root with first three columns time, obs, and sdObs}
+  \item{input}{list of datastream matrices leaf and root with first three columns time, obs, and sdObs}
   \item{padj}{parameters}
 }
 \details{generates a series of fluctuating input.

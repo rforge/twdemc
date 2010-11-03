@@ -63,9 +63,9 @@ solveICBM1 <- function(
 	# small values, and derivative functions produces NaNs. But still gets 0
 	parms$modMeta <- modMeta	#a way to pass it to the derivative function
 	# -- create the forcing according to time lag for root input 14C
-	fLeaf12C <- if( nrow(input$leaf == 1)) function(t){as.vector(input$leaf[1,2])} else
+	fLeaf12C <- if( nrow(input$leaf) == 1) function(t){as.vector(input$leaf[1,2])} else
 	   approxfun(x=input$leaf[,1], y=input$leaf[,2], method="linear", rule=2)
-	fRoot12C <- if( nrow(input$root == 1)) function(t){as.vector(input$root[1,2])} else
+	fRoot12C <- if( nrow(input$root) == 1) function(t){as.vector(input$root[1,2])} else
 	   approxfun(x=input$root[,1], y=input$root[,2], method="linear", rule=2)
 	#for 14C we need an input each year, because it changes with atmospheric 14c-Activity
 	iTimes <- seqRange( range(times), by=1 )
@@ -127,7 +127,7 @@ derivICBM1 <- function(
 	inputRoot <-  c(input["root12C"],input["root14C"])  
 	dx["Y",] <-  +inputLeaf +inputRoot - decY  
 	dx["O",] <-  +p$h*decY - decO
-	dx["O","c14"] <- dx["O","c14"] -x["O","c14"]*c14Constants$lambda	#radioactive decay see c14Utils
+	dx[,"c14"] <- dx[,"c14"] -x[,"c14"]*c14Constants$lambda	#radioactive decay see c14Utils
 	dx["R",] <- +respY +respO
 	
 	#a[ mm$auxGroups$csums ] = csums

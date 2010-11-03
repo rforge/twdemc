@@ -4,7 +4,7 @@
 
 .tmp.f <- function(){
 	#library(twMisc)
-	#library(snowfall)
+	library(snowfall)
 	library(twDEMC)
 	library(deSolve)
 	sfInit(parallel=TRUE,cpus=4)

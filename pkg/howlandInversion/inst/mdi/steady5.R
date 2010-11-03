@@ -50,8 +50,15 @@
 	plot(inputF$root[,"obs"]~inputF$leaf[,"obs"])
 	
 	save(inputFluctuating,file=filename)
+
+	# generate entire series
+	inputFluctuatingEnsemble <- lapply(1:30, function(i){
+			inputFluctuating <- inputF <- input <- meanInputFluctuating(obsLitter, padj=padj)	# in of_steadyState.R
+		})
+	filename1=file.path("data",paste("inputFluctuatingEnsemble",".RData",sep=""))
+	save(inputFluctuatingEnsemble,file=filename1)
 	
-	#second: try to decrease
+	#second: try to decrease sd of litterfall
 	relErr <- 0.05
 	obsLitter$leaf[,"sdObs"] <- mean(obsLitter$leaf[,"obs"])*relErr 
 	inputFluctuating <- inputF <- input <- meanInputFluctuating(obsLitter, padj=padj)	# in of_steadyState.R
@@ -79,7 +86,7 @@ mdi.kLagLitterVar <- function(){
 
 	#.generateFluctuatingInput
 	load(file.path("data","inputFluctuating.RData"))	#inputFluctuating, generated above
-	load(file.path("data","inputFluctuating_5.RData"))	#inputFluctuating, generated above
+	#load(file.path("data","inputFluctuating_5.RData"))	#inputFluctuating, generated above
 	argsFLogLik$input <- inputFluctuating
 	sfExport("argsFLogLik")
 
@@ -101,10 +108,12 @@ mdi.kLagLitterVar <- function(){
 	transOrigPopt(normpopt, HowlandParameterPriors$parDistr$trans[poptnames])
 	(tmp <- transOrigPopt(resOpt$par, HowlandParameterPriors$parDistr$trans[poptnames]))
 	#copy2clip(deparse(tmp))
-	#structure(c(1.31004509263524, 0.0276374254632283, 1.0829503483462,6.65177437410762, 38.9279591345289), .Names = c("kY", "kO", "tLagLeaf","tLagRoot", "biasDiffRespLitterfall"))
+	#structure(c(1.07109167581197, 0.0266326047938156, 1.06776201540149,6.64386347044198, 47.1583648738795), .Names = c("kY", "kO", "tLagLeaf","tLagRoot", "biasDiffRespLitterfall"))
+
 	
 	argsFLogLik2 <- argsFLogLik
 	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
+	#mtrace(of.howlandSteady)
 	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
 	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
 	sort(resOf)
@@ -118,7 +127,8 @@ mdi.kLagLitterVar <- function(){
 	plotHowlandFM( res, attr(resOf,"obs"))
 	
 	#------ determine by ensemble
-	load(file.path("data","inputFluctuatingEnsemble5.RData"))	#inputFluctuatingEnsemble, generated above
+	#load(file.path("data","inputFluctuatingEnsemble5.RData"))	#inputFluctuatingEnsemble, generated above
+	load(file.path("data","inputFluctuatingEnsemble.RData"))	#inputFluctuatingEnsemble, generated above
 	i=1
 	sfExport("of.howlandSteady")
 	parEnsNorm <- t(sfSapply( seq_along(inputFluctuatingEnsemble), function(i, argsFLogLik, inputFluctuatingEnsemble, normpopt, fOpt){
@@ -126,27 +136,40 @@ mdi.kLagLitterVar <- function(){
 			#sfExport("argsFLogLik")
 			resOpt <- optim(normpopt, fOpt, method="Nelder-Mead", hessian = TRUE, control=list(maxit=1000, fnscale=-1), argsFLogLik=argsFLogLik)
 			resOpt$par
-		},argsFLogLik=argsFLogLik, inputFluctuatingEnsemble=inputFluctuatingEnsemble, normpopt=normpopt, fOpt=fOpt))
+		},argsFLogLik=argsFLogLik, inputFluctuatingEnsemble=inputFluctuatingEnsemble, normpopt=resOpt$par, fOpt=fOpt))
 	parEns <- transOrigPopt(parEnsNorm, HowlandParameterPriors$parDistr$trans[poptnames])
 	hist(parEns[,"tLagRoot"])
 	plot( tLagRoot ~ biasDiffRespLitterfall, data=parEns)
 	qplot( 1/kO, tLagRoot, data=as.data.frame(parEns))
 	
+	
 	#------ explore posterior with MCMC using prior
+	# make it a stochastic model: at each step generate new input
+	argsFLogLikFluct <- within( argsFLogLik,{
+			input=Howland14C$litter
+			fCalcBiasedInput=meanInputFluctuating
+		})
+	sfExport("argsFLogLikFluct")
+	
+	#mtrace(of.howlandSteady)
+	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLikFluct)
+	.remoteDumpfileBasename=file.path("tmp","dumpRemote")
+	resOfCl <- sfClusterCall( sfRemoteWrapper, normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLikFluct, remoteDumpfileBasename=.remoteDumpfileBasename)
+	
 	tmp.fcovarPrior <- function(){
 		covMat <- poptDistr$sigma    
 		.nPops=3
 		Zinit <- initZtwDEMCNormal( resOpt$par, covMat, nChains=4*.nPops, nPops=.nPops)
 		#mtrace(of.howlandSteady)
-		#resMC <- twDEMCBatch( Zinit, nGen=4*5, debugSequential=TRUE, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops, intResCompNames="parms" )
+		#resMC <- twDEMCBatch( Zinit, nGen=4*5, debugSequential=TRUE, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLikFluct, nPops=.nPops, intResCompNames="parms" )
 		.remoteDumpfileBasename=file.path("tmp","dumpRemote")
-		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops, intResCompNames="parms", remoteDumpfileBasename=.remoteDumpfileBasename )
+		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLikFluct, nPops=.nPops, intResCompNames="parms", remoteDumpfileBasename=.remoteDumpfileBasename )
 		matplot(resMC$pAccept, type="l")
 		plot(as.mcmc.list(resMC))
-		resMC <- twDEMCBatch( resMC, nGen=1000, doRecordProposals=TRUE )
-		#resMC <- twDEMCBatch( resMC, nGen=3000, doRecordProposals=TRUE )	# for integrating over nuisance tLagRoot and tLagLeaf
-		resMCB <- thin(resMC, start=800)
-		#save(resMCB,file=file.path("tmp","resMCB_steady5.RData"))
+		#resMC <- twDEMCBatch( resMC, nGen=1000, doRecordProposals=TRUE )
+		resMC <- twDEMCBatch( resMC, nGen=6000, doRecordProposals=TRUE )	# for integrating over nuisance tLagRoot and tLagLeaf
+		resMCB <- thin(resMC, start=500)
+		save(resMCB,file=file.path("tmp","resMCB_steady5.RData"))
 		plotThinned(as.mcmc.list(resMCB))
 		matplot( resMCB$rLogLik, type="l" )
 		plotChainPopMoves(resMCB)
@@ -177,38 +200,11 @@ mdi.kLagLitterVar <- function(){
 	Ys0 <- Ys0O <- Ys[Ys[,1]>=minLogLik,]
 	Ys0O[,poptnames] <- transOrigPopt(Ys0[,poptnames], poptDistr$trans[poptnames])
 	
-	library(lattice)
-	# round numbers to see something in levelplot else points get too small
-	#sampleSig <- apply(sample[ (sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9) & (sample[,"h"]<0.2)), ],2,function(var){
-	smp <- sampleN02
-	smp <- sample02
-	smp <- sampleN0
-	smp <- sample0
-	#sampleSig <- apply(smp[ (smp[,"rLogLik"] >= max(smp[,"rLogLik"]-1.9)), ],2,function(var){
-	smp <- cbind(smp, tvrY=1/smp[,"kY"], tvrO=1/smp[,"kO"])
-	plotConditional2D(smp,"kY","kO")	#in plotTwDEMC.R
-	plotConditional2D(smp,"tvrY","tvrO")
-	plotConditional2D(smp,"tLagLeaf","tLagRoot")
-	plotConditional2D(smp,"biasDiffRespLitterfall","kO")
-	
-	smp <- Ys0O	
-	smp <- cbind(smp, tvrY=1/smp[,"kY"], tvrO=1/smp[,"kO"])
-	plotConditional2D(smp,"tvrY","tvrO","somOFM")	
-	plotConditional2D(smp,"tLagLeaf","tLagRoot","somOFM")	# almost no constrain
-	plotConditional2D(smp,"tvrY","tvrO","respFM")			# almost no constrain
-	plotConditional2D(smp,"tLagLeaf","tLagRoot","respFM")	# constraines tLagRoot above 6
-	plotConditional2D(smp,"tvrY","tvrO","parms")			# almost no constrain
-	plotConditional2D(smp,"tLagLeaf","tLagRoot","parms")	# constraines tLagRoot above 6
-
-	plotConditional2D(smp,"biasDiffRespLitterfall","tLagRoot","parms")
-	plotConditional2D(smp,"biasDiffRespLitterfall","tLagRoot","respFM")
-	plotConditional2D(smp,"biasDiffRespLitterfall","tLagRoot","somOFM")
-	
 	p1 <- ggplotDensity.twDEMC(resMCB, poptDistr=poptDistr)
 	#print(p1)
 	p2 <- ggplotDensity.twDEMC(resMCB, poptDistr=poptDistr, doTransOrig=TRUE)
 	#print(p2)
-	twPairs(sampleN0)
+	twPairs(sampleN0)		# no big correlations
 	
 	
 	

@@ -29,7 +29,7 @@ meanInput <- function(
 
 meanInputFluctuating <- function(
 	### provide mean + normal year to year error
-	obsLitter	##<< list of datastream matrices leaf and root with first three columns time, obs, and sdObs 
+	input	##<< list of datastream matrices leaf and root with first three columns time, obs, and sdObs 
 	,padj		##<< parameters 
 ){
 	##details<< 
@@ -40,8 +40,9 @@ meanInputFluctuating <- function(
 	times <- 1900:2010
 	#generate correlated 2D random number
 	#d <- diag(unlist(lapply(input,"[",,"sdObs")))
-	m <- meanInput(obsLitter,padj)
-	sd <- mean(obsLitter$leaf[,"sdObs"])* c(1,obsLitter$root[1,"obs"]/obsLitter$leaf[1,"obs"])
+	#m <- meanInput(obsLitter,padj)	# not known in cluster nodes
+	m <- lapply(input, function(comp){ cbind(times=comp[1,"times"], obs=mean(comp[,"obs"],na.rm=TRUE), sdObs=sqrt(sum(mean(comp[,"sdObs"]^2)))) })
+	sd <- mean(input$leaf[,"sdObs"])* c(1,input$root[1,"obs"]/input$leaf[1,"obs"])
 	sdMat <- diag( sd, nrow=length(sd) )
 	corrLR <- if( 0<length(padj$corrLeafRootLitter) ) padj$corrLeafRootLitter else 0.8   
 	sigma =  sdMat %*% matrix(c(1,corrLR,corrLR,1), ncol=2) %*% t(sdMat) 
@@ -49,7 +50,7 @@ meanInputFluctuating <- function(
 	colnames(r) <- names(m)
 	res <- lapply(names(m), function(compName){ cbind(times=times
 				, obs=pmax(0, m[[compName]][1,"obs"]+r[,compName])
-				, sdObs=mean(obsLitter[[compName]][,"sdObs"])
+				, sdObs=mean(input[[compName]][,"sdObs"])
 			) })
 	names(res) <- names(m)
 	#plot( res$leaf[,2] ~ res$root[,2] )
@@ -184,7 +185,7 @@ of.howlandSteady <- function(
 	
 	#initial states for all three treatments
 	padj$Ctot <- obsadj$somStock[1,2]		# needed in fInitState
-	iY <- sum(sapply(inputadj,"[",1,2))
+	iY <- sum( sapply(inputadj,function(inputComp){mean(inputComp[,"obs"])}) ) # meanLeafInput + meanRootInput
 	padj <- fCalcSteadyPars( Ctot=padj$Ctot, iY=iY, parms=padj)
 	#padj[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=padj$Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
 	
@@ -213,6 +214,7 @@ of.howlandSteady <- function(
 		### side effect: misfit[1] is set to -Inf
 	}
 	
+	#tmp<-model$fSolve; mtrace(tmp); model$fSolve <- tmp
 	resSolve <- try( model$fSolve(x0=x0, times=times, parms=padj, input=lapply(inputadj,"[",,1:2,drop=FALSE), fFmAtmosphere=fFmAtmosphere, modMeta=model$modMeta, ...) )
 	if( 0<length(errmsg<-checkModelErr(resSolve))) return( misfitFail(errmsg=errmsg))
 	# estimate isotopic ratio of O-Layer

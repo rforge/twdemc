@@ -52,11 +52,11 @@ mdi.cY <- function(){
 	cYs <- seq(0.5,1,length.out=101)[-c(1,101)]
 	#cYs <- seq(0.99,1,length.out=101)[-c(1,101)]
 	cYi <- cYs[1]
-	fOpt <- function(cYi){
+	fOpt <- function(cYi, remoteFun=of.howlandSteady){
 		normpopt <- c(cY=logit(cYi))
-		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=substitute(argsFLogLik) ))
+		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=remoteFun, remoteFunArgs=substitute(argsFLogLik) ))
 	}
-	tmp <- sfSapply(cYs, fOpt)
+	tmp <- sfSapply(cYs, fOpt, remoteFun=of.howlandSteady)
 	plot( tmp ~ cYs)
 	cYOpt <- optimize(fOpt, interval=c(0.6,0.8), maximum = TRUE)$maximum
 	resOf <- sfRemoteWrapper( normpopt=c(cY=cYOpt), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik)
