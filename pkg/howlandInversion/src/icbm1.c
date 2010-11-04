@@ -85,6 +85,7 @@ void APPMID(deriv) (int *neq, double *t, double *x, double *dx, double *aux, int
 		aux[ decO_c12+j ] = decO[j];
 	}
 	DXRC(O,c14) -= XRC(O,c14)*lambda;	//radioactive decay see c14Utils
+	DXRC(Y,c14) -= XRC(Y,c14)*lambda;	//radioactive decay see c14Utils
 
 	//------ loop across carbon isotopes
 	double respY[N_XCOLS_C], respO[N_XCOLS_C];

@@ -40,6 +40,7 @@
 .tmp.compile <- function(){
 	# compile and test dll on windows
 	dynFilenameLocal <- file.path("src",paste("howlandInversion", .Platform$dynlib.ext, sep = ""))
+	sfExport("dynFilenameLocal")
 	sfClusterEval( dyn.unload(dynFilenameLocal) )
 	dyn.unload(dynFilenameLocal)
 	system("R CMD SHLIB -o src/howlandInversion.dll src/icbm1.c src/rc_helpers.c")
