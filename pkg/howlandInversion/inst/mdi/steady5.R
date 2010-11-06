@@ -210,4 +210,3 @@ mdi.kLagLitterVar <- function(){
 	
 }
 
-
