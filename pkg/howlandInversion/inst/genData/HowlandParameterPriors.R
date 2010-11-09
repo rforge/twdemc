@@ -26,6 +26,9 @@ parms = parms0 = within( list(), {
 		iROLayerCalcRelErr = 0.01 ##<< 1% error of reconstruction of O-Layer iR-ratio
 		biasDiffRespLitterfall = 0  ##<< both litterfall and mean respiration may be biased,		
 			##<< hence also root litter input - which is the difference betweent these two.
+		dO = 0		##<< first version change rate needs to be specified, second version rather varies h and calculates dO				
+		biasLitterLeaf = 0  ##<< updated version of of.steady and also of.nonSteady account for bias in leaf and root litter separately		
+		biasLitterRoot = 0  ##<<
 	})	
 		
 #-------------- a priori knowlege about the parameters ----------
@@ -41,6 +44,8 @@ parmsBounds = list(
 		,cY= c(parms$cY, 0.965)
 		,biasDiffRespLitterfall= c(parms$biasDiffRespLitterfall, qnorm(upperBoundProb,sd=41.4))
 		,dO=as.vector(c(parms$dO, Howland14C$obsNutrientSite$somStock[1,"obs"]*1/3 /50	)) 	# upper bound of increase rate is so that 1/3 of the stock can accumulate over 50yrs 
+		,biasLitterLeaf= c(parms$biasLitterLeaf, qnorm(upperBoundProb,sd=41.4))
+		,biasLitterRoot= c(parms$biasLitterRoot, qnorm(upperBoundProb,sd=80))
 	)
 #which(sapply(parmsBounds,length)!=2)
 	
@@ -55,7 +60,7 @@ parms0 <- parms
 varDistr <- twVarDistrVec( names(parmsBounds) )
 varDistr[] <- "lognorm"			#by default assume lognormal (0,Inf)
 varDistr[c("h","cY")] <- "logitnorm" #logit-normal (0,1)
-varDistr[c("biasDiffRespLitterfall","dO")] <- "norm" #normal
+varDistr[c("biasDiffRespLitterfall","dO","biasLitterLeaf","biasLitterRoot")] <- "norm" #normal
 # pStorageOnActivation is modeled lognorm, because increase in prior at 1 is not feasable
 
 #----------------- calculate the standard mu and sd at normal scale from quantiles

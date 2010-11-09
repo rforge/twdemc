@@ -6,7 +6,7 @@
 plotHowlandFM(res, obs)
 }
 \arguments{
-  \item{res}{result of of.HowlandSteady}
+  \item{res}{result of of.howlandSteadyRootConstr}
   \item{obs}{observations}
 }
 

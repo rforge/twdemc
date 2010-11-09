@@ -9,7 +9,7 @@
 	
 	argsFLogLik <- argsFLogLikRemoteFun <- list(
 		model=model
-		#remoteFun=of.howlandSteady		# will not work with twDEMC
+		#remoteFun=of.howlandSteadyRootConstr		# will not work with twDEMC
 		#,poptDistr=poptDistr			# must set when parameters are known
 		,obs=Howland14C$obsNutrientSite
 		,input=Howland14C$litter
@@ -41,10 +41,10 @@ mdi.cY <- function(){
 	argsFLogLik2 <- argsFLogLik
 	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
 	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYopt),h=logit(hOpt)), remoteFunArgs=argsFLogLik2)
-	resOf <- sfRemoteWrapper( normpopt=poptDistr$mu["cY"], remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	resOf <- sfRemoteWrapper( normpopt=poptDistr$mu["cY"], remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
 	
-	#sfRemoteWrapper(normpopt=poptDistr$mu, remoteFun=of.howlandSteady, remoteFunArgs=substitute(argsFLogLik))
-	resCl <- sfClusterCall( sfRemoteWrapper, normpopt=poptDistr$mu, remoteFun=of.howlandSteady, remoteFunArgs=substitute(argsFLogLik) )
+	#sfRemoteWrapper(normpopt=poptDistr$mu, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=substitute(argsFLogLik))
+	resCl <- sfClusterCall( sfRemoteWrapper, normpopt=poptDistr$mu, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=substitute(argsFLogLik) )
 	head(resCl[[1]])
 	
 	
@@ -52,14 +52,14 @@ mdi.cY <- function(){
 	cYs <- seq(0.5,1,length.out=101)[-c(1,101)]
 	#cYs <- seq(0.99,1,length.out=101)[-c(1,101)]
 	cYi <- cYs[1]
-	fOpt <- function(cYi, remoteFun=of.howlandSteady){
+	fOpt <- function(cYi, remoteFun=of.howlandSteadyRootConstr){
 		normpopt <- c(cY=logit(cYi))
 		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=remoteFun, remoteFunArgs=substitute(argsFLogLik) ))
 	}
-	tmp <- sfSapply(cYs, fOpt, remoteFun=of.howlandSteady)
+	tmp <- sfSapply(cYs, fOpt, remoteFun=of.howlandSteadyRootConstr)
 	plot( tmp ~ cYs)
 	cYOpt <- optimize(fOpt, interval=c(0.6,0.8), maximum = TRUE)$maximum
-	resOf <- sfRemoteWrapper( normpopt=c(cY=cYOpt), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik)
+	resOf <- sfRemoteWrapper( normpopt=c(cY=cYOpt), remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik)
 	sort(resOf)
 	res <- attr(resOf,"out")
 	#colnames(res)
@@ -82,10 +82,10 @@ mdi.cY_h_1dInner <- function(){
 	hOrig=hs[1]; cYi=0.2
 	fOptInner <- function(cYi,hOrig){
 		normpopt <- c(cY=logit(cYi),h=logit(hOrig))
-		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=substitute(argsFLogLik) ))
+		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=substitute(argsFLogLik) ))
 	}
 	sfExport("fOptInner")
-	sfExport("of.howlandSteady")
+	sfExport("of.howlandSteadyRootConstr")
 	fOpt <- function(h){
 		optimize(fOptInner, interval=c(0.05,0.9), hOrig=h, maximum = TRUE)$objective
 	}
@@ -108,7 +108,7 @@ mdi.cY_h_1dInner <- function(){
 	
 	argsFLogLik2 <- argsFLogLik
 	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
-	resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
 	sort(resOf)
 	sort(attr(resOf,"logLikParms"))
 	res <- attr(resOf,"out")
@@ -144,7 +144,7 @@ mdi.cY_h <- function(){
 	pnorm <- transNormPopt(unlist(parms0), HowlandParameterPriors$parDistr$trans[names(parms0)])
 	normpopt <- pnorm[poptnames]
 	fOpt <- function(normpopt){
-		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=substitute(argsFLogLik) ))
+		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=substitute(argsFLogLik) ))
 	}
 	#fOpt(normpopt)
 	resOpt <- optim(normpopt, fOpt, method="Nelder-Mead", hessian = TRUE, control=list(maxit=1000, fnscale=-1))
@@ -153,8 +153,8 @@ mdi.cY_h <- function(){
 	
 	argsFLogLik2 <- argsFLogLik
 	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
-	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
-	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
+	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
 	sort(resOf)
 	sort(attr(resOf,"logLikParms"))
 	
@@ -171,8 +171,8 @@ mdi.cY_h <- function(){
 		covMat <- solve( -resOpt$hessian )		#solve(resOpt$hessian)*resOpt
 		.nPops=3
 		Zinit <- initZtwDEMCNormal( resOpt$par, covMat, nChains=4*.nPops, nPops=.nPops)
-		#resMC <- twDEMCBatch( Zinit, nGen=4*5, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops, debugSequential=TRUE )
-		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops )
+		#resMC <- twDEMCBatch( Zinit, nGen=4*5, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops, debugSequential=TRUE )
+		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops )
 		plot(as.mcmc.list(resMC))
 		resMC <- twDEMCBatch( resMC, nGen=1000 )
 		plot(as.mcmc.list(resMC))
@@ -189,7 +189,7 @@ mdi.cY_h <- function(){
 		covMat <- poptDistr$sigma    
 		.nPops=3
 		Zinit <- initZtwDEMCNormal( resOpt$par, covMat, nChains=4*.nPops, nPops=.nPops)
-		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops )
+		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops )
 		matplot(resMC$pAccept, type="l")
 		plot(as.mcmc.list(resMC))
 		resMC <- twDEMCBatch( resMC, nGen=1000, doRecordProposals=TRUE )
@@ -221,7 +221,7 @@ mdi.cY_h <- function(){
 	#-- start chains only in optimum
 	tmp.f <- function(){
 		Zinit2 <- initZtwDEMCSub( sampleN02[,-1], nChains=4*.nPops, nPops=.nPops) 
-		resMC2 <- twDEMCBatch( Zinit2, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops )
+		resMC2 <- twDEMCBatch( Zinit2, nGen=500, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops )
 		matplot( resMC2$rLogLik, type="l" )
 		resMC2 <- twDEMCBatch( resMC2, nGen=1000 )
 		matplot( resMC2$rLogLik, type="l" )
@@ -232,8 +232,8 @@ mdi.cY_h <- function(){
 		Ys <- stackChains(resMC$Y)
 		Ys0 <- Ys0O <- Ys[Ys[,1]>=minLogLik,]
 		Ys0O[,poptnames] <- transOrigPopt(Ys0[,poptnames], poptDistr$trans[poptnames])
-		#mtrace(of.howlandSteady)
-		tmp <- do.call( of.howlandSteady, c( list(normpopt=c(h=20,cY=15)), argsFLogLik))
+		#mtrace(of.howlandSteadyRootConstr)
+		tmp <- do.call( of.howlandSteadyRootConstr, c( list(normpopt=c(h=20,cY=15)), argsFLogLik))
 		sort(tmp)
 	}
 	

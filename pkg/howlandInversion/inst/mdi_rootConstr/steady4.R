@@ -11,7 +11,7 @@
 	
 	argsFLogLik <- argsFLogLikRemoteFun <- list(
 		model=model
-		#remoteFun=of.howlandSteady		# will not work with twDEMC
+		#remoteFun=of.howlandSteadyRootConstr		# will not work with twDEMC
 		#,poptDistr=poptDistr			# must set when parameters are known
 		,obs=Howland14C$obsNutrientSite
 		,input=Howland14C$litter
@@ -46,10 +46,10 @@ mdi.klagLitter <- function(){
 	poptDistr <- argsFLogLik$poptDistr <- twConstrainPoptDistr(poptnames, HowlandParameterPriors$parDistr)
 	sfExport("argsFLogLik")
 	
-	#mtrace(of.howlandSteady)
-	#resOf <- sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik)	
+	#mtrace(of.howlandSteadyRootConstr)
+	#resOf <- sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik)	
 	fOpt <- function(normpopt){
-		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik ))
+		sum(sfRemoteWrapper( normpopt=normpopt, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik ))
 	}
 	#fOpt(normpopt)
 	#resOpt <- optim(normpopt, fOpt, method="Nelder-Mead", hessian = TRUE, control=list(maxit=1000, fnscale=-1))
@@ -64,8 +64,8 @@ mdi.klagLitter <- function(){
 	
 	argsFLogLik2 <- argsFLogLik
 	#tmp <- argsFLogLik2$remoteFun; mtrace(tmp); argsFLogLik2$remoteFun<-tmp
-	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
-	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteady, remoteFunArgs=argsFLogLik2)
+	resOf <- sfRemoteWrapper( normpopt=resOpt$par, remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
+	#resOf <- sfRemoteWrapper( normpopt=c(cY=logit(cYOpt),h=logit(hOpt)), remoteFun=of.howlandSteadyRootConstr, remoteFunArgs=argsFLogLik2)
 	sort(resOf)
 	sort(attr(resOf,"logLikParms"))
 	
@@ -81,10 +81,10 @@ mdi.klagLitter <- function(){
 		covMat <- poptDistr$sigma    
 		.nPops=3
 		Zinit <- initZtwDEMCNormal( resOpt$par, covMat, nChains=4*.nPops, nPops=.nPops)
-		#resMC <- twDEMCBatch( Zinit, nGen=4*5, debugSequential=TRUE, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops )
+		#resMC <- twDEMCBatch( Zinit, nGen=4*5, debugSequential=TRUE, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops )
 		.remoteDumpfileBasename=file.path("tmp","dumpRemote")
-		#resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops, remoteDumpfileBasename=.remoteDumpfileBasename )
-		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteady, argsFLogLik=argsFLogLik, nPops=.nPops )
+		#resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops, remoteDumpfileBasename=.remoteDumpfileBasename )
+		resMC <- twDEMCBatch( Zinit, nGen=500, fLogLik=of.howlandSteadyRootConstr, argsFLogLik=argsFLogLik, nPops=.nPops )
 		matplot(resMC$pAccept, type="l")
 		plot(as.mcmc.list(resMC))
 		resMC <- twDEMCBatch( resMC, nGen=1000, doRecordProposals=TRUE )

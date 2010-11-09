@@ -17,8 +17,8 @@ test.ofHowland <- function(){
 		,fSolve=solveICBM1
 	)
 	#mtrace(derivICBM1)
-	#mtrace(of.howlandSteady)
-	resOf <- of.howlandSteady(poptDistr$mu,model=model,poptDistr=poptDistr)
+	#mtrace(of.howlandSteadyRootConstr)
+	resOf <- of.howlandSteadyRootConstr(poptDistr$mu,model=model,poptDistr=poptDistr)
 	res <- attr(resOf,"out")
 	#colnames(res)
 	matplot(res[,"time"], res[,c("inputLeaf_c12","inputLeaf_c14","inputRoot_c12","inputRoot_c14")], type="l" )
@@ -38,24 +38,24 @@ test.ofHowland <- function(){
 			, fCalcBiasedInput=meanInput    ##<< function(input,padj,...){obs} possibility to account for bias and to optimize bias parameters 
 		#, fTransOrigPopt=transOrigPopt.default  ##<< function that translates parameters from normal to original scale
 		)
-		resCl <- do.call( sfClusterCall, c(list(of.howlandSteady,poptDistr$mu),argsFLogLik) )
+		resCl <- do.call( sfClusterCall, c(list(of.howlandSteadyRootConstr,poptDistr$mu),argsFLogLik) )
 		checkEqualsNumeric( resOf, resCl[[1]] )
 	}
 	
 	profile.f <- function(){
 		Rprof()
-		for( i in 1:10 ) of.howlandSteady(poptDistr$mu,model=model,poptDistr=poptDistr, useRImpl=TRUE)
+		for( i in 1:10 ) of.howlandSteadyRootConstr(poptDistr$mu,model=model,poptDistr=poptDistr, useRImpl=TRUE)
 		Rprof(NULL)
 		head(summaryRprof()$by.self, n=12)
 		
 		system.time({Rprof()
-		lapply(1:500, function(x){of.howlandSteady(poptDistr$mu,model=model,poptDistr=poptDistr)})
+		lapply(1:500, function(x){of.howlandSteadyRootConstr(poptDistr$mu,model=model,poptDistr=poptDistr)})
 		Rprof(NULL)})
 		head(summaryRprof()$by.self, n=12)
 	
 		#using sfRemoteWrapper and exporting before 
 		argsFLogLik <- list(
-			remoteFun=of.howlandSteady
+			remoteFun=of.howlandSteadyRootConstr
 			,model=model
 			,poptDistr=poptDistr		
 			,obs=Howland14C$obsNutrientSite

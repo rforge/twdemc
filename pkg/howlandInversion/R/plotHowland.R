@@ -1,6 +1,6 @@
 plotHowlandFM <- function(
 	### Plot the fraction modern result of a model-data fit for the Howland data.
-	res		##<< result of of.HowlandSteady
+	res		##<< result of of.howlandSteadyRootConstr
 	, obs	##<< observations
 ){
 	matplot(res[,"time"], res[,c("F14C_Y","F14C_O","F14CT","respF14CT")], type="l", xlab="Nutrient Site, Time (yr)", ylab="" )

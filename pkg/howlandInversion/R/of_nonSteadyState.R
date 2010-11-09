@@ -45,7 +45,7 @@ of.howlandNonSteady <- function(
 	
 	#tmp <- matrix(1,3,3); tmp[4,]	#test dumping remote error
 	if( is.null(popt.names) )
-		stop("of.howlandSteady: normpopt provided without names attribute or argument popt.names")
+		stop("of.howlandSteadyRootConstr: normpopt provided without names attribute or argument popt.names")
 	
 	#datastreamNames <- c("parms", "control","controlSum","amendm","amendmSum","c14obs","c14obsSum","amendm_small","amendmSum_small","c14obs_small","c14obsSum_small") #names of the dataseries
 	#each component for each observation with independent metropolis decisions

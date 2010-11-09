@@ -1,9 +1,9 @@
-\name{of.howlandSteady}
-\alias{of.howlandSteady}
+\name{of.howlandSteadyRootConstr}
+\alias{of.howlandSteadyRootConstr}
 \title{of howlandSteady}
 \description{Objective function for comparing against Howland data, assuming constant input and steady state C-stocks, which determines k-Values.}
 \usage{
-of.howlandSteady(normpopt, logLikAccept = numeric(0), metropolisStepTemp = structure(rep(1, length(logLikAccept)), names = names(logLikAccept)), ..., model, poptDistr, obs = Howland14C$obsNutrientSite, times = 1950:2007, input = Howland14C$litter, parms = HowlandParameterPriors$parms0, fCalcBiasedObs = NULL, argsFCalcBiasedObs = list(), fCalcBiasedInput = NULL, argsFCalcBiasedInput = list(), popt.names = names(normpopt), fTransOrigPopt = transOrigPopt.default, doStopOnError = FALSE, includeStreams = c(names(obs), "parms"), fFmAtmosphere = fmAtmosphere, fCalcIROLayer = calcIROLayer, fCalcSteadyPars = calcSteadyHcY_ICBM1)
+of.howlandSteadyRootConstr(normpopt, logLikAccept = numeric(0), metropolisStepTemp = structure(rep(1, length(logLikAccept)), names = names(logLikAccept)), ..., model, poptDistr, obs = Howland14C$obsNutrientSite, times = 1950:2007, input = Howland14C$litter, parms = HowlandParameterPriors$parms0, fCalcBiasedObs = NULL, argsFCalcBiasedObs = list(), fCalcBiasedInput = NULL, argsFCalcBiasedInput = list(), popt.names = names(normpopt), fTransOrigPopt = transOrigPopt.default, doStopOnError = FALSE, includeStreams = c(names(obs), "parms"), fFmAtmosphere = fmAtmosphere, fCalcIROLayer = calcIROLayer, fCalcSteadyPars = calcSteadyHcY_ICBM1)
 }
 \arguments{
   \item{normpopt}{numeric vector: the point in normal parameter space}

@@ -1,88 +1,5 @@
-initState.howland.ICBM1SteadyState  <- function(
-	### Initial states from parms for ICBM1 in steady state
-	padj		##<< must contain cY, kO, Ctot0, yr0
-	,modMeta=modMetaICBM1()
-	,fFmAtmosphere=fmAtmosphere
-){
-	iRNew <- fFmAtmosphere(padj$yr0) #delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
-	tvrOld <- 1/padj$kO	#1000 yr old carbon
-	iROld <- decayIR14C( yr=padj$yr0, iR0=fFmAtmosphere(1950-tvrOld), yr0=1950-tvrOld )	# near 1 (standard of old wood)
-	#mtrace(initStateSoilMod)
-	x0 <- initStateICBM1( xc12=as.vector(padj$Ctot0*c(padj$cY,(1-padj$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
-}
 
-initState.howland.ICBM1RelaxSteadyState  <- function(
-	### Initial states from parms for ICBM1 with steady state relaxed.
-	padj		##<< must contain cY, kO, Ctot, yr0
-	,modMeta=modMetaICBM1()
-	,fFmAtmosphere=fmAtmosphere
-){
-	##details<<
-	## uses Ctot0 instead of Ctot
-	iRNew <- fFmAtmosphere(padj$yr0) #delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
-	tvrOld <- 1/padj$kO	#1000 yr old carbon
-	iROld <- decayIR14C( yr=padj$yr0, iR0=fFmAtmosphere(1950-tvrOld), yr0=1950-tvrOld )	# near 1 (standard of old wood)
-	#mtrace(initStateSoilMod)
-	x0 <- initStateICBM1( xc12=as.vector(padj$Ctot0*c(padj$cY,(1-padj$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
-}
-
-
-origInput <- function(
-	### provide and unperturbed data series, neglect the standard deviation
-	input	##<< list of datastream matrices with first two columns time and value 
-	,padj	##<< parameters
-){
-	input
-}
-
-meanInput <- function(
-	### provide only the mean of the litter fall
-	input	##<< list of datastream matrices with first two columns time and value 
-	,padj	##<< parameters
-){
-	lapply(input, function(comp){ cbind(times=comp[1,"times"], obs=mean(comp[,"obs"],na.rm=TRUE), sdObs=sqrt(sum(mean(comp[,"sdObs"]^2)))) })
-}
-
-meanInputFluctuating <- function(
-	### provide mean + normal year to year error
-	input	##<< list of datastream matrices leaf and root with first three columns time, obs, and sdObs 
-	,padj		##<< parameters 
-){
-	##details<< 
-	## generates a series of fluctuating input.
-	## Mean and sd of both leaf and root litter are calculated from provied obs and sdObs assuming independent errors
-	## Correlation between leaf and root input is taken from padj$corrLeafRootLitter. 
-	## If this is missing, correlation of 0.8 is assumed. 
-	times <- 1900:2010
-	#generate correlated 2D random number
-	#d <- diag(unlist(lapply(input,"[",,"sdObs")))
-	#m <- meanInput(obsLitter,padj)	# not known in cluster nodes
-	m <- lapply(input, function(comp){ cbind(times=comp[1,"times"], obs=mean(comp[,"obs"],na.rm=TRUE), sdObs=sqrt(sum(mean(comp[,"sdObs"]^2)))) })
-	sd <- mean(input$leaf[,"sdObs"])* c(1,input$root[1,"obs"]/input$leaf[1,"obs"])
-	sdMat <- diag( sd, nrow=length(sd) )
-	corrLR <- if( 0<length(padj$corrLeafRootLitter) ) padj$corrLeafRootLitter else 0.8   
-	sigma =  sdMat %*% matrix(c(1,corrLR,corrLR,1), ncol=2) %*% t(sdMat) 
-	r <- rmvnorm(length(times),sigma=sigma)
-	colnames(r) <- names(m)
-	res <- lapply(names(m), function(compName){ cbind(times=times
-				, obs=pmax(0, m[[compName]][1,"obs"]+r[,compName])
-				, sdObs=mean(input[[compName]][,"sdObs"])
-			) })
-	names(res) <- names(m)
-	#plot( res$leaf[,2] ~ res$root[,2] )
-	#plot( obs ~ times, res$leaf)
-	res
-}
-attr(meanInputFluctuating,"ex") <- function(){
-	data(Howland14C)
-	str(tmp <- meanInputFluctuating( Howland14C$litter ))
-	plot( obs ~ times, data=tmp$leaf)
-	plot( tmp$leaf[,2] ~ tmp$root[,2] )
-}
-
-
-
-of.howlandSteadyRootConstr <- function(
+of.howlandSteady <- function(
 	### Objective function for comparing against Howland data, assuming constant input and steady state C-stocks, which determines k-Values.
 	normpopt	##<< numeric vector: the point in normal parameter space
 	, logLikAccept=numeric(0)	##<< numeric named vector the logLikelihood of previously accepted parameters, see details
@@ -193,11 +110,8 @@ of.howlandSteadyRootConstr <- function(
 	# assume steady state: litter inputs = respiration, recalculate root input
 	inputadj <- input
 	# here put the entire bias of difference to between litterfall and respiration to litterfall
-	inputadj$leaf[,"obs"] <- pmax(0,inputadj$leaf[,"obs"] + padj$biasDiffRespLitterfall)
-	#adjust root input by a fraction so that mean of root+leaf matches resp+dO again
-	# iL + iR = resp + dO; iR= resp+dO-iL
-	fRoot <- (mean(obsadj$respCum[,"obs"])+padj$dO - mean(inputadj$leaf[,"obs"]))/mean(inputadj$root[,"obs"])
-	inputadj$root[,c("obs","sdObs")] <- inputadj$root[,c("obs","sdObs")]*fRoot   
+	inputadj$leaf[,"obs"] <- pmax(0,inputadj$leaf[,"obs"] + padj$biasLitterLeaf)
+	inputadj$root[,"obs"] <- pmax(0,inputadj$root[,"obs"] + padj$biasLitterRoot)
 	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(inputadj,padj),argsFCalcBiasedInput)) else inputadj	# biased input data
 	
 	#initial states for all three treatments
@@ -245,7 +159,8 @@ of.howlandSteadyRootConstr <- function(
 	)
 	if( "respCum" %in% includeStreams ){
 		resT <- resSolve[ resSolve[,1] %in% obsadj$respCum[,"times"], ,drop=FALSE]	
-		misfit["respCum"] <- sum( ((resT[,"R_c12"]/diff(range(times))-obsadj$respCum[,"obs"])/obsadj$respCum[,"sdObs"])^2 )
+		#misfit["respCum"] <- sum( ((resT[,"R_c12"]/diff(range(times))-obsadj$respCum[,"obs"])/obsadj$respCum[,"sdObs"])^2 )
+		misfit["respCum"] <- sum( ((rowSums(resT[,c("respY_c12","respO_c12")])-obsadj$respCum[,"obs"])/obsadj$respCum[,"sdObs"])^2 )
 	}
 	if( "respFM" %in% includeStreams ){
 		resT <- resSolve[ resSolve[,1] %in% obsadj$respFM[,"times"], ,drop=FALSE]	

@@ -20,7 +20,7 @@
 	twUtestF()
 	twUtestF("ICBM1")
 	twUtestF("ICBM1", "test.steadyStateHowland" )
-	twUtestF("of.howlandSteady")
+	twUtestF("of.howlandSteadyRootConstr")
 	sfInit(parallel=FALSE)
 	twUtestF()
 	
