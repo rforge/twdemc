@@ -169,6 +169,7 @@ mdi.kLagLitterVar <- function(){
 		#resMC <- twDEMCBatch( resMC, nGen=1000, doRecordProposals=TRUE )
 		resMC <- twDEMCBatch( resMC, nGen=6000, doRecordProposals=TRUE )	# for integrating over nuisance tLagRoot and tLagLeaf
 		resMCB <- thin(resMC, start=500)
+		try(dir.create("tmp"))
 		save(resMCB,file=file.path("tmp","resMCB_steady5.RData"))
 		plotThinned(as.mcmc.list(resMCB))
 		matplot( resMCB$rLogLik, type="l" )

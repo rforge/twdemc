@@ -7,9 +7,10 @@
 	library(snowfall)
 	library(twDEMC)
 	library(deSolve)
-	sfInit(parallel=TRUE,cpus=4)
 	library(debug)
 	#library(inlinedocs) #with twMisc
+
+	sfInit(parallel=TRUE,cpus=4)
 	
 	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
 	data( list=twStripFileExt(basename(Sys.glob(file.path("data","*.RData")))))
