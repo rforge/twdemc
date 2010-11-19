@@ -99,6 +99,8 @@ getRLogLikQuantile <- function(
 	## \code{\link{checkConvergenceGelman}}
 	## \code{\link{twDEMCInt}}
 	
+	##details<<
+	## See Hilborn97 for explanation of Likelihood ratio test for nested models.
 	x2 <- qchisq(perc, df=df )
 	maxLogLik -x2/2
 	### numeric scalar: minimum Log-Likelihood below which models are significantly different 

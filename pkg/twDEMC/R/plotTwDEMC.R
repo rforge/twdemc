@@ -5,6 +5,52 @@ plotMarginal2D <- function(
 	,yCol=3		##<< index (column number or column name) of column for y ordinate
 	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
 	, ...		##<< additional arguments to FUN 
+	, grains=18 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
+	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
+	, col=rev(heat.colors(20))	##<< vector of colors
+	, minN=7	##<< minimum number of items in classpixel to be plotted
+){
+	##details<< 
+	## The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
+	## Within the bin the values are aggregated. By default the mean is calculated.
+	
+	##seealso<<  
+	## \code{\link{twDEMCInt}}
+	
+	##details<< 
+	## There are several plotting methods related to twDEMC run. \itemize{
+	## \item{ TODO: link methods  } 
+	## \item{ the Gelman criterion: this method  } 
+	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	##}
+	
+	if( length(grains)==1) grains=c(grains,grains)	
+	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol])
+	smpGrained[,1] <- {tmp<-cut2( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained[,2] <- {tmp<-cut2( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	tmpGrp <- (as.factor(smpGrained[,1])):(as.factor(smpGrained[,2]))
+	xs <- as.numeric(levels(as.factor(smpGrained[,1])))
+	ys <- as.numeric(levels(as.factor(smpGrained[,2])))
+	smp2 <- data.frame(
+		x=rep(xs, each=grains[1])
+		,y=rep(ys, grains[2])
+		,marginalLogLik = tapply(smpGrained[,3], tmpGrp, FUN, na.rm=TRUE)
+		,n=as.vector(table(tmpGrp))
+	)
+	names(smp2)[1:2] <- colnames(smpGrained)[1:2]
+	smp3 <- smp2
+	smp3[ smp2[,"n"]<minN, 3] <- NA
+	twPlot2DFun( xs, ys, FUN=smp3$marginalLogLik, xdiv=NULL, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
+	invisible(smp2)
+}
+
+.plotMarginal2D.levelplot <- function(
+	### Plot the 2D marginal Likelihood of a sample
+	smp			##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	,xCol=2		##<< index (column number or column name) of column for x ordinate
+	,yCol=3		##<< index (column number or column name) of column for y ordinate
+	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
+	, ...		##<< additional arguments to FUN 
 	, grains=20	 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
 	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
 	, col=rev(heat.colors(100))	##<< vector of colors
@@ -33,11 +79,12 @@ plotMarginal2D <- function(
 	levelplot(z~x*y, data=smpMarginal, col.regions=col, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2])
 }
 
+
 plotConditional2D <- function(
 	### Plot the 2D conditional profile-Likelihood of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.
 	smp			
-	,xCol
-	,yCol
+	,xCol=2
+	,yCol=3
 	,intCol=1
 	,...
 ){
@@ -286,7 +333,7 @@ ggplotDensity.twDEMC <- function(
 	#pTmp3 <- pTmp3[c("rLogLik","tvr"),,][,,1:2]
 	#poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-1],poptDistr )
 	if( !doDispLogLik ){
-		pTmp3 <- pTmp3[rowNames(pTmp3)!="rLogLik",,]		
+		pTmp3 <- pTmp3[rownames(pTmp3)!="rLogLik",,]		
 	}		
 	tmpDs4 <- melt(pTmp3)
 	tmpDs4$pops <- as.factor(tmpDs4$pops)
@@ -339,7 +386,8 @@ ggplotDensity.poptDistr <- function(
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value),geom="blank")+ #, colour=pops, fill=pops
 		opts(axis.title.x = theme_blank())
 	p2 <- p1 + facet_wrap(~parms, scales="free_x") 
-	p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
+	#p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
+	p4 <- p2 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
 	p5 <- p6 <- p4 + xlab("Parameter") + ylab("Scaled density")
 	if( is.list(parmsBounds)){
 		tmpDs5 <- if(plotUpperQuantile)

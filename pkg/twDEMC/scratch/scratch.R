@@ -318,3 +318,17 @@ setMethodS3("twDEMC","default", function(
 		## \code{\link{twDEMC.twDEMC}}
 	})
 
+
+.makeTableLikelihoodTest <- function(){
+	df <- c(1:10,15,20,30,50)
+	tmp <- -sapply( df, function(dfi){ signif(getRLogLikQuantile(NULL, maxLogLik=0, df=dfi),3) })
+	plot( tmp~df)
+	ds <- data.frame(df=df,diffLogLik=tmp)
+	cat(twDf2wikiTable(ds))	# package twMisc
+	lm1 <- lm(tmp~df)
+	abline(lm1)
+	lm2 <- lm(tmp[-(1:5)]~df[-(1:5)])
+	abline(lm2, col="red")		#about 0.6 per parameter 
+}
+
+
