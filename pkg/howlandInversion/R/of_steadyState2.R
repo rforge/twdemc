@@ -110,8 +110,8 @@ of.howlandSteady <- function(
 	# assume steady state: litter inputs = respiration, recalculate root input
 	inputadj <- input
 	# here put the entire bias of difference to between litterfall and respiration to litterfall
-	inputadj$leaf[,"obs"] <- pmax(0,inputadj$leaf[,"obs"] + padj$biasLitterLeaf)
-	inputadj$root[,"obs"] <- pmax(0,inputadj$root[,"obs"] + padj$biasLitterRoot)
+	inputadj$leaf[,"obs"] <- pmax(1e-8,inputadj$leaf[,"obs"] + padj$biasLitterLeaf)
+	inputadj$root[,"obs"] <- pmax(1e-8,inputadj$root[,"obs"] + padj$biasLitterRoot)
 	inputadj <- if( is.function(fCalcBiasedInput) ) do.call( fCalcBiasedInput, c(list(inputadj,padj),argsFCalcBiasedInput)) else inputadj	# biased input data
 	
 	#initial states for all three treatments

@@ -46,11 +46,11 @@ meanInput <- function(
 meanInputFluctuating <- function(
 	### provide mean + normal year to year error
 	input	##<< list of datastream matrices leaf and root with first three columns time, obs, and sdObs 
-	,padj		##<< parameters 
+	,padj=list()	##<< parameters 
 ){
 	##details<< 
 	## generates a series of fluctuating input.
-	## Mean and sd of both leaf and root litter are calculated from provied obs and sdObs assuming independent errors
+	## Mean and sd of both leaf and root litter are calculated from the provided obs and sdObs assuming independent errors
 	## Correlation between leaf and root input is taken from padj$corrLeafRootLitter. 
 	## If this is missing, correlation of 0.8 is assumed. 
 	times <- 1900:2010
@@ -76,7 +76,7 @@ meanInputFluctuating <- function(
 attr(meanInputFluctuating,"ex") <- function(){
 	data(Howland14C)
 	str(tmp <- meanInputFluctuating( Howland14C$litter ))
-	plot( obs ~ times, data=tmp$leaf)
+	plot( obs ~ times, data=tmp$leaf, ylab="Leaf Litter Input gC/m2/yr")
 	plot( tmp$leaf[,2] ~ tmp$root[,2] )
 }
 
@@ -193,7 +193,8 @@ of.howlandSteadyRootConstr <- function(
 	# assume steady state: litter inputs = respiration, recalculate root input
 	inputadj <- input
 	# here put the entire bias of difference to between litterfall and respiration to litterfall
-	inputadj$leaf[,"obs"] <- pmax(0,inputadj$leaf[,"obs"] + padj$biasDiffRespLitterfall)
+	# 1e-8 is a small numnber. It must be greater than zero to avoid division by zero
+	inputadj$leaf[,"obs"] <- pmax(1e-8,inputadj$leaf[,"obs"] + padj$biasDiffRespLitterfall)
 	#adjust root input by a fraction so that mean of root+leaf matches resp+dO again
 	# iL + iR = resp + dO; iR= resp+dO-iL
 	fRoot <- (mean(obsadj$respCum[,"obs"])+padj$dO - mean(inputadj$leaf[,"obs"]))/mean(inputadj$root[,"obs"])
