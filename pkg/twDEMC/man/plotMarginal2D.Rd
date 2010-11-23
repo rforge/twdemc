@@ -3,7 +3,7 @@
 \title{plotMarginal2D}
 \description{Plot the 2D marginal Likelihood of a sample}
 \usage{
-plotMarginal2D(smp, xCol = 2, yCol = 3, intCol = 1, ..., grains = 20, FUN = mean, col = rev(heat.colors(100)))
+plotMarginal2D(smp, xCol = 2, yCol = 3, intCol = 1, ..., grains = 18, FUN = mean, col = rev(heat.colors(20)), minN = 7)
 }
 \arguments{
   \item{smp}{numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}}
@@ -14,6 +14,7 @@ plotMarginal2D(smp, xCol = 2, yCol = 3, intCol = 1, ..., grains = 20, FUN = mean
   \item{grains}{vector of length 1 or 2 giving the number of groups for x and y classes respectively}
   \item{FUN}{the function applied over log-Likelihoods in the classes}
   \item{col}{vector of colors}
+  \item{minN}{minimum number of items in classpixel to be plotted}
 }
 \details{The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
 Within the bin the values are aggregated. By default the mean is calculated.

@@ -12,6 +12,7 @@
 \alias{.generateXPropThin}
 \alias{.getResFLogLikNames}
 \alias{.ofLnormMLE}
+\alias{.plotMarginal2D.levelplot}
 \alias{.tmp.f}
 \alias{.tmp.f.plot.calcDEMCTempDiffLogLik2}
 \alias{.twCoefLnormMLE_depr}

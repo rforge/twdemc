@@ -11,7 +11,7 @@ getRLogLikQuantile(stackedSample, maxLogLik = max(stackedSample[, 1]), df = ncol
   \item{df}{degress of freedom: number of fitted parameters}
   \item{perc}{percentile of significance}
 }
-
+\details{See Hilborn97 for explanation of Likelihood ratio test for nested models.}
 \value{numeric scalar: minimum Log-Likelihood below which models are significantly different }
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}

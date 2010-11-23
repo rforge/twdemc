@@ -3,7 +3,7 @@
 \title{plotConditional2D}
 \description{Plot the 2D conditional profile-Likelihood of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.}
 \usage{
-plotConditional2D(smp, xCol, yCol, intCol = 1, ...)
+plotConditional2D(smp, xCol = 2, yCol = 3, intCol = 1, ...)
 }
 \arguments{
   \item{smp}{
