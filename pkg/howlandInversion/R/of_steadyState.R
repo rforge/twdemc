@@ -11,24 +11,8 @@ initState.howland.ICBM1SteadyState  <- function(
 	x0 <- initStateICBM1( xc12=as.vector(padj$Ctot0*c(padj$cY,(1-padj$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 }
 
-initState.howland.ICBM1RelaxSteadyState  <- function(
-	### Initial states from parms for ICBM1 with steady state relaxed.
-	padj		##<< must contain cY, kO, Ctot, yr0
-	,modMeta=modMetaICBM1()
-	,fFmAtmosphere=fmAtmosphere
-){
-	##details<<
-	## uses Ctot0 instead of Ctot
-	iRNew <- fFmAtmosphere(padj$yr0) #delta2iR14C(delta14Catm$delta14C[delta14Catm$yr==padj$yr0])
-	tvrOld <- 1/padj$kO	#1000 yr old carbon
-	iROld <- decayIR14C( yr=padj$yr0, iR0=fFmAtmosphere(1950-tvrOld), yr0=1950-tvrOld )	# near 1 (standard of old wood)
-	#mtrace(initStateSoilMod)
-	x0 <- initStateICBM1( xc12=as.vector(padj$Ctot0*c(padj$cY,(1-padj$cY))),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
-}
-
-
 origInput <- function(
-	### provide and unperturbed data series, neglect the standard deviation
+	### provide an unperturbed data series, neglect the standard deviation
 	input	##<< list of datastream matrices with first two columns time and value 
 	,padj	##<< parameters
 ){

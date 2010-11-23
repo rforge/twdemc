@@ -236,6 +236,27 @@ calcRelaxSteadyHcYC0_ICBM1 <- function(
 	### parms with entries cY,h, and Ctot replaced
 }
 
+calcSteadyCtot0CY_ICBM1 <- function(
+	### calculate Ctot0 and cY from assuming yong pool in steady state and C0 from linear change to Ctot
+	Ctot	##<< SOM C-Stock
+	,iY		##<< steady state input
+	,parms	##<< named numeric vector with entries kY,kO,dO,yr0,yrCtot 
+){
+	##details<< 
+	## cY is the proportion Y/C0 at the time of yr0
+	##
+	## 
+	padj <- parms
+	deltaT <- padj$yrCtot - padj$yr0
+	padj$Ctot0 <- Ctot0  <- max(1e-8, Ctot - deltaT*padj$dO)
+	padj$cY <- cY <- iY/padj$kY/Ctot0
+	padj
+	### parms with entries C0 and cY replaced
+}
+
+
+
+
 
 
 

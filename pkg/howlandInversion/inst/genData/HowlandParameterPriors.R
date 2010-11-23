@@ -43,7 +43,8 @@ parmsBounds = list(
 		,h = c(parms$h, 0.977)
 		,cY= c(parms$cY, 0.965)
 		,biasDiffRespLitterfall= c(parms$biasDiffRespLitterfall, qnorm(upperBoundProb,sd=41.4))
-		,dO=as.vector(c(parms$dO, Howland14C$obsNutrientSite$somStock[1,"obs"]*1/3 /50	)) 	# upper bound of increase rate is so that 1/3 of the stock can accumulate over 50yrs 
+		#,dO=as.vector(c(parms$dO, Howland14C$obsNutrientSite$somStock[1,"obs"]*1/3 /50	)) 	# upper bound of increase rate is so that 1/3 of the stock can accumulate over 50yrs 
+		,dO=as.vector(c(parms$dO, 50) )		##<< 20gC/m2/yr 
 		,biasLitterLeaf= c(parms$biasLitterLeaf, qnorm(upperBoundProb,sd=41.4))
 		,biasLitterRoot= c(parms$biasLitterRoot, qnorm(upperBoundProb,sd=80))
 	)
@@ -70,39 +71,42 @@ parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundPr
 
 # do the flattest logitnormal distribution possible for cY and h
 parDistr$mu[c("cY","h")] <-0
-parDistr$sigmaDiag[c("cY","h")] <- twSigmaLogitnorm(unlist(parms0[c("cY","h")]))[,2]
+parDistr$sigmaDiag[c("cY","h")] <- 1.5 #twSigmaLogitnorm(unlist(parms0[c("cY","h")]))[,2]
 
 
-HowlandParameterPriors0 <- list(
+HowlandParameterPriors <- HowlandParameterPriors0 <- list(
 	parDistr=parDistr
 	,parms0=parms0
 )
 
-setInitialICBMPriors <- function(
-	### modify priors to include or update distribution of dO (rate of accumulation) and Ctot0 (initial carbon stocks)
-	priors=HowlandParameterPriors	##<< data structure to update
-	, somStock=	Howland14C$obsNutrientSite$somStock[1,"obs"]	##<< observed stock
-	, pIncreased=c(0,1/3)		##<< proportion of increase of stock within timePeriod: c(mode, upperBound)
-	, timePeriod=50				##<< time perioed between t0 and observation of somStock
-	, upperBoundProb=0.99
-){
-	parmsBounds <- within( list(), {
-			dO=somStock*pIncreased /timePeriod	
-			Ctot0=somStock*(1+pIncreased)	
-		})	
-	# assuming no transformations (normal)
-	varDistr <- twVarDistrVec( names(parmsBounds) )
-	parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb )
-	for( pName in  names(parDistr$mu)){
-		priors$parDistr$trans[[pName]] <- parDistr$trans[[pName]]
-		priors$parDistr$mu[[pName]] <- priors$parms0[[pName]] <- parDistr$mu[[pName]]
-		priors$parDistr$sigmaDiag[[pName]] <- parDistr$sigmaDiag[[pName]]
+
+.tmp.f <- function(){
+	setInitialICBMPriors <- function(
+		### modify priors to include or update distribution of dO (rate of accumulation) and Ctot0 (initial carbon stocks)
+		priors=HowlandParameterPriors	##<< data structure to update
+		, somStock=	Howland14C$obsNutrientSite$somStock[1,"obs"]	##<< observed stock
+		, pIncreased=c(0,1/3)		##<< proportion of increase of stock within timePeriod: c(mode, upperBound)
+		, timePeriod=50				##<< time perioed between t0 and observation of somStock
+		, upperBoundProb=0.99
+	){
+		parmsBounds <- within( list(), {
+				dO=somStock*pIncreased /timePeriod	
+				Ctot0=somStock*(1+pIncreased)	
+			})	
+		# assuming no transformations (normal)
+		varDistr <- twVarDistrVec( names(parmsBounds) )
+		parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb )
+		for( pName in  names(parDistr$mu)){
+			priors$parDistr$trans[[pName]] <- parDistr$trans[[pName]]
+			priors$parDistr$mu[[pName]] <- priors$parms0[[pName]] <- parDistr$mu[[pName]]
+			priors$parDistr$sigmaDiag[[pName]] <- parDistr$sigmaDiag[[pName]]
+		}
+		priors
 	}
-	priors
+	
+	
+	HowlandParameterPriors <- setInitialICBMPriors(HowlandParameterPriors0, somStock=Howland14C$obsNutrientSite$somStock[1,"obs"])
 }
-
-
-HowlandParameterPriors <- setInitialICBMPriors(HowlandParameterPriors0, somStock=Howland14C$obsNutrientSite$somStock[1,"obs"])
 
 save(HowlandParameterPriors, file="data/HowlandParameterPriors.RData")
 

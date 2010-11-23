@@ -116,8 +116,8 @@ of.howlandSteady <- function(
 	
 	#initial states for all three treatments
 	padj$yr0 <- times[1]
-	padj$Ctot <- obsadj$somStock[1,2]		# needed in fCalcSteadyPars
-	padj$yrCtot <- obsadj$somStock[1,1]		# needed in fInitState for non-steady state
+	padj$Ctot <- padj$Ctot0 <- obsadj$somStock[1,2]		# needed in fCalcSteadyPars
+	padj$yrCtot <- obsadj$somStock[1,1]		# needed in fCalcSteadyPars for non-steady state
 	iY <- sum( sapply(inputadj,function(inputComp){mean(inputComp[,"obs"])}) ) # meanLeafInput + meanRootInput
 	padj <- fCalcSteadyPars( Ctot=padj$Ctot, iY=iY, parms=padj)
 	#padj[c("kY","kO")] <- calcSteadyK_ICBM1(Ctot=padj$Ctot,cY=padj$cY,h=padj$h,iY=sumInput)
