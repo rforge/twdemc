@@ -4,11 +4,12 @@ plotMarginal2D <- function(
 	,xCol=2		##<< index (column number or column name) of column for x ordinate
 	,yCol=3		##<< index (column number or column name) of column for y ordinate
 	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
-	, ...		##<< additional arguments to FUN 
 	, grains=18 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
 	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
+	, argsFUN=list(na.rm=TRUE)	##<< additional arguments to FUN 
 	, col=rev(heat.colors(20))	##<< vector of colors
 	, minN=7	##<< minimum number of items in classpixel to be plotted
+	, ...		##<< additional arguments to twPlot2D
 ){
 	##details<< 
 	## The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
@@ -25,23 +26,33 @@ plotMarginal2D <- function(
 	##}
 	
 	if( length(grains)==1) grains=c(grains,grains)	
-	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol])
-	smpGrained[,1] <- {tmp<-cut2( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	smpGrained[,2] <- {tmp<-cut2( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol,drop=FALSE])
+	smpGrained[,1] <- {tmp<-cutQuantiles( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained[,2] <- {tmp<-cutQuantiles( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
 	tmpGrp <- (as.factor(smpGrained[,1])):(as.factor(smpGrained[,2]))
 	xs <- as.numeric(levels(as.factor(smpGrained[,1])))
 	ys <- as.numeric(levels(as.factor(smpGrained[,2])))
 	smp2 <- data.frame(
 		x=rep(xs, each=grains[1])
 		,y=rep(ys, grains[2])
-		,marginalLogLik = tapply(smpGrained[,3], tmpGrp, FUN, na.rm=TRUE)
+		,marginalLogLik = do.call( tapply, c(list(smpGrained[,3], tmpGrp, FUN),argsFUN)  )
 		,n=as.vector(table(tmpGrp))
 	)
 	names(smp2)[1:2] <- colnames(smpGrained)[1:2]
 	smp3 <- smp2
 	smp3[ smp2[,"n"]<minN, 3] <- NA
-	twPlot2DFun( xs, ys, FUN=smp3$marginalLogLik, xdiv=NULL, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
-	invisible(smp2)
+	#plot( tmp <- twApply2DMesh(xs, ys, FUN=smp3$marginalLogLik, knotSpacing="all"), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
+	#plot.twApply2DMesh(smp3$marginalLogLik, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col ) 
+	twPlot2D(xs, ys, z=matrix(smp3$marginalLogLik,nrow=length(xs)), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], zlab=colnames(smpGrained)[3], col=col, ... ) 
+	return(invisible(smp2))
+}
+attr(plotMarginal2D,"ex") <- function(){
+	data(twdemcEx1)
+	sample <- stackChains(twdemcEx1)
+	sample0 <- sample[ sample[,1] >= quantile(sample[,1],0.05), ]
+	#simple plot
+	#mtrace(plotMarginal2D)
+	plotMarginal2D( sample0, "a", "b", minN=1 )	# actually not a marginal
 }
 
 .plotMarginal2D.levelplot <- function(
@@ -71,8 +82,8 @@ plotMarginal2D <- function(
 	
 	if( length(grains)==1) grains=c(grains,grains)	
 	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol])
-	smpGrained[,1] <- {tmp<-cut2( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	smpGrained[,2] <- {tmp<-cut2( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained[,1] <- {tmp<-cutQuantiles( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
+	smpGrained[,2] <- {tmp<-cutQuantiles( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
 	#smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN )
 	smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN, ... )
 	names(smpMarginal) <- c("x","y","z")
