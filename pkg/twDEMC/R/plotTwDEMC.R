@@ -349,7 +349,7 @@ ggplotDensity.twDEMC <- function(
 	tmpDs4 <- melt(pTmp3)
 	tmpDs4$pops <- as.factor(tmpDs4$pops)
 	
-	p1 <- p2 <- ggplot(tmpDs4,aes(x=value))+ #, colour=pops, fill=pops
+	p1 <- p2 <- ggplot(tmpDs4,aes(x=value))+ ylim(0,1) +#, colour=pops, fill=pops
 		opts(axis.title.x = theme_blank())
 	#print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
 	if( 0 < length(poptDistr) ){
@@ -363,7 +363,7 @@ ggplotDensity.twDEMC <- function(
 				,size=0.8,linetype="twodash")+
 			scale_colour_manual("Populations",cols )
 	}
-	p3 <- p2 + stat_density(aes(y=..scaled..,colour=pops), geom="line")+
+	p3 <- p2 + stat_density(aes(y=..scaled..,colour=pops,ymax=1), geom="line")+
 		facet_wrap(~parms, scales="free_x")
 	#p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
 	#		facet_wrap(~parms, scales="free")
