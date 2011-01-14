@@ -195,7 +195,7 @@ twCoefLnormMLE <- function(
 	# (2) sigma=1/simgaFac(log(q)-mu)
 	m <- log(mle)
 	s2 <- sigmaFac/2
-	sigma <- -s2 + sqrt( s2^2 -(-log(quant)+m) ) 
+	sigma <- -s2 + sqrt( s2^2 -(-log(quant)+m) ) #
 	mu <- m + sigma^2
 	cbind(mu=mu, sigma=sigma )
 	### numeric matrix: columns mu and sigma parameter of the lognormal distribution. 

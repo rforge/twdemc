@@ -3,18 +3,20 @@
 \title{plot3DKDMarginals}
 \description{Evaluates the Kernel-density regression on a grid and displays a figure.}
 \usage{
-plot3DKDMarginals(form, ds, prob = c(0.25, 0.5, 0.75), dims = 8, bandwidth = NULL, nSampleBandwidth = 500, nSample = 1000, bwtype = "adaptive_nn", tol = 0.1, ftol = 0.1, ...)
+plot3DKDMarginals(form, ds, probs = c(0.2, 0.5, 0.75, 0.95), ..., dims = 8, bandwidth = NULL, knotSpacing = "quantile", nSampleBandwidth = 500, nSample = 1000, bwtype = "adaptive_nn", tol = 0.1, ftol = 0.1)
 }
 \arguments{
   \item{form}{formula of regression e.g. rLogLik~tvrY+tvrO+biasLitterLeaf}
   \item{ds}{dataframe or matrix with column names corresponding to variables in the formula}
-  \item{prob}{
-}
+  \item{probs}{the percentiles at which to plot contour surfaces for the response variable
+the levels are calculated from the subsample }
+  \item{\dots}{further argument to \code{\link{plot.twApply3DMesh}}}
   \item{dims}{vector of points across predictor space within each dimension: scales bad: n=prod(dims)~dims[1]^3}
-  \item{bandwidth}{see adaptive bandwidth of npreg.
+  \item{bandwidth}{integer vector: bandwidth for each dimension}
+  \item{knotSpacing}{see adaptive bandwidth of npreg.
 about Records to include for estimating bandwidth.
 If only one value is supplied, then it is repeated for each predictor
-integer vector: bandwidth for each dimension}
+see argument in \code{\link{twApply3DMesh}}}
   \item{nSampleBandwidth}{the sample size to estimate the bandwidth}
   \item{nSample}{The larger the sample, the longer it takes
 sample used for interpolation}
@@ -23,7 +25,6 @@ sample used for interpolation}
 }
   \item{ftol}{
 }
-  \item{\dots}{further argument to \code{\link{plot.twApply3DMesh}}}
 }
 \details{Uses package snowfall to split calculation to subprocesses.
 Requires package np loaded in cluster (sfLibrary(np))}

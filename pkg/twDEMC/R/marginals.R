@@ -258,9 +258,12 @@ plot3DKDMarginals <- function(
 	### Evaluates the Kernel-density regression on a grid and displays a figure.
 	form	##<< formula of regression e.g. rLogLik~tvrY+tvrO+biasLitterLeaf
 	,ds		##<< dataframe or matrix with column names corresponding to variables in the formula
-	,prob=c(0.25,0.5,0.75)
+	,probs=c(0.2,0.5,0.75,0.95)		##<< the percentiles at which to plot contour surfaces for the response variable
+		## the levels are calculated from the subsample 
+	,...		##<< further argument to \code{\link{plot.twApply3DMesh}}
 	,dims=8	##<< vector of points across predictor space within each dimension: scales bad: n=prod(dims)~dims[1]^3  
 	,bandwidth = NULL	 ##<< integer vector: bandwidth for each dimension
+	,knotSpacing = "quantile"	##<< see argument in \code{\link{twApply3DMesh}}
 	### see adaptive bandwidth of npreg.
 	### about Records to include for estimating bandwidth.
 	### If only one value is supplied, then it is repeated for each predictor
@@ -268,19 +271,19 @@ plot3DKDMarginals <- function(
 	,nSample=1000		##<< sample used for interpolation
 	### The larger the sample, the longer it takes
 	,bwtype="adaptive_nn" ,tol=.1, ftol=.1	##<< parameters for \code{\link{npregbw}}
-	,...		##<< further argument to \code{\link{plot.twApply3DMesh}}
 ){
 	##details<<
 	## Uses package snowfall to split calculation to subprocesses.
 	## Requires package np loaded in cluster (sfLibrary(np))
 	
 	if( !is.data.frame(ds) ) ds <- as.data.frame(ds)
-	dsPred <- model.frame(form,ds)
-	nVars <- ncol(dsPred)-1
+	dsPredAll <- model.frame(form,ds)
+	nVars <- ncol(dsPredAll)-1
 	if( nVars != 3) error("plot3DKDMarginals: number of predictor variables must be 3.")
 	if( length(bandwidth) == 1) bandwidth <- rep(bandwidth, nVars)
 	if( length(dims) == 1) dims <- rep(dims, nVars)
 	
+	# the sample to draw (and to predict new values)
 	if( nSample < nrow(ds))
 		dss <- ds[sample.int(nrow(ds),nSample),]	# tradeoff 200: larger sample sizes become really slow
 	else
@@ -289,6 +292,7 @@ plot3DKDMarginals <- function(
 	
 	#bw0 <- npregbw(formula=form, ds100, bwmethod="normal-reference" )
 	#bw3 <- bw30 <- npregbw(formula=form, ds100, bwtype="generalized_nn" ,tol=.1, ftol=.1 )
+	# the sample to estimate the bandwidth
 	dssbw <- if( 0<length(bandwidth) ){
 			#do not need to estimate bandwidht, just take 3 samples
 			dss[sample.int(nrow(dss),3),]
@@ -300,7 +304,7 @@ plot3DKDMarginals <- function(
 	
 	#bw0 <- npregbw(formula=form, ds100, bwmethod="normal-reference" )
 	#bw3 <- bw30 <- npregbw(formula=form, ds100, bwtype="generalized_nn" ,tol=.1, ftol=.1 )
-	sfLibrary(np)
+	#sfLibrary(np) must be done before
 	tmpf <- function(i, dssbw, ...){
 		#generate different starting values
 		set.seed(i*1000)
@@ -337,10 +341,12 @@ plot3DKDMarginals <- function(
 	#mtrace(tmpf)
 	if( 0==length(bandwidth) ) bandwidth<-bw3$bw
 	#tmp2 <- twPlot3DContourFun( dsPred[,-1], FUN=tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bandwidth;tmp}), dims=dim[1], ydiv=dim[2], col=rev(heat.colors(20)), xlab=bw3$xnames[1], ylab=bw3$xnames[2],key.title=title(sub=paste(colnames(dsPred)[1],"\n",sep="")) )
-	tmp2 <- twApply3DMesh(dsPred[,-1],FUN=tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bandwidth;tmp}), dims=dims, nSample=nSample, label=colnames(dsPred)[1] )
-	names(dimnames(tmp2)) <- bw3$xnames
-	attr(tmp2,"bws") <- bw3
-	plot.twApply3DMesh(tmp2, ...)
+	tmp2 <- twApply3DMesh(dsPred[,-1],FUN=tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bandwidth;tmp}), dims=dims, nSample=nSample, label=colnames(dsPred)[1], knotSpacing=knotSpacing )
+	#names(dimnames(tmp2)) <- bw3$xnames
+	tmp2$bandwidht <- bandwidth
+	#levels <- quantile( dsPredAll[,1], probs=probs)
+	levels <- quantile( tmp2$sample[,4], probs=probs)
+	plot(tmp2, levels=levels, ...)
 	return(invisible(tmp2))
 	### 3D Array of Kernel density regression predictions over the mesh. See \code{\link{twApply3DMesh}}.
 }

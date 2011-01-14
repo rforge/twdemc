@@ -37,6 +37,7 @@ pkg<-"twDEMC"
 	# generate documentation
 	
 	# generate RD Files
+	pkg<-"twDEMC"
 	library(inlinedocs)
 	unlink( file.path("man","*.Rd") )	
 	package.skeleton.dx(".")

@@ -161,7 +161,7 @@ dsog$z <- apply(as.matrix(dsog[,1:2]),1,function(xy){
 	})
 image( tmpx, tmpy,  matrix(dsog$z,nrow=length(tmpx)-1), col = rev(heat.colors(100)), xlab="a", ylab="b" )
 
-#nicer and faster with packages lattice and Rcmdr
+#nicer and faster with packages lattice
 .tmp.f <- function(){
 	library(lattice)
 	# round numbers to see something in levelplot else points get too small
@@ -170,16 +170,18 @@ image( tmpx, tmpy,  matrix(dsog$z,nrow=length(tmpx)-1), col = rev(heat.colors(10
 			round(var/grain)*grain
 		})
 	levelplot(rLogLik~a*b, data=as.data.frame(sampleSig), col.regions=rev(heat.colors(100)))
-	
-	library(Rcmdr)
+}
+
+# better seen in three dimensions
+.tmp.f <- function(){
 	sampleSig <- sample[ sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9), ]
 	ds <- as.data.frame(sampleSig)
-	scatter3d(ds$a, ds$rLogLik, ds$b
-			, surface=FALSE
-		   ,bg="white", axis.scales=TRUE, grid=TRUE, ellipsoid=FALSE, xlab="a" 
-		   ,ylab="rLogLik", zlab="b"
-	   	   , point.col=rev(heat.colors(100))[round(rescale(ds$rLogLik,to=c(1,100)))]
+	plot3d(ds$a, ds$b, ds$rLogLik
+	  ,col=rev(heat.colors(100))[round(rescale(ds$rLogLik,to=c(1,100)))]
+	  ,xlab="a", ylab="b", zlab="LogLik"
 	)
+	view3dTiltSpin() 
+	play3d( spin3d() )	# press ESC for stop
 }
 
 # for mor examples with prior and simulated annealing see the vignettes
