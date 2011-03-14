@@ -1,0 +1,11 @@
+Package: twInverseTutorial
+Title: Hands-on-session on inverse modelling 
+Version: 1.0
+Date: 2011-03-11
+Author: Thomas Wutzler
+Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
+Description: Hands on session for course on Maximum Likelihood and Bayesian inverse parameter estimation
+License: GPL-2
+LazyLoad: yes
+Depends: R (>= 1.10.0), nlme, twDEMC
+

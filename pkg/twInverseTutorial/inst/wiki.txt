@@ -1,0 +1,17 @@
+== Hands-on sessions ==
+* kinresp1.R , fCost1
+*: 1/2*sum((ds$resp-predResp)^2)
+* kinresp1.R , fCost2
+*: sum( 1/2*((log(W)-meanlog)/(sdlog))^2 + log(W) )
+* kinresp2.R, ordinary profile holding r0 and x0 constant
+<pre>
+plot( L ~ mumax, data=subset(xrx, xrx$L <= Lmin+3) )
+abline( h=Lmin+1.92, col="gray" )
+</pre>
+* kinresp2.R, ordinary profile 2d
+*: xrc <- subset(xr,L <= Lmin+1.96)
+
+=== Bayesian ===
+* kinresp3.R
+* fCostMC4
+*:  -1/2*((logit(r0)-mu)^2)/sigma^2 -log(r0*(1-r0))
