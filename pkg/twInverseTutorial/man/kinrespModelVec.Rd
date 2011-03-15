@@ -1,7 +1,7 @@
 \name{kinrespModelVec}
 \alias{kinrespModelVec}
 \title{Calling \code{kinrespModel} with parameters as vector}
-
+\description{Calling \code{kinrespModel} with parameters as vector}
 \usage{
 kinrespModelVec(parOpt, fModel, parDefault = parOpt, ...)
 }

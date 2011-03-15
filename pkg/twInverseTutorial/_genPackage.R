@@ -42,6 +42,7 @@ pkgVersion <- "1.0"		# must correspond to the version in DESCRIPTION file
 	# generate RD Files
 	unlink( file.path("man","*.Rd") )	# get rid of old documentation
 	package.skeleton.dx(".")			# parse source code in R dir
+	unlink( file.path("man","*-package.Rd") )	# get rid of old documentation
 	try(file.copy( Sys.glob(file.path("inst","genData","*.Rd")), "man" ), silent=TRUE)	# copy descriptions of data
 
 	# generate the HTML  files
