@@ -23,8 +23,9 @@ kinrespModel(x0, r0, mumax, time, lambda = 0.9, YCO2 = 1.5)
 
 \examples{
 data(dsKinrespTut)
-ds <- subset(dsKinrespTut, replicate==1 )
-resp0 <- kinrespModel( x0=140, r0=2e-3, mumax=0.24, time=ds$time)
+ds <- subset(dsKinrespTut[order(dsKinrespTut$time),], replicate==1 & experiment=="9")
+require(nlme)
+gls1 <- gnls( resp ~ kinrespModel( x0, r0, mumax, time), ds, start=c(x0=140, r0=2e-3, mumax=0.24) )
 plot( resp~time, data=ds)
-lines(resp0~ds$time)
+lines(fitted(gls1)~ds$time)
 }
