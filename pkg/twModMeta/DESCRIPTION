@@ -1,11 +1,11 @@
-Package: howlandInversion
-Title: Howland inverse study
+Package: twModMeta
+Title: Support for array based state variables in ODE.
 Version: 1.0
-Date: 2010-10-15
+Date: 2011-05-05
 Author: Thomas Wutzler
 Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
-Description: Using 14C data to identify soil model parameters for the Howland study site.
+Description: Support for array based state variables in ODE.
 License: GPL-2
 LazyLoad: yes
-Depends: R (>= 1.10.0), deSolve, twDEMC 
+Depends: R (>= 1.10.0), deSolve 
 

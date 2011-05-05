@@ -4,7 +4,7 @@ if(require("RUnit", quietly=TRUE)) {
 	## --- Setup ---
 	
 	#pkg <- "PKG" # <-- Change to package name!
-	pkg <- "howlandInversion" # <-- Change to package name!
+	pkg <- "twModMeta" # <-- Change to package name!
 	pkgPath <- getwd()		# the default for debugging in package workspace
 	if(Sys.getenv("RCMDCHECK") == "FALSE") {
 		## Path to unit tests for standalone running under Makefile (not R CMD check)

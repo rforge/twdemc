@@ -14,7 +14,7 @@ system("R CMD SHLIB src/soilmod_fs.c src/rc_helpers.c src/mic_c_part.c")
 // Make sure that all global object names are unique
 // Append MODEL_ID do names
 // see macro APPMID and definitions in par_define.c
-#define MODEL_ID icbm1
+#define MODEL_ID icbmDemo
 
 // define the constants to access rows (stateVars) and columns (isotopic components) in X
 enum XROWS {Y,O,R,     N_XROWS};
@@ -28,7 +28,7 @@ enum XCOLS {c12,c14,   N_XCOLS};
 
 
 // define constants to access components in *aux, i.e. auxiliary outputs in addition to *x
-enum AUX_OUTPUT_NAMES {inputLeaf_c12,inputLeaf_c14,inputRoot_c12,inputRoot_c14,decY_c12,decY_c14,decO_c12,decO_c14,respY_c12,respY_c14,respO_c12,respO_c14,N_AUX}; //generated in ICBM1.R
+enum AUX_OUTPUT_NAMES {inputLeaf_c12,inputLeaf_c14,inputRoot_c12,inputRoot_c14,decY_c12,decY_c14,decO_c12,decO_c14,respY_c12,respY_c14,respO_c12,respO_c14,N_AUX}; //generated in ICBMDemo.R
 
 // define parameters and global variables
 #define PDBL_TABLE \

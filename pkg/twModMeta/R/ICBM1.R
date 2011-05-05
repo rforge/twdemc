@@ -1,7 +1,7 @@
 #---------- process knowledge: the model relating microbial parameters to observations
 
-modMetaICBM1 <- function(
-### Creating Meta-information for ICBM1.
+modMetaICBMDemo <- function(
+### Creating Meta-information for ICBMDemo.
 ){
 	##seealso<< \code{\link{twCreateModMeta}}, \code{\link{twSetModMetaAuxGroups}}
 	modMeta <- twCreateModMeta(
@@ -30,32 +30,32 @@ modMetaICBM1 <- function(
 		,respF14CT = "respF14CT" 					#fraction modern of total respiration
 	)
 	modMeta <- twSetModMetaAuxGroups(modMeta,auxGroups)
-	#copy2clip(paste("enum AUX_OUTPUT_NAMES {",paste(c(modMetaICBM1()$auxOutputNames,"N_AUX"),collapse=","),"}; //generated in ICBM1.R",sep=""))	#to adjust icbm1.c 
+	#copy2clip(paste("enum AUX_OUTPUT_NAMES {",paste(c(modMetaICBMDemo()$auxOutputNames,"N_AUX"),collapse=","),"}; //generated in ICBMDemo.R",sep=""))	#to adjust icbm1.c 
 }
-#twUtestF("ICBM1",test="modMeta")
-#mtrace(modMetaICBM1)
+#twUtestF("ICBMDemo",test="modMeta")
+#mtrace(modMetaICBMDemo)
 
-initStateICBM1 <- function(
-	### Creating initial state variables for ICBM1.
+initStateICBMDemo <- function(
+	### Creating initial state variables for ICBMDemo.
 	xc12,	cn=0, 	iR 
-	,modMeta=modMetaICBM1()	##<< may pass pre-calulated modMeta for efficiency.
+	,modMeta=modMetaICBMDemo()	##<< may pass pre-calulated modMeta for efficiency.
 	,... 
 ){
 	##seealso<< 
 	x <- initStateSoilMod(xc12,cn,iR,modMeta=modMeta)
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
 }
-#twUtestF("ICBM1",test="init")
+#twUtestF("ICBMDemo",test="init")
 
-#mtrace(solveICBM1)
-solveICBM1 <- function(
-	### solve the ODE of \code{\link{derivICBM1}}
+#mtrace(solveICBMDemo)
+solveICBMDemo <- function(
+	### solve the ODE of \code{\link{derivICBMDemo}}
 	x0		##<< numeric vector or matrix at t=0
 	,times	##<< times at which explicit estimates for y are desired. The first value in times must be the initial time.
 	,parms	##<< list of model parameters
 	,input  ##<< list with dataframes entries leaf and root each with columns yr and obs
 	,fFmAtmosphere=fmAtmosphere  
-	,modMeta=modMetaICBM1()	##<< metaInformation from model. Pass for efficiency or when using different units. 
+	,modMeta=modMetaICBMDemo()	##<< metaInformation from model. Pass for efficiency or when using different units. 
 	,useRImpl=FALSE		##<< flag indicating to use the R implementation instead of C implementation.
 ){
 	##seealso<< \code{\link[deSolve]{lsoda}}
@@ -72,14 +72,14 @@ solveICBM1 <- function(
 	input$leaf14C <- cbind( yr=iTimes, obs=fLeaf12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagLeaf) ) 
 	input$root14C <- cbind( yr=iTimes, obs=fRoot12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagRoot) ) 
 	res0 <- if( useRImpl ){ 
-		#lsoda( x0, times, derivICBM1, parms, atol = 0 )
+		#lsoda( x0, times, derivICBMDemo, parms, atol = 0 )
 		# the forcing functions; rule = 2 avoids NaNs in interpolation
 		fLeaf14C = approxfun(x=input$leaf14C[,1], y=input$leaf14C[,2], method="linear", rule=2)
 		fRoot14C = approxfun(x=input$root14C[,1], y=input$root14C[,2], method="linear", rule=2)
 		parms$fInput <- function(t){ 
 					c(leaf12C = fLeaf12C(t), leaf14C=fLeaf14C(t), root12C=fRoot12C(t), root14C=fRoot14C(t))    
 				}
-		lsoda( x0, times, derivICBM1, parms ) 
+		lsoda( x0, times, derivICBMDemo, parms ) 
 	}else {
 		forcings <- input[c("leaf","root","leaf14C","root14C")] 
 		lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings)		#head(res0 <- lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings))
@@ -98,7 +98,7 @@ solveICBM1 <- function(
 	### result of \code{\link{lsoda}}  
 }
 
-derivICBM1 <- function(
+derivICBMDemo <- function(
 	### Derivative function of Basic Colimitation model.
 	t, x, p 
 ){
@@ -146,7 +146,7 @@ derivICBM1 <- function(
 	list(dx,a)
 }
 
-calcSteadyK_ICBM1 <- function(
+calcSteadyK_ICBMDemo <- function(
 	### calculte decay constants from assuming steady state and remaining parameters
 	Ctot	##<< SOM C-Stock
 	,iY		##<< steady state input
@@ -159,7 +159,7 @@ calcSteadyK_ICBM1 <- function(
 	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
 }
 
-calcSteadyK_ICBM1_mat <- function(
+calcSteadyK_ICBMDemo_mat <- function(
 	### calculte decay constants from assuming steady state and remaining parameters
 	Ctot	##<< SOM C-Stock
 	,iY		##<< steady state input
@@ -173,7 +173,7 @@ calcSteadyK_ICBM1_mat <- function(
 }
 
 
-calcSteadyHcY_ICBM1 <- function(
+calcSteadyHcY_ICBMDemo <- function(
 	### calculte cY and h from assuming steady state and decay constants
 	Ctot	##<< SOM C-Stock
 	,iY		##<< steady state input
@@ -187,7 +187,7 @@ calcSteadyHcY_ICBM1 <- function(
 	### parms with entries cY and h replaced
 }
 
-calcSteadyHcY_ICBM1_mat <- function(
+calcSteadyHcY_ICBMDemo_mat <- function(
 	### calculte cY and h from assuming steady state and decay constants, set Ctot0 to Ctot
 	Ctot	##<< SOM C-Stock
 	,iY		##<< steady state input
@@ -201,7 +201,7 @@ calcSteadyHcY_ICBM1_mat <- function(
 	### parms with columns cY,h,Ctot0 replaced
 }
 
-calcRelaxSteadyHcY_ICBM1 <- function(
+calcRelaxSteadyHcY_ICBMDemo <- function(
 	### calculate cY,h, from assuming increase rate dO of the old pool and decay constants and given C0
 	Ctot	##<< not used (uses parms$Ctot0)
 	,iY		##<< sum of inputs
@@ -220,7 +220,7 @@ calcRelaxSteadyHcY_ICBM1 <- function(
 	### parms with entries cY and h replaced
 }
 
-calcRelaxSteadyHcYC0_ICBM1 <- function(
+calcRelaxSteadyHcYC0_ICBMDemo <- function(
 	### calculate cY,h, and initial Ctot from assuming increase rate dO of the old pool and decay constants and approximate C0
 	Ctot	##<< SOM C-Stock in yr parms$yrCtot
 	,iY		##<< here the respiration, dO will be added
@@ -228,15 +228,15 @@ calcRelaxSteadyHcYC0_ICBM1 <- function(
 ){
 	##details<<
 	## Ctot0 is calculated as Ctot - (yrCtot-yr0)*dO
-	## the results from \code{\link{calcRelaxSteadyHcY_ICBM1}} are returned
+	## the results from \code{\link{calcRelaxSteadyHcY_ICBMDemo}} are returned
 	padj <- parms
 	dt <- padj$yrCtot - padj$yr0
 	padj$Ctot0 <- Ctot0 <- max(1e-4, Ctot - padj$dO*dt)
-	calcRelaxSteadyHcY_ICBM1( NA, iY=iY, parms=padj )
+	calcRelaxSteadyHcY_ICBMDemo( NA, iY=iY, parms=padj )
 	### parms with entries cY,h, and Ctot replaced
 }
 
-calcSteadyCtot0CY_ICBM1 <- function(
+calcSteadyCtot0CY_ICBMDemo <- function(
 	### calculate Ctot0 and cY from assuming yong pool in steady state and C0 from linear change to Ctot
 	Ctot	##<< SOM C-Stock
 	,iY		##<< steady state input
