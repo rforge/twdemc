@@ -14,10 +14,14 @@
 	#source(file.path("inst","cluster","setupCluster.R"))
 	#mtrace(setupClusterHowlandDev)
 	#setupClusterHowlandDev(pkgDir = ".")
-
+	
+	dynFilenameLocal <- file.path("src",paste("twModMeta", .Platform$dynlib.ext, sep = ""))
+	dyn.load(dynFilenameLocal)
+	
+	twUtestF()
+	
 	twUtestF("ICBMDemo", "test.steadyStateHowland" )
 	twUtestF("ICBMDemo")
-	twUtestF()
 }
 
 

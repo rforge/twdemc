@@ -43,7 +43,7 @@ test.decay <- function(){
 	tvrOld <- 1000 #1/parms0$kO	#1000 yr old carbon
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
-	#mtrace(initStateSoilMod)
+	#mtrace(initStateModMeta)
 	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
 	#mtrace(solveICBMDemo)
@@ -94,7 +94,7 @@ test.constInput <- function(){
 	tvrOld <- 1000 #1/parms0$kO	#1000 yr old carbon
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
-	#mtrace(initStateSoilMod)
+	#mtrace(initStateModMeta)
 	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
 	
 	#mtrace(derivICBMDemo)

@@ -1,9 +1,9 @@
-\name{initStateSoilMod}
-\alias{initStateSoilMod}
-\title{initStateSoilMod}
+\name{initStateModMeta}
+\alias{initStateModMeta}
+\title{initStateModMeta}
 \description{Creating initial state variables for Basic Colimitation submodel.}
 \usage{
-initStateSoilMod(xc12, cn, iR, modMeta)
+initStateModMeta(xc12, cn, iR, modMeta)
 }
 \arguments{
   \item{xc12}{numeric vector: 12C mass for each pool \cr

@@ -135,7 +135,7 @@ DLLfuncTest <- function (
 	return(out)
 }
 
-initStateSoilMod <- function(
+initStateModMeta <- function(
 	### Creating initial state variables for Basic Colimitation submodel.
 	xc12 		
 	### numeric vector: 12C mass for each pool \cr

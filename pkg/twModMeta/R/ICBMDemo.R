@@ -42,7 +42,7 @@ initStateICBMDemo <- function(
 	,... 
 ){
 	##seealso<< 
-	x <- initStateSoilMod(xc12,cn,iR,modMeta=modMeta)
+	x <- initStateModMeta(xc12,cn,iR,modMeta=modMeta)
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
 }
 #twUtestF("ICBMDemo",test="init")
