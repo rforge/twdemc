@@ -1,0 +1,11 @@
+Package: howlandInversion
+Title: Howland inverse study
+Version: 1.0
+Date: 2010-10-15
+Author: Thomas Wutzler
+Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
+Description: Using 14C data to identify soil model parameters for the Howland study site.
+License: GPL-2
+LazyLoad: yes
+Depends: R (>= 1.10.0), deSolve, twDEMC 
+
