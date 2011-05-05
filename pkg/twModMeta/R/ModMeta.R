@@ -5,10 +5,10 @@ twCreateModMeta <- function(
 	iRUnits=1, 	  	##<< numeric vector of units for different isotopes, ensuring equal magnitudes to avoid numerical errors (see details)\cr
 	auxGroups=list() ##<< namegroup (character) -> columnNames (character vector): column names of auxiliary outputs 
 ){
-	if( !is.vector(rowNames) ) throw("rowNames must be a vector of character strings of at least length one.")
-	if( !(is.character(rowNames)) ) throw("rowNames must be a vector of character strings of at least length one.")
-	if( !(is.list(csts)) ) throw("csts must be a list of vectors of character strings of at least length one.")
-	#if( !(is.character(csts[[1]][1])) ) throw("csts must be a list of vectors of character strings of at least length one.")
+	if( !is.vector(rowNames) ) 	stop("rowNames must be a vector of character strings of at least length one.")
+	if( !(is.character(rowNames)) ) stop("rowNames must be a vector of character strings of at least length one.")
+	if( !(is.list(csts)) ) stop("csts must be a list of vectors of character strings of at least length one.")
+	#if( !(is.character(csts[[1]][1])) ) stop("csts must be a list of vectors of character strings of at least length one.")
 	res <- within( list(),{
 			rowNames <- as.character(rowNames)	#strip names attribute	
 			csts <- csts

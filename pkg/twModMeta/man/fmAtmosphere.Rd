@@ -1,7 +1,7 @@
 \name{fmAtmosphere}
 \alias{fmAtmosphere}
 \title{fmAtmosphere}
-\description{Fraction modern of the atmosphere for year given as a real number}
+\description{function of Fraction modern of the atmosphere for year given as a real number}
 \usage{
 fmAtmosphere(v)
 }

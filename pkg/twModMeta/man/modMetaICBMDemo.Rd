@@ -1,9 +1,9 @@
-\name{modMetaICBM1}
-\alias{modMetaICBM1}
-\title{modMetaICBM1}
-\description{Creating Meta-information for ICBM1.}
+\name{modMetaICBMDemo}
+\alias{modMetaICBMDemo}
+\title{modMetaICBMDemo}
+\description{Creating Meta-information for ICBMDemo.}
 \usage{
-modMetaICBM1()
+modMetaICBMDemo()
 }
 
 

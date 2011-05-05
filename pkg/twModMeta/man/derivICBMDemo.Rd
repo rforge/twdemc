@@ -1,9 +1,9 @@
-\name{derivICBM1}
-\alias{derivICBM1}
-\title{derivICBM1}
+\name{derivICBMDemo}
+\alias{derivICBMDemo}
+\title{derivICBMDemo}
 \description{Derivative function of Basic Colimitation model.}
 \usage{
-derivICBM1(t, x, p)
+derivICBMDemo(t, x, p)
 }
 \arguments{
   \item{t}{

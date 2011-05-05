@@ -7,5 +7,5 @@ Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
 Description: Support for array based state variables in ODE.
 License: GPL-2
 LazyLoad: yes
-Depends: R (>= 1.10.0), deSolve 
+Depends: R (>= 1.10.0), abind, deSolve 
 

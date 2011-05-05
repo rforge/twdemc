@@ -68,7 +68,7 @@ solveICBMDemo <- function(
 	fRoot12C <- if( nrow(input$root) == 1) function(t){as.vector(input$root[1,2])} else
 	   approxfun(x=input$root[,1], y=input$root[,2], method="linear", rule=2)
 	#for 14C we need an input each year, because it changes with atmospheric 14c-Activity
-	iTimes <- seqRange( range(times), by=1 )
+	iTimes <- {tmp<-range(times); seq( tmp[1], tmp[2], by=1 )}
 	input$leaf14C <- cbind( yr=iTimes, obs=fLeaf12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagLeaf) ) 
 	input$root14C <- cbind( yr=iTimes, obs=fRoot12C(iTimes)*fFmAtmosphere(iTimes-parms$tLagRoot) ) 
 	res0 <- if( useRImpl ){ 
@@ -82,7 +82,7 @@ solveICBMDemo <- function(
 		lsoda( x0, times, derivICBMDemo, parms ) 
 	}else {
 		forcings <- input[c("leaf","root","leaf14C","root14C")] 
-		lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings)		#head(res0 <- lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbm1",	initfunc = "init_soilmod_icbm1", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbm1", forcings=forcings))
+		lsoda( x0, times, dllname = "twModMeta", func = "deriv_icbmDemo",	initfunc = "init_soilmod_icbmDemo", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbmDemo", forcings=forcings)		#head(res0 <- lsoda( x0, times, dllname = "howlandInversion", func = "deriv_icbmDemo",	initfunc = "init_soilmod_icbmDemo", parms = parms, nout = modMeta$nAux, outnames = modMeta$auxOutputNames, initforc = "forcc_icbmDemo", forcings=forcings))
 	}
 	#cname=modMeta$rowNames[1]
 	auxF14C <- do.call( cbind, lapply( modMeta$rowNames, function(cname){(res0[,paste(cname,"c14",sep="_")]/res0[,paste(cname,"c12",sep="_")]) } )) / modMeta$iR14CStandard
@@ -145,121 +145,3 @@ derivICBMDemo <- function(
 	
 	list(dx,a)
 }
-
-calcSteadyK_ICBMDemo <- function(
-	### calculte decay constants from assuming steady state and remaining parameters
-	Ctot	##<< SOM C-Stock
-	,iY		##<< steady state input
-	,parms	##<< list with entries kY,kO and cY and h
-){
-	padj <- parms
-	padj$kY = iY/(padj$cY*Ctot)
-	padj$kO = (iY*padj$h)/((1-padj$cY)*Ctot)
-	padj
-	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
-}
-
-calcSteadyK_ICBMDemo_mat <- function(
-	### calculte decay constants from assuming steady state and remaining parameters
-	Ctot	##<< SOM C-Stock
-	,iY		##<< steady state input
-	,parms	##<< named numeric vector with entries kY,kO and cY and h
-){
-	padj <- parms
-	padj[,"kY"] = iY/(padj[,"cY"]*Ctot)
-	padj[,"kO"] = (iY*padj[,"h"])/((1-padj[,"cY"])*Ctot)
-	padj
-	### named numeric matrix with columns kY and kO, rows corresponding to longest input parameter (others are recycled)
-}
-
-
-calcSteadyHcY_ICBMDemo <- function(
-	### calculte cY and h from assuming steady state and decay constants
-	Ctot	##<< SOM C-Stock
-	,iY		##<< steady state input
-	,parms	##<< named numeric vector with entries kY,kO and cY and h
-){
-	padj <- parms
-	padj$cY <- cY <- iY/padj$kY/Ctot
-	padj$h <- padj$kO*(1-cY) / (padj$kY*cY)
-	padj$Ctot0 <- Ctot
-	padj
-	### parms with entries cY and h replaced
-}
-
-calcSteadyHcY_ICBMDemo_mat <- function(
-	### calculte cY and h from assuming steady state and decay constants, set Ctot0 to Ctot
-	Ctot	##<< SOM C-Stock
-	,iY		##<< steady state input
-	,parms	##<< named numeric matrix with columns kY,kO and cY and h
-){
-	padj <- parms
-	padj[,"cY"] <- cY = iY/padj[,"kY"]/Ctot
-	padj[,"h"] <- padj[,"kO"]*(1-cY) / (padj[,"kY"]*cY)
-	padj[,"Ctot0"] <- Ctot 
-	padj
-	### parms with columns cY,h,Ctot0 replaced
-}
-
-calcRelaxSteadyHcY_ICBMDemo <- function(
-	### calculate cY,h, from assuming increase rate dO of the old pool and decay constants and given C0
-	Ctot	##<< not used (uses parms$Ctot0)
-	,iY		##<< sum of inputs
-	,parms	##<< named numeric vector with entries kY,kO,dO,Ctot and cY and h
-){
-	##details<<
-	## The young pool is assumed to be in steady state.
-	## The old pool is assumed to increase with rate h
-	## When calculating litter input, then roughly input = dO + respiration
-	## This parameter calculation function does calculate Ctot0. Make sure that Ctot0 is among estimated parameters. Else initialization function will fail. 
-	padj <- parms
-	Ctot = parms$Ctot0
-	padj$cY = cY = iY/padj$kY/Ctot
-	padj$h = (padj$dO/Ctot + padj$kO*(1-cY)) / (padj$kY*cY)
-	padj
-	### parms with entries cY and h replaced
-}
-
-calcRelaxSteadyHcYC0_ICBMDemo <- function(
-	### calculate cY,h, and initial Ctot from assuming increase rate dO of the old pool and decay constants and approximate C0
-	Ctot	##<< SOM C-Stock in yr parms$yrCtot
-	,iY		##<< here the respiration, dO will be added
-	,parms	##<< named numeric vector with entries kY,kO,dO,yr0 (initial time),yrCtot (time of Ctot measurement) and cY and h
-){
-	##details<<
-	## Ctot0 is calculated as Ctot - (yrCtot-yr0)*dO
-	## the results from \code{\link{calcRelaxSteadyHcY_ICBMDemo}} are returned
-	padj <- parms
-	dt <- padj$yrCtot - padj$yr0
-	padj$Ctot0 <- Ctot0 <- max(1e-4, Ctot - padj$dO*dt)
-	calcRelaxSteadyHcY_ICBMDemo( NA, iY=iY, parms=padj )
-	### parms with entries cY,h, and Ctot replaced
-}
-
-calcSteadyCtot0CY_ICBMDemo <- function(
-	### calculate Ctot0 and cY from assuming yong pool in steady state and C0 from linear change to Ctot
-	Ctot	##<< SOM C-Stock
-	,iY		##<< steady state input
-	,parms	##<< named numeric vector with entries kY,kO,dO,yr0,yrCtot 
-){
-	##details<< 
-	## cY is the proportion Y/C0 at the time of yr0
-	##
-	## 
-	padj <- parms
-	deltaT <- padj$yrCtot - padj$yr0
-	padj$Ctot0 <- Ctot0  <- max(1e-8, Ctot - deltaT*padj$dO)
-	padj$cY <- cY <- iY/padj$kY/Ctot0
-	padj
-	### parms with entries C0 and cY replaced
-}
-
-
-
-
-
-
-
-
-
-

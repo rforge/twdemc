@@ -1,9 +1,9 @@
-\name{initStateICBM1}
-\alias{initStateICBM1}
-\title{initStateICBM1}
-\description{Creating initial state variables for ICBM1.}
+\name{initStateICBMDemo}
+\alias{initStateICBMDemo}
+\title{initStateICBMDemo}
+\description{Creating initial state variables for ICBMDemo.}
 \usage{
-initStateICBM1(xc12, cn = 0, iR, modMeta = modMetaICBM1(), ...)
+initStateICBMDemo(xc12, cn = 0, iR, modMeta = modMetaICBMDemo(), ...)
 }
 \arguments{
   \item{xc12}{

@@ -1,9 +1,9 @@
-\name{solveICBM1}
-\alias{solveICBM1}
-\title{solveICBM1}
-\description{solve the ODE of \code{\link{derivICBM1}}}
+\name{solveICBMDemo}
+\alias{solveICBMDemo}
+\title{solveICBMDemo}
+\description{solve the ODE of \code{\link{derivICBMDemo}}}
 \usage{
-solveICBM1(x0, times, parms, input, fFmAtmosphere = fmAtmosphere, modMeta = modMetaICBM1(), useRImpl = FALSE)
+solveICBMDemo(x0, times, parms, input, fFmAtmosphere = fmAtmosphere, modMeta = modMetaICBMDemo(), useRImpl = FALSE)
 }
 \arguments{
   \item{x0}{numeric vector or matrix at t=0}
