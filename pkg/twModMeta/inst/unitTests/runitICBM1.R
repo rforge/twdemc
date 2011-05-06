@@ -44,7 +44,7 @@ test.decay <- function(){
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
 	#mtrace(initStateModMeta)
-	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY),0),iR=matrix(c(iRNew,iROld,0),ncol=1,dimnames=list(NULL,"c14")) )
 	
 	#mtrace(solveICBMDemo)
 	#mtrace(derivICBMDemo)
@@ -95,7 +95,7 @@ test.constInput <- function(){
 	iROld <- decayIR14C( yr=yr0, iR0=delta2iR14C(delta14Catm$delta14C[1]), yr0=1950-tvrOld )	# near 1 (standard of old wood)
 	
 	#mtrace(initStateModMeta)
-	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY)),iR=matrix(c(iRNew,iROld),ncol=1,dimnames=list(NULL,"c14")) )
+	x0 <- initStateICBMDemo( xc12=101.0*c(parms0$cY,(1-parms0$cY),0),iR=matrix(c(iRNew,iROld,0),ncol=1,dimnames=list(NULL,"c14")) )
 	
 	#mtrace(derivICBMDemo)
 	res <- solveICBMDemo(

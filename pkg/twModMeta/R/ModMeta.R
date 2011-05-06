@@ -13,10 +13,10 @@ twCreateModMeta <- function(
 			rowNames <- as.character(rowNames)	#strip names attribute	
 			csts <- csts
 			colNames <- as.character(unlist(csts))
-			nRows <- length(rowNames)
-			nCols <- length(colNames)
+			nRow <- length(rowNames)
+			nCol <- length(colNames)
 			elementNames <- twModElementNames(rowNames,colNames)
-			matrixTemplate <- matrix( 0.0, nrow=nRows, ncol=nCols, dimnames=list(pools=rowNames, compartments=colNames) )
+			matrixTemplate <- matrix( 0.0, nrow=nRow, ncol=nCol, dimnames=list(pools=rowNames, compartments=colNames) )
 		})
 	names(res$matrixTemplate) <- res$elementNames
 	##details<< \describe{\item{iRUnits}{ 
@@ -26,16 +26,16 @@ twCreateModMeta <- function(
 	## }}
 	if( 0<length(iRUnits) ) iRUnits=1
 	if( length(iRUnits)==1 ) 
-		iRUnits <- structure( rep(iRUnits,res$nCols), names=res$colNames )
+		iRUnits <- structure( rep(iRUnits,res$nCol), names=res$colNames )
 	else{
 		if( is.null(names(iRUnits))){ 
-			if( length(iRUnits != res$nCols) ) stop("iRUnits must be provided for each isotope component")
+			if( length(iRUnits != res$nCol) ) stop("iRUnits must be provided for each isotope component")
 			names(iRUnits) <- res$colNames	#assume that order is correct
 		}else{	
 			if( !("c12" %in% names(iRUnits)) ) iRUnits <- c(iRUnits,c12=1)	#add default entry for c12
 			if( !("n15" %in% names(iRUnits)) ) iRUnits <- c(iRUnits,n15=1)	#add default entry for n15
 			iRUnits <- iRUnits[res$colNames]	#permute to correct order 
-			if( length(iRUnits != res$nCols) ) stop("iRUnits must be provided for each isotope component")
+			if( length(iRUnits != res$nCol) ) stop("iRUnits must be provided for each isotope component")
 		}
 	}
 	res$iRUnits <- iRUnits	
@@ -45,12 +45,12 @@ twCreateModMeta <- function(
 	### \item{csts}{ list of character vectors: correponding to isotopes }
 	### \item{colNames}{character vector: names of the isotopes}
 	### \item{elementNames}{character vector: names of the elements row_column }
-	### \item{iRUnits}{numeric array (nCols), unit of isotopic column, take care in sums}	
+	### \item{iRUnits}{numeric array (nCol), unit of isotopic column, take care in sums}	
 	### \item{auxGroups}{namegroup (character) -> columnNames (character vector): column names of auxiliary outputs }
 	### \item{auxOutputNames}{character vector: names of all auxiliary outputs}	
 	### \item{auxOutputTemplate}{numeric vector, with names corresponding to auxOutputNames }	
-	### \item{nRows}{number of rows}	
-	### \item{nCols}{number of columns}	
+	### \item{nRow}{number of rows}	
+	### \item{nCol}{number of columns}	
 	### \item{matrixTemplate}{numeric matrix: template for state variable matrix with corresponding row and column names}	
 	### \item{nAux}{number of auxiliary outputs}	
 	### }
@@ -153,13 +153,14 @@ initStateModMeta <- function(
 	,modMeta	##<< model meta information, see \code{\link{modMetaICBMDemo}}
 ){
 	# check arguments
-	rowNamesSOM <- modMeta$rowNames[ modMeta$rowNames != "R"]
+	#rowNamesSOM <- modMeta$rowNames[ modMeta$rowNames != "R"]
+	rowNamesSOM <- modMeta$rowNames
 	if( !is.null(names(xc12))) xc12 <- xc12[rowNamesSOM]	#permute items of xc12	
-	if( (modMeta$nRow-1) != length(xc12) ) stop("xc12 must contain a value for each state variable except cumulative respiration.")
+	if( (modMeta$nRow) != length(xc12) ) stop("xc12 must contain a value for each state variable.")
 	if( !is.matrix(iR) )	#repeat for each row
-		iR <- matrix( iR, byrow=TRUE, nrow=modMeta$nRow-1, ncol=length(iR), dimnames=list(rowNamesSOM,names(iR)))
-	if( !is.null(rownames(iR))) iR <- iR[rowNamesSOM,]	#permute rows 
-	if( (modMeta$nRow-1) != nrow(iR) ) stop("iR must contain a row for each state variable except cumulative respiration.")
+		iR <- matrix( iR, byrow=TRUE, nrow=modMeta$nRow, ncol=length(iR), dimnames=list(rowNamesSOM,names(iR)))
+	if( !is.null(rownames(iR))) iR <- iR[rowNamesSOM,,drop=FALSE]	#permute rows 
+	if( (modMeta$nRow) != nrow(iR) ) stop("iR must contain a row for each state variable.")
 	
 	if( !("c12" %in% colnames(iR)) ) iR <- cbind(iR,c12=1)	#add default entry for c12
 	iRcis <- iR[,modMeta$csts$cis,drop=FALSE]				#extract carbon and permute 
@@ -171,7 +172,7 @@ initStateModMeta <- function(
 	if( length(cn) == 1)		#repeat for each row
 		cn <- rep(cn,length(rowNamesSOM))
 	if( !is.null(names(cn)) ) cn <- cn[rowNamesSOM]	#permute names
-	if( !length(cn) == (modMeta$nRow-1)) stop("cn must contain a value for each state variable except Respiration.")
+	if( !length(cn) == (modMeta$nRow)) stop("cn must contain a value for each state variable.")
 	
 	#initialize the state variables
 	x <- modMeta$matrixTemplate
@@ -192,7 +193,7 @@ twStateMatODERes <- function(
 	#iSteps=1:3
 	#iStep=1
 	res <- abind( lapply( iSteps, function(iStep){
-		matrix( out[iStep,2:(modMeta$nCols*modMeta$nRows+1)], nrow=modMeta$nRows )
+		matrix( out[iStep,2:(modMeta$nCol*modMeta$nRow+1)], nrow=modMeta$nRow )
 	}), rev.along=0 )
 	dimnames(res) <- c( modMeta[c("rowNames","colNames")], list(outStep=NULL) )
 	res
