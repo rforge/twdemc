@@ -13,13 +13,14 @@ par(mgp=c(1.4,0.2,0) )  #positioning of axis title, axis labels, axis
 ## Jenny 49
 ## =======================================================================
 
-Ne <- with( as.list(pars), k2/k1)	# equilibrium level of N
-yini    <- c(N = 2*Ne)
-
 pars    <- c(
 	k1  = 0.0608	# 1/yr decay rate Nitrogen 
 	,k2  = 38.0		# kg N / ha /yr, rate of N fixation
 )
+
+
+Ne <- with( as.list(pars), k2/k1)	# equilibrium level of N
+yini    <- c(N = 2*Ne)
 
 times   <- seq(0, 100, by = 1)	# years
 
@@ -103,4 +104,29 @@ yini    <- c(
 	,O=3		##<< old carbon kg/ha
 	,YNew = 0
 	,ONew = 0
-)	 
+)
+# produce graph on slide 9
+
+## =======================================================================
+## ICBM experiment warmin
+## =======================================================================
+# assume we can mark litter inputs 
+# and trace ratio of new Carbon in respiration and stocks
+
+
+tempFac <- function(temp, Q10=2, temp0=10){
+	Q10^((temp-temp0)/10)	
+}
+times   <- seq(0, 200, by = 1)	# years
+temp <- seq(10,length.out=length(times),by=5/100)
+tempNoise <- temp + rnorm(length(temp), sd=2)
+fTemp <- approxfun(times, tempNoise)
+
+plot( tempFac(fTemp(times)) ~ times )
+
+# incorporate temperature dependence in ICBM model
+
+
+
+
+

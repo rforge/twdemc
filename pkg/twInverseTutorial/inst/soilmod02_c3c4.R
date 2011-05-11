@@ -71,9 +71,11 @@ mtext("C (kg/ha/yr)",2,2.2, las=0)
 legend("topright", c("Young","Old","Young New","Old New"), col = 1:4, lty = 1:4, inset=c(0.05,0.15))
 
 # Plotting the results
-matplot(out[,1], out[,c("resp","respNew")], type = "l", xlab = "time (yr)", ylab = "",	main = "ICBM", lwd = 2)
 matplot(out[,1], cbind( 
 	out[,c("respNew")]/rowSums(out[,c("resp","respNew")])
 	,rowSums(out[,c("YNew","ONew")])/rowSums(out[,c("Y","O","YNew","ONew")])
 )
 , type = "l", xlab = "time (yr)", ylab = "",	main = "ICBM", lwd = 2)
+
+mtext("Proportion of new (labeled) C",2,2, las=0)
+legend("bottomright", c("Respiration","Stocks"), col = 1:4, lty = 1:4, inset=c(0.05,0.15))
