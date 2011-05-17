@@ -58,13 +58,15 @@ twCreateModMeta <- function(
 
 twSetModMetaAuxGroups <- function(
 	### Setting auxiliare output items in modMeta.
-	modMeta, auxGroupsNew){
+	modMeta, auxGroupsNew, auxGroupsSolve=list() ){
 	res <- within(modMeta,{
 			auxGroups <- auxGroupsNew			#grouping names of auxiliary outputs for assigning vectors
 			auxOutputNames <- as.character(unlist(auxGroups))
 			if( 0 == length(auxOutputNames) ) auxOutputNames <- character()
 			auxOutputTemplate <- structure( rep(0.0,length(auxOutputNames)), names=auxOutputNames)
 			nAux <- length(auxOutputNames)
+			auxGroupsExt <- c( auxGroups, auxGroupsSolve )
+			auxGroupsExtNames <-  as.character(unlist(auxGroupsExt))
 		})
 	### ModMeta (result of \code{\link{twCreateModMeta}}) adjusted for auxGroups, ausOutputnames, auxOutputTemplate, and nAux.
 }
@@ -77,6 +79,11 @@ twModElementNames <- function(
 ){ 
 	as.vector(sapply( colNames, function(colName){ paste(rowNames, colName, sep="_" )}))
 	### Character vector for each index (by row) rowName, colName
+}
+attr(twModElementNames,"ex") <- function(){
+	mmd <- modMetaICBMDemo()
+	twModElementNames("Y",mmd$csts$cis)
+	twModElementNames(c("Y","O"),mmd$csts$cis)
 }
 
 DLLfuncTest <- function (
@@ -156,28 +163,33 @@ initStateModMeta <- function(
 	#rowNamesSOM <- modMeta$rowNames[ modMeta$rowNames != "R"]
 	rowNamesSOM <- modMeta$rowNames
 	if( !is.null(names(xc12))) xc12 <- xc12[rowNamesSOM]	#permute items of xc12	
-	if( (modMeta$nRow) != length(xc12) ) stop("xc12 must contain a value for each state variable.")
+	if( (modMeta$nRow) != length(na.omit(xc12)) ) stop("xc12 must contain a value for each state variable.")
 	if( !is.matrix(iR) )	#repeat for each row
 		iR <- matrix( iR, byrow=TRUE, nrow=modMeta$nRow, ncol=length(iR), dimnames=list(rowNamesSOM,names(iR)))
 	if( !is.null(rownames(iR))) iR <- iR[rowNamesSOM,,drop=FALSE]	#permute rows 
 	if( (modMeta$nRow) != nrow(iR) ) stop("iR must contain a row for each state variable.")
 	
-	if( !("c12" %in% colnames(iR)) ) iR <- cbind(iR,c12=1)	#add default entry for c12
+	if( is.null(colnames(iR)) ) colnames(iR) <- modMeta$colNames else{
+		c12 <- modMeta$csts$cis[1]
+		if( !(c12 %in% colnames(iR)) ) iR <- cbind(iR,structure(1.0,names=c12))	#add default entry for c12
+		n15 <- modMeta$csts$nis[1]
+		if( !(n15 %in% colnames(iR)) ) iR <- cbind(iR,structure(1.0,names=n15))
+	}
 	iRcis <- iR[,modMeta$csts$cis,drop=FALSE]				#extract carbon and permute 
-	if( length(modMeta$csts$cis) != ncol(iRcis) ) stop("iR must contain a value for each carbon isotope.")
-	if( !("n15" %in% colnames(iR)) ) iR <- cbind(iR,n15=1)
+	if( length(na.omit(modMeta$csts$cis)) != ncol(iRcis) ) stop("iR must contain a value for each carbon isotope.")
 	iRnis <- iR[,modMeta$csts$nis,drop=FALSE]
-	if( length(modMeta$csts$nis) != ncol(iRnis) ) stop("iR must contain a value for each nitrogen isotope.")
+	if( length(na.omit(modMeta$csts$nis)) != ncol(iRnis) ) stop("iR must contain a value for each nitrogen isotope.")
 	
-	if( length(cn) == 1)		#repeat for each row
+	if( length(na.omit(cn)) == 1)		#repeat for each row
 		cn <- rep(cn,length(rowNamesSOM))
 	if( !is.null(names(cn)) ) cn <- cn[rowNamesSOM]	#permute names
-	if( !length(cn) == (modMeta$nRow)) stop("cn must contain a value for each state variable.")
+	if( !length(na.omit(cn)) == (modMeta$nRow)) stop("cn must contain a value for each state variable.")
 	
 	#initialize the state variables
 	x <- modMeta$matrixTemplate
 	x[ rowNamesSOM ,modMeta$csts$cis] <- xc12*iRcis
-	xn15 <- xc12*cn
+	xn15<-rep(0,length(xc12)) 
+	xn15[xc12!=0] <- (xc12/cn)[xc12!=0]
 	x[ rowNamesSOM, modMeta$csts$nis] <- xn15*iRnis
 	x
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
