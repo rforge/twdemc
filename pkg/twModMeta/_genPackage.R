@@ -27,6 +27,7 @@
 
 .tmp.inlinedocs <- function(){
 	# generate documentation
+	data(delta14Catm)
 	pkg <- "twModMeta"
 	library(inlinedocs)
 	htmlRoot <- file.path( system.file(package = pkg), "html" )	# may work only after the first R CMD INSTALL

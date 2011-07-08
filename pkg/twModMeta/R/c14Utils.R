@@ -1,6 +1,6 @@
-data(delta14Catm)
+#data(delta14Catm)
 
-calcLagged14CSeries <- function(
+calcLagged14CSeries <- function( # 14C flux by applying lagged atmospheric 14C concentrations 
 	### Calculate the 14C flux by applying the atmospheric 14C concentration with a time lag.
 	inputYr			##<< the year of the carbon flux 
 	,inputValue		##<< the value of the carbon flux
@@ -19,7 +19,7 @@ calcLagged14CSeries <- function(
 	### atomic ratio of input as multiple of the standard (dimensionless) corrected for fractionation.
 } 
 
-delta13Ccorrected14C <- function(
+delta13Ccorrected14C <- function( # Fractionation correction
 	### correct 14C atomic ratio for fractionation by delta13C value 
 	iR				##<< 14C isotopic ratio, or fraction modern
 	,delta13C=-25	##<< isotopic ratio of 13C in delta units for correction for fractionation
@@ -27,7 +27,7 @@ delta13Ccorrected14C <- function(
 	if( delta13C == -25) iR else iR*((1-25/1000)/(1+delta13C/1000))^2 
 }
 
-delta2iR14C <- function(
+delta2iR14C <- function( # Convert delta unit to atomic ratio
 	### Convert delta unit to atomic ratio.
 	delta	##<< numeric vector of delta values
 	,iR14CStandard=c14Constants$iR14CStandard	##<< numeric scalar atomic ratio of the standard
@@ -36,7 +36,7 @@ delta2iR14C <- function(
 	
 }
 
-ir14C2delta <- function(
+ir14C2delta <- function( # Convert atomic ratio to delta units
 	### Convert atomic ratio to delta units.
 	iR	##<< numeric vector of atomic ratios
 	,iR14CStandard=c14Constants$iR14CStandard
@@ -44,14 +44,14 @@ ir14C2delta <- function(
 	(iR/iR14CStandard-1)*1000
 }
 
-delta2FM <- function(
+delta2FM <- function( # Convert delta unit to fraction modern.
 	### Convert delta unit to fraction modern.
 	delta	##<< numeric vector of delta values
 ){
 	(delta/1000+1)	
 }
 
-FMC2delta <- function(
+FMC2delta <- function( # Convert fraction modern to delta units.
 	### Convert fraction modern to delta units.
 	fm	##<< numeric vector of atomic ratios
 ){
@@ -60,7 +60,7 @@ FMC2delta <- function(
 
 
 
-decayIR14C <- function(
+decayIR14C <- function( # Applying radiactive decay
 	### Calculate the atomic ratio for given years assuming only radioactive decay.
 	yr		##<< numeric vector for years
 	, iR0=c14Constants$iR14CStandard	##<< isotopic ratio at yr0
@@ -74,18 +74,4 @@ attr(decayIR14C,"ex") <- function(){
 	plot( decayIR14C(yr)~yr )
 }
 
-### Constants used with 14C calculations.
-c14Constants <- list(
-	#iR14CUnit = 1e-12
-	#,iR14CStandard = 1.176	# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968),
-	iR14CUnit = 1.176*1e-12		##<< atomic ratio of standard, i.e. output in fraction modern
-	,iR14CStandard = 1			# http://www.nosams.whoi.edu/clients/data.html,  (Karlen, et. al., 1968), 
-	,yr14CStandard=1950
-	,lambda=1/8267	#radioactive decay constant
-	,delta14Catm=delta14Catm
-	,fmAtm=cbind(yr=delta14Catm[,"yr"], fm14C=delta2FM(delta14Catm[,"delta14C"]))	##<< fraction modern of the athmosphere
-)
-
-### function of Fraction modern of the atmosphere for year given as a real number
-fmAtmosphere <- approxfun( c14Constants$fmAtm[,"yr"], c14Constants$fmAtm[,"fm14C"], rule=2)
 
