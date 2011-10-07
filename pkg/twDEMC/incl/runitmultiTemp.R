@@ -71,7 +71,7 @@ test.noTemp <- function(){
 	
 	.start=100/.thin
 	#matplot( res$temp[-(1:.start),], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
 	matplot( res$rLogLik[-(1:.start),], type="l")
 	plot(density(res$parms["theta",,]))
 	
@@ -121,7 +121,7 @@ test.tempSingle <- function(){
 	
 	.start=100/.thin
 	matplot( res$temp[,], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
 	matplot( res$rLogLik[-(1:.start),], type="l")
 	plot(density(res$parms["theta",,]))
 	
@@ -185,7 +185,7 @@ test.tempMult <- function(){
 	
 	.start=100/.thin
 	matplot( res$temp[,], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.start),], ncol(res$temp), 2), type="l" )
 	matplot( res$rLogLik[-(1:.start),], type="l")
 	plot(density(res$parms["theta",,]))
 	

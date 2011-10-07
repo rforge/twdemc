@@ -48,26 +48,27 @@ checkConvergenceGelman <- function(
 #mtrace( checkConvergenceGelman )
 
 
-.checkConvergenceGelmanPops <- function(
+checkConvergenceGelmanPops <- function(
 	### Gelman RHat criterion applied to each population and between populations
-	res					##<< see return value of \code{\link{twDEMCInt}} ($parms (d x nStep x nChain) )
-	,burninFrac=0.5 	##<< fraction of the chain to be discarded (default 0.5)
+	aTwDEMC				##<< see return value of \code{\link{twDEMCInt}} ($parms (d x nStep x nChain) )
+	,burninFrac=aTwDEMC$nGenBurnin/getNGen(aTwDEMC) 	##<< fraction of the chain to be discarded (default 0.5)
 	,rHatMin = 1.1		##<< rHat criterion, upper bound that is regarded as convergence 
 ){
-	stop(".checkConvergenceGelmanPops not implemented yet.")
 	# checkConvergenceGelmanPops
-	res <- thin(res,start=ceiling(calcNGen(res)*burninFrac)  )
-	nPops <- getNPops(res)
+	thinned <- thin(aTwDEMC,start=ceiling(getNGen(aTwDEMC)*burninFrac)  )
+	nPops <- getNPops(thinned)
 	#popChains <- matrix(1:nChains,ncol=nPops)
-	resPops <- lapply(1:nPops,function(iPop){subChains(res,iPops=iPop)})
+	resPops <- lapply(1:nPops,function(iPop){subChains(thinned,iPops=iPop)})
 	popCrit <- lapply( resPops, checkConvergenceGelman, burninFrac=0, rHatMin=rHatMin )
-	if( !all(unlist(popCrit)) ) return(FALSE)
+	#if( !all(unlist(popCrit)) ) return(FALSE)
 	
+	#stop(".checkConvergenceGelmanPops not implemented yet.")
 	#tmp <- do.call(combinePops,resPops) #does not stack within population
-	tmp <- stackChains(thin(res,start=ceiling(calcNGen(res)*burninFrac)))
+	tmp <- stackChainsPop( thin(thinned,start=ceiling(getNGen(thinned)*burninFrac)), varInRows=TRUE)
+	#tmp <- stackChains(thin(res,start=ceiling(getNGen(res)*burninFrac)))
 
-	l <- dim(res$parms)[2]
-	res2 <- res$parms[ ,ceiling(l*burninFrac):l, ]	# second half of all the chains
+	l <- dim(thinned$parms)[2]
+	res2 <- thinned$parms[ ,ceiling(l*burninFrac):l, ]	# second half of all the chains
 	n <- dim(res2)[2]	# number of steps
 	m <- dim(res2)[3]   # number of chains
 	rl <- sapply( 1:dim(res2)[1], function(vn){	#over all variables (estimands)
@@ -81,12 +82,17 @@ checkConvergenceGelman <- function(
 			VarPlus/W
 		})
 	names(rl) <- rownames(res2)
-	res <- all(rl <= (rHatMin)^2 )
-	attr(res,"rHat2") <- rl
-	res
+	thinned <- all(rl <= (rHatMin)^2 )
+	attr(thinned,"rHat2") <- rl
+	thinned
 	### all rl <= criterion for each chain
 }
-#mtrace( checkConvergenceGelman )
+#mtrace( checkConvergenceGelmanPops )
+attr(checkConvergenceGelmanPops,"ex") <- function(){
+	data(twdemcEx1)
+	aTwDEMC <- twdemcEx1
+	checkConvergenceGelmanPops(twdemcEx1)
+}
 
 getRLogLikQuantile <- function(
 	### Quantile of logLikelihood below which models are significantly different from the best model, i.e. parameterization
@@ -104,5 +110,32 @@ getRLogLikQuantile <- function(
 	x2 <- qchisq(perc, df=df )
 	maxLogLik -x2/2
 	### numeric scalar: minimum Log-Likelihood below which models are significantly different 
+}
+
+checkConvergenceTrend <- function(
+	### checks whether the first and last fifth mean of populations differ significantly 
+	resB			##<< the twDEMC to examine
+	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogLik)%/%ncol(resB$temp))
+){
+	iGen <- structure( cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
+		,dimnames= list(pop=NULL,part=c("start","end")) )
+	nPops <- getNPops(resB)
+	# stack rLogLik for each population
+	#rLogLikStart <- popApplyTwDEMC( resB$rLogLik[iGen[,1],], nPops=1, as.vector )
+	rLogLikStart <- popApplyTwDEMC( resB$rLogLik[iGen[,1],], nPops=nPops, as.vector )
+	rLogLikEnd <- popApplyTwDEMC( resB$rLogLik[iGen[,2],], nPops=nPops, as.vector )
+	res <- sapply( 1:nPops, function(i){ t.test(rLogLikStart[,i],rLogLikEnd[,i],alternative="greater")$p.value })
+	res
+}
+attr(checkConvergenceTrend,"ex") <- function(){
+	data(twdemcEx1)
+	# p.value for differenc in means for each population
+	(res <- checkConvergenceTrend(twdemcEx1))
+	# none of them has converged on a 5% level
+	res < 0.05
+	#discard burnin 
+	(res <- checkConvergenceTrend(thin(twdemcEx1,start=40)))
+	# none of them has converged on a 5% level
+	res < 0.05
 }
 

@@ -89,6 +89,8 @@ twDEMCInt <- function(
 	## In order to assess convergence, one must run several independent populations.
 	## This is supported by specifying argument nPops. Then the n chains, i.e. dim(Zinit)[3], are grouped into several populations.
 	## }}
+	
+	if( length(nGen) != 1 ) stop("twDEMCInt: nGen must be a scalar.")
 
 	d <- as.list(structure(dim(Zinit),names=c("parms","gen","chains")))
 	##details<< \describe{ \item{Detailed control parameters: \code{controlTwDEMC}}{
@@ -108,7 +110,9 @@ twDEMCInt <- function(
 		TFix=numeric(0),	##<< named numeric vector of Temperatures of fLogLik components, whose Temperature is fixed
 		pAcceptWindowWidth = 256, ##<< number of generations back over which the acceptance rate is calculated
 		probUpDir=0.5 	##<< probability of direction between two states of increasing Likelihood (increase during burin may accelerate convergence)
-		,initialAcceptanceRate=rep(0.12,nPops)	##<< numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from 
+		,initialAcceptanceRate=rep(0.25,nPops)	##<< numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
+		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
+		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below 1.2 times this level, employ delayed rejection (DR)
 	)  ##end<< 
 	## }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
@@ -144,9 +148,9 @@ twDEMCInt <- function(
 	if( (d$chains %% nPops) != 0 ) stop(paste("number of chains dim(Zinit)[3]=",d$chains," must be a multiple of number of populations nPops=",nPops))
 
 	#preallocate output of parameters, calculated LogLik, indices of accepted steps, and next proposal
-	nThinnedGen = max(nGen %/% ctrl$thin,1);	
-	nGen = max(nThinnedGen * ctrl$thin,1)  #do not need to move beyond thinning interval
-	Nz <- d$gen+(nThinnedGen)
+	nThinnedGen = max(nGen %/% ctrl$thin,1);	#number of thinning intervals in this batch
+	nGen = max(nThinnedGen * ctrl$thin,1)  #number of generations in this batch (do not need to move behind last thinning interval)
+	Nz <- d$gen+(nThinnedGen)			   #number of rows in Z after batch
 	Z <- array(NA, dim=c(d=d$parms,nStep=Nz,nChain=d$chains), dimnames=dimnames(Zinit) )
 	if( is.null(dimnames(Z))) dimnames(Z) = list( parms=paste("p",1:d$parms,sep="_"), steps=NULL, chains=NULL )
 	rLogLik = pAccept = matrix(NA,nrow=Nz, ncol=d$chains)
@@ -160,6 +164,7 @@ twDEMCInt <- function(
 	Z[,1:d$gen,] <- Zinit
 	mZ=d$gen 					#current number of generations
 	if( !hasArg(X) | 0 == length(X) ){ 
+		# assume current state X of each chain is last row of Zinit, then reset logLik
 		X <- adrop(Zinit[,dim(Zinit)[2],,drop=FALSE],2)	#last row of Zinit
 		logLikX <- numeric(0)
 		resFLogLikX <- numeric(0)
@@ -167,6 +172,7 @@ twDEMCInt <- function(
 	if( 0==length(rownames(X)) )
 		warning("twDEMCInt: no rownames of initial value matrix X.")
 	if( (0==length(logLikX)) || (0==length(resFLogLikX)) || !is.finite(logLikX) || any(!is.finite(resFLogLikX))){
+		# calculate unnormalized density for current state if not provided yet 
 		#twCalcLogLikPar expects parameters in columns, need transpose
 		.resFLogLikXPar <- if( (0 == length(resFLogLikX))) numeric(0) else t(resFLogLikX) #transpose will fail on NULL
 		.resLogLikPar <- twCalcLogLikPar(fLogLik=fLogLik, xProp=t(X), resFLogLikX=.resFLogLikXPar, intResCompNames=intResCompNames, argsFLogLik=argsFLogLik, fLogLikScale=fLogLikScale
@@ -193,7 +199,7 @@ twDEMCInt <- function(
 		stop(paste("twDEMCInt: non-finite logLikelihood of starting values for chains ",paste(which(tmp2),collapse=","),sep=""))
 	nChainsPop <- d$chains %/% nPops 
 	
-	# record of proposals and rLogLik results, rows c(accepted, parNames, resCompNames, rLogLik)
+	# record of proposals and fLogLik results, rows c(accepted, parNames, resCompNames, rLogLik)
 	# if doRecordProposals is FALSE record only the thinning intervals for the last 128 generations
 	# +1 for the initial state
 	nThinLast <- if(doRecordProposals) nThinnedGen else min(nThinnedGen, ceiling(128/ctrl$thin))
@@ -228,8 +234,8 @@ twDEMCInt <- function(
 	nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	
 	##details<< \describe{ \item{Acceptance rate}{
-	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth generations.
-	## \cr If acceptance rates drops to low values, this might be because of bad localization
+	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth generations. \cr
+	## If acceptance rates drops to low values, this might be because of bad localization
 	## ,i.e the requirement to use states from more distant past.
 	## In order to improve localization, less parameters or more chains per population are required.
 	## }}
@@ -247,9 +253,9 @@ twDEMCInt <- function(
 	if( any(is.na(posLogLikInt)))
 		stop(paste("not all names of intResCompNames (",paste(intResCompNames,collapse=","),") in return of fLogLik: ",paste(rownames(resFLogLikX),collapse=",")))
 	
-	#proportions of temperature numeric matrix (comp x populations)
+	#proportions of temperature numeric matrix (comp x populations) for temperature varying across data streams
 	Tprop=matrix(1, nrow=nrow(resFLogLikX), ncol=nPops, dimnames=dimnames(resFLogLikX))
-	if( length(ctrl$Tprop > 1)){
+	if( length(ctrl$Tprop) > 1){
 		if( !is.matrix(ctrl$Tprop) )
 			ctrl$Tprop <- matrix( ctrl$Tprop, nrow=nrow(resFLogLikX), ncol=nPops, dimnames=dimnames(resFLogLikX) )
 		Tprop <- ctrl$Tprop[ .getResFLogLikNames(resFLogLikX), ,drop=FALSE]
@@ -265,6 +271,8 @@ twDEMCInt <- function(
 		argsFLogLik=c(argsFLogLik,.dots)
 		,posLogLikInt=posLogLikInt	
 		,useMultiT=ctrl$useMultiT
+		,DRgamma=ctrl$DRgamma
+		,minPCompAcceptTempDecr=ctrl$minPCompAcceptTempDecr
 		,Tprop=Tprop
 		,TFix=ctrl$TFix
 		,posTFix=match(names(ctrl$TFix),.getResFLogLikNames(resFLogLikX))
@@ -277,6 +285,7 @@ twDEMCInt <- function(
 	if( !debugSequential & sfParallel() )
 		sfExport("argsDEMCStepWrapper")	#evaluated in remote process, only passed one time
 	#else( assign("argsDEMCStepWrapper", argsDEMCStepWrapper, pos=1))	#export to current 
+	tmp.remoteFunArgs <- if( !debugSequential & sfParallel() ) as.name("argsDEMCStepWrapper") else argsDEMCStepWrapper 	# eval.parent fails for argsDEMCStepWrapper within sequential function
 
 	# arguments to to demc that change between thinning intervals
 	# substract logLik components of resFLogLikX from logLikXExt
@@ -286,7 +295,6 @@ twDEMCInt <- function(
 		,logLikX = logLikX
 	)
 	
-	tmp.remoteFunArgs <- if( !debugSequential & sfParallel() ) as.name("argsDEMCStepWrapper") else argsDEMCStepWrapper 	# eval.parent fails for argsDEMCStepWrapper within sequential function
 	for( iThin0 in (0:(nThinnedGen-1)) ){
 		# calculate proposed steps (differences not destinations) within next thinning interval
 		genPropRes <- .generateXPropThin(nPops=nPops, Z=Z,rLogLik=rLogLik,mZ=mZ,ctrl=ctrl,nGenBack=nGenBack)
@@ -300,7 +308,7 @@ twDEMCInt <- function(
 			Y["accepted",1,] <- 1	#TRUE
 			Y[rownames(resFLogLikX),1,] <- chainState$resFLogLikX
 		}
-		boRecordProposalsIThin = (iThin0 >= nThinOmitRecord)
+		boRecordProposalsIThin = (iThin0 >= nThinOmitRecord)	# only record the last proposals after nThinOmitRecord
 		#tmp.argsDEMCStep <- if( !debugSequential ) as.name("argsDEMCStep") else argsDEMCStep 
 		#resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogLikX", "logLikX")], genPropRes, list(temp=tempThin, argsDEMCStep=tmp.argsDEMCStep, debugSequential=debugSequential)), quote=TRUE )
 		#--- debugging
@@ -311,6 +319,7 @@ twDEMCInt <- function(
 		# tmp.remoteFunArgs <- if( !debugSequential & sfParallel() ) as.name("argsDEMCStepWrapper") else argsDEMCStepWrapper 	# eval.parent fails for argsDEMCStepWrapper within sequential function
 		resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogLikX", "logLikX")], genPropRes, list(temp=tempThin
 				, nPops=nPops
+				, pAccept=ar
 				, remoteFunArgs=tmp.remoteFunArgs
 				, debugSequential=debugSequential
 				, doRecordProposals=boRecordProposalsIThin
@@ -318,8 +327,6 @@ twDEMCInt <- function(
 			, quote=TRUE )
 		chainState <- resDo[ names(chainState) ]
 		
-
-		#XXTODO: adapt acceptPos 
 		#row in acceptance Window to record acceptance, if exceeds window, copy second part to first (rewind)
 		acceptPos0 <- aThinWinW + (iThin0 %% aThinWinW)
 		if( acceptPos0 == aThinWinW ){	#interval exeeded or new, copy second half to first half
@@ -335,13 +342,15 @@ twDEMCInt <- function(
 		rLogLik[mZ,] <- chainState$logLikX
 		#calculate acceptance rate over last min(ctrl$pAcceptWindowWidth, max(iGen,4) ) generations
 		#the first 5 thinning generations ctrl$intialAcceptanceRate in part determines the generations to go back
-		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,4)):0)
-		pAccept[mZ,] <- colSums(acceptWindow[curAcceptRows,,drop=FALSE])/(length(curAcceptRows)*ctrl$thin) 
+		#curAcceptRows <- (acceptPos0+1)-((aThinWinW-1):0)	# initial phase of batch strongly determined by prescribed assumed initial acceptance rate
+		#curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,4)):0) # initial phase strongly determined by random first proposals
+		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,10)):0)
+		pAccept[mZ,] <- colSums(acceptWindow[curAcceptRows,,drop=FALSE]) / (length(curAcceptRows)*ctrl$thin) 
 		temp[mZ,] <- TstepFixed[iThin0*ctrl$thin+ctrl$thin,]
-		if( boRecordProposalsIThin ) Y[,iGen+1-nGenOmitRecord,] <- resDo$Y
+		if( boRecordProposalsIThin ) Y[,iGen+1-nGenOmitRecord,] <- resDo$Y	# recored the proposals together with Likelihood
 		
 		# update the number of generations to choose from, which depends on acceptance rate
-		tmp.chains <- rep(1:nPops, each=nChainsPop)
+		tmp.chains <- rep(1:nPops, each=nChainsPop)	# population of chain at position
 		ar <- pmax(0.026,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 1%=0.16*0.16 to ensure localization (else may go to 0 -> entire history -> no acceptance) 
 		nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 		
@@ -612,7 +621,8 @@ attr(twDEMCInt,"ex") <- function(){
 	xStep, 			##<< array rows: difference vectors in parameter space, cols: chains, zdim: steps
 	rExtra,			##<< numeric matrix: row: chain, col: step within thinning interval
 	temp,			##<< numeric matrix: row: chain, col: step within thinning interval
-	nPops,			##<< the number of populations	
+	nPops,			##<< the number of populations
+	pAccept,		##<< numeric vector: current acceptance rate for each population 
 	#argsDEMCStep,	##<< see \code{\link{.doDEMCStep}}
 	remoteFunArgs,	
 		### see \code{\link[twSnowfall]{sfRemoteWrapper}}
@@ -625,6 +635,7 @@ attr(twDEMCInt,"ex") <- function(){
 	debugSequential=FALSE	##<< see \code{\link[twSnowfall]{sfFArgsApplyDep}}
 	,doRecordProposals=FALSE	##<< if TRUE then proposals and results of rLogLik are recorded in result$Y.
 ){
+	# .doDEMCSteps
 	##seealso<< 
 	## \code{\link{twDEMCInt}}
 	## \code{\link{.doDEMCStep}}
@@ -633,6 +644,8 @@ attr(twDEMCInt,"ex") <- function(){
 	## The step must be the last dimension in all arguments in order to make use of dependence step 
 	## in load balanced execution.
 	
+	#if(!is.numeric(X) | !is.numeric(resFLogLikX) | !is.numeric(logLikX) )
+	#	stop(".doDEMCSteps: first three arguments must be numeric")
 	xStepStacked <- do.call( rbind, lapply(1:(dim(xStep)[3]),function(iStep){t(adrop(xStep[,,iStep,drop=FALSE],3))}) )
 	#all chains of first step, all chains of second step, ...
 	d <- as.list(structure(dim(xStep),names=c("parms","chains","steps"))) 
@@ -650,7 +663,7 @@ attr(twDEMCInt,"ex") <- function(){
 			iPop<-(iChain0 %/% nChainsPop)+1
 			args<-c(	
 				prevRes[c("x", "resFLogLikAcc", "logLikAcc")],
-				list( step=xStepStacked[i,,drop=TRUE], rExtra=rExtra[i], temp=temp[i], iPop=iPop),
+				list( step=xStepStacked[i,,drop=TRUE], rExtra=rExtra[i], temp=temp[i], iPop=iPop, pAccept=pAccept),
 				#list( argsDEMCStep=argsDEMCStep )
 				list( remoteFunArgs=remoteFunArgs )
 			)}	
@@ -715,6 +728,7 @@ attr(twDEMCInt,"ex") <- function(){
 	,rExtra 		##<< corrector for rLogLik due to selection of step 
 	,temp			##<< temperature of the current step and population
 	,iPop			##<< the number of the population for which to perform step
+	,pAccept		##<< current acceptance rate
 	,argsDEMCStep	
 ### arguments that do not change between steps: list with components \describe{
 ### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
@@ -724,6 +738,8 @@ attr(twDEMCInt,"ex") <- function(){
 ### \item{Tprop}{numeric matrix (comp x pops): proportions of temperature for different data streams}
 ### \item{TFix}{named numeric vector (comp): components with fixed Temperature}
 ### \item{posTFix}{integer vector (comp): =match(TFix, compNames): positions of TFix within comp provided for performance reasons}
+### \item{DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
+### \item{DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
 ### }
 ){
 	#.doDEMCStep
@@ -739,7 +755,6 @@ attr(twDEMCInt,"ex") <- function(){
 		#assume that all is.finite(resFLogLikAcc), make sure in twDEMCInt
 		LaExt <- La
 		logLikAcc <- sum(La)
-		
 		##details<< \describe{\item{Temperature proportions}{
 		## If ctrl$useMultiT=TRUE then at high Temperatures, all datastreams are weighted so that 
 		## each one has the same influcence.
@@ -755,11 +770,7 @@ attr(twDEMCInt,"ex") <- function(){
 		## temperature independent of decreasing global temperature.
 		## Useful for priors: \code{TFix = c(parms=1)}
 		## }}
-		if( 0 < length(posTFix)){
-			Ti[posTFix] <- TFix
-		}
-		TiExt <- Ti
-		
+		if( 0 < length(posTFix)){			Ti[posTFix] <- TFix		}
 		accepted<-FALSE
 		xProp = x + step
 		if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
@@ -777,7 +788,7 @@ attr(twDEMCInt,"ex") <- function(){
 		#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
 		attributes(res) <- list(names=names(res))
 		logLikProp=-Inf
-		Lp <- LpExt <- LpExtFix <- res*fLogLikScale	# LogLikelihood of proposal
+		Lp <- res*fLogLikScale	# LogLikelihood of proposal
 		#make sure Lp, La have the same order and legnth
 		#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: resFLogLikAcc must contain the same components and the order of result of fLogLik." )
 		if( all(is.finite(Lp))){
@@ -786,32 +797,85 @@ attr(twDEMCInt,"ex") <- function(){
 			## if posLogLikInt is given, then these components of result of fLogLik are handled
 			## internally. Hence, for Metropolis step here operates only on other remaining components.
 			## }}
-			posTFixExt <- setdiff(posTFix,posLogLikInt)		#externally handled components with fixed temperature
-			posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogLikInt))	#externally handled componetns with variable temperature
-			nFixExt <- length(posTFixExt)
-			nVarExt <- length(posTVarExt)
-			nExt <- nFixExt + nVarExt
+			posTExt <- setdiff( seq_along(Ti), posLogLikInt )		#externally handled components
+			nExt <- length(posTExt)
+			#posTFixExt <- setdiff(posTFix,posLogLikInt)		#externally handled components with fixed temperature
+			#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogLikInt))	#externally handled componetns with variable temperature
+			#nFixExt <- length(posTFixExt)
+			#nVarExt <- length(posTVarExt)
+			#nExt <- nFixExt + nVarExt
+			
 			#Metropolis step
 			#logr = (logLikPropExt+rExtra - logLikXExt) / temp
-			# first step on fixed temperature components
-			acceptedFixed <- if( 0 < nFixExt ){
-				logrDSFixed <- (Lp[posTFixExt]-La[posTFixExt])/Ti[posTFixExt]
-				acceptedFixed <- rExtra*nFixExt/nExt + sum(logrDSFixed) > log( runif(1) )
-			}else TRUE
-			if( acceptedFixed ){
-				# second Metropolis step with components of variable temperature
-				accepted <- if(  (0 < nVarExt) ){
-						logrDSVar <- (Lp[posTVarExt]-La[posTVarExt])/Ti[posTVarExt]
-						accepted <- rExtra*nVarExt/nExt + sum(logrDSVar) > log( runif(1) )
-					}else TRUE
+			logrDS10 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
+			logAlpha10 <- rExtra + sum(logrDS10) 
+			accepted <-  is.finite(logAlpha10) && (logAlpha10  > log(runif(1)) )
+			if(accepted){
+				x <- xProp
+				logLikAcc <- logLikProp
+				resFLogLikAcc <- res
+			}				
+		}else logAlpha10 <- -Inf
+		
+		if(!accepted && !is.null(argsDEMCStep$DRgamma) && !is.null(argsDEMCStep$minPCompAcceptTempDecr) && (argsDEMCStep$DRgamma > 0) && (pAccept < 1.2*argsDEMCStep$minPCompAcceptTempDecr)) {
+			#----- delayed rejection (DR) step
+			# only if acceptance rate drops below 1.2*minAcceptrate
+			# repeat all above with delayed rejection (DR) step, only adjust DRfac after calculating Lp
+			Lp1 <- Lp
+			xProp1 <- xProp
+			xProp <- x + argsDEMCStep$DRgamma*step
+			if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
+			res <- if(boResFLogLikX){
+					resFLogLikInt <- resFLogLikAcc[posLogLikInt]
+					TiInt <- Ti[posLogLikInt]
+					do.call( fLogLik, c(list(xProp, resFLogLikInt, TiInt), argsFLogLik) )	# evaluate logLik
+				}else
+					do.call( fLogLik, c(list(xProp), argsFLogLik) )	# evaluate logLik
+			#take care that the result has always the same sames, even when if fails
+			#if( 0==length(names(res)))
+			#	stop("encountered result of fLogLik without names")
+			#if( !identical(names(resFLogLikAcc),names(res)))
+			#	stop("encountered result with different names")
+			#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
+			attributes(res) <- list(names=names(res))
+			logLikProp=-Inf
+			Lp <- res*fLogLikScale	# LogLikelihood of proposal
+			#make sure Lp, La have the same order and legnth
+			#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: resFLogLikAcc must contain the same components and the order of result of fLogLik." )
+			if( all(is.finite(Lp))){
+				logLikProp <- sum(Lp)
+				##details<< \describe{\item{internal Metropolis step}{
+				## if posLogLikInt is given, then these components of result of fLogLik are handled
+				## internally. Hence, for Metropolis step here operates only on other remaining components.
+				## }}
+				posTExt <- setdiff( seq_along(Ti), posLogLikInt )		#externally handled components
+				nExt <- length(posTExt)
+				#posTFixExt <- setdiff(posTFix,posLogLikInt)		#externally handled components with fixed temperature
+				#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogLikInt))	#externally handled componetns with variable temperature
+				#nFixExt <- length(posTFixExt)
+				#nVarExt <- length(posTVarExt)
+				#nExt <- nFixExt + nVarExt
+				#Metropolis step 
+				#logr = (logLikPropExt+rExtra - logLikXExt) / temp
+				logrDS20 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
+				logAlpha20 <- rExtra + sum(logrDS20)
+				#---  here correct with first stage DR factor (1-alpha21)/(1-alpha10) with meaning 0:accepted 1:first proposal 2:second proposal
+				logrDS21 <- (Lp1[posTExt]-Lp[posTExt])/Ti[posTExt]
+				logAlpha21 <- sum(logrDS21)
+				logAlpha2 <- suppressWarnings( logAlpha20  +log(1-exp(logAlpha21)) -log(1-exp(logAlpha10)) )	# log and exp may produce NaNs 
+				accepted <-  is.finite(logAlpha2) && ( logAlpha2 > log(runif(1)) ) 
 				if(accepted){
 					x <- xProp
 					logLikAcc <- logLikProp
 					resFLogLikAcc <- res
 				}				
-			} # if( acceptedFixed
-		}
+			}
+		}	## end DR step
+		
 		#will invoke prevRes[c("x", "resFLogLikAcc", "logLikAcc")]
+		if(!is.numeric(x) | !is.numeric(resFLogLikAcc) | !is.numeric(logLikAcc) )
+			stop(".doDEMCStep: x, logLikAcc and resFLogLikAcc must be numeric")
+
 		list(accepted=accepted
 			,x=x,resFLogLikAcc=resFLogLikAcc, logLikAcc =logLikAcc		# input to repeated call
 			,xProp=xProp,resFLogLikProp=res, logLikProp=logLikProp
@@ -883,6 +947,24 @@ twCalcLogLikPar <- function(
 	### }
 }
 # twUtest("twDEMC","test.twCalcLogLikPar")
+attr(twCalcLogLikPar,"ex") <- function(){
+	data(twdemcEx1)
+	xProp <- stackChains(twdemcEx1$parms)
+
+	data(twLinreg1)
+	attach( twLinreg1 )
+	res <- twCalcLogLikPar(logLikGaussian,xProp
+		,fModel=dummyTwDEMCModel		### the model function, which predicts the output based on theta 
+		,obs=obs			### vector of data to compare with
+		,invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	str(res)
+	resM <- matrix(res$logLik, ncol=dim(twdemcEx1$parms)[3])
+	str(resM)
+}
 
 
 setMethodS3("twDEMC","array", function( 
@@ -1012,7 +1094,7 @@ twDEMCBatchInt <- function(
 	for( i in (2:length(cl)) )
 		try( cl[i] <- list(eval.parent(cl[[i]])) )
 	#cl[ names(cl)[-1] ] <- lapply(as.list(cl)[-1],eval.parent) 	#substitute all variables by their values, -1 needed for not substituting the function name
-	iRun <- if( is(Zinit,"twDEMC") ) calcNGen(Zinit) else 0   #already completed generations
+	iRun <- if( is(Zinit,"twDEMC") ) getNGen(Zinit) else 0   #already completed generations
 	if( length(nGenBurnin)==1 ) nGenBurnin=rep(nGenBurnin,nPops)    # maybe different for each generation
 	newNGenBurnin <- nGenBurnin	#initialize
 	nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
@@ -1026,7 +1108,6 @@ twDEMCBatchInt <- function(
 	thin <- if(is.numeric(ctrl$thin)) 	ctrl$thin else 1
 	nGen <- (nGen %/% thin)*thin
 
-	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 	
 	##details<< 
 	## If Zinit is of class twDEMC, initial temperature is set to the temperature of the last row
@@ -1034,9 +1115,9 @@ twDEMCBatchInt <- function(
 	pTarget=minPCompAcceptTempDecr+0.02
 	if( is(Zinit,"twDEMC") ){
 		res <- Zinit
-		iRun <- calcNGen(res)
+		iRun <- getNGen(res)
 		if( iRun >= nGen ) return(res)
-		ctrl$initialAcceptanceRate <- twDEMCPopMeans( res$pAccept[nrow(res$pAccept),],nPops )
+		ctrl$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		ctrl$T0 <- T0c <- res$temp[ nrow(res$temp), ,drop=FALSE ]
 		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
@@ -1049,7 +1130,7 @@ twDEMCBatchInt <- function(
 		
 		#diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
 		diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=128) 	#in twDEMC S3twDEMC.R
-		diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+		diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 		Ti <- matrix(1,nrow=nrow(res$resFLogLikX),ncol=nPops, dimnames=list(comp=.getResFLogLikNames(res$resFLogLikX),pop=NULL)) #temperature by component x population 
 		pAcceptTVar <- numeric(nPops)
 		#newNGenBurnin <- res$nGenBurnin #keep previous, do not reinitialize: res from twDEMC has no nGenBurnin
@@ -1082,7 +1163,9 @@ twDEMCBatchInt <- function(
 		## temperature Tend, Tend is also lowered]
 		## }}
 	}
-		
+	
+	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-ctrl$T0;round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
+	
 	#--------- do the twDEMC ------
 	nRun <- (nRun%/%thin)*thin  #make nRun multiple of thin
 	res <- twDEMC( Zinit=Zinit, nGen=nRun, nPops=nPops, controlTwDEMC=ctrl, ... )
@@ -1092,7 +1175,7 @@ twDEMCBatchInt <- function(
 		boConverged = (all(res$temp[nrow(res$temp),]<1.1)) & fCheckConvergence(res, fCheckConvergenceArgs)
 	
 	#iRun <- iRun + nRun		#current number of runs # because of thinning may actually performed fewer runs than nRun
-	iRun <- calcNGen(res)
+	iRun <- getNGen(res)
 	nChains <- dim(res$parms)[3]
 	nChainsPop <- nChains %/% nPops
 	chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
@@ -1106,6 +1189,7 @@ twDEMCBatchInt <- function(
 		## }}
 		if(is.character(restartFilename)){
 			resRestart.twDEMC = res #avoid variable confusion on load by giving a longer name
+			resRestart.twDEMC$nGenBurnin <- newNGenBurnin	# also store updated calculation of burnin time
 			save(resRestart.twDEMC, file=restartFilename)
 			cat(paste("Saved resRestart.twDEMC to ",restartFilename,"\n",sep=""))
 		}
@@ -1120,6 +1204,7 @@ twDEMCBatchInt <- function(
 				q13 <- quantile( omega[iChains], c(1/4,3/4) )	#lower and upper quartile
 				bo <- omega[iChains] < q13[1] -2*diff(q13)		#outside 2 interquartile ranges, see Vrugt09
 				if( any(bo) ){
+					cat(paste("   resetting outlier chains ",paste(iChains[bo],collapse=","),"of population ",iPop,"\n"))
 					#reset state of outliers to the best sampled parameter state
 					tmp.best <- which( res$rLogLik[,iChains] == max(res$rLogLik[,iChains]), arr.ind = TRUE )[1,]	
 					res$parms[,zGen,iChains[bo]] <- res$parms[,tmp.best[1],iChains[ tmp.best[2] ] ]
@@ -1133,14 +1218,14 @@ twDEMCBatchInt <- function(
 		clArgs$nPops<-nPops
 		#clArgs$T0=max(1,b*exp(-a*iRun))		# if temp did not decrease start from this temperature
 		clArgs$controlTwDEMC <- controlTwDEMC
-		clArgs$controlTwDEMC$initialAcceptanceRate <- twDEMCPopMeans( res$pAccept[nrow(res$pAccept),],nPops )
+		clArgs$controlTwDEMC$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		clArgs$controlTwDEMC$T0<-T0c<-res$temp[ nrow(res$temp), ,drop=FALSE]
 		#clArgs$Tend=max(1,b*exp(-a*(iRun+nRun)))
 		##--calculating end temperature
 		clArgs$controlTwDEMC$Tend <- 1
 		if((iRun+nRun)<max(nGenBurnin)) {
 			diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-			diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+			diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			
 			##details<< \describe{\item{cooling and acceptance rate}{ 
 			## If acceptance rate of some population drops below rate=minAccepRateTempDecrease then cooling is too fast.
@@ -1177,7 +1262,7 @@ twDEMCBatchInt <- function(
 		#res <- twDEMC( Zinit=res, nGen=nRun, ... ) problems with double Zinit 
 		if( hasArg(fCheckConvergence))
 			boConverged = (all(res$temp[nrow(res$temp),]<1.1)) & fCheckConvergence(res, fCheckConvergenceArgs)
-		iRun <- calcNGen(res)
+		iRun <- getNGen(res)
 	}
 	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 	res$nGenBurnin <- newNGenBurnin
@@ -1210,11 +1295,11 @@ attr(twDEMCBatchInt,"ex") <- function(){
 	
 	# load the restart file and continue
 	load( file=restartFilename )	# variable resRestart.twDEMC
-	calcNGen(resRestart.twDEMC)		# 48, last thinnging interval (each thin=4) before 50
+	getNGen(resRestart.twDEMC)		# 48, last thinnging interval (each thin=4) before 50
 	res2 <- twDEMCBatch(resRestart.twDEMC)	# continue without needing to respecify parameters
-	calcNGen(res2)					# 60 as nGen
+	getNGen(res2)					# 60 as nGen
 	res3 <- twDEMCBatch(res2, nGen=100)	    # continue even further without needing to respecify parameters
-	calcNGen(res3)					# 100 as nGen
+	getNGen(res3)					# 100 as nGen
 	
 	detach()
 }

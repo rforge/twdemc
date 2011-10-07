@@ -178,8 +178,8 @@ plotChainPopMoves <-function(
 	
 	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
 	#iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogLik1 <- colMeans(twDEMCPopMeans(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
-	rLogLik2 <- colMeans(twDEMCPopMeans(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
+	rLogLik1 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
+	rLogLik2 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
 	
 	matplot( cbind(rLogLik1,rLogLik2), pch=c(as.character(1:9),LETTERS), type="n", xlab=xlab, ylab=ylab, ... )
 	points(rLogLik1, pch=c(as.character(1:9),LETTERS))
@@ -197,8 +197,8 @@ plotChainPopMoves <-function(
 	if( doSort) sort(rLogLik2, decr=TRUE) else rLogLik2
 	
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogLik1 <- colMeans(twDEMCPopMeans(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
-	rLogLik2 <- colMeans(twDEMCPopMeans(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
+	rLogLik1 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
+	rLogLik2 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
 	#tmp1 <- tapply(res$rLogLik[nrow(res$rLogLik)-nBack,], iChains, mean)
 	#tmp2 <- tapply(res$rLogLik[nrow(res$rLogLik),], iChains, mean)
 	#windows(); 
@@ -328,8 +328,8 @@ ggplotDensity.twDEMC <- function(
 		resT <- transOrigPopt.twDEMC(resT0,poptDistr2$trans)
 	}
 	# stack populations
-	pParms <- twDEMCPopApply( resT$parms, nPop, function(x){ abind(twListArrDim(x),along=2) })
-	pLogLik <- twDEMCPopApply( resT$rLogLik, nPop, as.vector)
+	pParms <- popApplyTwDEMC( resT$parms, nPop, function(x){ abind(twListArrDim(x),along=2) })
+	pLogLik <- popApplyTwDEMC( resT$rLogLik, nPop, as.vector)
 	tmp <- abind(pLogLik, pParms, along=1); 
 	pTmp3 <- if( pMin > 0){
 			# remove cases with lowest rLogLik

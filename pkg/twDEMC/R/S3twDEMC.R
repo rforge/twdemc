@@ -11,6 +11,17 @@ setMethodS3("subChains","twDEMC", function(
 		## \code{\link{twDEMCInt}}
 		
 		##details<< 
+		## There are several methods access properties a result of an \code{\link{twDEMCInt}}, i.e.
+		## an object of class \code{twDEMC} \itemize{
+		## \item{ number of generations: \code{\link{getNGen.twDEMC}}  } 
+		## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMC}}  } 
+		## \item{ number of chains: \code{\link{getNChains.twDEMC}}  } 
+		## \item{ number of populations: \code{\link{getNPops.twDEMC}}  } 
+		## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMC}}  } 
+		## \item{ number of parameters: \code{\link{getNParms.twDEMC}}  } 
+		## \item{ thinning interval: \code{res$thin}  } 
+		##}
+		##
 		## There are several methods to transform or subset the results of an \code{\link{twDEMCInt}} run. \itemize{
 		## \item{ select chains or sub-populations: this method  } 
 		## \item{ thin all the chains: \code{\link{thin.twDEMC}}  } 
@@ -60,27 +71,114 @@ setMethodS3("subChains","twDEMC", function(
 	})
 #mtrace(subChains.twDEMC)
 
-setMethodS3("calcNGen","twDEMC", function( 
-		### Calculates the number of completed generations in res
+iSample2time <- function(
+	### Convert sample number to time given the thinning interval
+	iSample	##<< integer vector: indices of the samples in recorded states
+	,thin=1	##<< integer scalar: thinning interval
+){
+	##seealso<<   
+	## \code{\link{time2iSample}}
+	## \code{\link{getNGen.twDEMC}}
+	## ,\code{\link{subChains.twDEMC}}
+	## ,\code{\link{twDEMCInt}}
+	
+	##details<<
+	## Sample 1 corresponds to time zero
+	## After first generation, the time sample 2 corresponds to thin
+	(iSample-1)*thin
+}
+attr(iSample2time,"ex") <- function(){
+	iSample <- 1:13
+	structure( iSample2time(iSample) , names=iSample )
+	structure( iSample2time(iSample, thin=10) , names=iSample )
+	structure( iSample2time(iSample, thin=4) , names=iSample )
+	structure( iSample2time(iSample, thin=8) , names=iSample )
+}
+
+time2iSample <- function(
+	### Convert time to sample number
+	time	##<< numeric: indices of the samples in recorded states
+	,thin=1	##<< integer scalar: thinning interval
+	,match=c(	##<< mode of matching times between samples
+		##describe<<
+		round="round"		##<< closest sample		
+		,floor="floor"		##<< sample before time
+		,ceiling="ceiling"	##<< sample after time
+		,none="none"		##<< returns a fractional, use if you sure that time corresponds to actual sample indices
+		)##end<<
+){
+	##seealso<<   
+	## \code{\link{iSample2time}}
+	## \code{\link{getNGen.twDEMC}}
+	## ,\code{\link{subChains.twDEMC}}
+	## ,\code{\link{twDEMCInt}}
+	x <- (time/thin)+1
+	match=match.arg(match)
+	switch(match
+		,round = round(x)
+		,floor = floor(x)
+		,ceiling = ceiling(x)
+		,none = x
+	)
+	### index of the neares sample
+}
+attr(iSample2time,"ex") <- function(){
+	time = 0:20
+	structure( time2iSample(time), names=time)
+	structure( iSample2time(1:6, thin=4) , names=1:6 )	# to show the times corresponding to sample
+	structure( time2iSample(time,thin=4,match="floor"), names=time)
+	structure( time2iSample(time,thin=4,match="ceiling"), names=time)
+	structure( time2iSample(time,thin=4), names=time)	# round may vary for times exactly between two samples
+	structure( time2iSample(time,thin=4,match="none"), names=time)	# here we do not get indices
+}
+
+
+
+setMethodS3("getNGen","twDEMC", function( 
+		### Extract the number of completed generations in res
 		res	##<< object of class twDEMC
 		,... 
 	){
-		# calcNGen.twDEMC
+		##details<< 
+		## the number of generations corresponds to the steps after time 0 (sample 1).
+		## Hence the sample of size 2 and thinning 1 describes one generation (one step forward).
+		## A sample of size 2 of thinning 5 encompasses times 0 and 5, i.e. 5 generations.
+		## see 
+		
+		# getNGen.twDEMC
 		##seealso<<   
+		## \code{\link{iSample2time}}
+		## \code{\link{time2iSample}}
+		## \code{\link{getNPops.twDEMC}}
+		## \code{\link{getNSamples.twDEMC}}
+		## \code{\link{getNChains.twDEMC}}
+		## \code{\link{getNChainsPop.twDEMC}}
+		## \code{\link{getNParms.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
 		(nrow(res$rLogLik)-1)*res$thin
 		### integer, number of completed generations
 	})
+attr( getNGen.twDEMC, "ex") <- function(){
+	data(twdemcEx1)
+	getNGen(twdemcEx1)
+	getNSamples(twdemcEx1)
+	twdemcEx1$thin
+	getNPops(twdemcEx1)
+	getNChains(twdemcEx1)
+	getNChainsPop(twdemcEx1)
+	getNParms(twdemcEx1)
+}
 
 setMethodS3("getNPops","twDEMC", function( 
 		### Extracts the number of populations
 		res	##<< object of class twDEMC
 		,... 
 	){
-		# calcNGen.twDEMC
+		# getNPops.twDEMC
 		##seealso<<   
-		## \code{\link{subChains.twDEMC}}
+		## \code{\link{getNGen.twDEMC}}
+		## ,\code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
 		ncol(res$temp)
 		### integer, number of populations in twDEMC
@@ -91,12 +189,56 @@ setMethodS3("getNChains","twDEMC", function(
 		res	##<< object of class twDEMC
 		,... 
 	){
-		# calcNGen.twDEMC
+		# getNChains.twDEMC
 		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
 		ncol(res$rLogLik)
-		### integer, number of populations in twDEMC
+		### integer, number of chains in twDEMC
+	})
+
+setMethodS3("getNChainsPop","twDEMC", function( 
+		### Extracts the number of chains per population
+		res	##<< object of class twDEMC
+		,... 
+	){
+		# getNChainsPop.twDEMC
+		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
+		## \code{\link{subChains.twDEMC}}
+		## ,\code{\link{twDEMCInt}}
+		ncol(res$rLogLik)/ncol(res$temp)
+		### integer, number of chains per population in twDEMC
+	})
+
+setMethodS3("getNParms","twDEMC", function( 
+		### Extracts the number of parameters, i.e. the dimension of the parameter vector
+		res	##<< object of class twDEMC
+		,... 
+	){
+		# getNParms.twDEMC
+		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
+		## \code{\link{subChains.twDEMC}}
+		## ,\code{\link{twDEMCInt}}
+		nrow(res$parms)
+		### integer, number of parameters in twDEMC
+	})
+
+setMethodS3("getNSamples","twDEMC", function( 
+		### Extracts the number of s
+		res	##<< object of class twDEMC
+		,... 
+	){
+		##details<< There is only one sample per thinning interval of length \code{res$thin}.
+		# getNSamples.twDEMC
+		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
+		## \code{\link{subChains.twDEMC}}
+		## ,\code{\link{twDEMCInt}}
+		ncol(res$parms)
+		### integer, number of samples in twDEMC
 	})
 
 
@@ -170,10 +312,10 @@ as.mcmc.list.twDEMC <- function(
 
 
 setMethodS3("subset","twDEMC", function( 
-	### Condenses an twDEMC List to the cases boKeep.
-	x, 
-	boKeep,
-	...
+	### Condenses an twDEMC result object to the cases boKeep.
+	x 			##<< twDEMC object
+	,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
+	,...
 ){
 	# subset.twDEMC 
 	##seealso<<   
@@ -181,7 +323,9 @@ setMethodS3("subset","twDEMC", function(
 	if( is.logical(boKeep) )
 		boKeep <- rep(boKeep,length.out=nrow(x$rLogLik) )
 	if( 0 < length(x$resFLogLikX)){
-		#if dropped last row, set resFLogLikX to -Inf
+		##details<< 
+		## If last row is dropped then all components of resFLogLikX are set to -Inf
+		## This ensures that it LogLik for last state is recalculated if object is used again in twDEMC
 		if( is.numeric(boKeep) )
 			if( !(nrow(x$rLogLik)%in%boKeep) )
 				x$resFLogLikX[] <- -Inf
@@ -197,18 +341,19 @@ setMethodS3("subset","twDEMC", function(
 			x$temp <- x$temp[boKeep, drop=FALSE]
 		else
 			x$temp <- x$temp[boKeep,, drop=FALSE]
-	#better keep this attribute #attr(res,"batchCall") <- NULL
+	##details<<
+	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
-	### list of class twDEMC with subset of cases
+	### list of class twDEMC with subset of cases in parsm, rLogLik, pAccept, and temp
 })
 #mtrace(subset.twDEMC)
 
 setMethodS3("thin","twDEMC", function( 
 	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCInt}}) to correspond to a thinning of \code{newThin}.
 	x, ##<< the twDEMC list to thin 
-	newThin=x$thin, ##<< the target thinning factor, must be positive multiple of vMcpl$thin 
-	start=1, ##<< the start time of the chain
-	end=NULL, ##<< the maximum end time of the chains
+	newThin=x$thin, ##<< the target thinning factor, must be positive multiple of x$thin 
+	start=0,  ##<< the start time of the chain - note that time starts from zero
+	end=NA,   ##<< the maximum end time of the chains - note that time starts from zero
 	...
 	, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 
@@ -219,26 +364,41 @@ setMethodS3("thin","twDEMC", function(
 		
 	# with the thinned list having mZ rows, this corresponds to (mZ-1)*thin Metropolis steps + 1 row for the initial state
 	if( (newThin < x$thin) | (newThin %% x$thin) )
-		stop(paste("increased thin must be a multiple of former thin",x$thin))
+		stop(paste("thin.twDEMC: increased thin must be a positive multiple of former thin",x$thin))
+	if( start < 0)
+		stop(paste("thin.twDEMC: argument start must be at least 0 but was ",start))
+	nS <- getNSamples(x)
+	maxSampleTime <- iSample2time(nS, thin=x$thin)
+	if( is.null(end) || !is.finite(end) || end>maxSampleTime) end=maxSampleTime 	
+	if( end < 1)
+		stop(paste("thin.twDEMC: argument end must be at least 1 (one generation from 0 to 1) but was",end))
 	#thin own past: keep first line and every occurenc of multiple thin
+	nGen <- getNGen(x)
 	thinFac <- newThin %/% x$thin
-	iGen1 <- (2:ncol(x$parms))*x$thin	#will keep the first row
-	nGen1 <- length(iGen1)
-	if( start > 1)
-		keep.s <- iGen1 >= start 
-	else keep.s <- rep(TRUE, nGen1)
-	if( !is.null(end) )
-		keep.s[iGen1 > end] <- FALSE
-	#which( 1:5 %% 2 == 0, arr.ind = TRUE)+1
-	keep.i <- 1+which( keep.s & (1:(ncol(x$parms)-1) %% thinFac == 0), arr.ind = TRUE )
-	if( start == 1) keep.i <- c(1, keep.i)	#keep starting value
-	res <- subset.twDEMC( x, keep.i )
-	if( !keep.s[nGen1] & 0<length(res$resFLogLikX) ) res$resFLogLikX[] <- -Inf	#do not delete but keep names, but make sure that is accepted next time
+	startT <- ceiling( start / newThin ) * newThin		# adjust start time so that it coincides with next start of next thinning interval
+	endT <- floor( end / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
+	iStartEnd <- time2iSample( c(startT,endT), thin=x$thin, match="none" )
+	iKeep <- seq(iStartEnd[1],iStartEnd[2],by=thinFac)
+	res <- subset.twDEMC( x, iKeep )
 	res$thin <- newThin
+	#time2iSample(70,5)
+	res$nGenBurnin <- max(0,x$nGenBurnin-startT) 
 	if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
 	res
 })
 #mtrace(thin.twDEMC)
+attr(thin.twDEMC,"ex") <- function(){
+	data(twdemcEx1)
+	x <- twdemcEx1
+	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1), nGenBurnin=twdemcEx1$nGenBurnin )
+
+	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin)	# removing burnin period
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#15 sample describing 70 generations
+
+	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin, newThin=10)	
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#8 samples describing 70 generations
+}
+#tw
 
 
 
@@ -319,6 +479,7 @@ setMethodS3("stackChains","mcmc.list", function(
 	abind(mcmcList, along=1)
 })
 
+
 mcmcListApply <- function(
 	### Applies function to each chain of \code{mcmc.list}.
 	mcmcList,
@@ -337,13 +498,17 @@ mcmcListApply <- function(
 #mtrace(plotThinned.mcmc.list)
 
 
-
-twDEMCPopMeans <- function(
+popMeansTwDEMC <- function( 
 	### Calculating population means across chains, and smooth time series.
 	x				##<< a matrix with columns chains
 	,nPops			##<< number of populations 
 	,kSmooth=NULL	##<< weights to the filter function, or just number of points
 ){
+	#popMeansTwDEMC
+	##seealso<<   
+	## \code{\link{popApplyTwDEMC}}
+	## \code{\link{subChains.twDEMC}}
+		
 	boMat <- is.matrix(x)
 	if( !boMat) x <- matrix(x,nrow=1)
 	p <- list( nrow=nrow(x), ncol=ncol(x) )
@@ -357,16 +522,30 @@ twDEMCPopMeans <- function(
 		if( length(kSmooth)==1) kSmooth=rep(1/kSmooth,kSmooth)
 		xPop <- filter(xPop,kSmooth)
 	}
-	if( boMat) xPop else as.vector(xPop)		
+	if( boMat) xPop else as.vector(xPop)
+	###
+}
+attr(popMeansTwDEMC,"ex") <- function(){
+	data(twdemcEx1)
+	# mean rLoglik for each case, i.e. step, by population
+	res1 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp) )
+	matplot(res1)
+	# shifting mean across 4 cases
+	res2 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
+	matplot(res2, type="l", add=TRUE)
 }
 
-twDEMCPopApply <- function(
+popApplyTwDEMC <- function( 
 	### Applying a function across all chains of one population for each case.
 	x				##<< a matrix with columns chains or array with last dimension chain
 	,nPops			##<< number of populations
 	,FUN			##<< function to apply to population submatrix
 	,...			##<< further arguemtns to FUN
 ){
+	#popApplyTwDEMC
+	##seealso<<   
+	## \code{\link{popMeansTwDEMC}}
+	## \code{\link{subChains.twDEMC}}
 	ldim <-length(dim(x)) 
 	nChainsP <- dim(x)[ldim] %/% nPops
 	resl <- 
@@ -382,11 +561,63 @@ twDEMCPopApply <- function(
 				})
 		else stop("dimension of x must be 2 or 3")
 	abind(resl, rev.along=0)
+	#resl
 	### array with last dimenstion correponding to population
 }
-#twDEMCPopApply( res$rLogLik, nPop, apply, 1, mean )	#rLoglik for each case by population
-#twDEMCPopApply( res$rLogLik, nPop, as.vector )			#stack rLogLik
-#twDEMCPopApply( res$parms, nPop, function(x){ abind(twListArrDim(x),along=2) })	#stack param columns by population
+attr(popApplyTwDEMC,"ex") <- function(){
+	data(twdemcEx1)
+	# mean rLoglik for each case, i.e. step, by population
+	nPops=getNPops(twdemcEx1)
+	popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, apply, 1, mean )	
+	# stack rLogLik for each population
+	popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, as.vector )
+	#stack param columns by population
+	(tmp <- popApplyTwDEMC( twdemcEx1$parms, nPops=nPops, function(x){ abind(twListArrDim(x),along=2) }))	
+}
+
+setMethodS3("stackChainsPop","twDEMC", function( 
+		### Combine MarkovChains of each population of a twDEMC. 
+		x
+		,...
+		,varInRows=FALSE	##<< set to TRUE if rows hold variables and columns steps (as in Zinit of twDEMC), defaults to variables in columns
+	){
+		#stackChainsPop.twDEMC
+		##seealso<<   
+		## \code{\link{stackChains.twDEMC}}
+		## \code{\link{subChains.twDEMC}}
+		# stack rLogLik for each population
+		nPops = getNPops(x)
+		rLogLik <- popApplyTwDEMC( x$rLogLik, nPops=nPops, as.vector )
+		#stack param columns by population
+		if( varInRows ){
+			rLogLik3 <- array( rLogLik, dim=c(1, nrow(rLogLik), ncol(rLogLik) ))
+			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ abind(twListArrDim(xp),along=2) })	
+			res <- structure( abind(rLogLik3,parms,along=1), dimnames=list(parms=c("rLogLik",rownames(x$parms)),step=NULL,pops=NULL))
+		}else{
+			rLogLik3 <- array( rLogLik, dim=c(nrow(rLogLik),1,ncol(rLogLik)))
+			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ t(abind(twListArrDim(xp),along=2)) })	
+			res <- structure( abind(rLogLik,parms,along=2), dimnames=list(step=NULL,parms=c("rLogLik",rownames(x$parms)),pops=NULL))
+		}
+		res
+		### Array with first column the log-Likelihold rLogLik and the remaining columns the variables
+		### , rows are steps, third dimension is the population 
+		### (but see argument \code{varInRows}
+	})
+attr(stackChainsPop.twDEMC,"ex") <- function(){
+	data(twdemcEx1)
+	res <- stackChainsPop(twdemcEx1)
+	str(res)
+	(tmp1 <- head(res[,,1]))
+	
+	res2 <- stackChainsPop(twdemcEx1, varInRows=TRUE)
+	str(res2)
+	(tmp2 <- head(t(res2[,,1])))
+	
+	identical( tmp1, tmp2)
+}
+
+
+
 
 
 setMethodS3("thinN","mcmc.list", function( 
@@ -445,7 +676,7 @@ getDiffLogLik.twDEMCProps <- function(
 	YL <- if( nLastSteps+1 >= ncol(Y)) Y else Y[,ncol(Y)+1-((nLastSteps+1):1),,drop=FALSE]
 	#test 1d case: YL <- Y[,min(ncol(Y),nLastSteps+1),,drop=FALSE]
 	#mtrace(getAcceptedPos.twDEMCProps)
-	acceptedPos <- getAcceptedPos.twDEMCProps(YL,...) 
+	acceptedPos <- getAcceptedPos.twDEMCProps(YL,...) #index of parameter vector that correponds to the currently accepted for vector at given row
 	diffLogLik <- abind(lapply( 1:dim(YL)[3], function(j){ 	adrop((YL[resCols,-1,j,drop=FALSE] - YL[resCols,acceptedPos[-1,j],j,drop=FALSE])/temp[,(j-1)%/%nPopsChain+1],3)}),rev.along=0)
 	diffLogLik
 	### numeric array ( component x nLastSteps x chain ) of Lp-La, the L

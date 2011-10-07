@@ -39,17 +39,17 @@ ggplotDensity.twDEMC <- function(
 	resT <- resT0 <- thin(res, newThin=(floor((nrow(res$rLogLik)*res$thin*nChainsPop*(1-pMin))/200.0)%/%res$thin)*res$thin )
 	if( doTransOrig )
 		resT <- transOrigPopt.twDEMC(resT0) 
-	pLogLik <- twDEMCPopApply( resT$rLogLik, nPop, as.vector)
+	pLogLik <- popApplyTwDEMC( resT$rLogLik, nPop, as.vector)
 	# include rLogLik as variable
 	tmp <- abind(resT$rLogLik, resT$parms, along=1); dimnames(tmp)[[1]][1] <- "rLogLik"; names(dimnames(tmp))<-names(dimnames(resT$parms))
 	#rownames(tmp)[1] <- c("rLogLik",rownames(resT$parms))
 	# stack populations
-	#mtrace(twDEMCPopApply)
-	pTmp <- twDEMCPopApply( tmp, nPop, function(x){ abind(twListArrDim(x),along=2) })
+	#mtrace(popApplyTwDEMC)
+	pTmp <- popApplyTwDEMC( tmp, nPop, function(x){ abind(twListArrDim(x),along=2) })
 	dimnames(pTmp) <- c(dimnames(tmp)[1:2], list(pops=NULL)) 
 	pTmp3 <- if( pMin > 0){
 			# remove cases with lowest rLogLik
-			#popQuantiles <- as.vector(twDEMCPopApply( resT$rLogLik, nPop, quantile, probs=pMin ))
+			#popQuantiles <- as.vector(popApplyTwDEMC( resT$rLogLik, nPop, quantile, probs=pMin ))
 			#tmpDs2 <- ddply(tmpDs, .(pop), function(df,pop)subset, rLogLik>popQuantiles[.(pop)] )
 			nDrop <- round(ncol(pTmp)*pMin)
 			#aaply takes very long: pTmp2 <- aaply( pTmp, 3, function(A){A[, -(order(A["rLogLik",])[1:nDrop]) ]})

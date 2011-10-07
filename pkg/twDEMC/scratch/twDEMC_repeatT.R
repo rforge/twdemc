@@ -69,7 +69,7 @@ twDEMCBatchInt <- function(
 		res <- Zinit
 		iRun <- (nrow(res$rLogLik)-1)*res$thin
 		if( iRun >= nGen ) return(res)
-		ctrl$initialAcceptanceRate <- twDEMCPopMeans( res$pAccept[nrow(res$pAccept),],nPops )
+		ctrl$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		ctrl$T0 <- T0c <- res$temp[ nrow(res$temp), ,drop=FALSE ]
 		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
@@ -81,7 +81,7 @@ twDEMCBatchInt <- function(
 		chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
 		
 		diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-		diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+		diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 		
 		pAcceptChains <- res$pAccept[ nrow(res$pAccept), ]
 		pAcceptPops <- tapply( pAcceptChains, chain2Pop, mean) 
@@ -181,7 +181,7 @@ twDEMCBatchInt <- function(
 				cl$nGenBurnin <- nGenBurnin	#important to update for recalculating temperature
 				#will be done in batch Callcl$controlTwDEMC$Tend <- calcDEMCTemp(resFt$temp[nrow(resFt$temp),,drop=FALSE], 1, nGenBurnin-iRunPrev, nRunPrev) #recalculate with initial temperature
 				cl$doRepeatLowAcceptanceChains=FALSE	#else may be recursive
-				#cl$initialAcceptanceRate <- twDEMCPopMeans( resFt$pAccept[nrow(resFt$pAccept),],nPops )
+				#cl$initialAcceptanceRate <- popMeansTwDEMC( resFt$pAccept[nrow(resFt$pAccept),],nPops )
 				cl$restartFilename<-NULL
 				cl$X <- numeric(0)
 				attr(resFt,"batchCall") <- cl
@@ -221,7 +221,7 @@ twDEMCBatchInt <- function(
 		clArgs$nPops<-nPops
 		#clArgs$T0=max(1,b*exp(-a*iRun))		# if temp did not decrease start from this temperature
 		clArgs$controlTwDEMC <- controlTwDEMC
-		clArgs$controlTwDEMC$initialAcceptanceRate <- twDEMCPopMeans( res$pAccept[nrow(res$pAccept),],nPops )
+		clArgs$controlTwDEMC$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		clArgs$controlTwDEMC$T0<-T0c<-res$temp[ nrow(res$temp), ,drop=FALSE]
 		#clArgs$Tend=max(1,b*exp(-a*(iRun+nRun)))
 		##--calculating end temperature
@@ -250,7 +250,7 @@ twDEMCBatchInt <- function(
 			#mtrace(getDiffLogLik.twDEMCProps)
 			#diffLogLikT <- getDiffLogLik.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
 			diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-			diffLogLikPops <- twDEMCPopApply( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+			diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			#diffLogLikPops[!is.finite(diffLogLikPops)] <- NA
 			#XXTODO: think about criterion for too fast cooling
 			#tmp <- ecdf(diffLogLikPops["amendm",,])

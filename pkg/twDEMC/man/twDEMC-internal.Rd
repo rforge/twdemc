@@ -2,7 +2,6 @@
 \title{Internal twDEMC objects}
 \alias{.calcRhat2}
 \alias{.calcTemperatedDiffLogLik}
-\alias{.checkConvergenceGelmanPops}
 \alias{.colNames}
 \alias{.cut2dim2}
 \alias{.cut2dim3}

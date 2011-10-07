@@ -18,7 +18,7 @@ calcDEMCTempProp <- function(
 	,diffLogLik		##<< expected difference in Log-Likelihoods expected-accepted per datastream 
 	,rFracMin=1/4	##<< fraction of max DiffLikelihood  below which temperatue is scaled down to yield  larger importance
 ){
-	rr <- diffLogLik/min(diffLogLik)	# diffLiklihood per largest misfit (lowest neg diff-Log-Likelihood)
+	rr <- diffLogLik/max(min(diffLogLik),1e-8)	# diffLiklihood per largest misfit (lowest neg diff-Log-Likelihood)
 	Ti <- pmin(temp,1+(temp-1)/rFracMin*rr)
 	Ti[rr<=0] <- 1	#give NA or negative values for Ti		
 	Ti
@@ -163,6 +163,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	,rFracMin=1/4		##<< fraction of Likelihood to which data-streams with low diff-logLik are scaled to by temperatures to
 	,doConstrainNeg=FALSE	##<< if given, likelihood of accepted jumps (positive) is constrained to 0
 ){
+	if( !(is.finite(TMax) && (TMax >= 1)) ) stop("need supplying positive TMax")
 	#replace non-finite values by lowest finite LogLik value
 	#ds <- diffLogLik[1,]
 	#diffLogLik <- diffLogLikPops[c("parms","agg_amendm_2","agg_amendm_3","agg_amendm_10"),,1]
@@ -529,7 +530,7 @@ calcDEMCTempGlobal1 <- function(
 	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
 	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
 	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
-	,iRun=calcNGen(resPop)	##<< current generation: may be passed for efficiency
+	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
 	,minPCompAcceptTempDecr=0.16
@@ -557,7 +558,7 @@ calcDEMCTempGlobal2a <- function(
 	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
 	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
 	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
-	,iRun=calcNGen(resPop)	##<< current generation: may be passed for efficiency
+	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
 	,rHat0=1.08	##<< rHat value for which to not change the burnin period
@@ -608,7 +609,7 @@ calcDEMCTempGlobal2b <- function(
 	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
 	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
 	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
-	,iRun=calcNGen(resPop)	##<< current generation: may be passed for efficiency
+	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
 	,rHat0=1.06	##<< rHat value for which to not change the burnin period
@@ -628,8 +629,8 @@ calcDEMCTempGlobal2b <- function(
 	#	nGenBurninNew <- nGenBurnin		
 	#	TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
 	#}else{
-		if( t20r > 1.5){
-			# 20 accepted rows back, temperate was more than 150% of current temperate: too fast
+		if( t20r > 1.2){
+			# 20 accepted rows back, temperate was more than 120% of current temperate: too fast
 			# keep current temperature and extend burnin by generations in next batch
 			cat("  Tback20/TCurr=",round(t20r*100),"%, pAccept=",resPop$pAccept[nR,1],"\n",sep="")		
 			TGlobal <- T0
@@ -718,28 +719,29 @@ calcDEMCTempGlobal2b <- function(
 	
 }
 
+#mtrace(calcDEMCTempGlobal2)
 calcDEMCTempGlobal2 <- function(
-	### Calculating global temperature after the next batch for one population.
+	### Calculating global temperature and adjusted burnin period after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
 	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
 	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
 	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
-	,iRun=calcNGen(resPop)	##<< current generation: may be passed for efficiency
+	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
 	,rHat0=1.2	##<< rHat value for which to not change the burnin period
 ){
-	rHat0=max(rHat0,1.001)		#not smaller than 1.01 in order to avoid division by zero
+	rHat0=max(rHat0,1.001)		#not smaller than 1.001 in order to avoid division by zero
 	temp <- resPop$temp[,1]
 	nR <- length(temp)
 	T0 <- temp[nR]
-	acceptRowsFac <- 1/(resPop$thin*resPop$pAccept[nR,1])
+	acceptRowsFac <- 1/(resPop$thin*resPop$pAccept[nR,1])  # every x rows can be regarded as independent
 	i <- max(1,round(nR- 20*acceptRowsFac))	# row 20 independent steps back
 	t20r<-temp[i]/T0
 	if( t20r > 1.2){
 		# 20 accepted rows back, temperate was more than 120% of current temperate: too fast
 		# keep current temperature and extend burnin by generations in next batch
-		cat("  Tback20/TCurr=",round(t20r*100),"%, pAccept=",resPop$pAccept[nR,1],"\n",sep="")		
+		cat("  Tback20/TCurr=",round(t20r*100),"%, pAccept=",resPop$pAccept[nR,1]," keep T0 and extend burnin\n",sep="")		
 		TGlobal <- T0
 		nGenBurninNew <- nGenBurnin*1.1+nRun
 	}else{
@@ -750,39 +752,51 @@ calcDEMCTempGlobal2 <- function(
 			nGenBurninNew <- nGenBurnin		
 			TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
 		}else{
-			# Gelman diag on properly thinned population
-			#dump.frames(file.path("tmp","tempDecGelman"),TRUE)
-			#stop("dump to tmp/tempDecGelman.rda")
 			newThinOdd <- 1/resPop$pAccept[nR,1]
 			newThin <- max(1,(newThinOdd%/%resPop$thin))*resPop$thin	# make it multiple of current thin
-			res130 <- thin(resPop, start=i130, newThin=newThin)
-			
-			d <- dim(res130$parms)[2:3]
-			xGrid <- rep(1:d[1],d[2])
-			rHat2 <- apply(res130$parms,1,function(parmsi){
-				# before Gelman diag, first remove trend common to all chains 
-				# that will otherwise dominate both variances
-				# with decreasing temperature a trend is very probable, despite the Gelman diag measures the mixing of the chains
-				parmsid <- .detrendMatrix(parmsi,xGrid=xGrid,df=3)
-				rHat2 <- .calcRhat2( parmsid, n=d[1], m=d[2] )
-			})
-			rHatMax <- sqrt(max(1,rHat2))
-			cat("  Gelman diag: max(rHat)=",rHatMax,"\n",sep="")		
-			# map gelman diag to a change in nGenBurnin (multiply the period until nGenBurnin by a factor)
-			#rHatMax <- seq(1.0,2,by=0.02)
-			burninFac <- pmax(-1/3, log(1/3)/(rHat0-1.0) * (rHat0-rHatMax))
-			#plot(burninFac~r2); abline(h=0); abline(v=rHat0)
-			if( burninFac > 0){
-				# do not decrease Temperature in the next run
+			res130 <- thin(resPop, start=max(i130, iRun-2*nRun), newThin=newThin)
+			# if the chains of one populatin cover the minimum at given temperature, temperature may decrease
+			# hence check, if they converged to limiting distribution for given temperature
+			if( checkConvergenceTrend(res130) < 0.05){
+				# for a significant trend in rLogLik of resPop, stay at given temperature
+				cat("  trend in log-Likelihood: stay at given temperature one more batch\n")		
+				nGenBurninNew <- nGenBurnin+nRun
 				TGlobal <- T0
-				# increase by factor + next batch
-				nGenBurninNew <- round(nGenBurnin+(nGenBurnin-iRun)*burninFac)+nRun
 			}else{
-				# decrease burnin period
-				nGenBurninNew <- round(nGenBurnin+(nGenBurnin-iRun)*burninFac)
-				TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
-			} 
-			# end Gelman Diag 
+				# base diagnostics on end of the chain with a temperatue decrease of 10%
+				#dump.frames(file.path("tmp","tempDecGelman"),TRUE)
+				#stop("dump to tmp/tempDecGelman.rda")
+				d <- dim(res130$parms)[2:3]
+				xGrid <- rep(1:d[1],d[2])
+				rHat2 <- apply(res130$parms,1,function(parmsi){
+					# before Gelman diag, first remove trend common to all chains 
+					# that will otherwise dominate both variances
+					# with decreasing temperature a trend is very probable, despite the Gelman diag measures the mixing of the chains
+					parmsid <- .detrendMatrix(parmsi,xGrid=xGrid,df=3)
+					rHat2 <- twDEMC:::.calcRhat2( parmsid, n=d[1], m=d[2] )
+				})
+				rHatMax <- sqrt(max(1,rHat2))
+				cat("  Gelman diag: max(rHat)=",rHatMax,": ",ifelse(rHatMax <rHat0,"decreasing","increasing")," burnin\n",sep="")		
+				# map gelman diag to a change in nGenBurnin (multiply the period until nGenBurnin by a factor)
+				#rHatMax <- seq(1.0,2,by=0.02)
+				#burninFac <- pmax(-1/2, log(1/3)/(rHat0-1.0) * (rHat0-rHatMax))	# decrease to strong
+				burninFac <- pmax(-1/2, log(1/2)/(rHat0-1.0) * (rHat0-rHatMax))
+				#plot(burninFac~rHatMax); abline(h=0); abline(v=rHat0)
+				#rHat0 <- seq(1.00,1.4,by=0.01); 
+				#plot( burninFac ~ rHat0 ); abline(h=c(log(1/3),0,1));
+				if( burninFac > 0){
+					# do not decrease Temperature in the next run
+					TGlobal <- T0
+					# increase by factor + next batch
+					nGenBurninNew <- round(nGenBurnin+(nGenBurnin-iRun)*burninFac)+nRun
+					#plot( nGenBurninNew ~ burninFac ); abline(h=nGenBurnin); abline(v=0)
+					#plot( nGenBurninNew ~ rHatMax ); abline(v=rHat0); abline(h=nGenBurnin)
+				}else{
+					#decrease Temperature and shorten burnin
+					nGenBurninNew <- (nGenBurnin+(nGenBurnin-iRun)*burninFac)
+					TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
+				} 
+			}# end Gelman Diag 
 		} # end no significnat temperature found
 	} #20 end accepted rows back
 	# make sure that Temperature decrease is not gerater than 100/120 within next 20  accepted steps (a)

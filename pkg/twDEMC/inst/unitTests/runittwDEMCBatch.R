@@ -188,7 +188,7 @@ test.badStart <- function(){
 	
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res,start=min(calcNGen(res)*0.8,max(res$nGenBurnin))) 
+	rescoda <- as.mcmc.list(res,start=min(getNGen(res)*0.8,max(res$nGenBurnin))) 
 	plot(rescoda)
 	suppressWarnings({
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))

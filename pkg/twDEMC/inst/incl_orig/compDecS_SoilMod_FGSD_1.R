@@ -247,14 +247,14 @@
 	#.start=145
 	#windows(record=TRUE)
 	matplot( res$temp[-(1:.start),], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.start),], ncol(res$temp), 10), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.start),], ncol(res$temp), 10), type="l" )
 	abline(h=0.1,col="gray")
 	matplot( res$rLogLik[-(1:.start),], type="l")
 	tmp <- res$rLogLik[nrow(res$rLogLik),]
 	
 	rest <- thin(res, start=nRun1-512)
 	matplot( rest$rLogLik[,], type="l")
-	matplot( twDEMCPopMeans(rest$pAccept, ncol(rest$temp), 5), type="l" )
+	matplot( popMeansTwDEMC(rest$pAccept, ncol(rest$temp), 5), type="l" )
 	abline(h=0.1,col="gray")
 	#rescoda <- as.mcmc.list(rest)
 	#windows(record=TRUE)
@@ -314,7 +314,7 @@
 		#tmp<-apply(res$temp,1,max); .starti= min(which(tmp<50)); .start <- .starti*res$thin
 		#windows(record=TRUE)
 		matplot( res$temp[-(1:.starti),], type="l")
-		matplot( twDEMCPopMeans(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
+		matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
 		abline(h=0.1,col="gray")
 		matplot( res$rLogLik[-(1:.starti),], type="l")
 		
@@ -372,7 +372,7 @@
 	#tmp<-apply(res$temp,1,max); .starti= min(which(tmp<50)); .start <- .starti*res$thin
 	#windows(record=TRUE)
 	matplot( res$temp[-(1:.starti),], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
 	abline(h=0.1,col="gray")
 	matplot( res$rLogLik[-(1:.starti),], type="l")
 	
@@ -438,7 +438,7 @@
 	.start=nRun0; .starti <- .start%/% res$thin
 	#windows(record=TRUE)
 	matplot( res$temp[-(1:.starti),], type="l")
-	matplot( twDEMCPopMeans(res$pAccept[-(1:.starti),], ncol(res$temp), 10), type="l" )
+	matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 10), type="l" )
 	matplot( res$rLogLik[-(1:.starti),], type="l")
 	copy2clip(as.character(GString("bsub -n ${nProc} ${bsubOptions} ./bsubr_i.sh runCluster.R iproc=${iproc} nprocSingle=${nProc} 'paramFile=\"${paramFilenameAsom}\"' 'argsFRun=list(nGen=${`nRun1+5*1024`},nGenBurnin=${`res$nGenBurnin`})' doRestart=TRUE" )))
 	

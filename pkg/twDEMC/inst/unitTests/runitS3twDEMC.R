@@ -44,5 +44,48 @@ test.stackChains <- function(){
 	checkEquals( prod( dim(twdemcEx1$rLogLik) ), nrow(.tmp) )
 }
 
+test.thin.twDEMC <- function(){
+	# test thin.twDEMC
+	data(twdemcEx1)
+	#mtrace(thin.twDEMC)
+	# test modifying starting value (cutting burnin)
+	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin)	# removing burnin period
+	checkEquals(c(70,5,15,0)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	# test giving time a bit between thinning intervals
+	thinned <- thin(twdemcEx1, start=1)	# remove first thinning interval (because not starting from time zero)
+	checkEquals(c(95,5,20,25)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	# test modifying end value (cutting from the end of the chain)
+	thinned <- thin(twdemcEx1, end=getNGen(twdemcEx1))	# no change
+	checkEquals(c(100,5,21,30)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	thinned <- thin(twdemcEx1, end=getNGen(twdemcEx1)+5)	# end behind sample: no change
+	checkEquals(c(100,5,21,30)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	thinned <- thin(twdemcEx1, end=getNGen(twdemcEx1)-2)	# remove entire last thinning interval
+	checkEquals(c(95,5,20,30)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	thinned <- thin(twdemcEx1, start=2, end=getNGen(twdemcEx1)-2)	# remove entire last thinning interval
+	checkEquals(c(90,5,19,25)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	# test new thinning interval
+	thinned <- thin(twdemcEx1, newThin=10)	
+	checkEquals(c(100,10,11,30)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	thinned <- thin(twdemcEx1, newThin=10, start=2, end=getNGen(twdemcEx1)-2)	
+	checkEquals(c(80,10,9,20)
+		, c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )
+		, checkNames=FALSE )
+	
+}
+
 
 

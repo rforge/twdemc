@@ -292,7 +292,7 @@ replaceZinitCases <- function(
 	tmp.j1 = sample( 1:nrow(goodCases1), nrow(badCases2), replace=TRUE )
 	for( i in seq(along.with=badCases2[,1]) )	Zinit[, badCases2[i,1], badCases2[i,2] ] = Zinit[, goodCases1[tmp.j1[i],1], goodCases1[tmp.j1[i],2]  ]
 	Zinit
-	### Zinit, with several rows replaced by other rows
+	### Zinit, with several cols (parameter vectors) replaced by other cols
 }
 
 replaceZinitNonFiniteLogLiks <- function( 
@@ -309,8 +309,28 @@ replaceZinitNonFiniteLogLiks <- function(
 	bo <- is.finite(rLogLik)
 	dim(bo) <- dim(Zinit)[2:3]
 	replaceZinitCases( Zinit, bo )
+	### Zinit, with several cols (parameter vectors) replaced by other cols
 }
 #twUtestF(replaceZinitNonFiniteLogLiks)
+attr(replaceZinitNonFiniteLogLiks,"ex") <- function(){
+	data(twLinreg1)
+	attach( twLinreg1 )
+	mtrace(initZtwDEMCNormal)
+	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChains=8, nPops=2)
+	dim(Zinit)
+	res <- twCalcLogLikPar(logLikGaussian, stackChains(Zinit)
+		,fModel=dummyTwDEMCModel		### the model function, which predicts the output based on theta 
+		,obs=obs			### vector of data to compare with
+		,invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)$logLik
+	plot(density(res))
+	res[res< -30] <- NA
+	resM <- matrix(res, ncol=dim(twdemcEx1$parms)[3])
+	Zinit2 <- replaceZinitNonFiniteLogLiks(Zinit, resM)
+}
 
 replaceZinitNonFiniteLogLiksLastStep <- function( 
 	### Replaces states of last step, i.e. column of Zinit that yield non-finite rLogLik by sampling other states.
