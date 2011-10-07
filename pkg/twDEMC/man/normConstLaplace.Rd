@@ -35,6 +35,6 @@ fLogPost <- function(theta){ log(cTrue) + dmvnorm(theta,mean=mu,sigma=Sigma, log
 exp(normConstLaplace( sample, fLogPost ))
 
 #normd <- cov.rob(sample)
-#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik, nd=normd)}, 100))
-#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik)}, 100))
+#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen, nd=normd)}, 100))
+#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen)}, 100))
 }

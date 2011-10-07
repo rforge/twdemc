@@ -7,7 +7,7 @@ dummyTwDEMCModel(theta, xval)
 }
 \arguments{
   \item{theta}{parameter vector with names a and b}
-  \item{xval}{additional argument, passed by ... in logLikGaussian}
+  \item{xval}{additional argument, passed by ... in logDenGaussian}
 }
 
 
@@ -17,5 +17,5 @@ dummyTwDEMCModel(theta, xval)
 
 
 \seealso{\code{\link{twDEMCInt}}
-\code{\link{logLikGaussian}}}
+\code{\link{logDenGaussian}}}
 

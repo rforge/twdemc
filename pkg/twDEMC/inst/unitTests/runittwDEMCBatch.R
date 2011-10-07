@@ -24,7 +24,7 @@
 test.goodStart <- function(){
 	# nice starting values
 	.nPops=2
-	argsFLogLik <- list(
+	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -32,7 +32,7 @@ test.goodStart <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)
-	do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
@@ -42,7 +42,7 @@ test.goodStart <- function(){
 	res <-  twDEMCBatch(
 		Zinit=Zinit, nGen=200, nBatch=50,
 		restartFilename=NULL,
-		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
 	)
 	str(res)
@@ -72,7 +72,7 @@ test.goodStart <- function(){
 test.saveAndRestart <- function(){
 	# testing save and restarting from that file
 	.nPops=2
-	argsFLogLik <- list(
+	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -80,7 +80,7 @@ test.saveAndRestart <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)
-	#do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
@@ -95,7 +95,7 @@ test.saveAndRestart <- function(){
 	res <-  twDEMCBatch(
 		Zinit=Zinit,  
 		60, 50,
-		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops,
 		
 		controlTwDEMC = list(thin=.thin),
@@ -104,7 +104,7 @@ test.saveAndRestart <- function(){
 		restartFilename=restartFilename
 	)
 	#str(res)
-	checkEquals(60/.thin+1, nrow(res$rLogLik) )
+	checkEquals(60/.thin+1, nrow(res$rLogDen) )
 	
 	checkTrue( file.exists(restartFilename) )
 	if( exists("resRestart.twDEMC")) rm( resRestart.twDEMC )
@@ -120,14 +120,14 @@ test.saveAndRestart <- function(){
 	rm(.nPops)	#test if argument values referring to variables have been substituted by their values
 	#names(res$batchCall)
 	res2 <- twDEMCBatch(resRestart.twDEMC)		#should figure out burnin and nGen by itself 
-	checkEquals(60/.thin+1, nrow(res2$rLogLik) )
+	checkEquals(60/.thin+1, nrow(res2$rLogDen) )
 	res3 <- twDEMCBatch(resRestart.twDEMC, nGen=70)
-	checkEquals(70/.thin+1, nrow(res3$rLogLik) )
+	checkEquals(70/.thin+1, nrow(res3$rLogDen) )
 	res4 <- twDEMCBatch(resRestart.twDEMC, nGen=40)	
-	checkEquals(50/.thin+1, nrow(res4$rLogLik) )	# was already 50
+	checkEquals(50/.thin+1, nrow(res4$rLogDen) )	# was already 50
 	#mtrace(calcDEMCTempGlobal2)
 	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=1500)	#exeeding burnin	
-	checkEquals(1500/.thin+1, nrow(res5$rLogLik) )
+	checkEquals(1500/.thin+1, nrow(res5$rLogDen) )
 	
 	matplot(res5$temp, type="l")
 	plot(res5$temp[,1])
@@ -157,7 +157,7 @@ test.saveAndRestart <- function(){
 test.badStart <- function(){
 	#test burnin with bad starting information
 	.nPops=2
-	argsFLogLik <- list(
+	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -165,7 +165,7 @@ test.badStart <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)
-	do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
@@ -175,11 +175,11 @@ test.badStart <- function(){
 	dim(Zinit)
 	
 	#mtrace(twDEMCBatchInt)
-	#mtrace(calcDEMCTempDiffLogLik3)
+	#mtrace(calcDEMCTempDiffLogDen3)
 	res <-  twDEMCBatch(
 		Zinit=Zinit,  
 		300, 50,
-		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops,
 		#probUpDirBurnin=0.8,		
 		nGenBurnin=200
@@ -212,7 +212,7 @@ t_est.badStartGelmanCooling <- function(){
 	#test burnin with bad starting information, 
 	# in the meantime became standard argument, and tested with other tests
 	.nPops=2
-	argsFLogLik <- list(
+	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -220,7 +220,7 @@ t_est.badStartGelmanCooling <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)
-	do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
@@ -230,12 +230,12 @@ t_est.badStartGelmanCooling <- function(){
 	dim(Zinit)
 	
 	#mtrace(twDEMCBatchInt)
-	#mtrace(calcDEMCTempDiffLogLik3)
+	#mtrace(calcDEMCTempDiffLogDen3)
 	#mtrace(calcDEMCTempGlobal2)
 	res <-  twDEMCBatch(
 		Zinit=Zinit,  
 		300, 50,
-		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
 		#,probUpDirBurnin=0.8		
 		,nGenBurnin=200
@@ -249,7 +249,7 @@ t_est.badStartGelmanCooling <- function(){
 test.probUpDir <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
 	.nPops=2
-	argsFLogLik <- list(
+	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -257,7 +257,7 @@ test.probUpDir <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)
-	#do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
@@ -265,7 +265,7 @@ test.probUpDir <- function(){
 	res <-  twDEMCBatch(
 		200, 50,
 		Zinit=Zinit,  
-		fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops,
 		
 		nGenBurnin=150,

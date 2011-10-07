@@ -31,7 +31,7 @@ checkConvergenceGelman <- function(
 	##details<< 
 	## There are several methods to get diagnostics for a twDEMC run. \itemize{
 	## \item{ the Gelman criterion: this method  } 
-	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	## \item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
 	##}
 	
 	l <- dim(res$parms)[2]
@@ -94,10 +94,10 @@ attr(checkConvergenceGelmanPops,"ex") <- function(){
 	checkConvergenceGelmanPops(twdemcEx1)
 }
 
-getRLogLikQuantile <- function(
-	### Quantile of logLikelihood below which models are significantly different from the best model, i.e. parameterization
-	stackedSample				##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
-	,maxLogLik=max(stackedSample[,1])	##<< maximum logLik Likelihood
+getRLogDenQuantile <- function(
+	### Quantile of logDensity below which models are significantly different from the best model, i.e. parameterization
+	stackedSample				##<< numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	,maxLogDen=max(stackedSample[,1])	##<< maximum logDen Density
 	,df=ncol(stackedSample)-1	##<< degress of freedom: number of fitted parameters
 	,perc=0.95					##<< percentile of significance
 ){
@@ -106,25 +106,25 @@ getRLogLikQuantile <- function(
 	## \code{\link{twDEMCInt}}
 	
 	##details<<
-	## See Hilborn97 for explanation of Likelihood ratio test for nested models.
+	## See Hilborn97 for explanation of Density ratio test for nested models.
 	x2 <- qchisq(perc, df=df )
-	maxLogLik -x2/2
-	### numeric scalar: minimum Log-Likelihood below which models are significantly different 
+	maxLogDen -x2/2
+	### numeric scalar: minimum LogDensity below which models are significantly different 
 }
 
 checkConvergenceTrend <- function(
 	### checks whether the first and last fifth mean of populations differ significantly 
 	resB			##<< the twDEMC to examine
-	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogLik)%/%ncol(resB$temp))
+	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogDen)%/%ncol(resB$temp))
 ){
-	iGen <- structure( cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
+	iGen <- structure( cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
 		,dimnames= list(pop=NULL,part=c("start","end")) )
 	nPops <- getNPops(resB)
-	# stack rLogLik for each population
-	#rLogLikStart <- popApplyTwDEMC( resB$rLogLik[iGen[,1],], nPops=1, as.vector )
-	rLogLikStart <- popApplyTwDEMC( resB$rLogLik[iGen[,1],], nPops=nPops, as.vector )
-	rLogLikEnd <- popApplyTwDEMC( resB$rLogLik[iGen[,2],], nPops=nPops, as.vector )
-	res <- sapply( 1:nPops, function(i){ t.test(rLogLikStart[,i],rLogLikEnd[,i],alternative="greater")$p.value })
+	# stack rLogDen for each population
+	#rLogDenStart <- popApplyTwDEMC( resB$rLogDen[iGen[,1],], nPops=1, as.vector )
+	rLogDenStart <- popApplyTwDEMC( resB$rLogDen[iGen[,1],], nPops=nPops, as.vector )
+	rLogDenEnd <- popApplyTwDEMC( resB$rLogDen[iGen[,2],], nPops=nPops, as.vector )
+	res <- sapply( 1:nPops, function(i){ t.test(rLogDenStart[,i],rLogDenEnd[,i],alternative="greater")$p.value })
 	res
 }
 attr(checkConvergenceTrend,"ex") <- function(){

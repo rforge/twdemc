@@ -33,7 +33,7 @@ test.initZExt <- function(){
 
 test.constrainNStack <- function(){
 	pss <- stackChains(twdemcEx1)
-	normpoptBest <- normpoptBest <- twExtractFromLastDims(twdemcEx1$parms, which.max( twdemcEx1$rLogLik) )[,1]
+	normpoptBest <- normpoptBest <- twExtractFromLastDims(twdemcEx1$parms, which.max( twdemcEx1$rLogDen) )[,1]
 	pss2 <- constrainNStack(pss, thetaPrior=normpoptBest[c("a","b")], n = 80 )
 	checkEquals( c(80,3), dim(pss2) )
 	
@@ -47,7 +47,7 @@ test.constrainNStack <- function(){
 
 test.constrainCfStack <- function(){
 	pss <- stackChains(twdemcEx1)
-	normpoptBest <- normpoptBest <- twExtractFromLastDims(twdemcEx1$parms, which.max( twdemcEx1$rLogLik) )[,1]
+	normpoptBest <- normpoptBest <- twExtractFromLastDims(twdemcEx1$parms, which.max( twdemcEx1$rLogDen) )[,1]
 	
 	.alpha=0.95
 	expN <- .alpha*nrow(pss)

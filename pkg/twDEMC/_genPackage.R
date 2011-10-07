@@ -33,6 +33,8 @@ pkg<-"twDEMC"
 	twUtestF(twDEMCBatch,"test.saveAndRestart")
 	twUtestF(twDEMC)
 	twUtestF(constrainNStack)
+	twUtestF("initZ")
+	twUtestF("S3twDEMC")
 }
 
 .tmp.inlinedocs <- function(){

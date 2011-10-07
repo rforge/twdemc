@@ -3,13 +3,13 @@
 \title{calcDEMCTempGlobal2}
 \description{Calculating global temperature and adjusted burnin period after the next batch for one population.}
 \usage{
-calcDEMCTempGlobal2(resPop, diffLogLik, TLp, pAcceptTVar, iRun = getNGen(resPop), nGenBurnin, nRun, rHat0 = 1.2)
+calcDEMCTempGlobal2(resPop, diffLogDen, TLp, pAcceptTVar, iRun = getNGen(resPop), nGenBurnin, nRun, rHat0 = 1.2)
 }
 \arguments{
   \item{resPop}{twDEMC result (subChains of one population)}
-  \item{diffLogLik}{numeric vector: Lp-La of the previous proposals}
-  \item{TLp}{numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}}
-  \item{pAcceptTVar}{numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}}
+  \item{diffLogDen}{numeric vector: Lp-La of the previous proposals}
+  \item{TLp}{numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}}
+  \item{pAcceptTVar}{numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}}
   \item{iRun}{current generation: may be passed for efficiency}
   \item{nGenBurnin}{integer scalar: the number of Generations in burnin}
   \item{nRun}{integer scalar: the number of generations in next batch}

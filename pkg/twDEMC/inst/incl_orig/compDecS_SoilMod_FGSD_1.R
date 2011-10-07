@@ -50,7 +50,7 @@
 		,fSolve = solve.SoilMod_FGSD
 	) 
 	
-	argsFLogLik <- argsFLogLik0 <- list(
+	argsFLogDen <- argsFLogDen0 <- list(
 		model=model		 
 		,poptDistr=poptDistr
 		,obs=HamerLigninGlucoseRespUnc
@@ -63,8 +63,8 @@
 	#,useRImpl=.useRImpl
 	)
 	#mtrace(ofb.hamer)
-	nObs <-max( sapply( argsFLogLik$obs, function(dstr) length(dstr$obs) ) ) #expected misfit
-	Tstd <- nObs / length(normpopt)		#Temperature for which totally free model of n parameters expected to yield Log-Likelihood L=-1
+	nObs <-max( sapply( argsFLogDen$obs, function(dstr) length(dstr$obs) ) ) #expected misfit
+	Tstd <- nObs / length(normpopt)		#Temperature for which totally free model of n parameters expected to yield LogDensity L=-1
 		
 	# tried to increase number of chains per population because acceptance rate dropped to low, but this did not work
 	.nPops=16	
@@ -74,25 +74,25 @@
 	#Zinit <- initZtwDEMCNormal( normpopt, poptDistr$sigma, nChains=4*.nPops, nPops=.nPops, doIncludePrior=FALSE)
 	Zinit <- initZtwDEMCNormal( normpopt, poptDistr$sigma, nChains=4*.nPops, nPops=.nPops, doIncludePrior=FALSE)
 	
-	#------- calculate the LogLik of the proposals 
+	#------- calculate the LogDen of the proposals 
 	str(tmp <- t(abind(twListArrDim(Zinit),along=2,new.names=dimnames(Zinit)[1:2])))
 	argsTwDEMCBatchInit <- within( list(),{
-			fLogLik<-ofb.hamer
-			argsFLogLik<-argsFLogLik
+			fLogDen<-ofb.hamer
+			argsFLogDen<-argsFLogDen
 			xProp<-tmp
 		})
 	runClusterParms <- runClusterParmsInit <- within( list(),{
 		fSetupCluster <- setupClusterMDIHamerDev
-		fRun <- twRunFLogLikPar
+		fRun <- twRunFLogDenPar
 		#specify intResCompNames here, so that intResCompNames from previous results is not overwritten
 		argsFRun <- argsTwDEMCBatchInit
-		#, intResCompNames=intersect(.internalComponents, argsFLogLik$includeStreams)
+		#, intResCompNames=intersect(.internalComponents, argsFLogDen$includeStreams)
 	})
 	.tmp.f <- function(){
 		argsFRun2 <- runClusterParmsInit$argsFRun
 		argsFRun2$xProp <- argsFRun2$xProp[1:500,]
-		tmp <- do.call(twRunFLogLikPar, argsFRun2)
-		resLogLik <- tmp
+		tmp <- do.call(twRunFLogDenPar, argsFRun2)
+		resLogDen <- tmp
 	}
 	save( runClusterParms, file=paramFilename )
 	iproc=0;outFilename0 <- twResultFilename(paramFilename,iproc=iproc); outFilenameAsom1 <- twResultFilename(paramFilenameAsom,iproc=iproc)
@@ -109,28 +109,28 @@
 	
 	load(outFilename0)
 	#load(file.path("..","parms","res_res_MDIHamer_FGSD1_1_1.RData"))
-	resLogLik <- runClusterRes$res
+	resLogDen <- runClusterRes$res
 	
-	boFin <- is.finite(resLogLik$logLik)
-	rL <- resLogLik$logLik[ boFin ]
+	boFin <- is.finite(resLogDen$logDen)
+	rL <- resLogDen$logDen[ boFin ]
 	p <- c(0.05, 0.1, 0.2, 100/length(rL) )
 	q <- quantile(rL, probs=1-p)
-	bo <- sapply(q, function(qi) rL > qi) #is.finite(resLogLik$logLik); 
+	bo <- sapply(q, function(qi) rL > qi) #is.finite(resLogDen$logDen); 
 	apply(bo,2,sum)	#145 cases is ok for 5plevel is ok
 	i=4
-	resLogLikQ <- resLogLik
-	resLogLikQ$logLik <- resLogLik$logLik[ boFin ][bo[,i]]
-	resLogLikQ$resFLogLik <- resLogLik$resFLogLik[ boFin, ][bo[,i],]
-	tmp <- melt(resLogLikQ$resFLogLik)
+	resLogDenQ <- resLogDen
+	resLogDenQ$logDen <- resLogDen$logDen[ boFin ][bo[,i]]
+	resLogDenQ$resFLogDen <- resLogDen$resFLogDen[ boFin, ][bo[,i],]
+	tmp <- melt(resLogDenQ$resFLogDen)
 	p1 <- qplot( X2, value, geom="boxplot", data=tmp)+
 		opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	p1
 
-	#apply( resLogLikQ$resFLogLik, 2, range )
-	#sample from the 5% best as accepted LogLik
-	Lp <- resLogLikQ$resFLogLik
-	ord <- order(resLogLikQ$logLik, decreasing = TRUE)
-	#resLogLikQ$logLik[ord]
+	#apply( resLogDenQ$resFLogDen, 2, range )
+	#sample from the 5% best as accepted LogDen
+	Lp <- resLogDenQ$resFLogDen
+	ord <- order(resLogDenQ$logDen, decreasing = TRUE)
+	#resLogDenQ$logDen[ord]
 	La <- Lp[sample( ord[1:round(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
 	d <- Lp-La
@@ -153,7 +153,7 @@
 	qps <- apply( d, 2, quantile, probs=1-ps)
 	T <- structure(pmax(1,qps/log(ps), names=names(qps)))
 	
-	ZinitR <- replaceZinitNonFiniteLogLiks( Zinit, resLogLik$logLik)
+	ZinitR <- replaceZinitNonFiniteLogDens( Zinit, resLogDen$logDen)
 	
 	res$Y[names(T),1:10,]
 	
@@ -166,8 +166,8 @@
 			#Zinit<-Zinit
 			Zinit<-ZinitR
 			nPops<-.nPops
-			fLogLik<-ofb.hamer
-			argsFLogLik<-argsFLogLik
+			fLogDen<-ofb.hamer
+			argsFLogDen<-argsFLogDen
 			#loosing variability with > 20 parameters nBatch<-512
 			#nBatch=max(minNBatch,1024)
 			#nGen<-3*1024
@@ -184,10 +184,10 @@
 			fRun <- twRunDEMC
 			#specify intResCompNames here, so that intResCompNames from previous results is not overwritten
 			argsFRun <- list(argsTwDEMCBatch=argsTwDEMCBatch0
-				#, intResCompNames=intersect(.internalComponents, argsFLogLik$includeStreams)
+				#, intResCompNames=intersect(.internalComponents, argsFLogDen$includeStreams)
 			)
 		})
-	#runClusterParms$argsFRun$fLogLik
+	#runClusterParms$argsFRun$fLogDen
 	.tmp.f <- function(){
 		runClusterParms$argsFRun$argsTwDEMCBatch$Zinit <- ZinitR[,,1:8]
 		runClusterParms$argsFRun$argsTwDEMCBatch$nPops <- 2
@@ -203,19 +203,19 @@
 				debugSequential=TRUE
 				#nBatch=8
 				#doStopOnError=TRUE
-				#argsFLogLik$useRImpl=TRUE
+				#argsFLogDen$useRImpl=TRUE
 			})
 		#options(error=dump.frames)
 		#mtrace(twRunDEMC)
-		#mtrace(replaceZinitNonFiniteLogLiksLastStep)
-		#mtrace(twCalcLogLikPar)
-		#tmp<-argsFRunDebug$argsTwDEMCBatch$argsFLogLik$model$fSolve; mtrace(tmp); argsFRunDebug$argsTwDEMCBatch$argsFLogLik$model$fSolve<-tmp
-		#tmp<-ofb.hamer; mtrace(tmp); argsFRunDebug$argsTwDEMCBatch$fLogLik<-tmp
+		#mtrace(replaceZinitNonFiniteLogDensLastStep)
+		#mtrace(twCalcLogDenPar)
+		#tmp<-argsFRunDebug$argsTwDEMCBatch$argsFLogDen$model$fSolve; mtrace(tmp); argsFRunDebug$argsTwDEMCBatch$argsFLogDen$model$fSolve<-tmp
+		#tmp<-ofb.hamer; mtrace(tmp); argsFRunDebug$argsTwDEMCBatch$fLogDen<-tmp
 		#mtrace(deriv.SoilMod_FGSD)
 		#mtrace(twDEMCInt)
 		#mtrace(.doDEMCStep)
 		tmp <- NULL; tmp <-do.call( twRunDEMC, argsFRunDebug )
-		tmp$rLogLik[ nrow(tmp$rLogLik), ]
+		tmp$rLogDen[ nrow(tmp$rLogDen), ]
 		setwd(.prevDir)
 	}
 	
@@ -239,7 +239,7 @@
 	load(outFilename1)
 	#load(file.path("..","parms","res_res_MDIHamer_FGSD1_1_1.RData"))
 	res <- runClusterRes$res
-	nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+	nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 	#to extend the run, copy the results file to param file (res will be used) and change nGen
 	#file.copy(outFilename1,paramFilename,overwrite=TRUE);	copy2clip(as.character(GString("bsub -n ${nProc} ${bsubOptions} ./bsubr_i.sh runCluster.R iproc=${iproc} nprocSingle=${nProc} 'paramFile=\"${paramFilename}\"' 'argsFRun=list(nGen=${`nRun1+1*1024`})'" )))
 	
@@ -249,11 +249,11 @@
 	matplot( res$temp[-(1:.start),], type="l")
 	matplot( popMeansTwDEMC(res$pAccept[-(1:.start),], ncol(res$temp), 10), type="l" )
 	abline(h=0.1,col="gray")
-	matplot( res$rLogLik[-(1:.start),], type="l")
-	tmp <- res$rLogLik[nrow(res$rLogLik),]
+	matplot( res$rLogDen[-(1:.start),], type="l")
+	tmp <- res$rLogDen[nrow(res$rLogDen),]
 	
 	rest <- thin(res, start=nRun1-512)
-	matplot( rest$rLogLik[,], type="l")
+	matplot( rest$rLogDen[,], type="l")
 	matplot( popMeansTwDEMC(rest$pAccept, ncol(rest$temp), 5), type="l" )
 	abline(h=0.1,col="gray")
 	#rescoda <- as.mcmc.list(rest)
@@ -279,8 +279,8 @@
 		#res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 		runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
 		
-		#nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
-		nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+		#nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
+		nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 		runClusterParms <- runClusterParms0
 		runClusterParms$argsFRun$argsTwDEMCBatch <- within( runClusterRes$argsFRun$argsTwDEMCBatch,{
 				Zinit<-res
@@ -289,9 +289,9 @@
 				nGenBurnin<-nGen*1000	
 				nPops<-ncol(res$temp)
 			})
-		runClusterParms$argsFRun$resFLogLikX<-character(0)
+		runClusterParms$argsFRun$resFLogDenX<-character(0)
 		runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
-		runClusterParms$argsFRun$fLogLik <- ofb.hamer
+		runClusterParms$argsFRun$fLogDen <- ofb.hamer
 		iproc=2; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
 		#iproc=22; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
 		save( runClusterParms, file=paramFilename )
@@ -307,8 +307,8 @@
 		res <- runClusterRes$res
 		res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 		runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
-		nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
-		nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+		nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
+		nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 		
 		.start=nRun0; .starti <- .start%/% res$thin
 		#tmp<-apply(res$temp,1,max); .starti= min(which(tmp<50)); .start <- .starti*res$thin
@@ -316,7 +316,7 @@
 		matplot( res$temp[-(1:.starti),], type="l")
 		matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
 		abline(h=0.1,col="gray")
-		matplot( res$rLogLik[-(1:.starti),], type="l")
+		matplot( res$rLogDen[-(1:.starti),], type="l")
 		
 		
 		copy2clip(as.character(GString("bsub -n ${nProc} ${bsubOptions} ./bsubr_i.sh runCluster.R iproc=${iproc} nprocSingle=${nProc} 'paramFile=\"${paramFilenameAsom}\"' 'argsFRun=list(nGen=${`nRun1+5*1024`},nGenBurnin=${`res$nGenBurnin`})' doRestart=TRUE" )))
@@ -337,8 +337,8 @@
 	res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 	runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
 	
-	nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
-	nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+	nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
+	nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 	runClusterParms <- runClusterParms0
 	runClusterParms$argsFRun$argsTwDEMCBatch <- within( runClusterRes$argsFRun$argsTwDEMCBatch,{
 			Zinit<-res
@@ -347,9 +347,9 @@
 			nGenBurnin<-nRun1+16*1024	
 			nPops<-ncol(res$temp)
 	})
-	runClusterParms$argsFRun$resFLogLikX<-character(0)
+	runClusterParms$argsFRun$resFLogDenX<-character(0)
 	runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
-	runClusterParms$argsFRun$fLogLik <- ofb.hamer
+	runClusterParms$argsFRun$fLogDen <- ofb.hamer
 	iproc=2; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
 	#iproc=22; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
 	save( runClusterParms, file=paramFilename )
@@ -365,8 +365,8 @@
 	res <- runClusterRes$res
 	res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 	runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
-	nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
-	nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+	nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
+	nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 	
 	.start=nRun0; .starti <- .start%/% res$thin
 	#tmp<-apply(res$temp,1,max); .starti= min(which(tmp<50)); .start <- .starti*res$thin
@@ -374,7 +374,7 @@
 	matplot( res$temp[-(1:.starti),], type="l")
 	matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 2), type="l" )
 	abline(h=0.1,col="gray")
-	matplot( res$rLogLik[-(1:.starti),], type="l")
+	matplot( res$rLogDen[-(1:.starti),], type="l")
 	
 	
 	copy2clip(as.character(GString("bsub -n ${nProc} ${bsubOptions} ./bsubr_i.sh runCluster.R iproc=${iproc} nprocSingle=${nProc} 'paramFile=\"${paramFilenameAsom}\"' 'argsFRun=list(nGen=${`nRun1+5*1024`},nGenBurnin=${`res$nGenBurnin`})' doRestart=TRUE" )))
@@ -401,8 +401,8 @@
 	res <- subChains( resOrig, iPops=(1:8)[-c(3,7)])		#will cancel attribute batchCall
 	res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 	runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
-	nRun1 <- (nrow(res$rLogLik)-1)*res$thin
-	nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
+	nRun1 <- (nrow(res$rLogDen)-1)*res$thin
+	nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
 
 	iStep <- nRun1-nRun0	#nRun0 from outFilename1 above
 	.burnin <- max( res$nGenBurnin,ceiling(nRun0+calcDEMCnGenBurnin(mean(res$temp[nRun0/res$thin,]), mean(res$temp[nRun1/res$thin,]), iStep)))
@@ -415,9 +415,9 @@
 			nGenBurnin<-.burnin
 			nPops <- ncol(res$temp)
 		})
-	runClusterParms$argsFRun$resFLogLikX<-character(0)
+	runClusterParms$argsFRun$resFLogDenX<-character(0)
 	runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
-	#runClusterParms$argsFRun$fLogLik <- ofb.hamer
+	#runClusterParms$argsFRun$fLogDen <- ofb.hamer
 	iproc=3; outFilename3 <- twResultFilename(paramFilename,iproc=iproc)
 	save( runClusterParms, file=paramFilename )
 	unlink( outFilename3 )
@@ -432,14 +432,14 @@
 	res <- runClusterRes$res
 	res0 <- runClusterRes$argsFRun$argsTwDEMCBatch$Zinit
 	runClusterRes$res <- runClusterRes$argsFRun$prevResRunCluster <- NULL	#else interferes with continued run, also save space
-	nRun0 <- (nrow(res0$rLogLik)-1)*res0$thin
-	nRun1 <- (nrow(res$rLogLik)-1)*res$thin
+	nRun0 <- (nrow(res0$rLogDen)-1)*res0$thin
+	nRun1 <- (nrow(res$rLogDen)-1)*res$thin
 	
 	.start=nRun0; .starti <- .start%/% res$thin
 	#windows(record=TRUE)
 	matplot( res$temp[-(1:.starti),], type="l")
 	matplot( popMeansTwDEMC(res$pAccept[-(1:.starti),], ncol(res$temp), 10), type="l" )
-	matplot( res$rLogLik[-(1:.starti),], type="l")
+	matplot( res$rLogDen[-(1:.starti),], type="l")
 	copy2clip(as.character(GString("bsub -n ${nProc} ${bsubOptions} ./bsubr_i.sh runCluster.R iproc=${iproc} nprocSingle=${nProc} 'paramFile=\"${paramFilenameAsom}\"' 'argsFRun=list(nGen=${`nRun1+5*1024`},nGenBurnin=${`res$nGenBurnin`})' doRestart=TRUE" )))
 	
 	rest0 <- thin(res, start=nRun1-512)
@@ -457,12 +457,12 @@
 	p2 <- ggplotDensity.twDEMC( rest, poptDistr, doTransOrig=TRUE)
 	#p2
 
-	normpoptBest2 <- twExtractFromLastDims(rest$parms, which.max( rest$rLogLik) )[,1]
+	normpoptBest2 <- twExtractFromLastDims(rest$parms, which.max( rest$rLogDen) )[,1]
 	tmp <- attr(res,"batchCall")	
-	#tmp2 <- hamerPlot3.of( normpoptBest2, tmp$fLogLik, argsFLogLik=tmp$argsFLogLik)
-	tmp2 <- hamerPlot3.of( normpoptBest2, ofb.hamer, argsFLogLik=tmp$argsFLogLik)
+	#tmp2 <- hamerPlot3.of( normpoptBest2, tmp$fLogDen, argsFLogDen=tmp$argsFLogDen)
+	tmp2 <- hamerPlot3.of( normpoptBest2, ofb.hamer, argsFLogDen=tmp$argsFLogDen)
 	barplot(unlist(as.list(tmp2)))
-	barplot(attributes(tmp2)$logLikParms)
+	barplot(attributes(tmp2)$logDenParms)
 	
 	#recovery
 	obsB <- attributes(tmp2)$obs
@@ -473,16 +473,16 @@
 	
 
 	
-	normp <- twExtractFromLastDims( rest$parms, which.max(rest$rLogLik) )[,1] 
+	normp <- twExtractFromLastDims( rest$parms, which.max(rest$rLogDen) )[,1] 
 	transOrigPopt(normpopt, poptDistr$trans)
 	(popt <- transOrigPopt(normp, poptDistr$trans))
 	
 	#plot best results
 	#resOf <- hamerPlot3.of( normp ) 
 	tmp <- attr(res,"batchCall")	
-	resOf <- hamerPlot3.of( normp, argsFLogLik=tmp$argsFLogLik) 
+	resOf <- hamerPlot3.of( normp, argsFLogDen=tmp$argsFLogDen) 
 	unlist(as.list(resOf))
-	sort(attr(resOf,"logLikParms"), decreasing=TRUE)
+	sort(attr(resOf,"logDenParms"), decreasing=TRUE)
 
 	#mtrace(hamerPlotResCols.resOf)
 	hamerPlotResCols.resOf( resOf, paste("csums",model$modMeta$rowNames,sep="_"), "control" )

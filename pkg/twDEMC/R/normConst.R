@@ -39,8 +39,8 @@ attr(normConstLaplace,"ex") <- function(){
 	exp(normConstLaplace( sample, fLogPost ))
 	
 	#normd <- cov.rob(sample)
-	#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik, nd=normd)}, 100))
-	#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik)}, 100))
+	#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen, nd=normd)}, 100))
+	#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen)}, 100))
 }
 
 normConstLaplaceBridge <- function(
@@ -56,7 +56,7 @@ normConstLaplaceBridge <- function(
 	m <- nrow(sample)
 	# draw a second sample from normal approximation
 	sample2 <- rmvnorm(M,mean=nd$center,sigma=nd$cov)
-	# calcalate unnormalized posterior Likelihood for that
+	# calcalate unnormalized posterior Density for that
 	logPost2 <- fLogPost(sample2)
 	tmp.f <- function(){
 		postSample <- exp(logPostSample)
@@ -90,12 +90,12 @@ attr(normConstLaplaceBridge,"ex") <- function(){
 	(CMW <- exp(normConstLaplaceBridge( sample, logPostSample, logPostSample )) )
 	
 	#normd <- cov.rob(sample)
-	#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik, nd=normd)}, 100))
-	#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik)}, 100))
+	#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen, nd=normd)}, 100))
+	#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen)}, 100))
 	
 	#normd <- cov.rob(sample)
-	#(res <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogLik=fLogLik, logLikSample, nd=normd)}, 100))
-	#(res2 <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogLik=fLogLik, logLikSample)}, 100))
+	#(res <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogDen=fLogDen, logDenSample, nd=normd)}, 100))
+	#(res2 <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogDen=fLogDen, logDenSample)}, 100))
 }
 
 

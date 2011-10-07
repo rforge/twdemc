@@ -6,7 +6,7 @@ DE_MC.ZS <- function(Npop = 3, Z, FUN, X= matrix(Z[,1:Npop], ncol = Npop), CR= 1
 # n.generation is the number of updates for all chains	
 # value
 # FUN(theta ,...) with theta a k vector of parameter values and ... are other arguments to FUN (e.g. NULL, data, ..)
-#	calculates log-Likelihood of theta
+#	calculates logDensity of theta
 #
 # eps.mult >0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal.
 #             Its advantage over eps.add is that its effect scales with the differences of vectors in the population

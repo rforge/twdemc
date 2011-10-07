@@ -31,7 +31,7 @@ test.combinePops <- function(){
 	.newThin=10
 	.popThinned <- thin(.pops[[1]], newThin=.newThin)
 	checkEquals(.newThin, .popThinned$thin)
-	checkEquals(100/.newThin+1, nrow(.popThinned$rLogLik) )
+	checkEquals(100/.newThin+1, nrow(.popThinned$rLogDen) )
 	
 	#checking the exception for different thinning attributes
 	checkException( do.call( combinePops, c(.pops, list(.popThinned)) ))
@@ -40,8 +40,8 @@ test.combinePops <- function(){
 test.stackChains <- function(){
 	.tmp <- stackChains(twdemcEx1)
 	checkTrue( is.matrix(.tmp) )
-	checkEquals( c("rLogLik",rownames(twdemcEx1$parms)), colnames(.tmp) )
-	checkEquals( prod( dim(twdemcEx1$rLogLik) ), nrow(.tmp) )
+	checkEquals( c("rLogDen",rownames(twdemcEx1$parms)), colnames(.tmp) )
+	checkEquals( prod( dim(twdemcEx1$rLogDen) ), nrow(.tmp) )
 }
 
 test.thin.twDEMC <- function(){

@@ -1,7 +1,7 @@
-logLikMultiTemp <- function(
-	### LogLik function for the multi temperature test case 
+logDenMultiTemp <- function(
+	### LogDen function for the multi temperature test case 
 	theta,			##<< the parameter vector (here scalar).
-	logLikAccept=numeric(0),		##<< scalar: logLik for parms from revious run for two step Metropolis decision
+	logDenAccept=numeric(0),		##<< scalar: logDen for parms from revious run for two step Metropolis decision
 	metropolisStepTemp=c(yPrior=1),	##<< numeric named vector: the temperature for internal metropolis step
 	... 			##<< any other arguments passed to fModel
 	,thetaPrior = 0.8	##<< the prior estimate of the parameters
@@ -11,20 +11,20 @@ logLikMultiTemp <- function(
 	,offset= -500
 	,maxy=12.964
 ){
-	.yPrior <- as.vector(logLikDs1MultiTemp( theta, thetaPrior, sdTheta))
-	if( !is.na((logLikXParms <- logLikAccept["yPrior"])) & (logLikXParms<0)){
-		logr = (.yPrior - logLikXParms) / metropolisStepTemp["yPrior"]
+	.yPrior <- as.vector(logDenDs1MultiTemp( theta, thetaPrior, sdTheta))
+	if( !is.na((logDenXParms <- logDenAccept["yPrior"])) & (logDenXParms<0)){
+		logr = (.yPrior - logDenXParms) / metropolisStepTemp["yPrior"]
 		if ( is.numeric(logr) & (logr) <= log(runif(1)) ){
 			#reject
 			return(c(yPrior=-Inf,y=NA))
 		}
 	}
-	.y <- as.vector(logLikDs2MultiTemp( theta, theta0=theta0, theta1=theta1, offset=offset, maxy=maxy)) 
+	.y <- as.vector(logDenDs2MultiTemp( theta, theta0=theta0, theta1=theta1, offset=offset, maxy=maxy)) 
 	c(yPrior=.yPrior,y=.y)
 }
 
 
-logLikDs1MultiTemp <- function(
+logDenDs1MultiTemp <- function(
 	### Prior for theta
 	theta
 	,thetaPrior	
@@ -33,7 +33,7 @@ logLikDs1MultiTemp <- function(
 	-1/2 * ( (theta-thetaPrior)/sdTheta )^2
 }
 
-logLikDs2MultiTemp <- function(
+logDenDs2MultiTemp <- function(
 	### Misfit for theta
 	theta	##<<
 	,theta0
@@ -77,28 +77,28 @@ logLikDs2MultiTemp <- function(
 	theta1=10
 	
 	x <- seq(0,theta1+1,length.out=1600)
-	yPrior <- logLikDs1MultiTemp(x,thetaPrior,sdTheta)
+	yPrior <- logDenDs1MultiTemp(x,thetaPrior,sdTheta)
 	#yPrior <- dnorm(x, mean=thetaPrior, sd=sdTheta)
 	#yPriorScaled <- yPrior/max(yPrior)
 	
-	#mtrace(logLikDs2MultiTemp)
-	y <- logLikDs2MultiTemp(x, theta0=theta0, theta1=theta1,offset=offset)
+	#mtrace(logDenDs2MultiTemp)
+	y <- logDenDs2MultiTemp(x, theta0=theta0, theta1=theta1,offset=offset)
 	yConv <- yPrior+y
 
-	plot(c(x,x),c(y,yConv),type="n", xlab="theta", ylab="Log-Likelihood",ylim=c(-1400,0)+offset)
+	plot(c(x,x),c(y,yConv),type="n", xlab="theta", ylab="LogDensity",ylim=c(-1400,0)+offset)
 	lines( x, y )
 	#lines(x,yPriorScaled,col="blue")
 	lines(x,yPrior+offset,col="blue")
 	lines(x,yConv,col="maroon")
 
-	plot(c(x,x),c(y,yConv),type="n", xlab="theta", ylab="Log-Likelihood",ylim=c(-400,0)+offset,xlim=c(0,3))
+	plot(c(x,x),c(y,yConv),type="n", xlab="theta", ylab="LogDensity",ylim=c(-400,0)+offset,xlim=c(0,3))
 	lines( x, y )
 	#lines(x,yPriorScaled,col="blue")
 	lines(x,yPrior+offset,col="blue")
 	lines(x,yConv,col="maroon")
 	
-	#mtrace(logLikMultiTemp)
-	yConv2 <- logLikMultiTemp(x,maxy=attributes(y)$maxy)
+	#mtrace(logDenMultiTemp)
+	yConv2 <- logDenMultiTemp(x,maxy=attributes(y)$maxy)
 	checkEquals(c(yPrior=yPrior,y=y),yConv2)
 	
 	py <- {tmp <- exp(y); tmp/max(tmp[x<2])}

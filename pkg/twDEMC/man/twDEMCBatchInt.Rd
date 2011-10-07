@@ -5,7 +5,7 @@
 \usage{
 twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fCheckConvergence = function(res, addArgs) {
     FALSE
-}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000, fCalcTStreamDiffLogLik = calcDEMCTempDiffLogLik3, argsFCalcTStreamDiffLogLik = list(), fCalcTGlobal = calcDEMCTempGlobal2, argsFCalcTGlobal = list())
+}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000, fCalcTStreamDiffLogDen = calcDEMCTempDiffLogDen3, argsFCalcTStreamDiffLogDen = list(), fCalcTGlobal = calcDEMCTempGlobal2, argsFCalcTGlobal = list())
 }
 \arguments{
   \item{Zinit}{the initial population}
@@ -25,10 +25,10 @@ either numeric vector of length nPops or scalar}
   \item{doRepeatLowAcceptanceChains}{
 }
   \item{maxNGenBurnin}{maximum burnin beyond which can not be extendend on too low acceptance rate}
-  \item{fCalcTStreamDiffLogLik}{function calculate optimal Temperature and acceptance rates based on Lp-La}
-  \item{argsFCalcTStreamDiffLogLik}{further arguments to fCalcTStreamDiffLogLik}
+  \item{fCalcTStreamDiffLogDen}{function calculate optimal Temperature and acceptance rates based on Lp-La}
+  \item{argsFCalcTStreamDiffLogDen}{further arguments to fCalcTStreamDiffLogDen}
   \item{fCalcTGlobal}{function calculating global target temperature}
-  \item{argsFCalcTGlobal}{further arguments to fCalcTStreamDiffLogLik}
+  \item{argsFCalcTGlobal}{further arguments to fCalcTStreamDiffLogDen}
 }
 \details{Usually invoked by \code{\link{twDEMCBatch}}.
 
@@ -36,7 +36,7 @@ If Zinit is of class twDEMC, initial temperature is set to the temperature of th
 and the number of generations already in Zinit are skipped.
 
 \describe{\item{Temperature estimate from proposal distribution}{
-The distribution of differences between Likelihood of proposals Lp and of accepted state La
+The distribution of differences between Density of proposals Lp and of accepted state La
 can be used to estimate an optimal temperature per data stream, so that each
 datastream contributes to rejections in about the same magnitude and the overall
 acceptance rate is about a specified value.
@@ -70,7 +70,7 @@ data(twLinreg1); attach( twLinreg1 )
 
 # run with saving a restart file each 50 generations
 .nPops=2
-argsFLogLik <- list(
+argsFLogDen <- list(
 	fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 	obs=obs,				### vector of data to compare with
 	invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -82,7 +82,7 @@ Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=4*.nPops, nPops=.nP
 restartFilename="exampleTwDEMCBatch_saveAndRestart.RData"
 unlink(restartFilename)
 res <-  twDEMCBatch( Zinit=Zinit, nGen=60,	nPops=.nPops
-	, fLogLik=logLikGaussian, argsFLogLik=argsFLogLik
+	, fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
 	, nBatch=50, restartFilename=restartFilename	# save each 50 generations
 )
 

@@ -14,7 +14,7 @@ checkConvergenceGelman(res, burninFrac = 0.5, rHatMin = 1.1)
 
 There are several methods to get diagnostics for a twDEMC run. \itemize{
 \item{ the Gelman criterion: this method  } 
-\item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+\item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
 }}
 \value{all rl <= criterion for each chain}
 

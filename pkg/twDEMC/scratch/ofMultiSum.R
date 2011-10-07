@@ -4,7 +4,7 @@ ofMultiSumArgsList <- function(
 	popt,					##<< the parameter vector at which ofMulti is evaulated 
 	argsList, 				##<< argument list for the objective function, first component must be the objective function itself
 	returnComponents=FALSE,	##<< see return value  
-	#prevLogLikParms=NULL,  	##<< previous logLiklihood argument appended to argsList
+	#prevLogDenParms=NULL,  	##<< previous logDenlihood argument appended to argsList
 	... 					##<< further arguments passed to objective function
 ){
 	# ofMultiSumArgsList
@@ -14,14 +14,14 @@ ofMultiSumArgsList <- function(
 	## This supports the usage of sfExport of the argsList instead of passing much data in sfApply via \dots
 	
 	# #details<< 
-	# # prevLogLikParms is supplied to ofMulit in order to support 
+	# # prevLogDenParms is supplied to ofMulit in order to support 
 	# # a two-step Metropolis to avoid unneccesary model evaluations (-1/2 misfit)
 	
 	if( is.name(argsList) ) argsList = eval.parent(argsList)
 	body <- expression({
 			#cargs = c(list(argsList[[1]]), list(popt), argsList[-1])
 			cargs = c(list(popt), argsList[-1], list(...) )
-			# if( !is.null(prevLogLikParms) ) cargs = c( cargs, list(prevLogLikParms=prevLogLikParms) )
+			# if( !is.null(prevLogDenParms) ) cargs = c( cargs, list(prevLogDenParms=prevLogDenParms) )
 			#(comp <- eval(as.call(cargs)))
 			(comp <- do.call(argsList[[1]], cargs))
 		})
@@ -29,7 +29,7 @@ ofMultiSumArgsList <- function(
 	## The evaluated argsList is checked for entry dumpFileBaseName. If it exists
 	## a dump is created in this file when an error occurs and execution stops with an error
 	if( !is.null(argsList$dumpFileBaseName)){
-		dumpFileBaseName <- argsList$dumpFileBaseName; argsList$dumpFileBaseName <- NULL	#do not provide argument to fLogLik
+		dumpFileBaseName <- argsList$dumpFileBaseName; argsList$dumpFileBaseName <- NULL	#do not provide argument to fLogDen
 		comp <- try( eval(body) )
 		if( inherits(comp, "try-error") ){
 			dump.frames(dumpFileBaseName,TRUE)
@@ -38,7 +38,7 @@ ofMultiSumArgsList <- function(
 	}else{
 		comp <- eval(body)
 	}
-	#sumcomp = if(is.null(prevLogLikParms)) sum(comp) else sum( comp[ names(comp)!="parms"] )	#assume parms is handled in first Metropolis-Step inside fLogLik
+	#sumcomp = if(is.null(prevLogDenParms)) sum(comp) else sum( comp[ names(comp)!="parms"] )	#assume parms is handled in first Metropolis-Step inside fLogDen
 	sumcomp =  sum(comp)	#make sure that with a two-step Metropolis, parms is not returned as one components 
 	if( returnComponents ) list(sum=sumcomp, comp=comp ) else sumcomp
 	### scalar sum of result of objective function. 

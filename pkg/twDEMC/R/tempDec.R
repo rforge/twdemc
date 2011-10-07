@@ -1,40 +1,40 @@
-.calcTemperatedDiffLogLik <- function(
-	### calculated the temperated difference of LogLiks proposed-accepted per population
-	diffLogLikPops		##<< the original differences (comp x pops)
+.calcTemperatedDiffLogDen <- function(
+	### calculated the temperated difference of LogDens proposed-accepted per population
+	diffLogDenPops		##<< the original differences (comp x pops)
 	,TFix				##<< named numeric vector: components with fixed temperature
 	,T0c				##<< the temperature per population
 ){
-	diffLogLikPopsT <- diffLogLikPops
-	posTFix <- match(names(TFix),rownames(diffLogLikPopsT))
-	diffLogLikPopsT[posTFix,,] <- diffLogLikPopsT[posTFix,,,drop=FALSE] / TFix
-	for( iPop in 1:dim(diffLogLikPops)[3] ) 
-		diffLogLikPopsT[-posTFix,,iPop] <- diffLogLikPopsT[-posTFix,,iPop,drop=FALSE] / T0c[iPop]
-	diffLogLikPopsT
+	diffLogDenPopsT <- diffLogDenPops
+	posTFix <- match(names(TFix),rownames(diffLogDenPopsT))
+	diffLogDenPopsT[posTFix,,] <- diffLogDenPopsT[posTFix,,,drop=FALSE] / TFix
+	for( iPop in 1:dim(diffLogDenPops)[3] ) 
+		diffLogDenPopsT[-posTFix,,iPop] <- diffLogDenPopsT[-posTFix,,iPop,drop=FALSE] / T0c[iPop]
+	diffLogDenPopsT
 }
 
 calcDEMCTempProp <- function(
 	### Calculate Temperature of components 
 	temp	##<< the maximum temperature
-	,diffLogLik		##<< expected difference in Log-Likelihoods expected-accepted per datastream 
-	,rFracMin=1/4	##<< fraction of max DiffLikelihood  below which temperatue is scaled down to yield  larger importance
+	,diffLogDen		##<< expected difference in LogDensitys expected-accepted per datastream 
+	,rFracMin=1/4	##<< fraction of max DiffDensity  below which temperatue is scaled down to yield  larger importance
 ){
-	rr <- diffLogLik/max(min(diffLogLik),1e-8)	# diffLiklihood per largest misfit (lowest neg diff-Log-Likelihood)
+	rr <- diffLogDen/max(min(diffLogDen),1e-8)	# diffLogDen per largest misfit (lowest neg diff-LogDensity)
 	Ti <- pmin(temp,1+(temp-1)/rFracMin*rr)
 	Ti[rr<=0] <- 1	#give NA or negative values for Ti		
 	Ti
-	### vector of temperatures corresponding to diffLogLik with maximum corresponding to temp
+	### vector of temperatures corresponding to diffLogDen with maximum corresponding to temp
 }
 
-calcDEMCTempDiffLogLik3 <- function(
+calcDEMCTempDiffLogDen3 <- function(
 	### Estimate scalar temperature vector obtain given acceptance rate and scaling temperatures to the same magnitude 
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,pTarget=0.18		##<< minimum acceptance rate of component
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed
 	,Tmax=.Machine$double.xmax		##<< maximum temperature to return
-	,rFracMin=1/4		##<< fraction of Likelihood to which data-streams with low diff-logLik are scaled to by temperatures to
-	,doConstrainNeg=FALSE	##<< if given, likelihood of accepted jumps (positive) is constrained to 0
+	,rFracMin=1/4		##<< fraction of density to which data-streams with low diffLogDen are scaled to by temperatures to
+	,doConstrainNeg=FALSE	##<< if given, density of accepted jumps (positive) is constrained to 0
 ){
-	d <- replaceNonFiniteDiffLogliks(diffLogLik, doConstrainNeg=doConstrainNeg)
+	d <- replaceNonFiniteDiffLogDens(diffLogDen, doConstrainNeg=doConstrainNeg)
 	l05 <- log(0.5)
 	expD <- expDMean <- apply(d,1,median) #rowMeans(d) 
 	#apply(d,1,quantile, probs=1-pTarget) #apply(d,1,median)
@@ -45,12 +45,12 @@ calcDEMCTempDiffLogLik3 <- function(
 	}
 	
 	nrowd <- nrow(d)
-	Ti <- structure( numeric(nrowd), names=rownames(diffLogLik))
+	Ti <- structure( numeric(nrowd), names=rownames(diffLogDen))
 	bo <- (rownames(d) %in% names(TFix))
 	Ti[bo] <- TFix
 	posNonFix <- (1:nrowd)[!bo]
 	
-	dVar <- sampleAcceptedFixedTempDiffLogliks(d,TFix=TFix)		#cases of diffLogLik surviving the fixed temp metropolis desicion
+	dVar <- sampleAcceptedFixedTempDiffLogDens(d,TFix=TFix)		#cases of diffLogDen surviving the fixed temp metropolis desicion
 	nj <- ncol(dVar)
 	pps <- function(logtemp){  #posNonFix, expD, rFracMin, dTFix, dVar
 		temp <- exp(logtemp)
@@ -62,7 +62,7 @@ calcDEMCTempDiffLogLik3 <- function(
 	}
 	
 	temp2 <- if( ncol(dVar) < 30){
-			warning("calcDEMCTempDiffLogLik3: too few accepted cases after fixed temperature rejection, using maximum temperature")
+			warning("calcDEMCTempDiffLogDen3: too few accepted cases after fixed temperature rejection, using maximum temperature")
 			Tmax
 		}else{
 			#tmp <- seq(1,1e6,length.out=200) 
@@ -73,7 +73,7 @@ calcDEMCTempDiffLogLik3 <- function(
 			Ti[posNonFix] <- calcDEMCTempProp( temp, expD[posNonFix], rFracMin )
 			TiMean <- Ti	
 			
-			# in the first round we used the median, do a second round with empirical exptected logLik components: 
+			# in the first round we used the median, do a second round with empirical exptected logDen components: 
 			# empirical expected: minimum of actually accepted 
 			# based on the Temperatures of the first round
 			dT <-  dVar/Ti
@@ -85,7 +85,7 @@ calcDEMCTempDiffLogLik3 <- function(
 			pAccepted <- sum(boAccepted)/nj
 			dAccepted <- dVar[,boAccepted,drop=FALSE]
 			expD <- apply(dAccepted,1,min)
-			# how many cases would be accepted by using only one components Likelihood ratio:
+			# how many cases would be accepted by using only one components Density ratio:
 			# pai <- structure(sapply(seq_along(expD),function(i){sum(d[i,]>=expD[i])/nj} ), names=names(expD))
 			if( pps(log(1)) > 0) temp2 = 1 # if acceptance rate at temp 1 is greater than target return temperature 1
 			else if( pps(log(Tmax)) < 0) temp2=Tmax  	# if acceptance rate at given maximum temperature is already smaller than target return current temperature
@@ -102,34 +102,34 @@ calcDEMCTempDiffLogLik3 <- function(
 	### attribute pAcceptTVar giving the calculated acceptance rate for Temperature dependent step
 }
 
-calcDEMCTempDiffLogLik3Init <- function(
+calcDEMCTempDiffLogDen3Init <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogLik			##<< result of \code{\link{twCalcLogLikPar}}: list with components  logLik and resFLogLik
-	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogLikConst}}
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 	,doConstrainNeg=TRUE	##<< different default value
 ){
 	# replace NA components by sample of non-NA
-	# replace non-finite logLiks case of smallest finite logLik per component
-	for( iComp in 1:ncol(resLogLik$resFLogLik) ){
-		boNA <- is.na(resLogLik$resFLogLik[,iComp])
+	# replace non-finite logDens case of smallest finite logDen per component
+	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
+		boNA <- is.na(resLogDen$resFLogDen[,iComp])
 		nNA <- sum(boNA)
 		if(0<nNA ){
-			resCompNonNA <- resLogLik$resFLogLik[!boNA,iComp]
-			resLogLik$resFLogLik[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
+			resCompNonNA <- resLogDen$resFLogDen[!boNA,iComp]
+			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
 		}
-		boNonFinite <- !is.finite(resLogLik$resFLogLik[,iComp])
+		boNonFinite <- !is.finite(resLogDen$resFLogDen[,iComp])
 		if( 0<sum(boNonFinite)){
-			resLogLik$resFLogLik[boNonFinite,iComp] <- min(resLogLik$resFLogLik[!boNonFinite,iComp])
+			resLogDen$resFLogDen[boNonFinite,iComp] <- min(resLogDen$resFLogDen[!boNonFinite,iComp])
 		}
 	}
 	
-	L <- Lp <- resLogLik$resFLogLik 
-	#recalculate logLiks
-	rL <- rLQ <- rowSums(resLogLik$resFLogLik)
+	L <- Lp <- resLogDen$resFLogDen 
+	#recalculate logDens
+	rL <- rLQ <- rowSums(resLogDen$resFLogDen)
 	
 	
 	# get the 200 best cases, but at least 5% of the cases
-	#rL <- rLFin$logLik
+	#rL <- rLFin$logDen
 	p <- max(0.05,200/length(rL))
 	if( p<1 ){
 		q <- quantile(rL, probs=1-p)
@@ -140,35 +140,35 @@ calcDEMCTempDiffLogLik3Init <- function(
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
 	
-	#from these sample from the 5% best as accepted LogLik
+	#from these sample from the 5% best as accepted LogDen
 	ord <- order(rLQ, decreasing = TRUE)
 	La <- Lp[sample( ord[1:ceiling(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
-	#calculate Temperature from likelihood
+	#calculate Temperature from density
 	d <- Lp-La
 	#p2 <- qplot( X2, value, geom="boxplot", data=melt(d))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p2
-	#T <- calcDEMCTempDiffLogLik(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
-	T <- calcDEMCTempDiffLogLik3(t(d), doConstrainNeg=doConstrainNeg, ...)  # will be scaled in twDEMCInt
+	#T <- calcDEMCTempDiffLogDen(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
+	T <- calcDEMCTempDiffLogDen3(t(d), doConstrainNeg=doConstrainNeg, ...)  # will be scaled in twDEMCInt
 	T
 	### named numeric vector of estimated Temperatures per data stream. 
 }
 
-calcDEMCTempDiffLogLik2 <- function(
+calcDEMCTempDiffLogDen2 <- function(
 	### Estimate scalar temperature vector obtain given acceptance rate and scaling temperatures to the same magnitude 
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,pTarget=0.18		##<< minimum acceptance rate of component
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed
 	,Tmax=.Machine$double.xmax		##<< maximum temperature to return
-	,rFracMin=1/4		##<< fraction of Likelihood to which data-streams with low diff-logLik are scaled to by temperatures to
-	,doConstrainNeg=FALSE	##<< if given, likelihood of accepted jumps (positive) is constrained to 0
+	,rFracMin=1/4		##<< fraction of Density to which data-streams with low diff-logDen are scaled to by temperatures to
+	,doConstrainNeg=FALSE	##<< if given, density of accepted jumps (positive) is constrained to 0
 ){
 	if( !(is.finite(Tmax) && (Tmax >= 1)) ) stop("need supplying positive TMax")
-	#replace non-finite values by lowest finite LogLik value
-	#ds <- diffLogLik[1,]
-	#diffLogLik <- diffLogLikPops[c("parms","agg_amendm_2","agg_amendm_3","agg_amendm_10"),,1]
-	d <- t(apply( diffLogLik,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
-	dimnames(d) <- dimnames(diffLogLik)
+	#replace non-finite values by lowest finite LogDen value
+	#ds <- diffLogDen[1,]
+	#diffLogDen <- diffLogDenPops[c("parms","agg_amendm_2","agg_amendm_3","agg_amendm_10"),,1]
+	d <- t(apply( diffLogDen,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
+	dimnames(d) <- dimnames(diffLogDen)
 	if( doConstrainNeg )
 		d[d>0] <- 0
 	l05 <- log(0.5)
@@ -182,7 +182,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	
 	nrowd <- nrow(d)
 	nj <- ncol(d)
-	Ti <- structure( numeric(nrowd), names=rownames(diffLogLik))
+	Ti <- structure( numeric(nrowd), names=rownames(diffLogDen))
 	bo <- (rownames(d) %in% names(TFix))
 	Ti[bo] <- TFix
 	posFix <- (1:nrowd)[bo]
@@ -213,7 +213,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	Ti[posNonFix] <- calcDEMCTempProp( temp, expD[posNonFix], rFracMin )
 	TiMean <- Ti	
 	
-	# in the first round we used the median, do a second round with empirical exptected logLik components: 
+	# in the first round we used the median, do a second round with empirical exptected logDen components: 
 	# empirical expected: minimum of actually accepted 
 	# based on the Temperatures of the first round
 	dT <-  d/Ti
@@ -223,7 +223,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	#dTNonFix <- colSums( d[posNonFix,,drop=FALSE]/Ti[posNonFix] )	
 	dAccepted <- d[,colSums(dT) >= l05,drop=FALSE]
 	expD <- apply(dAccepted,1,min)
-	# how many cases would be accepted by using only one components Likelihood ratio:
+	# how many cases would be accepted by using only one components Density ratio:
 	# pai <- structure(sapply(seq_along(expD),function(i){sum(d[i,]>=expD[i])/nj} ), names=names(expD))
 	if( pps(log(1)) > 0) temp2 = 1 # if acceptance rate at temp 1 is greater than target return temperature 1
 	else if( pps(log(Tmax)) < 0) temp2=Tmax  	# if acceptance rate at given maximum temperature is already smaller than target return current temperature
@@ -235,7 +235,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	### yielding acceptance rates closest to pTarget
 }
 
-.tmp.f.plot.calcDEMCTempDiffLogLik2 <- function(){
+.tmp.f.plot.calcDEMCTempDiffLogDen2 <- function(){
 	#expD <- seq(-200,0,length.out=101)
 	temp=min(expD)/-3
 	rr <- expD/min(expD)
@@ -246,39 +246,39 @@ calcDEMCTempDiffLogLik2 <- function(
 	#Ti[1] <- 1
 	expDi <- expD/Ti
 	plot(expD, expDi)	#for the components below rFracMin the scaled lower temperature increases their weight
-	# only for components with a very a diffLogLik close to 0, temperatures do not go below 1 and therefore they have less weight 
+	# only for components with a very a diffLogDen close to 0, temperatures do not go below 1 and therefore they have less weight 
 	abline(h=min(expDi)*rFracMin, col="gray"); 
 	abline(v=min(expD)*rFracMin, col="gray"); 
 }
 
-calcDEMCTempDiffLogLik2Init <- function(
+calcDEMCTempDiffLogDen2Init <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogLik			##<< result of \code{\link{twCalcLogLikPar}}: list with components  logLik and resFLogLik
-	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogLikConst}}
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 	,doConstrainNeg=TRUE	##<< different default value
 ){
 	# replace NA components by sample of non-NA
-	# replace non-finite logLiks case of smallest finite logLik per component
-	for( iComp in 1:ncol(resLogLik$resFLogLik) ){
-		boNA <- is.na(resLogLik$resFLogLik[,iComp])
+	# replace non-finite logDens case of smallest finite logDen per component
+	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
+		boNA <- is.na(resLogDen$resFLogDen[,iComp])
 		nNA <- sum(boNA)
 		if(0<nNA ){
-			resCompNonNA <- resLogLik$resFLogLik[!boNA,iComp]
-			resLogLik$resFLogLik[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
+			resCompNonNA <- resLogDen$resFLogDen[!boNA,iComp]
+			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
 		}
-		boNonFinite <- !is.finite(resLogLik$resFLogLik[,iComp])
+		boNonFinite <- !is.finite(resLogDen$resFLogDen[,iComp])
 		if( 0<sum(boNonFinite)){
-			resLogLik$resFLogLik[boNonFinite,iComp] <- min(resLogLik$resFLogLik[!boNonFinite,iComp])
+			resLogDen$resFLogDen[boNonFinite,iComp] <- min(resLogDen$resFLogDen[!boNonFinite,iComp])
 		}
 	}
 	
-	L <- Lp <- resLogLik$resFLogLik 
-	#recalculate logLiks
-	rL <- rLQ <- rowSums(resLogLik$resFLogLik)
+	L <- Lp <- resLogDen$resFLogDen 
+	#recalculate logDens
+	rL <- rLQ <- rowSums(resLogDen$resFLogDen)
 	
 	
 	# get the 200 best cases, but at least 5% of the cases
-	#rL <- rLFin$logLik
+	#rL <- rLFin$logDen
 	p <- max(0.05,200/length(rL))
 	if( p<1 ){
 		q <- quantile(rL, probs=1-p)
@@ -289,30 +289,30 @@ calcDEMCTempDiffLogLik2Init <- function(
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
 	
-	#from these sample from the 5% best as accepted LogLik
+	#from these sample from the 5% best as accepted LogDen
 	ord <- order(rLQ, decreasing = TRUE)
 	La <- Lp[sample( ord[1:ceiling(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
-	#calculate Temperature from likelihood
+	#calculate Temperature from density
 	d <- Lp-La
 	#p2 <- qplot( X2, value, geom="boxplot", data=melt(d))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p2
-	#T <- calcDEMCTempDiffLogLik(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
-	T <- calcDEMCTempDiffLogLik2(t(d), doConstrainNeg=doConstrainNeg, ...)  # will be scaled in twDEMCInt
+	#T <- calcDEMCTempDiffLogDen(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
+	T <- calcDEMCTempDiffLogDen2(t(d), doConstrainNeg=doConstrainNeg, ...)  # will be scaled in twDEMCInt
 	T
 	### named numeric vector of estimated Temperatures per data stream. 
 }
 
-calcDEMCTempDiffLogLikConst <- function(
+calcDEMCTempDiffLogDenConst <- function(
 	### Estimate scalar temperature to obtain given acceptance rate 
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,pTarget=0.18		##<< minimum acceptance rate of component
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed
 	,Tmax=.Machine$double.xmax		##<< maximum temperature to return
 ){
-	#replace non-finite values by lowest finite LogLik value
-	#ds <- diffLogLik[1,]
-	d <- t(apply( diffLogLik,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
+	#replace non-finite values by lowest finite LogDen value
+	#ds <- diffLogDen[1,]
+	d <- t(apply( diffLogDen,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
 	l05 <- log(0.5)
 	
 	nrowd <- nrow(d)
@@ -320,9 +320,9 @@ calcDEMCTempDiffLogLikConst <- function(
 	nj <- ncol(d)
 	boFix <- TRUE
 	if( 0<length(TFix)){
-		if( 0 == length(names(TFix))) stop("calcDEMCTempDiffLogLikConst: TFix component must be named")
+		if( 0 == length(names(TFix))) stop("calcDEMCTempDiffLogDenConst: TFix component must be named")
 		TFixPos <- match( names(TFix), rownames(d) )
-		if( any(is.na(TFixPos)) ) warning("calcDEMCTempDiffLogLikConst: not all components of TFix in rownames(diffLogLik)")
+		if( any(is.na(TFixPos)) ) warning("calcDEMCTempDiffLogDenConst: not all components of TFix in rownames(diffLogDen)")
 		dnf<- d[-TFixPos, ,drop=FALSE]
 		dfT <- d[TFixPos, ,drop=FALSE]*TFix
 		boFix <- apply( dfT,2,function(dfTj){ all(dfTj > l05)})
@@ -354,64 +354,64 @@ calcDEMCTempDiffLogLikConst <- function(
 	### yielding acceptance rates closest to pTarget
 }
 
-calcDEMCTempDiffLogLikConstInit <- function(
+calcDEMCTempDiffLogDenConstInit <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogLik			##<< result of \code{\link{twCalcLogLikPar}}: list with components  logLik and resFLogLik
-	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogLikConst}}
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 ){
-	# replace non-finite logLiks case of smallest finite logLik per component
-	boFin <- is.finite(resLogLik$logLik)
+	# replace non-finite logDens case of smallest finite logDen per component
+	boFin <- is.finite(resLogDen$logDen)
 	# replace NA components by sample of non-NA
-	for( iComp in 1:ncol(resLogLik$resFLogLik) ){
-		resComp <- resLogLik$resFLogLik[,iComp]
+	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
+		resComp <- resLogDen$resFLogDen[,iComp]
 		boNA <- is.na(resComp)
 		resCompNonNA <- resComp[!boNA]
 		nNA <- sum(boNA)
 		if(0<length(nNA) )
-			resLogLik$resFLogLik[boNA,iComp] <- sample( resCompNonNA, nNA)
+			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA)
 	}
 	
-	boNA <- is.na(resLogLik$l)
-	minFiniteLogLik <- min(resLogLik$logLik[boFin])
-	minFiniteResFLogLik <- apply( resLogLik$resFLogLik[boFin,], 2, min)
-	rLFin <- resLogLik
-	rLFin$logLik[!boFin] <- minFiniteLogLik
-	for( j in 1:ncol(rLFin$resFLogLik) )
-		rLFin$resFLogLik[!boFin,j] <- minFiniteResFLogLik[j]
+	boNA <- is.na(resLogDen$l)
+	minFiniteLogDen <- min(resLogDen$logDen[boFin])
+	minFiniteResFLogDen <- apply( resLogDen$resFLogDen[boFin,], 2, min)
+	rLFin <- resLogDen
+	rLFin$logDen[!boFin] <- minFiniteLogDen
+	for( j in 1:ncol(rLFin$resFLogDen) )
+		rLFin$resFLogDen[!boFin,j] <- minFiniteResFLogDen[j]
 	
 	# get the 200 best cases, but least 30% of the cases
-	rL <- rLFin$logLik
+	rL <- rLFin$logDen
 	p <- min(max(0.3,200/length(rL)),length(rL))
 	q <- quantile(rL, probs=1-p)
 	bo <- sapply(q, function(qi) rL > qi)
-	Lp <- rLFin$resFLogLik[bo,]
-	rLQ <- rLFin$logLik[bo]
+	Lp <- rLFin$resFLogDen[bo,]
+	rLQ <- rLFin$logDen[bo]
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
 	
-	#from these sample from the 5% best as accepted LogLik
+	#from these sample from the 5% best as accepted LogDen
 	ord <- order(rLQ, decreasing = TRUE)
 	La <- Lp[sample( ord[1:round(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
-	#calcualte Temperature from likelihood
+	#calcualte Temperature from density
 	d <- Lp-La
 	#p2 <- qplot( X2, value, geom="boxplot", data=melt(d))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p2
-	#T <- calcDEMCTempDiffLogLik(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
-	T <- calcDEMCTempDiffLogLikConst(t(d), ...)  # will be scaled in twDEMCInt
+	#T <- calcDEMCTempDiffLogDen(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
+	T <- calcDEMCTempDiffLogDenConst(t(d), ...)  # will be scaled in twDEMCInt
 	T
 	### named numeric vector of estimated Temperatures per data stream. 
 }
 
-calcDEMCTempDiffLogLik <- function(
+calcDEMCTempDiffLogDen <- function(
 	### Estimate temperatures for different data streams to obtain given acceptance rate 
-	diffLogLik			##<< array( streams x steps x  chains) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps x  chains) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,pTarget=0.18		##<< overall acceptance rate
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed 
 ){
-	#replace non-finite values by lowest finite LogLik value
-	#ds <- diffLogLik[1,]
-	d <- apply( diffLogLik,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds})
+	#replace non-finite values by lowest finite LogDen value
+	#ds <- diffLogDen[1,]
+	d <- apply( diffLogDen,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds})
 	
 	#tmp <- melt(d)
 	#p2 <- qplot( X2, value, geom="boxplot", data=tmp)+	opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
@@ -453,43 +453,43 @@ calcDEMCTempDiffLogLik <- function(
 	}else 
 		T2 <- structure( T2q, names=colnames(d) )
 	T2
-	### numeric vector of Temperatures (fLogLik_Component x chains)
+	### numeric vector of Temperatures (fLogDen_Component x chains)
 }
 
-calcDEMCTempDiffLogLikInit <- function(
+calcDEMCTempDiffLogDenInit <- function(
 	### Estimate Temperatures for different data streams to obtain acceptance rate 
-	resLogLik			##<< result of \code{\link{twCalcLogLikPar}}: list with components  logLik and resFLogLik
-	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogLik}}
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDen}}
 ){
-	# replace non-finite logLiks by very small logLiks
-	boFin <- is.finite(resLogLik$logLik)
-	minFiniteLogLik <- min(resLogLik$logLik[boFin])
-	minFiniteResFLogLik <- apply( resLogLik$resFLogLik[boFin,], 2, min)
-	rLFin <- resLogLik
-	rLFin$logLik[!boFin] <- minFiniteLogLik
-	for( j in 1:ncol(rLFin$resFLogLik) )
-		rLFin$resFLogLik[!boFin,j] <- minFiniteResFLogLik[j]
+	# replace non-finite logDens by very small logDens
+	boFin <- is.finite(resLogDen$logDen)
+	minFiniteLogDen <- min(resLogDen$logDen[boFin])
+	minFiniteResFLogDen <- apply( resLogDen$resFLogDen[boFin,], 2, min)
+	rLFin <- resLogDen
+	rLFin$logDen[!boFin] <- minFiniteLogDen
+	for( j in 1:ncol(rLFin$resFLogDen) )
+		rLFin$resFLogDen[!boFin,j] <- minFiniteResFLogDen[j]
 	
 	# get the 100 best cases, but minium 5% of the cases
-	rL <- rLFin$logLik
+	rL <- rLFin$logDen
 	p <- min(0.5,100/length(rL),length(rL))
 	q <- quantile(rL, probs=1-p)
 	bo <- sapply(q, function(qi) rL > qi)
-	Lp <- rLFin$resFLogLik[bo,]
-	rLQ <- rLFin$logLik[bo]
+	Lp <- rLFin$resFLogDen[bo,]
+	rLQ <- rLFin$logDen[bo]
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
 	
-	#from these sample from the 5% best as accepted LogLik
+	#from these sample from the 5% best as accepted LogDen
 	ord <- order(rLQ, decreasing = TRUE)
 	La <- Lp[sample( ord[1:round(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
-	#calcualte Temperature from likelihood
+	#calcualte Temperature from density
 	d <- Lp-La
 	#p2 <- qplot( X2, value, geom="boxplot", data=melt(d))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p2
-	#T <- calcDEMCTempDiffLogLik(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
-	T <- calcDEMCTempDiffLogLik(t(d), ...)  # will be scaled in twDEMCInt
+	#T <- calcDEMCTempDiffLogDen(t(d), pTarget=pTarget, TFix=TFix)  # will be scaled in twDEMCInt
+	T <- calcDEMCTempDiffLogDen(t(d), ...)  # will be scaled in twDEMCInt
 	T
 	### named numeric vector of estimated Temperatures per data stream. 
 }
@@ -527,9 +527,9 @@ calcDEMCnGenBurnin <- function(
 calcDEMCTempGlobal1 <- function(
 	### Calculating global temperature after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
-	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
-	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
-	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals
+	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
+	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
 	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
@@ -555,9 +555,9 @@ calcDEMCTempGlobal1 <- function(
 calcDEMCTempGlobal2a <- function(
 	### Calculating global temperature after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
-	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
-	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
-	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals
+	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
+	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
 	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
@@ -606,9 +606,9 @@ cat("r2=",r2,"\n",sep="")
 calcDEMCTempGlobal2b <- function(
 	### Calculating global temperature after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
-	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
-	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
-	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals
+	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
+	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
 	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
@@ -723,9 +723,9 @@ calcDEMCTempGlobal2b <- function(
 calcDEMCTempGlobal2 <- function(
 	### Calculating global temperature and adjusted burnin period after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
-	,diffLogLik	##<< numeric vector: Lp-La of the previous proposals
-	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogLik3}}			
-	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogLik3}}
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals
+	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
+	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
 	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
@@ -758,8 +758,8 @@ calcDEMCTempGlobal2 <- function(
 			# if the chains of one populatin cover the minimum at given temperature, temperature may decrease
 			# hence check, if they converged to limiting distribution for given temperature
 			if( checkConvergenceTrend(res130) < 0.05){
-				# for a significant trend in rLogLik of resPop, stay at given temperature
-				cat("  trend in log-Likelihood: stay at given temperature one more batch\n")		
+				# for a significant trend in rLogDen of resPop, stay at given temperature
+				cat("  trend in logDensity: stay at given temperature one more batch\n")		
 				nGenBurninNew <- nGenBurnin+nRun
 				TGlobal <- T0
 			}else{

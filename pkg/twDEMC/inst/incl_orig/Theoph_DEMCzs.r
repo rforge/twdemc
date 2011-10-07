@@ -58,14 +58,14 @@ flogpost <-function(theta){        # cheaper to have MyData global
   #Ind.par.times=  matrix(apply(Ind.par, 1,rep, times = N.time),ncol=3,byrow = TRUE)
   X.tmp=  cbind(MyData$Dose,MyData$Time, matrix(apply(Ind.par, 1,rep, times = N.time),ncol=3,byrow = TRUE)) #Ind.par.times) 
   conc.expected  =  apply(X.tmp,1,mySSfol)
-  loglikelihood  = sum(dnorm((MyData$conc - conc.expected), sd = sigma, log= TRUE))  
+  LogDenelihood  = sum(dnorm((MyData$conc - conc.expected), sd = sigma, log= TRUE))  
   # part of prior  from normally distributed random effectc
   log.pdf.raneff = sum(dnorm(Raneff,  sd= rep(sd.comp,N.subject), log= TRUE))    
  
   #  uniform prior for lKe, lKa, lCl
   # uniform prior on tau scale
   log.pdf.prior =  0.5* sum(theta[(N.curve+1):(2*N.curve)])
-  loglikelihood + log.pdf.raneff + log.pdf.prior
+  LogDenelihood + log.pdf.raneff + log.pdf.prior
  }
  
  

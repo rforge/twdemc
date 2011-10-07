@@ -38,15 +38,15 @@ setMethodS3("subChains","twDEMC", function(
 		## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
 		##}
 
-		# To help re-initializing the arguments to fLoglik \itemize{
-		# \item{ transforming parameters \code{\link{subsetArgsFLogLik}}  }}
+		# To help re-initializing the arguments to fLogDen \itemize{
+		# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
 		#
 		
 		##details<< 
 		## Alternatively to specification of iChains, one can specify a vector of populations and the total number of populations.
 		if( is.null(nPop) ) nPop=ncol(x$temp)
 		if( is.null(nPop) ) nPop=1		#for backware compatibility of temp
-		nChainsPop = ncol(x$rLogLik) %/% nPop
+		nChainsPop = ncol(x$rLogDen) %/% nPop
 		res <- x
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
@@ -54,14 +54,14 @@ setMethodS3("subChains","twDEMC", function(
 		}else{
 			# no populatios given: reduce to one population
 			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
-			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogLik), ncol=1) #for backware compatibility of temp
+			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogDen), ncol=1) #for backware compatibility of temp
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
-		res$rLogLik <- x$rLogLik[,iChains, drop=FALSE] 
+		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
 		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
 		res$thin <- x$thin
-		if( 0 < length(x$resFLogLikX))
-			res$resFLogLikX <- x$resFLogLikX[,iChains, drop=FALSE]
+		if( 0 < length(x$resFLogDenX))
+			res$resFLogDenX <- x$resFLogDenX[,iChains, drop=FALSE]
 		if( 0 < length(x$Y))
 			res$Y <- x$Y[,,iChains, drop=FALSE]
 		res$thin <- x$thin
@@ -156,7 +156,7 @@ setMethodS3("getNGen","twDEMC", function(
 		## \code{\link{getNParms.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		(nrow(res$rLogLik)-1)*res$thin
+		(nrow(res$rLogDen)-1)*res$thin
 		### integer, number of completed generations
 	})
 attr( getNGen.twDEMC, "ex") <- function(){
@@ -194,7 +194,7 @@ setMethodS3("getNChains","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$rLogLik)
+		ncol(res$rLogDen)
 		### integer, number of chains in twDEMC
 	})
 
@@ -208,7 +208,7 @@ setMethodS3("getNChainsPop","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$rLogLik)/ncol(res$temp)
+		ncol(res$rLogDen)/ncol(res$temp)
 		### integer, number of chains per population in twDEMC
 	})
 
@@ -256,10 +256,10 @@ setMethodS3("replacePops","twDEMC", function(
 		
 		nPop=ncol(x$temp)
 		nPopNew = ncol(xNew$temp)
-		nChains = ncol(x$rLogLik)
+		nChains = ncol(x$rLogDen)
 		nChainsPop = nChains %/% nPop
 		if( length(iPops) != nPopNew) stop("replacePops.twDEMC: replacing population has number of populations that differs from length of iPop.")
-		nChainsPopNew = ncol(xNew$rLogLik) %/% nPopNew
+		nChainsPopNew = ncol(xNew$rLogDen) %/% nPopNew
 		if( nChainsPop != nChainsPopNew) stop("replacePops.twDEMC: both populations must have the same number of chains per populations.")
 		xN <- if( x$thin != xNew$thin ) thin(xNew,newThin=x$thin) else xNew
 		if( !identical( dim(x)[1:2], dim(xN)[1:2]) ) stop("replacePops.twDEMC: both populations must have the same dimensions of variables and cases.")
@@ -268,10 +268,10 @@ setMethodS3("replacePops","twDEMC", function(
 		iChains <- matrix(1:nChains, nrow=nChainsPop)[,iPops]
 		res$temp[,iPops] <- xN$temp
 		res$parms[,,iChains] <- xN$parms
-		res$rLogLik[,iChains] <- xN$rLogLik 
+		res$rLogDen[,iChains] <- xN$rLogDen 
 		res$pAccept[,iChains] <- xN$pAccept
-		if( 0 < length(x$resFLogLikX))
-			res$resFLogLikX[,iChains] <- xN$resFLogLikX
+		if( 0 < length(x$resFLogDenX))
+			res$resFLogDenX[,iChains] <- xN$resFLogDenX
 		if( 0 < length(x$Y))
 			res$Y[,,iChains] <- xN$Y
 		res
@@ -321,20 +321,20 @@ setMethodS3("subset","twDEMC", function(
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
 	if( is.logical(boKeep) )
-		boKeep <- rep(boKeep,length.out=nrow(x$rLogLik) )
-	if( 0 < length(x$resFLogLikX)){
+		boKeep <- rep(boKeep,length.out=nrow(x$rLogDen) )
+	if( 0 < length(x$resFLogDenX)){
 		##details<< 
-		## If last row is dropped then all components of resFLogLikX are set to -Inf
-		## This ensures that it LogLik for last state is recalculated if object is used again in twDEMC
+		## If last row is dropped then all components of resFLogDenX are set to -Inf
+		## This ensures that it LogDen for last state is recalculated if object is used again in twDEMC
 		if( is.numeric(boKeep) )
-			if( !(nrow(x$rLogLik)%in%boKeep) )
-				x$resFLogLikX[] <- -Inf
+			if( !(nrow(x$rLogDen)%in%boKeep) )
+				x$resFLogDenX[] <- -Inf
 		if( is.logical(boKeep) )
-			if( !boKeep[nrow(x$rLogLik)] )
-				x$resFLogLikX[] <- -Inf
+			if( !boKeep[nrow(x$rLogDen)] )
+				x$resFLogDenX[] <- -Inf
 	}
 	x$parms <- x$parms[,boKeep,, drop=FALSE] 
-	x$rLogLik <- x$rLogLik[boKeep,, drop=FALSE] 
+	x$rLogDen <- x$rLogDen[boKeep,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,, drop=FALSE]
 	if( !is.null(x$temp))
 		if( is.null(ncol(x$temp)) )
@@ -344,7 +344,7 @@ setMethodS3("subset","twDEMC", function(
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
-	### list of class twDEMC with subset of cases in parsm, rLogLik, pAccept, and temp
+	### list of class twDEMC with subset of cases in parsm, rLogDen, pAccept, and temp
 })
 #mtrace(subset.twDEMC)
 
@@ -352,8 +352,14 @@ setMethodS3("thin","twDEMC", function(
 	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCInt}}) to correspond to a thinning of \code{newThin}.
 	x, ##<< the twDEMC list to thin 
 	newThin=x$thin, ##<< the target thinning factor, must be positive multiple of x$thin 
-	start=0,  ##<< the start time of the chain - note that time starts from zero
-	end=NA,   ##<< the maximum end time of the chains - note that time starts from zero
+	start=0,  
+		### numeric scalar: the start time of the chain. 
+		### Note that time starts from zero.
+		### If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used
+	end=NA,   
+		### numeric scalar: the maximum end time of the chains. 
+		### Note that time starts from zero.
+		### If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used
 	...
 	, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 
@@ -365,10 +371,12 @@ setMethodS3("thin","twDEMC", function(
 	# with the thinned list having mZ rows, this corresponds to (mZ-1)*thin Metropolis steps + 1 row for the initial state
 	if( (newThin < x$thin) | (newThin %% x$thin) )
 		stop(paste("thin.twDEMC: increased thin must be a positive multiple of former thin",x$thin))
+	start <- max(start)	#
 	if( start < 0)
 		stop(paste("thin.twDEMC: argument start must be at least 0 but was ",start))
 	nS <- getNSamples(x)
 	maxSampleTime <- iSample2time(nS, thin=x$thin)
+	suppressWarnings( end<-min(end) )
 	if( is.null(end) || !is.finite(end) || end>maxSampleTime) end=maxSampleTime 	
 	if( end < 1)
 		stop(paste("thin.twDEMC: argument end must be at least 1 (one generation from 0 to 1) but was",end))
@@ -426,13 +434,14 @@ setMethodS3("combinePops","twDEMC", function(
 		res$Y <- abind( lapply(.pops, function(psr){psr$Y}) )
 		dimnames(res$Y) <- dimnames(x$Y)
 	}
-	res$rLogLik <- abind( lapply(.pops, function(psr){psr$rLogLik}) )
-	if( 0 < length(x$resFLogLikX))
-	res$resFLogLikX <- abind( lapply(.pops, function(psr){psr$resFLogLikX}) )
+	res$rLogDen <- abind( lapply(.pops, function(psr){psr$rLogDen}) )
+	if( 0 < length(x$resFLogDenX))
+	res$resFLogDenX <- abind( lapply(.pops, function(psr){psr$resFLogDenX}) )
+	names(dimnames(res$resFLogDenX)) <- names(dimnames(.pops[[1]]$resFLogDenX))
 	res$pAccept <- abind( lapply(.pops, function(psr){psr$pAccept}) )
 	res$thin <- x$thin
 	res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
-	for( i in c("parms","rLogLik","pAccept","temp") )
+	for( i in c("parms","rLogDen","pAccept","temp") )
 		dimnames(res[[i]]) <- dimnames(x[[i]])
 	if( !doKeepBatchCall ) attr(res,"batchCall") <- NULL	#keep the 
 	res
@@ -463,10 +472,10 @@ setMethodS3("stackChains","twDEMC", function(
 	#stackChains.twDEMC
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
-	cbind( rLogLik = abind( lapply( 1:dim(x$rLogLik)[2], function(i){ x$rLogLik[,i] }), along=1 )
+	cbind( rLogDen = abind( lapply( 1:dim(x$rLogDen)[2], function(i){ x$rLogDen[,i] }), along=1 )
 		,parms = stackChains.array(x$parms)
 	)
-	### Matrix with first column the log-Likelihold rLogLik and the remaining columns the variables.
+	### Matrix with first column the logDensity rLogDen and the remaining columns the variables.
 })
 
 setMethodS3("stackChains","mcmc.list", function( 
@@ -527,11 +536,11 @@ popMeansTwDEMC <- function(
 }
 attr(popMeansTwDEMC,"ex") <- function(){
 	data(twdemcEx1)
-	# mean rLoglik for each case, i.e. step, by population
-	res1 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp) )
+	# mean rLogDen for each case, i.e. step, by population
+	res1 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp) )
 	matplot(res1)
 	# shifting mean across 4 cases
-	res2 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
+	res2 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
 	matplot(res2, type="l", add=TRUE)
 }
 
@@ -566,11 +575,11 @@ popApplyTwDEMC <- function(
 }
 attr(popApplyTwDEMC,"ex") <- function(){
 	data(twdemcEx1)
-	# mean rLoglik for each case, i.e. step, by population
+	# mean rLogDen for each case, i.e. step, by population
 	nPops=getNPops(twdemcEx1)
-	popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, apply, 1, mean )	
-	# stack rLogLik for each population
-	popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, as.vector )
+	popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, apply, 1, mean )	
+	# stack rLogDen for each population
+	popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, as.vector )
 	#stack param columns by population
 	(tmp <- popApplyTwDEMC( twdemcEx1$parms, nPops=nPops, function(x){ abind(twListArrDim(x),along=2) }))	
 }
@@ -585,21 +594,21 @@ setMethodS3("stackChainsPop","twDEMC", function(
 		##seealso<<   
 		## \code{\link{stackChains.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		# stack rLogLik for each population
+		# stack rLogDen for each population
 		nPops = getNPops(x)
-		rLogLik <- popApplyTwDEMC( x$rLogLik, nPops=nPops, as.vector )
+		rLogDen <- popApplyTwDEMC( x$rLogDen, nPops=nPops, as.vector )
 		#stack param columns by population
 		if( varInRows ){
-			rLogLik3 <- array( rLogLik, dim=c(1, nrow(rLogLik), ncol(rLogLik) ))
+			rLogDen3 <- array( rLogDen, dim=c(1, nrow(rLogDen), ncol(rLogDen) ))
 			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ abind(twListArrDim(xp),along=2) })	
-			res <- structure( abind(rLogLik3,parms,along=1), dimnames=list(parms=c("rLogLik",rownames(x$parms)),step=NULL,pops=NULL))
+			res <- structure( abind(rLogDen3,parms,along=1), dimnames=list(parms=c("rLogDen",rownames(x$parms)),step=NULL,pops=NULL))
 		}else{
-			rLogLik3 <- array( rLogLik, dim=c(nrow(rLogLik),1,ncol(rLogLik)))
+			rLogDen3 <- array( rLogDen, dim=c(nrow(rLogDen),1,ncol(rLogDen)))
 			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ t(abind(twListArrDim(xp),along=2)) })	
-			res <- structure( abind(rLogLik,parms,along=2), dimnames=list(step=NULL,parms=c("rLogLik",rownames(x$parms)),pops=NULL))
+			res <- structure( abind(rLogDen,parms,along=2), dimnames=list(step=NULL,parms=c("rLogDen",rownames(x$parms)),pops=NULL))
 		}
 		res
-		### Array with first column the log-Likelihold rLogLik and the remaining columns the variables
+		### Array with first column the logDensity rLogDen and the remaining columns the variables
 		### , rows are steps, third dimension is the population 
 		### (but see argument \code{varInRows}
 	})
@@ -659,12 +668,12 @@ getAcceptedPos.twDEMCProps <- function(
 	### the first step is NA because there is no previous accepted state
 }
 
-getDiffLogLik.twDEMCProps <- function(
-	### Extract the Differences in Log-Likelihood between accepted states and proposals.
-	Y					##<< matrix of proposals with row "accepted" and first step (column) initial state, rows: results components of fLogLik and third dimension chains.
+getDiffLogDen.twDEMCProps <- function(
+	### Extract the Differences in LogDensity between accepted states and proposals.
+	Y					##<< matrix of proposals with row "accepted" and first step (column) initial state, rows: results components of fLogDen and third dimension chains.
 	,resCols			##<< the rows of Y with result components, either names or positions
 	,nLastSteps = 128	##<< number of last steps of Y for which to extract diffs
-	,temp=1				##<< numeric matrix (resComp x pop): the temperature applied to the difference of LogLiks
+	,temp=1				##<< numeric matrix (resComp x pop): the temperature applied to the difference of LogDens
 	,...				##<< further arguments passed to \code{\link{getAcceptedPos.twDEMCProps}}
 ){
 	#work with positions
@@ -677,17 +686,17 @@ getDiffLogLik.twDEMCProps <- function(
 	#test 1d case: YL <- Y[,min(ncol(Y),nLastSteps+1),,drop=FALSE]
 	#mtrace(getAcceptedPos.twDEMCProps)
 	acceptedPos <- getAcceptedPos.twDEMCProps(YL,...) #index of parameter vector that correponds to the currently accepted for vector at given row
-	diffLogLik <- abind(lapply( 1:dim(YL)[3], function(j){ 	adrop((YL[resCols,-1,j,drop=FALSE] - YL[resCols,acceptedPos[-1,j],j,drop=FALSE])/temp[,(j-1)%/%nPopsChain+1],3)}),rev.along=0)
-	diffLogLik
+	diffLogDen <- abind(lapply( 1:dim(YL)[3], function(j){ 	adrop((YL[resCols,-1,j,drop=FALSE] - YL[resCols,acceptedPos[-1,j],j,drop=FALSE])/temp[,(j-1)%/%nPopsChain+1],3)}),rev.along=0)
+	diffLogDen
 	### numeric array ( component x nLastSteps x chain ) of Lp-La, the L
 }
 
-replaceNonFiniteDiffLogliks <- function(
+replaceNonFiniteDiffLogDens <- function(
 	### For each component replace NAs by sample of others and non-Finite values by minimum of others  
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
-	,doConstrainNeg=FALSE	##<< if given, likelihood of accepted jumps (positive) is constrained to 0
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
+	,doConstrainNeg=FALSE	##<< if given, density of accepted jumps (positive) is constrained to 0
 ){
-	d <- t(apply( diffLogLik,1,function(ds){
+	d <- t(apply( diffLogDen,1,function(ds){
 				boNA <- is.na(ds)
 				nNA <- sum(boNA)
 				if(0<nNA ){
@@ -700,20 +709,20 @@ replaceNonFiniteDiffLogliks <- function(
 				}
 				ds
 			}))
-	dimnames(d) <- dimnames(diffLogLik)
+	dimnames(d) <- dimnames(diffLogDen)
 	if( doConstrainNeg )
 		d[d>0] <- 0
 	d
 }
 
-sampleAcceptedFixedTempDiffLogliks <- function(
-	### Calculate diffLogLik for fixed temperature components and return subset of accepted ones 
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+sampleAcceptedFixedTempDiffLogDens <- function(
+	### Calculate diffLogDen for fixed temperature components and return subset of accepted ones 
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,TFix=numeric(0)
 ){
-	dTFix <- colSums( diffLogLik[names(TFix),,drop=FALSE]/TFix )
-	acceptedFixed <- dTFix>log(runif(ncol(diffLogLik)))
+	dTFix <- colSums( diffLogDen[names(TFix),,drop=FALSE]/TFix )
+	acceptedFixed <- dTFix>log(runif(ncol(diffLogDen)))
 	#pa <- sum(acceptedFixed)/nj
-	diffLogLik[,acceptedFixed,drop=FALSE]
+	diffLogDen[,acceptedFixed,drop=FALSE]
 }
 

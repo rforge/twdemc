@@ -3,7 +3,7 @@
 \title{initZtwDEMCSub twDEMC}
 \description{generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a previous result}
 \usage{
-\method{initZtwDEMCSub}{twDEMC}(vtwdemc, vars = rownames(vtwdemc$parms), nChains = ncol(vtwdemc$rLogLik), nPops = ncol(vtwdemc$temp), ...)
+\method{initZtwDEMCSub}{twDEMC}(vtwdemc, vars = rownames(vtwdemc$parms), nChains = ncol(vtwdemc$rLogDen), nPops = ncol(vtwdemc$temp), ...)
 }
 \arguments{
   \item{vtwdemc}{the twDEMC list to subsample}

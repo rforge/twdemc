@@ -9,7 +9,7 @@ data(twLinreg1)
 attach( twLinreg1 )
 
 
-argsFLogLik <- list(
+argsFLogDen <- list(
 	fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 	obs=obs,			### vector of data to compare with
 	invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -17,18 +17,18 @@ argsFLogLik <- list(
 	invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 	xval=xval
 )
-do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik))
+do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 
 Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nPops)
 dim(Zinit)
 
 .nGen=100
 twdemcEx1 <-  twDEMCBatch( Zinit, nGen=.nGen, 
-	fLogLik=logLikGaussian, argsFLogLik=argsFLogLik,
+	fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 	nPops=.nPops,
 	controlTwDEMC=list(thin=.thin),
 	nGenBurnin=.nGenBurnin, T0=.T0,
-	fLogLikScale=1		#default scale logLikGaussian is -1/2
+	#fLogDenScale=1		#default scale of logDenGaussian is already -1/2
 	,doRecordProposals = TRUE
 )
 str(twdemcEx1)

@@ -8,8 +8,12 @@
 \arguments{
   \item{x}{the twDEMC list to thin}
   \item{newThin}{the target thinning factor, must be positive multiple of x$thin}
-  \item{start}{the start time of the chain - note that time starts from zero}
-  \item{end}{the maximum end time of the chains - note that time starts from zero}
+  \item{start}{numeric scalar: the start time of the chain. 
+Note that time starts from zero.
+If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used}
+  \item{end}{numeric scalar: the maximum end time of the chains. 
+Note that time starts from zero.
+If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used}
   \item{\dots}{
 }
   \item{doKeepBatchCall}{wheter to retain the batch call attribute of x}

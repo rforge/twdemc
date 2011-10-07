@@ -6,7 +6,7 @@
 plot3DKDMarginals(form, ds, probs = c(0.2, 0.5, 0.75, 0.95), ..., dims = 8, bandwidth = NULL, knotSpacing = "quantile", nSampleBandwidth = 500, nSample = 1000, bwtype = "adaptive_nn", tol = 0.1, ftol = 0.1)
 }
 \arguments{
-  \item{form}{formula of regression e.g. rLogLik~tvrY+tvrO+biasLitterLeaf}
+  \item{form}{formula of regression e.g. rLogDen~tvrY+tvrO+biasLitterLeaf}
   \item{ds}{dataframe or matrix with column names corresponding to variables in the formula}
   \item{probs}{the percentiles at which to plot contour surfaces for the response variable
 the levels are calculated from the subsample }

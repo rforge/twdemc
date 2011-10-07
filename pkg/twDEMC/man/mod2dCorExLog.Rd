@@ -7,7 +7,7 @@ mod2dCorExLog(theta, xval, mu, Sigma, c = 500)
 }
 \arguments{
   \item{theta}{parameter vector with names x and y}
-  \item{xval}{additional argument, passed by ... in logLikGaussian}
+  \item{xval}{additional argument, passed by ... in logDenGaussian}
   \item{mu}{mean of the normal dist}
   \item{Sigma}{covariance matrix of the normal distribution}
   \item{c}{multiplicative constant}
@@ -20,7 +20,7 @@ mod2dCorExLog(theta, xval, mu, Sigma, c = 500)
 
 
 \seealso{\code{\link{twDEMCInt}}
-\code{\link{logLikGaussian}}}
+\code{\link{logDenGaussian}}}
 \examples{
 mu = c(0,0)
 sd = c(2,2)

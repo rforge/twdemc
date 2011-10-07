@@ -142,7 +142,7 @@ attr(marginals3d,"ex") <- function(){
 
 plot2DKDMarginals <- function(
 	### Evaluates the Kernel-density regression on a grid and displays a figure.
-	form	##<< formula of regression e.g. rLogLik~dO+tvrO
+	form	##<< formula of regression e.g. rLogDen~dO+tvrO
 	,ds		##<< dataframe or matrix with column names corresponding to variables in the formula
 	,dims=40	##<< vector of spaces across predictor space where 
 	,bandwidth = NULL	 ##<< integer vector: bandwidth for each dimension
@@ -200,7 +200,7 @@ plot2DKDMarginals <- function(
 	#plot(bw32)
 	#est <- npreg(bws=bw3, tdat=dsPred, edat=dsPred)		
 	lMin <- min(dsPred[,1])
-	tmpf <- function(x,y, bws, minLogLik=lMin){
+	tmpf <- function(x,y, bws, minLogDen=lMin){
 		ind <- splitIndices(length(x),4)
 		exdat <- data.frame(x=as.numeric(x),y=as.numeric(y)); names(exdat) <- bws$xnames
 		fList <- list(
@@ -215,7 +215,7 @@ plot2DKDMarginals <- function(
 		#resL <- tmpf2(bws=bws,dsPred=dsPred,exdat=exdat,ind=ind)
 		resL <- sfPar(fList,sfParArgsList=argsList)
 		tmpMean <- do.call(c, lapply( resL, "[[", "mean" ))
-		ifelse( tmpMean>minLogLik, tmpMean, as.numeric(NA))
+		ifelse( tmpMean>minLogDen, tmpMean, as.numeric(NA))
 	}
 	#tmp2 <- twPlot2DFun( ds$tvrY, ds$tvrO, tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bw3$bw*8;tmp}), dims=60, col=rev(heat.colors(20)) )
 	#tmp1 <- twPlot2DFun( ds$tvrY, ds$tvrO, tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=c(200,200);tmp}), dims=60, col=rev(heat.colors(20)) )
@@ -244,24 +244,24 @@ attr(plot2DKDMarginals,"ex") <- function(){
 		
 		# kernel density regression estimate
 		#mtrace(plot2DKDMarginals)
-		rl <- sample0[,"rLogLik"]
+		rl <- sample0[,"rLogDen"]
 		set.seed(0815)
-		sample0b <- cbind(sample0, rLogLik2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
-		plot( rLogLik2 ~ rLogLik, sample0b)
-		plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogLik2"],c(1,20)))] )
+		sample0b <- cbind(sample0, rLogDen2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
+		plot( rLogDen2 ~ rLogDen, sample0b)
+		plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogDen2"],c(1,20)))] )
 		#refit disturbed sample
-		tmp2 <- tmp3 <- plot2DKDMarginals( rLogLik2 ~ a+b, sample0b, dim=20  )
+		tmp2 <- tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20  )
 		attributes(tmp2)$bws$bandwidth
 		# the bandwidth seems to be underestimated for the second dimension, repeat with higher bandwidth
-		#tmp3 <- plot2DKDMarginals( rLogLik ~ a+b, sample0b, dim=20, bandwidth=30  )
+		#tmp3 <- plot2DKDMarginals( rLogDen ~ a+b, sample0b, dim=20, bandwidth=30  )
 		#refine plot
-		plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="Log-Like-\nlihood", contour=TRUE )
+		plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="LogDensity", contour=TRUE )
 	}
 }
 
 plot3DKDMarginals <- function(
 	### Evaluates the Kernel-density regression on a grid and displays a figure.
-	form	##<< formula of regression e.g. rLogLik~tvrY+tvrO+biasLitterLeaf
+	form	##<< formula of regression e.g. rLogDen~tvrY+tvrO+biasLitterLeaf
 	,ds		##<< dataframe or matrix with column names corresponding to variables in the formula
 	,probs=c(0.2,0.5,0.75,0.95)		##<< the percentiles at which to plot contour surfaces for the response variable
 		## the levels are calculated from the subsample 
@@ -328,7 +328,7 @@ plot3DKDMarginals <- function(
 	#plot(bw32)
 	#est <- npreg(bws=bw3, tdat=dsPred, edat=dsPred)		
 	lMin <- min(dsPred[,1])
-	tmpf <- function(x,y,z, bws, minLogLik=lMin){
+	tmpf <- function(x,y,z, bws, minLogDen=lMin){
 		ind <- splitIndices(length(x),4)
 		exdat <- data.frame(x=as.numeric(x),y=as.numeric(y),z=as.numeric(z)); names(exdat) <- bws$xnames
 		fList <- list(
@@ -339,7 +339,7 @@ plot3DKDMarginals <- function(
 		)
 		resL <- sfPar(fList,sfParArgsList=list( bws=bws,dsPred=dsPred,exdat=exdat,ind=ind))
 		tmpMean <- do.call(c, lapply( resL, "[[", "mean" ))
-		ifelse( tmpMean>minLogLik, tmpMean, as.numeric(NA))
+		ifelse( tmpMean>minLogDen, tmpMean, as.numeric(NA))
 	}
 	#tmp2 <- twPlot2DFun( ds$tvrY, ds$tvrO, tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bw3$bw*8;tmp}), dims=60, col=rev(heat.colors(20)) )
 	#tmp1 <- twPlot2DFun( ds$tvrY, ds$tvrO, tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=c(200,200);tmp}), dims=60, col=rev(heat.colors(20)) )

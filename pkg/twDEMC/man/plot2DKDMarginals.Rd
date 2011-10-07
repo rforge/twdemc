@@ -6,7 +6,7 @@
 plot2DKDMarginals(form, ds, dims = 40, bandwidth = NULL, nSample = 200, bwtype = "adaptive_nn", tol = 0.1, ftol = 0.1, bws = NULL, ...)
 }
 \arguments{
-  \item{form}{formula of regression e.g. rLogLik~dO+tvrO}
+  \item{form}{formula of regression e.g. rLogDen~dO+tvrO}
   \item{ds}{dataframe or matrix with column names corresponding to variables in the formula}
   \item{dims}{vector of spaces across predictor space where}
   \item{bandwidth}{see adaptive bandwidth of npreg.
@@ -49,17 +49,17 @@ Requires package np loaded in cluster (sfLibrary(np))}
 	
 	# kernel density regression estimate
 	#mtrace(plot2DKDMarginals)
-	rl <- sample0[,"rLogLik"]
+	rl <- sample0[,"rLogDen"]
 	set.seed(0815)
-	sample0b <- cbind(sample0, rLogLik2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
-	plot( rLogLik2 ~ rLogLik, sample0b)
-	plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogLik2"],c(1,20)))] )
+	sample0b <- cbind(sample0, rLogDen2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
+	plot( rLogDen2 ~ rLogDen, sample0b)
+	plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogDen2"],c(1,20)))] )
 	#refit disturbed sample
-	tmp2 <- tmp3 <- plot2DKDMarginals( rLogLik2 ~ a+b, sample0b, dim=20  )
+	tmp2 <- tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20  )
 	attributes(tmp2)$bws$bandwidth
 	# the bandwidth seems to be underestimated for the second dimension, repeat with higher bandwidth
-	#tmp3 <- plot2DKDMarginals( rLogLik ~ a+b, sample0b, dim=20, bandwidth=30  )
+	#tmp3 <- plot2DKDMarginals( rLogDen ~ a+b, sample0b, dim=20, bandwidth=30  )
 	#refine plot
-	plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="Log-Like-\nlihood", contour=TRUE )
+	plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="LogDensity", contour=TRUE )
 }
 }

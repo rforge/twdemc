@@ -21,10 +21,10 @@ popMeansTwDEMC(x, nPops, kSmooth = NULL)
 \code{\link{subChains.twDEMC}}}
 \examples{
 data(twdemcEx1)
-# mean rLoglik for each case, i.e. step, by population
-res1 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp) )
+# mean rLogDen for each case, i.e. step, by population
+res1 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp) )
 matplot(res1)
 # shifting mean across 4 cases
-res2 <- popMeansTwDEMC( twdemcEx1$rLogLik, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
+res2 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
 matplot(res2, type="l", add=TRUE)
 }

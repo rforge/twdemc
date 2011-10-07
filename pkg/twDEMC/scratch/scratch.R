@@ -154,7 +154,7 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 .doDEMCSteps <- function( iGenT0, ctrl, 
 	X, xStep, 
 	fDiscrProp, argsFDiscrProp, 
-	resFLogLikX, argsFLogLik, fLogLikScale, debugSequential, ...
+	resFLogDenX, argsFLogDen, fLogDenScale, debugSequential, ...
 ){
 	for( iGenT in (1:ctrl$thin) ){
 		iGen = iGenT0+iGenT
@@ -165,10 +165,10 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 		
 		##details<< 
 		## in order to support a two-level Metropolis desition
-		#twCalcLogLikPar expects parameters in columns, need transpose
-		.resLogLikPar <- twCalcLogLikPar(fLogLik=fLogLik, xProp=t(xProp), resFLogLikX=resFLogLikX, argsFLogLik=argsFLogLik, fLogLikScale=fLogLikScale, debugSequential=debugSequential, ...)
-		logfitness_x_prop <- .resLogLikPar$logLik
-		resFLogLikProp <- .resLogLikPar$resFLogLik
+		#twCalcLogDenPar expects parameters in columns, need transpose
+		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(xProp), resFLogDenX=resFLogDenX, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale, debugSequential=debugSequential, ...)
+		logfitness_x_prop <- .resLogDenPar$logDen
+		resFLogDenProp <- .resLogDenPar$resFLogDen
 		
 		TcurStep = TstepFixed[iGen,]
 		#logr =  (logfitness_x_prop+rExtra - logfitness_X)/Tstep[iGen]
@@ -181,18 +181,18 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 				acceptN[i] = acceptN[i]+1
 				X[,i] = xProp[,i]
 				logfitness_X[i] = logfitness_x_prop[i]
-				if( 0<length(resFLogLikX) ) 
-					resFLogLikX[i,] = resFLogLikProp[i,]	#here chains are rows
+				if( 0<length(resFLogDenX) ) 
+					resFLogDenX[i,] = resFLogDenProp[i,]	#here chains are rows
 				acceptWindow[ acceptPos, i ] <- TRUE
 			}
 		} #Metropolis step for each chain
 	}# iGenT within thinning interval
-	resDo <- list(	acceptN=acceptN, X, logfitness_X, resFLogLikX, acceptWindow )
+	resDo <- list(	acceptN=acceptN, X, logfitness_X, resFLogDenX, acceptWindow )
 	### list with components \describe{
 	### \item{acceptN}{vector number of accepted steps per chain in thinning interval}
 	### \item{X}{matrix current position for each chain (column?)}
-	### \item{logfitness_X}{vector current logLik of chains}
-	### \item{resFLogLikX}{matrix: result of fLogLik for last accepted state per chain}
+	### \item{logfitness_X}{vector current logDen of chains}
+	### \item{resFLogDenX}{matrix: result of fLogDen for last accepted state per chain}
 	### \item{acceptWindow}{}
 }
 
@@ -319,11 +319,11 @@ setMethodS3("twDEMC","default", function(
 	})
 
 
-.makeTableLikelihoodTest <- function(){
+.makeTableDensityTest <- function(){
 	df <- c(1:10,15,20,30,50)
-	tmp <- -sapply( df, function(dfi){ signif(getRLogLikQuantile(NULL, maxLogLik=0, df=dfi),3) })
+	tmp <- -sapply( df, function(dfi){ signif(getRLogDenQuantile(NULL, maxLogDen=0, df=dfi),3) })
 	plot( tmp~df)
-	ds <- data.frame(df=df,diffLogLik=tmp)
+	ds <- data.frame(df=df,diffLogDen=tmp)
 	cat(twDf2wikiTable(ds))	# package twMisc
 	lm1 <- lm(tmp~df)
 	abline(lm1)

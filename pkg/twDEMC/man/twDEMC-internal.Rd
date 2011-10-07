@@ -1,7 +1,7 @@
 \name{twDEMC-internal}
 \title{Internal twDEMC objects}
 \alias{.calcRhat2}
-\alias{.calcTemperatedDiffLogLik}
+\alias{.calcTemperatedDiffLogDen}
 \alias{.colNames}
 \alias{.cut2dim2}
 \alias{.cut2dim3}
@@ -9,11 +9,11 @@
 \alias{.doDEMCStep}
 \alias{.doDEMCSteps}
 \alias{.generateXPropThin}
-\alias{.getResFLogLikNames}
+\alias{.getResFLogDenNames}
 \alias{.ofLnormMLE}
 \alias{.plotMarginal2D.levelplot}
 \alias{.tmp.f}
-\alias{.tmp.f.plot.calcDEMCTempDiffLogLik2}
+\alias{.tmp.f.plot.calcDEMCTempDiffLogDen2}
 \alias{.twCoefLnormMLE_depr}
 \alias{.xStepParallel}
 \alias{.xStepSnooker}

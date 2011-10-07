@@ -1,12 +1,12 @@
-\name{twRunFLogLikPar}
-\alias{twRunFLogLikPar}
-\title{twRunFLogLikPar}
-\description{Wrapper for \code{\link{twCalcLogLikPar}} to accept arguments provided by runCluster.R}
+\name{twRunFLogDenPar}
+\alias{twRunFLogDenPar}
+\title{twRunFLogDenPar}
+\description{Wrapper for \code{\link{twCalcLogDenPar}} to accept arguments provided by runCluster.R}
 \usage{
-twRunFLogLikPar(..., prevResRunCluster = NULL, restartFilename = NULL)
+twRunFLogDenPar(..., prevResRunCluster = NULL, restartFilename = NULL)
 }
 \arguments{
-  \item{\dots}{further arguments passed \code{\link{twCalcLogLikPar}}}
+  \item{\dots}{further arguments passed \code{\link{twCalcLogDenPar}}}
   \item{prevResRunCluster}{results of call to twRunDEMC, argument required to be called from runCluster.R}
   \item{restartFilename}{name of the file to store restart information, argument required to be called from runCluster.R}
 }

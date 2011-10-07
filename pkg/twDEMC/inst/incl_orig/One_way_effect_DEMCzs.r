@@ -51,10 +51,10 @@ I = 6  # number of ind per group
   s2 = exp(logs2)
   t2 = exp(logt2)
   raneff = theta[4:7]
-  loglikelihood = sum(dnorm( MyData,mean = matrix(rep(raneff+ mu,I),ncol= I),sd = sqrt(s2), log = TRUE))  
+  LogDenelihood = sum(dnorm( MyData,mean = matrix(rep(raneff+ mu,I),ncol= I),sd = sqrt(s2), log = TRUE))  
   logprior.raneff =   sum(dnorm(raneff,sd = sqrt(t2), log = TRUE))  
   minlogprior.vcomp =  alpha * logs2 + beta/s2 + a * logt2 +  b/t2
-  loglikelihood + logprior.raneff - minlogprior.vcomp
+  LogDenelihood + logprior.raneff - minlogprior.vcomp
 }
 
 

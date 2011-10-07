@@ -67,21 +67,21 @@ twDEMCBatchInt <- function(
 	## and the number of generations already in Zinit are skipped.
 	if( is(Zinit,"twDEMC") ){
 		res <- Zinit
-		iRun <- (nrow(res$rLogLik)-1)*res$thin
+		iRun <- (nrow(res$rLogDen)-1)*res$thin
 		if( iRun >= nGen ) return(res)
 		ctrl$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		ctrl$T0 <- T0c <- res$temp[ nrow(res$temp), ,drop=FALSE ]
 		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
 		#calculate optimal end temperature
-		resCols <- match( rownames(res$resFLogLik), rownames(res$Y))
+		resCols <- match( rownames(res$resFLogDen), rownames(res$Y))
 		#nPops <- ncol(res$temp)
 		nChains <- dim(res$parms)[3]
 		nChainsPop <- nChains %/% nPops
 		chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
 		
-		diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-		diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+		diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
+		diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 		
 		pAcceptChains <- res$pAccept[ nrow(res$pAccept), ]
 		pAcceptPops <- tapply( pAcceptChains, chain2Pop, mean) 
@@ -89,10 +89,10 @@ twDEMCBatchInt <- function(
 		boPopCoolingTooFast <- (pAcceptPops < minPCompAcceptTempDecr)
 		
 		.tmp.f <- function(){
-			#mtrace(.calcTemperatedDiffLogLik)
-			diffLogLikPopsT <- .calcTemperatedDiffLogLik( diffLogLikPops, TFix, T0c)
+			#mtrace(.calcTemperatedDiffLogDen)
+			diffLogDenPopsT <- .calcTemperatedDiffLogDen( diffLogDenPops, TFix, T0c)
 			# acceptance rate per component		
-			tmpPercAcc <- 1-apply(diffLogLikPopsT,c(1,3),function(d){ ecdf(d)(log(0.5))} ) #comp x pops
+			tmpPercAcc <- 1-apply(diffLogDenPopsT,c(1,3),function(d){ ecdf(d)(log(0.5))} ) #comp x pops
 			boPopCoolingTooFast <- (apply(tmpPercAcc,2,min) < minPCompAcceptTempDecr)
 		}
 		
@@ -105,8 +105,8 @@ twDEMCBatchInt <- function(
 		temp <- T0c	# keep Temperature, only for others cool down further
 		if( any(!boPopCoolingTooFast)) temp[!boPopCoolingTooFast] <- {
 				tempExp <- calcDEMCTemp( T0c[!boPopCoolingTooFast], 1, nGenBurnin-iRun, nRun) #recalculate with initial temperature
-				#mtrace(calcDEMCTempDiffLogLikConst)
-				#tempEmp <- sapply( seq_along(T0c)[!boPopCoolingTooFast], function(iPop){ calcDEMCTempDiffLogLikConst(diffLogLikPops[,,iPop , drop=FALSE], TFix=ctrl$TFix, Tmax=T0c[iPop], pTarget=pTarget)})
+				#mtrace(calcDEMCTempDiffLogDenConst)
+				#tempEmp <- sapply( seq_along(T0c)[!boPopCoolingTooFast], function(iPop){ calcDEMCTempDiffLogDenConst(diffLogDenPops[,,iPop , drop=FALSE], TFix=ctrl$TFix, Tmax=T0c[iPop], pTarget=pTarget)})
 				#cool faster than tempExp but give more than 1/3 weight to the empirical estimate to avoid much too fast cooling 
 				#pmax(1, pmin( tempExp,(2*tempExp+tempEmp)/3 ))
 				tempExp
@@ -114,7 +114,7 @@ twDEMCBatchInt <- function(
 		ctrl$Tend <- temp
 		
 		##details<< \describe{\item{Temperature estimate from proposal distribution}{
-		## The distribution of differences between Likelihood of proposals Lp and of accepted state La
+		## The distribution of differences between Density of proposals Lp and of accepted state La
 		## can be used to estimate an optimal temperature per data stream, so that each
 		## datastream contributes to rejections in about the same magnitude and the overall
 		## acceptance rate is aobut a specified value.
@@ -124,8 +124,8 @@ twDEMCBatchInt <- function(
 		## temperature Tend, Tend is also lowered.
 		## }}
 		if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ){
-				ctrl$Tprop <- TDiffLogLik <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogLik2(diffLogLikPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
-				#ctrl$Tend <- pmin( ctrl$Tend, apply(TDiffLogLik,2,max))
+				ctrl$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
+				#ctrl$Tend <- pmin( ctrl$Tend, apply(TDiffLogDen,2,max))
 			}
 	}
 	
@@ -141,7 +141,7 @@ twDEMCBatchInt <- function(
 	nChains <- dim(res$parms)[3]
 	nChainsPop <- nChains %/% nPops
 	chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
-	resCols <- match( rownames(res$resFLogLik), rownames(res$Y))	#index of columns of results components in Y
+	resCols <- match( rownames(res$resFLogDen), rownames(res$Y))	#index of columns of results components in Y
 	while( !boConverged & (iRun < nGen) ){
 		cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 		##details<<
@@ -201,21 +201,21 @@ twDEMCBatchInt <- function(
 		if( (doResetOutlierN>0) & (iRun <= nGenBurnin) ){
 			iGenOmega <- max(1,zGen-doResetOutlierN+1):zGen #(zGen%/%2):zGen
 			# according to Vrugt09
-			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogLik[iGenOmega,iChain], na.rm=TRUE)}) #mean logLik across last halv of chain
+			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogDen[iGenOmega,iChain], na.rm=TRUE)}) #mean logDen across last halv of chain
 			for( iPop in 1:nPops ){
 				iChains <- ((iPop-1)*nChainsPop+1):(iPop*nChainsPop)
 				q13 <- quantile( omega[iChains], c(1/4,3/4) )	#lower and upper quartile
 				bo <- omega[iChains] < q13[1] -2*diff(q13)		#outside 2 interquartile ranges, see Vrugt09
 				if( any(bo) ){
 					#reset state of outliers to the best sampled parameter state
-					tmp.best <- which( res$rLogLik[,iChains] == max(res$rLogLik[,iChains]), arr.ind = TRUE )[1,]	
+					tmp.best <- which( res$rLogDen[,iChains] == max(res$rLogDen[,iChains]), arr.ind = TRUE )[1,]	
 					res$parms[,zGen,iChains[bo]] <- res$parms[,tmp.best[1],iChains[ tmp.best[2] ] ]
 				}
 			}
 		}
 		nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)		#iRun: Generation after batch run
 		.dots <- list(...)
-		.dots[c("logLikX","resFLogLikX")] <- NULL;	#those will be inferred from res
+		.dots[c("logDenX","resFLogDenX")] <- NULL;	#those will be inferred from res
 		clArgs <- c(list(Zinit=res), .dots)	#Zinit must be first argument 
 		clArgs$nGen<-nRun
 		clArgs$nPops<-nPops
@@ -236,8 +236,8 @@ twDEMCBatchInt <- function(
 			pAcceptPops <- tapply( pAcceptChains, chain2Pop, mean) 
 			boPopCoolingTooFast <- (pAcceptPops < minAccepRateTempDecrease) 
 			
-			##details<< \describe{\item{cooling and expected difference in Log-Likelihood}{ 
-			## If the difference of temperated Log-Likelihoods between Proposed stepds and accepted steps
+			##details<< \describe{\item{cooling and expected difference in LogDensity}{ 
+			## If the difference of temperated LogDensitys between Proposed stepds and accepted steps
 			## of the component with highest difference (which is negative)
 			## drops below rate=minPCompAcceptTempDecr then cooling is too fast.
 			## The median of the last 128 steps is used
@@ -247,18 +247,18 @@ twDEMCBatchInt <- function(
 			#construct Temp for results and populations
 			tempResPops <- matrix( rep(T0c, length(resCols)), ncol=length(T0c), byrow=TRUE, dimnames=list(rownames(res$Y)[resCols],NULL))
 			tempResPops[names(ctrl$TFix),] <- matrix( rep(TFix, length(T0c)), ncol=length(T0c) )
-			#mtrace(getDiffLogLik.twDEMCProps)
-			#diffLogLikT <- getDiffLogLik.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-			diffLogLik <- getDiffLogLik.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-			diffLogLikPops <- popApplyTwDEMC( diffLogLik, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
-			#diffLogLikPops[!is.finite(diffLogLikPops)] <- NA
+			#mtrace(getDiffLogDen.twDEMCProps)
+			#diffLogDenT <- getDiffLogDen.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
+			diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
+			diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
+			#diffLogDenPops[!is.finite(diffLogDenPops)] <- NA
 			#XXTODO: think about criterion for too fast cooling
-			#tmp <- ecdf(diffLogLikPops["amendm",,])
-			# calculate temperated diffLogLik, i.e. divided by the component and population specific temperature
+			#tmp <- ecdf(diffLogDenPops["amendm",,])
+			# calculate temperated diffLogDen, i.e. divided by the component and population specific temperature
 			.tmp.f <- function(){ 
-				diffLogLikPopsT <- .calcTemperatedDiffLogLik( diffLogLikPops, TFix, T0c)
+				diffLogDenPopsT <- .calcTemperatedDiffLogDen( diffLogDenPops, TFix, T0c)
 				#acceptance rate for each single parameter (percentil > log(0.5)
-				tmpPercAcc <- 1-apply(diffLogLikPopsT,c(1,3),function(d){ ecdf(d)(log(0.5))} ) #comp x pops
+				tmpPercAcc <- 1-apply(diffLogDenPopsT,c(1,3),function(d){ ecdf(d)(log(0.5))} ) #comp x pops
 				boPopCoolingTooFast <- (apply(tmpPercAcc,2,min) < minPCompAcceptTempDecr)
 			}
 			
@@ -267,8 +267,8 @@ twDEMCBatchInt <- function(
 			temp <- T0c	# keep Temperature, only for others cool down further
 			if( any(!boPopCoolingTooFast)) temp[!boPopCoolingTooFast] <- {
 					tempExp <- calcDEMCTemp( T0c[!boPopCoolingTooFast], 1, nGenBurnin-iRun, nRun) #recalculate with initial temperature
-					#mtrace(calcDEMCTempDiffLogLikConst)
-					#tempEmp <- sapply( seq_along(T0c)[!boPopCoolingTooFast], function(iPop){ calcDEMCTempDiffLogLikConst(diffLogLikPops[,,iPop , drop=FALSE], TFix=clArgs$controlTwDEMC$TFix, Tmax=T0c[iPop], pTarget=minPCompAcceptTempDecr+0.02)})
+					#mtrace(calcDEMCTempDiffLogDenConst)
+					#tempEmp <- sapply( seq_along(T0c)[!boPopCoolingTooFast], function(iPop){ calcDEMCTempDiffLogDenConst(diffLogDenPops[,,iPop , drop=FALSE], TFix=clArgs$controlTwDEMC$TFix, Tmax=T0c[iPop], pTarget=minPCompAcceptTempDecr+0.02)})
 					#pmax(1, pmin( tempExp,(2*tempExp+tempEmp)/3 ))
 					tempExp
 				}
@@ -276,10 +276,10 @@ twDEMCBatchInt <- function(
 			
 			pTarget=minPCompAcceptTempDecr+0.02
 			if( (0<length(clArgs$controlTwDEMC$useMultiT)) ) if( clArgs$controlTwDEMC$useMultiT ){
-					#mtrace(calcDEMCTempDiffLogLik2)
-					clArgs$controlTwDEMC$Tprop <- TDiffLogLik <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogLik2(diffLogLikPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
-					#clArgs$controlTwDEMC$Tprop <- TDiffLogLik <- apply( diffLogLikPops, 3, calcDEMCTempDiffLogLik, pTarget=pTarget)  # will be scaled in twDEMCInt
-					#clArgs$controlTwDEMC$Tend <- pmin( tempExp, apply(TDiffLogLik,2,max))
+					#mtrace(calcDEMCTempDiffLogDen2)
+					clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
+					#clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- apply( diffLogDenPops, 3, calcDEMCTempDiffLogDen, pTarget=pTarget)  # will be scaled in twDEMCInt
+					#clArgs$controlTwDEMC$Tend <- pmin( tempExp, apply(TDiffLogDen,2,max))
 				}
 			
 		}

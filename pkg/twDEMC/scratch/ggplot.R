@@ -30,49 +30,49 @@ ggplotDensity.twDEMC <- function(
 	### Plotting the densities for each parameter.
 	res				##<< the twDEMC whose densities to plot
 	,poptDistr=NULL	##<< parameter Distributions for the prior, usually \code{poptDistr <- twConstrainPoptDistr(poptNames,HamerParameterPriors$parDistr )}
-	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogLik>percMin. Can avoid extremes
+	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
 ){
 	nPop = 	ncol(res$temp)
-	nChainsPop = ncol(res$rLogLik)%/%nPop
+	nChainsPop = ncol(res$rLogDen)%/%nPop
 	#thin result to about 200 cases per constrainted population, to save calculation time
-	resT <- resT0 <- thin(res, newThin=(floor((nrow(res$rLogLik)*res$thin*nChainsPop*(1-pMin))/200.0)%/%res$thin)*res$thin )
+	resT <- resT0 <- thin(res, newThin=(floor((nrow(res$rLogDen)*res$thin*nChainsPop*(1-pMin))/200.0)%/%res$thin)*res$thin )
 	if( doTransOrig )
 		resT <- transOrigPopt.twDEMC(resT0) 
-	pLogLik <- popApplyTwDEMC( resT$rLogLik, nPop, as.vector)
-	# include rLogLik as variable
-	tmp <- abind(resT$rLogLik, resT$parms, along=1); dimnames(tmp)[[1]][1] <- "rLogLik"; names(dimnames(tmp))<-names(dimnames(resT$parms))
-	#rownames(tmp)[1] <- c("rLogLik",rownames(resT$parms))
+	pLogDen <- popApplyTwDEMC( resT$rLogDen, nPop, as.vector)
+	# include rLogDen as variable
+	tmp <- abind(resT$rLogDen, resT$parms, along=1); dimnames(tmp)[[1]][1] <- "rLogDen"; names(dimnames(tmp))<-names(dimnames(resT$parms))
+	#rownames(tmp)[1] <- c("rLogDen",rownames(resT$parms))
 	# stack populations
 	#mtrace(popApplyTwDEMC)
 	pTmp <- popApplyTwDEMC( tmp, nPop, function(x){ abind(twListArrDim(x),along=2) })
 	dimnames(pTmp) <- c(dimnames(tmp)[1:2], list(pops=NULL)) 
 	pTmp3 <- if( pMin > 0){
-			# remove cases with lowest rLogLik
-			#popQuantiles <- as.vector(popApplyTwDEMC( resT$rLogLik, nPop, quantile, probs=pMin ))
-			#tmpDs2 <- ddply(tmpDs, .(pop), function(df,pop)subset, rLogLik>popQuantiles[.(pop)] )
+			# remove cases with lowest rLogDen
+			#popQuantiles <- as.vector(popApplyTwDEMC( resT$rLogDen, nPop, quantile, probs=pMin ))
+			#tmpDs2 <- ddply(tmpDs, .(pop), function(df,pop)subset, rLogDen>popQuantiles[.(pop)] )
 			nDrop <- round(ncol(pTmp)*pMin)
-			#aaply takes very long: pTmp2 <- aaply( pTmp, 3, function(A){A[, -(order(A["rLogLik",])[1:nDrop]) ]})
-			abind( lapply( 1:nPop, function(iPop){pTmp[,-(order(pTmp["rLogLik",,iPop])[1:nDrop]),iPop] }), rev.along=0 )
+			#aaply takes very long: pTmp2 <- aaply( pTmp, 3, function(A){A[, -(order(A["rLogDen",])[1:nDrop]) ]})
+			abind( lapply( 1:nPop, function(iPop){pTmp[,-(order(pTmp["rLogDen",,iPop])[1:nDrop]),iPop] }), rev.along=0 )
 		}else pTmp
 	dimnames(pTmp3)<-dimnames(pTmp)
-	#pTmp3 <- pTmp3[c("rLogLik","epsA","kS"),,][,,1:2]
-	#poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-which(rownames(pTmp3)=="rLogLik")],poptDistr )
+	#pTmp3 <- pTmp3[c("rLogDen","epsA","kS"),,][,,1:2]
+	#poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-which(rownames(pTmp3)=="rLogDen")],poptDistr )
 	poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-1],poptDistr )
 	tmpDs3 <- tmpDs4 <- melt(pTmp3)
 	tmpDs3$pops <- as.factor(tmpDs3$pops)
 	if( doTransOrig ){
 		origMat <- function(pop,A){ t(transOrigPopt(t(adrop(A[,,pop,drop=FALSE],3)),poptDistr2$trans))}
 		#mtrace(transOrigPopt.matrix)
-		#origMat(1,pTmp3[-which(rownames(pTmp3)=="rLogLik"),,])
-		pTmp4 <- abind( lapply(1:dim(pTmp3)[3], origMat, A=pTmp3[-which(rownames(pTmp3)=="rLogLik"),,,drop=FALSE]), rev.along=0)
-		pTmp4 <- abind( adrop(pTmp3["rLogLik",,,drop=FALSE],1), pTmp4, along=1) 
+		#origMat(1,pTmp3[-which(rownames(pTmp3)=="rLogDen"),,])
+		pTmp4 <- abind( lapply(1:dim(pTmp3)[3], origMat, A=pTmp3[-which(rownames(pTmp3)=="rLogDen"),,,drop=FALSE]), rev.along=0)
+		pTmp4 <- abind( adrop(pTmp3["rLogDen",,,drop=FALSE],1), pTmp4, along=1) 
 		dimnames(pTmp4)<-dimnames(pTmp3)
 		tmpDs4 <- melt(pTmp4)
 	} 
 	tmpDs4$pops <- as.factor(tmpDs4$pops)
 	
-	#popTrans <- matrix( 1:ncol(resT$rLogLik), ncol=ncol(resT$temp) )
+	#popTrans <- matrix( 1:ncol(resT$rLogDen), ncol=ncol(resT$temp) )
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value))+ #, colour=pops, fill=pops
 		scale_colour_hue("Populations")
 	#p1 + geom_density(aes(y=..scaled..,colour=pops))

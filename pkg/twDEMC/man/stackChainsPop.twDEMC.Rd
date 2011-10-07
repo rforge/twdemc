@@ -13,7 +13,7 @@
   \item{varInRows}{set to TRUE if rows hold variables and columns steps (as in Zinit of twDEMC), defaults to variables in columns}
 }
 
-\value{Array with first column the log-Likelihold rLogLik and the remaining columns the variables
+\value{Array with first column the logDensity rLogDen and the remaining columns the variables
 , rows are steps, third dimension is the population 
 (but see argument \code{varInRows}}
 

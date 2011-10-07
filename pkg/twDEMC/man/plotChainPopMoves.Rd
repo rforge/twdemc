@@ -3,12 +3,12 @@
 \title{plotChainPopMoves}
 \description{Plot boxplots of the distribution of first and last fifth of steps for each population }
 \usage{
-plotChainPopMoves(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogLik)\%/\%ncol(resB$temp)), doSort = TRUE, ..., xlab = "Chains", ylab = "Log-Likelihood")
+plotChainPopMoves(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogDen)\%/\%ncol(resB$temp)), doSort = TRUE, ..., xlab = "Chains", ylab = "LogDensity")
 }
 \arguments{
   \item{resB}{the twDEMC to examine}
   \item{iChains}{mapping from chain to population}
-  \item{doSort}{if TRUE result $rLogLik is sorted}
+  \item{doSort}{if TRUE result $rLogDen is sorted}
   \item{\dots}{further arguements passed to matplot}
   \item{xlab}{
 }

@@ -15,7 +15,7 @@
 				rrcPar <- array( sample(tmp, d$steps*nChainsPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainsPop,i=3) )
 			}), along=2 )
 	xStepAndExtraL <- lapply(1:d$steps, function(iGenThin){ 
-			#.generateXPropChains(Z=Z,nChains=nChains,X=X,rLogLik=rLogLik,mZ=mZ,Npar=Npar,iGen=iGen,ctrl=ctrl,nChainsPop=nChainsPop,g=g,rrcPar=rrcPar) 
+			#.generateXPropChains(Z=Z,nChains=nChains,X=X,rLogDen=rLogDen,mZ=mZ,Npar=Npar,iGen=iGen,ctrl=ctrl,nChainsPop=nChainsPop,g=g,rrcPar=rrcPar) 
 			.generateXPropChains(iGenThin, Z=Z,ctrl=ctrl,rrcPar=rrcPar,nChainsPop=nChainsPop,d=d,...) 
 		}) #rows: difference vectors in parameter space, cols: chains
 	xStepAndExtra <- abind( xStepAndExtraL, rev.along=0)		#third dimension is the step within thinning interval
@@ -24,14 +24,14 @@
 	list(xStep=xStep, rExtra=rExtra)
 	### a list with components (nSeps=thin) \describe{
 	### \item{xStep}{numeric array (Npar,Nchain,Nsteps): difference vectors in parameter space}
-	### \item{rExtra}{numeric matrix (Npar,Nsteps): some extra LogLikelihood from snooker update}}
+	### \item{rExtra}{numeric matrix (Npar,Nsteps): some extra LogDensity from snooker update}}
 }
 
 .xStepParallel.seq <- function(
 	### non-vectorized version of xStepParallel for testing proper vectorization
 	z, ##<< numeric array (Nparms,(nsteps), 3) of random states, dimnames parms,steps,zi
 	#X, ##<< current state (Nparms,(nsteps)) corresponding to chain of second dimension in z
-	zLogLik,	##<< numeric matrix (nsteps,3): logLik corresponding to the random states z   
+	zLogDen,	##<< numeric matrix (nsteps,3): logDen corresponding to the random states z   
 	ctrl
 ){
 	d <- as.list(structure(dim(z),names=c("parms","steps","iz")))
@@ -46,9 +46,9 @@
 		z <- zOrig[,iStep]
 		dz <- (z[,1]-z[,2])	#jump vector as the difference between two random states (from z2 towards z1)
 		if( !is.null(ctrl$probUpDir) && (ctrl$probUpDir != 1/2) ){
-			lz <- sapply( 1:2, function(zi){ rLogLik[ rrGen[zi], rrcPar[iGenThin,iChain,zi] ] })#get the logLikelihood for the random states
-			if( all(is.finite(lz)) && (lz[1] < lz[2]) )	# when proposing a jump between two states towards lower likelihood
-				if( runif(1) >= (2*ctrl$probUpDir-1) ) dz = -dz	# increase chance of going directio of upward LogLikelihood
+			lz <- sapply( 1:2, function(zi){ rLogDen[ rrGen[zi], rrcPar[iGenThin,iChain,zi] ] })#get the logDensity for the random states
+			if( all(is.finite(lz)) && (lz[1] < lz[2]) )	# when proposing a jump between two states towards lower density
+				if( runif(1) >= (2*ctrl$probUpDir-1) ) dz = -dz	# increase chance of going directio of upward LogDensity
 		}
 		if ( runif(1)< ctrl$pGamma1 ) { 
 			gamma_par = ctrl$F1 # to be able to jump between modes
@@ -85,7 +85,7 @@
 	xStepAndExtra
 	### numeric matrix
 	### each column corresponds to a chain
-	### first components of the vector correspond to proposal and last component to some extra logLikelihood
+	### first components of the vector correspond to proposal and last component to some extra logDensity
 }
 
 .generateXProp <- function(
@@ -93,8 +93,8 @@
 	iGenThin,	##<< the generation within thinning interval
 	iChain,		##<< the chain number
 	Z,			##<< numeric array, space for all parameters for all generations
-	rLogLik,	##<< numeric matrix, space for calculated LogLikelihood
-	mZ,			##<< integer, completed generations im mZ and rLogLik
+	rLogDen,	##<< numeric matrix, space for calculated LogDensity
+	mZ,			##<< integer, completed generations im mZ and rLogDen
 	#Npar,		##<< number components of parameter vector (passed for performace reason instead of calling length or dim)
 	#X,			##<< numeric vector, the currently accepted parameter set
 	#iGen,		##<< the current generation
@@ -146,9 +146,9 @@
 		}
 		dz <- (z[,1]-z[,2])	#jump vector as the difference between two random states (from z2 towards z1)
 		if( !is.null(ctrl$probUpDir) && (ctrl$probUpDir != 1/2) ){
-			lz <- sapply( 1:2, function(zi){ rLogLik[ rrGen[zi], rrcPar[iGenThin,iChain,zi] ] })#get the logLikelihood for the random states
-			if( all(is.finite(lz)) && (lz[1] < lz[2]) )	# when proposing a jump between two states towards lower likelihood
-				if( runif(1) >= (2*ctrl$probUpDir-1) ) dz = -dz	# increase chance of going directio of upward LogLikelihood
+			lz <- sapply( 1:2, function(zi){ rLogDen[ rrGen[zi], rrcPar[iGenThin,iChain,zi] ] })#get the logDensity for the random states
+			if( all(is.finite(lz)) && (lz[1] < lz[2]) )	# when proposing a jump between two states towards lower density
+				if( runif(1) >= (2*ctrl$probUpDir-1) ) dz = -dz	# increase chance of going directio of upward LogDensity
 		}
 		if ( runif(1)< ctrl$pGamma1 ) { 
 			gamma_par = ctrl$F1 # to be able to jump between modes
@@ -167,19 +167,19 @@
 	} #DE-parallel direction update
 	#c( xPropChain, rExtra )
 	c( xStepChain, rExtra )
-	### vector with first components the proposal and last component some extra LogLikelihood for decision for snooker decision
+	### vector with first components the proposal and last component some extra LogDensity for decision for snooker decision
 }
 
 
 .doDEMCStep <- function( 
 	### version before sfRemoteWrapper, Perfrom one DEMC step, function to be  alled in remote process
-	x, resFLogLikX, logLikX, 
+	x, resFLogDenX, logDenX, 
 	step, rExtra, 
 	temp,			##<< temperature of the current step and population
 	argsDEMCStep	
 ### list with components \describe{
 ### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
-### \item{argsFLogLik, fLogLikScale}{additional arguments to fLogLik and scalar factor applied to result of fLogLik}
+### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
 ### \item{}{}
 ### }
 ){
@@ -187,33 +187,33 @@
 	## If argsDEMCStep is.name, it is evaluated in remote process. This allows to distribute parameters only once
 	## per \code{sfExport("argsDEMCStep")} and calling this function with \code{argsDEMCStep=as.name("argsDEMCStep")}
 	if( is.name(argsDEMCStep)) argsDEMCStep=eval.parent(argsDEMCStep)	#do not need to be passed each time
-	boResFLogLikX <- { .nc <- ncol(resFLogLikX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
+	boResFLogDenX <- { .nc <- ncol(resFLogDenX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
 	body <- expression( with( argsDEMCStep, {
 				accepted<-FALSE
 				xProp = x + step
 				if( is.function(fDiscrProp)) # possiblity to discretize proposal
 					xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
-				res <- if(boResFLogLikX)
-						do.call( fLogLik, c(list(xProp), list(resFLogLikX), argsFLogLik) )	# evaluate logLik
+				res <- if(boResFLogDenX)
+						do.call( fLogDen, c(list(xProp), list(resFLogDenX), argsFLogDen) )	# evaluate logDen
 					else
-						do.call( fLogLik, c(list(xProp), argsFLogLik) )	# evaluate logLik
-				logLikProp <- sum(res)*fLogLikScale		# maybe a vector, reduce to scalar
-				if( is.finite(logLikProp) ){
-					resFLogLikProp <- if( 0 < length(resFLogLikX) )	#extract the components of res that are handled internally
-						if( !all( names(resFLogLikX) %in% names(res) )){ 
-							stop(paste("not all names of resFLogLikX in return of fLogLik: ",paste(names(res),collapse=",")))
-							res[names(resFLogLikX)]
-						}else FLogLikX
-					logr = (logLikProp+rExtra - logLikX) / temp
+						do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
+				logDenProp <- sum(res)*fLogDenScale		# maybe a vector, reduce to scalar
+				if( is.finite(logDenProp) ){
+					resFLogDenProp <- if( 0 < length(resFLogDenX) )	#extract the components of res that are handled internally
+						if( !all( names(resFLogDenX) %in% names(res) )){ 
+							stop(paste("not all names of resFLogDenX in return of fLogDen: ",paste(names(res),collapse=",")))
+							res[names(resFLogDenX)]
+						}else FLogDenX
+					logr = (logDenProp+rExtra - logDenX) / temp
 					#Metropolis step
 					if ( is.finite(logr) & (logr) > log(runif(1)) ){
 						accepted <- TRUE
 						x <- xProp
-						resFLogLikX <- resFLogLikProp
-						logLikX <- logLikProp
+						resFLogDenX <- resFLogDenProp
+						logDenX <- logDenProp
 					}
 				}
-				list(accepted=accepted,x=x,resFLogLikX=resFLogLikX,logLikX=logLikX)
+				list(accepted=accepted,x=x,resFLogDenX=resFLogDenX,logDenX=logDenX)
 			})) 
 	##details<<  
 	## if argsDEMCStep entry remoteDumpfileBasename is characters
@@ -231,7 +231,7 @@
 	### list with components \describe{
 	### \item{accepted}{boolean scalar: if step was accepted}
 	### \item{x}{numeric vector: current position in parameter space}
-	### \item{resFLogLikX}{numeric vector: result of fLogLik for current position}
-	### \item{logLikX}{numeric scalar: logLik of current position}}
+	### \item{resFLogDenX}{numeric vector: result of fLogDen for current position}
+	### \item{logDenX}{numeric scalar: logDen of current position}}
 }
 

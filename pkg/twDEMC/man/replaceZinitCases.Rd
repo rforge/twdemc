@@ -1,7 +1,7 @@
 \name{replaceZinitCases}
 \alias{replaceZinitCases}
 \title{replaceZinitCases}
-\description{Replaces states of Zinit that yield non-finite rLogLik by sampling other states.}
+\description{Replaces states of Zinit that yield non-finite rLogDen by sampling other states.}
 \usage{
 replaceZinitCases(Zinit, boMat)
 }
@@ -18,5 +18,5 @@ Samples for the second half of chains are sampled from good cases of first half 
 
 
 \seealso{\code{\link{initZtwDEMCNormal}}
-\code{\link{replaceZinitNonFiniteLogLiks}}}
+\code{\link{replaceZinitNonFiniteLogDens}}}
 

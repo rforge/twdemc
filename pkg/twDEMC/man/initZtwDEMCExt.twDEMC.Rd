@@ -3,7 +3,7 @@
 \title{initZtwDEMCExt twDEMC}
 \description{subsampling and extending twDEMC with new variables}
 \usage{
-\method{initZtwDEMCExt}{twDEMC}(vtwdemc, thetaPrior, covarTheta, nChains = ncol(vtwdemc$rLogLik), nPops = ncol(vtwdemc$temp), ...)
+\method{initZtwDEMCExt}{twDEMC}(vtwdemc, thetaPrior, covarTheta, nChains = ncol(vtwdemc$rLogDen), nPops = ncol(vtwdemc$temp), ...)
 }
 \arguments{
   \item{vtwdemc}{the twDEMC list to subsample}

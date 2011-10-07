@@ -1,11 +1,11 @@
 plotMarginal2D <- function(
-	### Plot the 2D marginal Likelihood of a sample
-	smp			##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	### Plot the 2D marginal Density of a sample
+	smp			##<< numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}
 	,xCol=2		##<< index (column number or column name) of column for x ordinate
 	,yCol=3		##<< index (column number or column name) of column for y ordinate
-	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
+	, intCol=1  ##<< index (column number or column name) of column of LogDensity values
 	, grains=18 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
-	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
+	, FUN=mean	 ##<< the function applied over logDensitys in the classes
 	, argsFUN=list(na.rm=TRUE)	##<< additional arguments to FUN 
 	, col=rev(heat.colors(20))	##<< vector of colors
 	, minN=7	##<< minimum number of items in classpixel to be plotted
@@ -22,7 +22,7 @@ plotMarginal2D <- function(
 	## There are several plotting methods related to twDEMC run. \itemize{
 	## \item{ TODO: link methods  } 
 	## \item{ the Gelman criterion: this method  } 
-	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	## \item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
 	##}
 	
 	if( length(grains)==1) grains=c(grains,grains)	
@@ -35,15 +35,15 @@ plotMarginal2D <- function(
 	smp2 <- data.frame(
 		x=rep(xs, each=grains[1])
 		,y=rep(ys, grains[2])
-		,marginalLogLik = do.call( tapply, c(list(smpGrained[,3], tmpGrp, FUN),argsFUN)  )
+		,marginalLogDen = do.call( tapply, c(list(smpGrained[,3], tmpGrp, FUN),argsFUN)  )
 		,n=as.vector(table(tmpGrp))
 	)
 	names(smp2)[1:2] <- colnames(smpGrained)[1:2]
 	smp3 <- smp2
 	smp3[ smp2[,"n"]<minN, 3] <- NA
-	#plot( tmp <- twApply2DMesh(xs, ys, FUN=smp3$marginalLogLik, knotSpacing="all"), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
-	#plot.twApply2DMesh(smp3$marginalLogLik, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col ) 
-	twPlot2D(xs, ys, z=matrix(smp3$marginalLogLik,nrow=length(xs)), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], zlab=colnames(smpGrained)[3], col=col, ... ) 
+	#plot( tmp <- twApply2DMesh(xs, ys, FUN=smp3$marginalLogDen, knotSpacing="all"), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
+	#plot.twApply2DMesh(smp3$marginalLogDen, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col ) 
+	twPlot2D(xs, ys, z=matrix(smp3$marginalLogDen,nrow=length(xs)), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], zlab=colnames(smpGrained)[3], col=col, ... ) 
 	return(invisible(smp2))
 }
 attr(plotMarginal2D,"ex") <- function(){
@@ -56,14 +56,14 @@ attr(plotMarginal2D,"ex") <- function(){
 }
 
 .plotMarginal2D.levelplot <- function(
-	### Plot the 2D marginal Likelihood of a sample
-	smp			##<< numeric matrix: first column log-Likelihood, other columns free parameters, see \code{\link{stackChains.twDEMC}}
+	### Plot the 2D marginal Density of a sample
+	smp			##<< numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}
 	,xCol=2		##<< index (column number or column name) of column for x ordinate
 	,yCol=3		##<< index (column number or column name) of column for y ordinate
-	, intCol=1  ##<< index (column number or column name) of column of LogLikelihood values
+	, intCol=1  ##<< index (column number or column name) of column of LogDensity values
 	, ...		##<< additional arguments to FUN 
 	, grains=20	 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
-	, FUN=mean	 ##<< the function applied over log-Likelihoods in the classes
+	, FUN=mean	 ##<< the function applied over logDensitys in the classes
 	, col=rev(heat.colors(100))	##<< vector of colors
 ){
 	##details<< 
@@ -77,7 +77,7 @@ attr(plotMarginal2D,"ex") <- function(){
 	## There are several plotting methods related to twDEMC run. \itemize{
 	## \item{ TODO: link methods  } 
 	## \item{ the Gelman criterion: this method  } 
-	## \item{ the theorectical minimum logLik-Value for significant model difference : \code{\link{getRLogLikQuantile}}  } 
+	## \item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
 	##}
 	
 	if( length(grains)==1) grains=c(grains,grains)	
@@ -92,7 +92,7 @@ attr(plotMarginal2D,"ex") <- function(){
 
 
 plotConditional2D <- function(
-	### Plot the 2D conditional profile-Likelihood of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.
+	### Plot the 2D conditional profile-Density of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.
 	smp			
 	,xCol=2
 	,yCol=3
@@ -110,29 +110,29 @@ plotConditional2D <- function(
 ggplotChainPopMoves <- function(
 	### Plot boxplots of the distribution of first and last fifth of steps for each population 
 	resB			##<< the twDEMC to examine
-	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogLik)%/%ncol(resB$temp))
+	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogDen)%/%ncol(resB$temp))
 		### mapping from chain to population
-	, doSort=TRUE	##<< if TRUE result $rLogLik is sorted
+	, doSort=TRUE	##<< if TRUE result $rLogDen is sorted
 ){
 	# ggplotChainPopMoves
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
 	## \code{\link{twDEMCInt}}
 	
-	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
+	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	tmp1 <- melt(resB$rLogLik[iGen[1,1]:iGen[2,1],]); tmp1$pos="from"
-	tmp2 <- melt(resB$rLogLik[iGen[1,2]:iGen[2,2],]); tmp2$pos="to"
+	tmp1 <- melt(resB$rLogDen[iGen[1,1]:iGen[2,1],]); tmp1$pos="from"
+	tmp2 <- melt(resB$rLogDen[iGen[1,2]:iGen[2,2],]); tmp2$pos="to"
 	
-	dfLogLik2 <- rbind(tmp1,tmp2)
-	dfLogLik2$Pop <- iChains[dfLogLik2$X2]  #(dfLogLik2$X2-1) %% ncol(resB$temp) +1
-	dfLogLik2 <- dfLogLik2[order(dfLogLik2$Pop,dfLogLik2$pos),]
-	dfLogLik2$PopPos <- paste(dfLogLik2$Pop,dfLogLik2$pos, sep="_")
-	dfLogLik2$PopPos <- factor( dfLogLik2$PopPos, levels=unique(dfLogLik2$PopPos) )
+	dfLogDen2 <- rbind(tmp1,tmp2)
+	dfLogDen2$Pop <- iChains[dfLogDen2$X2]  #(dfLogDen2$X2-1) %% ncol(resB$temp) +1
+	dfLogDen2 <- dfLogDen2[order(dfLogDen2$Pop,dfLogDen2$pos),]
+	dfLogDen2$PopPos <- paste(dfLogDen2$Pop,dfLogDen2$pos, sep="_")
+	dfLogDen2$PopPos <- factor( dfLogDen2$PopPos, levels=unique(dfLogDen2$PopPos) )
 	
-	dfMed <- aggregate(dfLogLik2$value,list(Pop=dfLogLik2$Pop,pos=dfLogLik2$pos), median)
-	#dfMed$q25 <- aggregate(dfLogLik2$value,list(Pop=dfLogLik2$Pop,pos=dfLogLik2$pos), function(values){ quantile(values, probs=0.25)})
-	dfMed$q25 <- aggregate(dfLogLik2$value,list(Pop=dfLogLik2$Pop,pos=dfLogLik2$pos), quantile, probs=0.25)$x
+	dfMed <- aggregate(dfLogDen2$value,list(Pop=dfLogDen2$Pop,pos=dfLogDen2$pos), median)
+	#dfMed$q25 <- aggregate(dfLogDen2$value,list(Pop=dfLogDen2$Pop,pos=dfLogDen2$pos), function(values){ quantile(values, probs=0.25)})
+	dfMed$q25 <- aggregate(dfLogDen2$value,list(Pop=dfLogDen2$Pop,pos=dfLogDen2$pos), quantile, probs=0.25)$x
 	dfMed <- dfMed[order(dfMed$Pop,dfMed$pos),]
 	dfMed$PopPos <- paste(dfMed$Pop,dfMed$pos, sep="_")
 	dfMed$PopPos <- factor( dfMed$PopPos, levels=unique(dfMed$PopPos) )
@@ -140,7 +140,7 @@ ggplotChainPopMoves <- function(
 	dfMed$medTo <- c(dfMed$x[-1],NA)
 	dfMedSingle <- subset(dfMed, pos=="from")
 	
-	p5 <- ggplot( dfLogLik2, aes(x=pos,y=value) )+ xlab("Population") +ylab("Log-Likelihood") +	facet_grid(.~Pop)
+	p5 <- ggplot( dfLogDen2, aes(x=pos,y=value) )+ xlab("Population") +ylab("LogDensity") +	facet_grid(.~Pop)
 	p6 <- p5+
 	geom_boxplot(aes(fill=pos))+
 	geom_point( aes(x=1,y=medFrom), data=dfMedSingle, shape=1 )+
@@ -150,24 +150,24 @@ ggplotChainPopMoves <- function(
 	scale_x_discrete(breaks=as.character(dfMed$PopPos), labels=as.vector(rbind(dfMedSingle$Pop,"")))+	
 	scale_fill_manual("Records",value=c("white","aliceblue"), breaks=c("from","to"),labels=iLabel )+
 	#scale_fill_brewer("Generations", breaks=c("from","to"),labels=iLabel,pal="Paired" )+
-	coord_cartesian(ylim = {tmp<-c(min(dfMed$q25), max(dfLogLik2$value));tmp+diff(tmp)*0.05*c(-1,-1)},  )
+	coord_cartesian(ylim = {tmp<-c(min(dfMed$q25), max(dfLogDen2$value));tmp+diff(tmp)*0.05*c(-1,-1)},  )
 	
 	### List with components 
 	list( ##describe<< 
 		plot=p6,				##<< the ggplot object 
-		rLogLik=if(doSort) sort(dfMedSingle$medTo,decreasing=TRUE) else dfMedSingle$medTo	##<< Median of Log-Likelihoods of last period
+		rLogDen=if(doSort) sort(dfMedSingle$medTo,decreasing=TRUE) else dfMedSingle$medTo	##<< Median of LogDensitys of last period
 	)##end<< 
 }
 
 plotChainPopMoves <-function(	
 	### Plot boxplots of the distribution of first and last fifth of steps for each population 
 	resB			##<< the twDEMC to examine
-	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogLik)%/%ncol(resB$temp))
+	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogDen)%/%ncol(resB$temp))
 	### mapping from chain to population
-	, doSort=TRUE	##<< if TRUE result $rLogLik is sorted
+	, doSort=TRUE	##<< if TRUE result $rLogDen is sorted
 	,...			##<< further arguements passed to matplot
 	, xlab="Chains"
-	, ylab="Log-Likelihood"
+	, ylab="LogDensity"
 ){
 	##details<< 
 	## \code{\link{ggplotChainPopMoves}} gives nicer results, but this functions i faster.
@@ -176,34 +176,34 @@ plotChainPopMoves <-function(
 	## \code{\link{plotMarginal2D}}
 	## \code{\link{twDEMCInt}}
 	
-	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogLik))+1, floor(c(4/5,1)*nrow(resB$rLogLik)) )
+	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
 	#iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogLik1 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
-	rLogLik2 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
+	rLogDen1 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,1],],ncol(resB$temp)))
+	rLogDen2 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,2],],ncol(resB$temp)))
 	
-	matplot( cbind(rLogLik1,rLogLik2), pch=c(as.character(1:9),LETTERS), type="n", xlab=xlab, ylab=ylab, ... )
-	points(rLogLik1, pch=c(as.character(1:9),LETTERS))
-	points(rLogLik2, pch=c(as.character(1:9),LETTERS), col="red")
-	arrows( 1:length(rLogLik1),rLogLik1,1:length(rLogLik1),rLogLik2, length=0.1)
-	if( doSort) sort(rLogLik2, decr=TRUE) else rLogLik2
+	matplot( cbind(rLogDen1,rLogDen2), pch=c(as.character(1:9),LETTERS), type="n", xlab=xlab, ylab=ylab, ... )
+	points(rLogDen1, pch=c(as.character(1:9),LETTERS))
+	points(rLogDen2, pch=c(as.character(1:9),LETTERS), col="red")
+	arrows( 1:length(rLogDen1),rLogDen1,1:length(rLogDen1),rLogDen2, length=0.1)
+	if( doSort) sort(rLogDen2, decr=TRUE) else rLogDen2
 	
 }
 
 .tmp.f <- function(){
-	matplot( cbind(rLogLik1,rLogLik2), pch=c(as.character(1:9),LETTERS), type="n", ... )
-	points(rLogLik1, pch=c(as.character(1:9),LETTERS))
-	points(rLogLik2, pch=c(as.character(1:9),LETTERS), col="red")
-	arrows( 1:length(rLogLik1),rLogLik1,1:length(rLogLik1),rLogLik2, length=0.1)
-	if( doSort) sort(rLogLik2, decr=TRUE) else rLogLik2
+	matplot( cbind(rLogDen1,rLogDen2), pch=c(as.character(1:9),LETTERS), type="n", ... )
+	points(rLogDen1, pch=c(as.character(1:9),LETTERS))
+	points(rLogDen2, pch=c(as.character(1:9),LETTERS), col="red")
+	arrows( 1:length(rLogDen1),rLogDen1,1:length(rLogDen1),rLogDen2, length=0.1)
+	if( doSort) sort(rLogDen2, decr=TRUE) else rLogDen2
 	
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogLik1 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,1],],ncol(resB$temp)))
-	rLogLik2 <- colMeans(popMeansTwDEMC(resB$rLogLik[iGen[,2],],ncol(resB$temp)))
-	#tmp1 <- tapply(res$rLogLik[nrow(res$rLogLik)-nBack,], iChains, mean)
-	#tmp2 <- tapply(res$rLogLik[nrow(res$rLogLik),], iChains, mean)
+	rLogDen1 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,1],],ncol(resB$temp)))
+	rLogDen2 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,2],],ncol(resB$temp)))
+	#tmp1 <- tapply(res$rLogDen[nrow(res$rLogDen)-nBack,], iChains, mean)
+	#tmp2 <- tapply(res$rLogDen[nrow(res$rLogDen),], iChains, mean)
 	#windows(); 
-	dfLogLik <- data.frame(Chain=seq_along(rLogLik1), from=rLogLik1, to=rLogLik2) 
-	p1 <- ggplot( dfLogLik, aes(x = Chain, y = from))+ xlab("Chain")+ ylab("Log-Likelihood")+
+	dfLogDen <- data.frame(Chain=seq_along(rLogDen1), from=rLogDen1, to=rLogDen2) 
+	p1 <- ggplot( dfLogDen, aes(x = Chain, y = from))+ xlab("Chain")+ ylab("LogDensity")+
 		geom_segment(aes(xend=Chain, yend = to),
 			colour="gray40",	arrow=arrow(length=unit(0.15,"cm")))+
 		geom_point(aes(colour=iLabel[1]))+
@@ -211,14 +211,14 @@ plotChainPopMoves <-function(
 		scale_colour_manual("Generations",structure(c("black","red"),names=iLabel) )
 	p1
 	
-	p2 <- ggplot( dfLogLik2, aes(x=PopPos,y=value) )+ xlab("Population") +ylab("Log-Likelihood") + 
+	p2 <- ggplot( dfLogDen2, aes(x=PopPos,y=value) )+ xlab("Population") +ylab("LogDensity") + 
 		geom_boxplot(aes(fill=pos))+
 		scale_colour_manual("Generations",breaks=c("from","to"),labels=iLabel )
 	#scale_x_discrete(breaks=as.character(dfMed$PopPos), labels=as.vector(rbind(dfMedSingle$Pop,"")))+	
 	#geom_segment(aes(x=(Pop-1)*2+1, xend=(Pop-1)*2+2, y=medFrom, yend=medTo ), data=dfMedSingle,
 	#	colour="gray40", arrow=arrow(length=unit(0.15,"cm")))+
-	#p3 <- p2 + ylim( min(dfMed$q25), max(dfLogLik2$value) )
-	p3 <- p2 + coord_cartesian(ylim = {tmp<-c(min(dfMed$q25), max(dfLogLik2$value));tmp+diff(tmp)*0.05*c(-1,-1)},  )+
+	#p3 <- p2 + ylim( min(dfMed$q25), max(dfLogDen2$value) )
+	p3 <- p2 + coord_cartesian(ylim = {tmp<-c(min(dfMed$q25), max(dfLogDen2$value));tmp+diff(tmp)*0.05*c(-1,-1)},  )+
 		p3	
 	
 	
@@ -309,18 +309,18 @@ ggplotDensity.twDEMC <- function(
 	### Plotting the densities for each parameter.
 	res				##<< the twDEMC whose densities to plot
 	,poptDistr=NULL	##<< parameter Distributions for the prior, usually \code{poptDistr <- \link{twConstrainPoptDistr}(poptNames,HamerParameterPriors$parDistr )}
-	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogLik>percMin. Can avoid extremes
+	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
-	,doDispLogLik=TRUE	##<< include density of LogLikelihoods
+	,doDispLogDen=TRUE	##<< include density of LogDensitys
 ){
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
 	## \code{\link{twDEMCInt}}
 	
 	nPop = 	ncol(res$temp)
-	nChainsPop = ncol(res$rLogLik)%/%nPop
+	nChainsPop = ncol(res$rLogDen)%/%nPop
 	#thin result to about 500 cases per constrainted population, to save calculation time
-	resT <- resT0 <- thin(res, newThin=max(1,floor((nrow(res$rLogLik)*res$thin*nChainsPop*(1-pMin))/500.0)%/%res$thin)*res$thin )
+	resT <- resT0 <- thin(res, newThin=max(1,floor((nrow(res$rLogDen)*res$thin*nChainsPop*(1-pMin))/500.0)%/%res$thin)*res$thin )
 	if( 0 < length(poptDistr) )
 		poptDistr2 <- twConstrainPoptDistr(rownames(resT0$parms),poptDistr )	#also used for prior
 	if( doTransOrig ){
@@ -329,22 +329,22 @@ ggplotDensity.twDEMC <- function(
 	}
 	# stack populations
 	pParms <- popApplyTwDEMC( resT$parms, nPop, function(x){ abind(twListArrDim(x),along=2) })
-	pLogLik <- popApplyTwDEMC( resT$rLogLik, nPop, as.vector)
-	tmp <- abind(pLogLik, pParms, along=1); 
+	pLogDen <- popApplyTwDEMC( resT$rLogDen, nPop, as.vector)
+	tmp <- abind(pLogDen, pParms, along=1); 
 	pTmp3 <- if( pMin > 0){
-			# remove cases with lowest rLogLik
+			# remove cases with lowest rLogDen
 			nDrop <- floor(ncol(tmp)*pMin)
 			abind( lapply( 1:nPop, function(iPop){
-						iKeep <- order(pLogLik[,iPop,drop=TRUE])[-(1:nDrop)]
+						iKeep <- order(pLogDen[,iPop,drop=TRUE])[-(1:nDrop)]
 						twExtractFromLastDims(adrop(tmp[,,iPop,drop=FALSE],3),iKeep) 
 					}), rev.along=0 )
 		}else tmp
-	dimnames(pTmp3)<-list( parms=c("rLogLik",rownames(res$parms)),steps=NULL, pops=NULL)
-	#pTmp3 <- pTmp3[c("rLogLik","epsA","kS"),,][,,1:2]
-	#pTmp3 <- pTmp3[c("rLogLik","tvr"),,][,,1:2]
+	dimnames(pTmp3)<-list( parms=c("rLogDen",rownames(res$parms)),steps=NULL, pops=NULL)
+	#pTmp3 <- pTmp3[c("rLogDen","epsA","kS"),,][,,1:2]
+	#pTmp3 <- pTmp3[c("rLogDen","tvr"),,][,,1:2]
 	#poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-1],poptDistr )
-	if( !doDispLogLik ){
-		pTmp3 <- pTmp3[rownames(pTmp3)!="rLogLik",,]		
+	if( !doDispLogDen ){
+		pTmp3 <- pTmp3[rownames(pTmp3)!="rLogDen",,]		
 	}		
 	tmpDs4 <- melt(pTmp3)
 	tmpDs4$pops <- as.factor(tmpDs4$pops)

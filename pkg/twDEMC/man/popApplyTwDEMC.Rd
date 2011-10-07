@@ -22,11 +22,11 @@ popApplyTwDEMC(x, nPops, FUN, ...)
 \code{\link{subChains.twDEMC}}}
 \examples{
 data(twdemcEx1)
-# mean rLoglik for each case, i.e. step, by population
+# mean rLogDen for each case, i.e. step, by population
 nPops=getNPops(twdemcEx1)
-popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, apply, 1, mean )	
-# stack rLogLik for each population
-popApplyTwDEMC( twdemcEx1$rLogLik, nPops=nPops, as.vector )
+popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, apply, 1, mean )	
+# stack rLogDen for each population
+popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, as.vector )
 #stack param columns by population
 (tmp <- popApplyTwDEMC( twdemcEx1$parms, nPops=nPops, function(x){ abind(twListArrDim(x),along=2) }))	
 }

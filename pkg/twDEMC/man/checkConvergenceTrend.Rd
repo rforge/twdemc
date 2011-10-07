@@ -3,7 +3,7 @@
 \title{checkConvergenceTrend}
 \description{checks whether the first and last fifth mean of populations differ significantly }
 \usage{
-checkConvergenceTrend(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogLik)\%/\%ncol(resB$temp)))
+checkConvergenceTrend(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogDen)\%/\%ncol(resB$temp)))
 }
 \arguments{
   \item{resB}{the twDEMC to examine}

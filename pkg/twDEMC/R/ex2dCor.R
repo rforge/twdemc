@@ -3,7 +3,7 @@
 mod2dCorExLog <- function(
 	### example 2d model function of normal density + sin
 	theta	##<< parameter vector with names x and y
-	,xval	##<< additional argument, passed by ... in logLikGaussian
+	,xval	##<< additional argument, passed by ... in logDenGaussian
 	,mu		##<< mean of the normal dist 
 	,Sigma	##<< covariance matrix of the normal distribution
 	,c=500	##<< multiplicative constant
@@ -12,7 +12,7 @@ mod2dCorExLog <- function(
 	# dummyTwDEMCModel
 	##seealso<<   
 	## \code{\link{twDEMCInt}}
-	## \code{\link{logLikGaussian}}
+	## \code{\link{logDenGaussian}}
 	tmp1 <- dmvnorm(theta, mean=mu, sigma=Sigma) 
 	#(sin(theta[1]*5)+1)/2 * (sin(theta[2]*5)+1)/2 * max(tmp1)
 	log((sin((theta[1]+theta[2])*5)+1)/2 * tmp1 + tmp1) - c

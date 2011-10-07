@@ -146,8 +146,8 @@ test.twCoefLnormMLE <- function(){
 	#z <- rlnorm(1e4, meanlog=theta0[1], sdlog=theta0[2])
 	#plot(density(z))
 	
-	fLogLikLNorm <- function(
-		### Log-Likelihood of Lognormal distribution
+	fLogDenLNorm <- function(
+		### LogDensity of Lognormal distribution
 		x
 		,theta0  # the priors
 	){
@@ -158,10 +158,10 @@ test.twCoefLnormMLE <- function(){
 				-1/2*((logx-mu)^2)/sd^2 -logx
 			})
 		cbind(parms=as.numeric(resPrior))
-		### Log-Likelihood of observations and prior
+		### LogDensity of observations and prior
 	}
 
-	tmpL <- fLogLikLNorm(xGrid,theta0)
+	tmpL <- fLogDenLNorm(xGrid,theta0)
 	i2 <- which.max(tmpL)
 	xGrid[i2]
 	plot( -tmpL ~ xGrid, ylim=c(0,2))
@@ -173,7 +173,7 @@ test.twCoefLnormMLE <- function(){
 	Zinit <- exp(initZtwDEMCNormal( theta0[1], theta0[2] ))
 	#mtrace(twDEMCInt)
 	resMC4 <- twDEMCBatch( Zinit, nGen=800, nPops=2
-		, fLogLik=fLogLikLNorm, argsFLogLik=list(theta0=theta0)
+		, fLogDen=fLogDenLNorm, argsFLogDen=list(theta0=theta0)
 	)
 	#mtrace(as.mcmc.list.twDEMC)
 	plotThinned(as.mcmc.list(resMC4))
@@ -186,21 +186,21 @@ test.twCoefLnormMLE <- function(){
 	# two lines match sufficiently: sampled correct log-normal distribution
 
 	# second approach sample in log space
-	fLogLikLNormLog <- function(
-		### Log-Likelihood of Lognormal distribution
+	fLogDenLNormLog <- function(
+		### LogDensity of Lognormal distribution
 		logx	 # log of the parameter
 		,theta0  # the priors
 	){
 		mu=theta0[1]
 		sd=theta0[2]
 		-1/2*((logx-mu)^2)/sd^2
-		### Log-Likelihood of observations and prior
+		### LogDensity of observations and prior
 	}
 	
 	Zinit <- initZtwDEMCNormal( theta0[1], theta0[2] )
 	#mtrace(twDEMCInt)
 	resMC5 <- twDEMCBatch( Zinit, nGen=800, nPops=2
-		, fLogLik=fLogLikLNormLog, argsFLogLik=list(theta0=theta0)
+		, fLogDen=fLogDenLNormLog, argsFLogDen=list(theta0=theta0)
 	)
 	#mtrace(as.mcmc.list.twDEMC)
 	plotThinned(as.mcmc.list(resMC5))

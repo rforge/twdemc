@@ -58,9 +58,9 @@ tmp.f <- function(){
 	# only complicates it, do not use call argument any more
 	if( !is.null(Zinit$call) ){	#update parameters from former call
 		fcl <- Zinit$call
-		if( !hasArg(fLogLik) ){
-			ccl$fLogLik <- fcl$fLogLik
-			fLogLik <- eval.parent(fcl$fLogLik)
+		if( !hasArg(fLogDen) ){
+			ccl$fLogDen <- fcl$fLogDen
+			fLogDen <- eval.parent(fcl$fLogDen)
 		}
 		if( !is.null(fcl$DEMCzspControl) ){
 			#reuse old control arguments that have not been respecified
@@ -71,25 +71,25 @@ tmp.f <- function(){
 			#ccl$DEMCzspControl <- as.call( c(list, as.list(ccl$DEMCzspControl)[-1], as.list(fcl$DEMCzspControl)[argNames]) )
 			ccl$DEMCzspControl <- fcl$DEMCzspControl
 		}
-		if( !is.null(fcl$argsFLogLik) ){
-			#reuse old arguments to fLogLik that have not been respecified, when specified as a name, evaluate first
-			fArgs <- eval.parent(fcl$argsFLogLik)
+		if( !is.null(fcl$argsFLogDen) ){
+			#reuse old arguments to fLogDen that have not been respecified, when specified as a name, evaluate first
+			fArgs <- eval.parent(fcl$argsFLogDen)
 			if( is.list(fArgs) ){
-				argNames <- names(fArgs)[ !(names(fArgs) %in% names(argsFLogLik)) ]
-				argsFLogLik[argNames] <- fArgs[argNames]
+				argNames <- names(fArgs)[ !(names(fArgs) %in% names(argsFLogDen)) ]
+				argsFLogDen[argNames] <- fArgs[argNames]
 			}else{
-				if( !hasArg(argsFLogLik) )
-					argsFLogLik <- fArgs	
+				if( !hasArg(argsFLogDen) )
+					argsFLogDen <- fArgs	
 			}
-			#ccl$argsFLogLik <- substitute(argsFLogLik)	#will replace reference to list by contents of list
+			#ccl$argsFLogDen <- substitute(argsFLogDen)	#will replace reference to list by contents of list
 			# do not update, provide the former (and by recursion first argument set)
-			#ccl$argsFLogLik <- as.call( c(list, as.list(ccl$argsFLogLik)[-1], as.list(fcl$argsFLogLik)[argNames]) )	#will replace reference to list by contents of list
+			#ccl$argsFLogDen <- as.call( c(list, as.list(ccl$argsFLogDen)[-1], as.list(fcl$argsFLogDen)[argNames]) )	#will replace reference to list by contents of list
 			# may change parameters on the fly, for permannent changes refer to a list defined in parent and change this one				
-			ccl$argsFLogLik = fcl$argsFLogLik
+			ccl$argsFLogDen = fcl$argsFLogDen
 		}
-		if( !hasArg("fLogLikScale") && !is.null(fcl$fLogLikScale) ){
-			fLogLikScale <- eval.parent(fcl$fLogLikScale)
-			ccl$fLogLikScale = fcl$fLogLikScale
+		if( !hasArg("fLogDenScale") && !is.null(fcl$fLogDenScale) ){
+			fLogDenScale <- eval.parent(fcl$fLogDenScale)
+			ccl$fLogDenScale = fcl$fLogDenScale
 		}
 	}
 }

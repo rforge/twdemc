@@ -12,7 +12,7 @@
 }
 }
 
-\value{Matrix with first column the log-Likelihold rLogLik and the remaining columns the variables.}
+\value{Matrix with first column the logDensity rLogDen and the remaining columns the variables.}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
 

@@ -4,31 +4,35 @@
 \title{twDEMCInt}
 \description{Differential Evolution Markov Chain}
 \usage{
-twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logLikX = NULL, fLogLik, argsFLogLik = list(), resFLogLikX = NULL, intResCompNames = character(0), fLogLikScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE)
+twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logDenX = NULL, fLogDen, argsFLogDen = list(), resFLogDenX = NULL, intResCompNames = character(0), fLogDenScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE)
 }
 \arguments{
   \item{Zinit}{initial population: a matrix of number of parameters by number of individuals (d x m0 x nChains) see details and \code{\link{initZtwDEMCNormal}}.}
   \item{nGen}{number of generations, i.e. steps of the chain}
-  \item{\dots}{further arguments passed to fLogLik}
+  \item{\dots}{further arguments passed to fLogDen}
   \item{controlTwDEMC}{DEMCzsControl parameters influencing the update and the convergens of the chains (see details)	}
   \item{X}{initial active population that will be evolved: a matrix of number of parameters by number of chains (d x N)
 if null, it will be initialized to the last row of Zinit}
-  \item{logLikX}{log-Likelihood of initial values, may save time if already calculated}
-  \item{fLogLik}{\code{function(theta, ...)} calculates a vector of log-Likelihoods corresponding to different data streams of parameter vector theta 
-or \code{function(theta, resFLogLikX, metropolisStepTemp, ...)} to handle first steps in Multi-step Metropolis decision internally. See details.  }
-  \item{argsFLogLik}{further arguments passed to fLogLik}
-  \item{resFLogLikX}{numeric matrix: logLik components x chains, see details}
-  \item{intResCompNames}{character vector: names of results components of fLogLik that are used for internal Metropolis decisions }
-  \item{fLogLikScale}{scalar multiplied to the result of fLogLik 
-allows using functions of negative LogLikelihood (-1) or Gaussian misfit function (-1/2) instead of logLikelihood}
+  \item{logDenX}{logDensity of initial values, may save time if already calculated}
+  \item{fLogDen}{\code{function(theta, ...)} calculates a vector of logDensities 
+corresponding to different data streams of parameter vector theta 
+\cr or \code{function(theta, resFLogDenX, metropolisStepTemp, ...)} 
+to handle first steps in Multi-step Metropolis decision internally. 
+See details.  }
+  \item{argsFLogDen}{further arguments passed to fLogDen}
+  \item{resFLogDenX}{numeric matrix: logDen components x chains, see details}
+  \item{intResCompNames}{character vector: names of results components of fLogDen that are used for internal Metropolis decisions }
+  \item{fLogDenScale}{scalar multiplied to the result of fLogDen 
+allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity}
   \item{debugSequential}{if TRUE apply is used instead of sfApply, for easier debugging}
   \item{remoteDumpfileBasename}{the basename of a dumpfile that is created on error on remote process }
   \item{nPops}{the number of populations that do not mix: must be a factor of dimension nChains of Zinit}
   \item{fDiscrProp}{function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)}
   \item{argsFDiscrProp}{further arguments to fDiscrProp}
-  \item{doRecordProposals}{if TRUE then an array of each proposal together with the results of fLogLik are recorded and returned in component Y}
+  \item{doRecordProposals}{if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y}
 }
-\details{This is the central method for applying a Differential Evolution Markov Chain.
+\details{This is the central method for applying a Differential Evolution Markov Chain given a function of 
+an unnormalized probability density.
 It is invoked usually by \code{twDEMC} (\code{\link{twDEMC.array}} or \code{\link{twDEMCBatchInt}})
 
 This method is based on Code of ter Braak  ter  Braak C. J. F., and Vrugt J. A. (2008). Differential Evolution Markov Chain 
@@ -56,11 +60,11 @@ This is supported by specifying argument nPops. Then the n chains, i.e. dim(Zini
 \item{epsMult}{>0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update}
 \item{epsAdd}{>0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update.}
 \item{thin}{thinning interval}
-\item{T0}{initial and end Temperature to flatten the likelihood surface, for each population}
-\item{useMultiT}{if TRUE Temperature for different data streams are scaled by logLik of accepted state}
-\item{TFix}{named numeric vector of Temperatures of fLogLik components, whose Temperature is fixed}
+\item{T0}{initial and end Temperature to flatten the density surface, for each population}
+\item{useMultiT}{if TRUE Temperature for different data streams are scaled by logDen of accepted state}
+\item{TFix}{named numeric vector of Temperatures of fLogDen components, whose Temperature is fixed}
 \item{pAcceptWindowWidth}{number of generations back over which the acceptance rate is calculated}
-\item{probUpDir}{probability of direction between two states of increasing Likelihood (increase during burin may accelerate convergence)}
+\item{probUpDir}{probability of direction between two states of increasing Density (increase during burin may accelerate convergence)}
 \item{initialAcceptanceRate}{numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from}
 \item{DRgamma}{factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step}
 \item{minPCompAcceptTempDecr}{if acceptance rate drops below 1.2 times this level, employ delayed rejection (DR)
@@ -73,16 +77,16 @@ before evaluating the model in order to save the possibly costly model evaluatio
 \cr
 Argument \code{intResCompNames} specifies a character vector of return components that are handled internally in the objective function.
 The first currently accepted value provided to next 
-evaluation of the objective function is taken from \code{resFLogLikX}. If this 
-argument is NULL, then a proper matrix of \code{resFLogLikX} will be initialized to -Inf, i.e. accepting the next step
+evaluation of the objective function is taken from \code{resFLogDenX}. If this 
+argument is NULL, then a proper matrix of \code{resFLogDenX} will be initialized to -Inf, i.e. accepting the next step
 \cr 
-See the code of \code{\link{logLikGaussian}} for an example multistep version of fLogLik
+See the code of \code{\link{logDenGaussian}} for an example multistep version of fLogDen
 }}
 
 \describe{ \item{Initial state: \code{X}}{
 If initial state X is not specified, the last column (generation) of Z is utilized.
-If in addition to X, logLikX is specified, the fLogLik will not be avaluated for the initial state of the chains.
-All the results of fLogLik for the initial state must be finite.
+If in addition to X, logDenX is specified, the fLogDen will not be avaluated for the initial state of the chains.
+All the results of fLogDen for the initial state must be finite.
 }}
 
 \describe{ \item{Acceptance rate}{
@@ -93,12 +97,12 @@ In order to improve localization, less parameters or more chains per population 
 }}}
 \value{list of class \code{twDEMC} (with \code{nStep = M0+nGen\%/\%thin}) \describe{
 \item{parms}{ array (d x nStep x nChain) the initial parameters (last row of M0) and the accepted parameter combinations}
-\item{rLogLik}{ array (nStep x nChain) the logLik of the accepted parameter combinations}
+\item{rLogDen}{ array (nStep x nChain) the logDen of the accepted parameter combinations}
 \item{pAccept}{ array (nStep x nChain) the acceptance probability over previous ctrl$pAcceptWindowWidth steps }
 \item{temp}{ vector (nStep) the Temperature used at the step }
-\item{resFLogLikX}{ array (nInternalResult x nChain) of fLogLik results of currently accepted step}
+\item{resFLogDenX}{ array (nInternalResult x nChain) of fLogDen results of currently accepted step}
 \item{thin}{ numeric: thinning interval }
-\item{Y}{ numeric matrix: record of all proposals together with results components and columns "rLogLik" and boolean "accepted".
+\item{Y}{ numeric matrix: record of all proposals together with results components and columns "rLogDen" and boolean "accepted".
 The length is the thinning intervals of the last 128steps or (if doRecordProposals) all the steps +1 for the first line of the initial state.}
 }}
 
@@ -111,24 +115,24 @@ The length is the thinning intervals of the last 128steps or (if doRecordProposa
 \item{ Generating an initial population for twDEMC: \code{\link{initZtwDEMCNormal}}  }
 \item{ Transforming the results of twDEMC: \code{\link{subChains.twDEMC}}  }
 \item{ Transforming the parameter space: \code{\link{transOrigPopt.default}}  }
-\item{ Invoking fLoglik with proposal in a parallel load balanced way: \code{\link{twCalcLogLikPar}}  }
+\item{ Invoking fLogDen with proposal in a parallel load balanced way: \code{\link{twCalcLogDenPar}}  }
 \item{ Plotting routines: \code{\link{plotMarginal2D}}  }
 \item{ Calculating marginal aggregates: \code{\link{marginals1d}}  }
 \item{ Diagnostics for MCMC samples: \code{\link{checkConvergenceGelman}}  }
 }
 \code{\link{calcDEMCTemp}}
-\code{\link{logLikGaussian}}
+\code{\link{logDenGaussian}}
 \code{\link{.generateXPropThin}}
 \code{\link{.doDEMCSteps}}
 \code{\link{.doDEMCStep}}}
 \examples{
 data(twLinreg1); attach(twLinreg1); plot(obs~xval); abline(theta0)
 
-# setup the model and the function of Log-Likelihood of parameters
+# setup the model and the function of LogDensity of parameters
 # ?dummyTwDEMCModel
-# ?logLikGaussian
-argsFLogLik <- list( fModel=dummyTwDEMCModel,obs=obs,invCovar=invCovar,	xval=xval )
-do.call( logLikGaussian, c(list(theta=theta0),argsFLogLik)) #test calling the logLik function
+# ?logDenGaussian
+argsFLogDen <- list( fModel=dummyTwDEMCModel,obs=obs,invCovar=invCovar,	xval=xval )
+do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen)) #test calling the logDen function
 
 # create an initial distribution of states around the estimate of a usual regression 
 lmDummy <- lm( obs ~ xval, weights=1/sdObs^2)		# results without priors
@@ -139,7 +143,7 @@ confint(lmDummy)
 Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
 
 # run the chains
-res <-  twDEMC( Zinit, nGen=500, fLogLik=logLikGaussian, argsFLogLik=argsFLogLik, nPops=.nPops )
+res <-  twDEMC( Zinit, nGen=500, fLogDen=logDenGaussian, argsFLogDen=argsFLogDen, nPops=.nPops )
 
 # plot the results
 plotThinned(as.mcmc.list(res))	# no apparent burnin
@@ -149,9 +153,9 @@ sample <- stackChains(res)
 apply(sample,2, sd)	
 apply(sample,2, quantile, probs=c(0.025,0.975) )
 
-# plot likelihood surface 
+# plot density surface 
 pairs(sample)
-ds <- as.data.frame(apply(sample[ sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9), ],2,function(var){
+ds <- as.data.frame(apply(sample[ sample[,"rLogDen"] >= max(sample[,"rLogDen"]-1.9), ],2,function(var){
 		grain <- diff(range(var))/60
 		round(var/grain)*grain
 	}))
@@ -159,7 +163,7 @@ tmpx <- sort(unique(ds$a)); tmpy <- sort(unique(ds$b))
 dsog <- expand.grid(x=tmpx[-1], y=tmpy[-1])
 dsog$z <- apply(as.matrix(dsog[,1:2]),1,function(xy){ 
 		dss <- subset(ds,a==xy[1] & b==xy[2])
-		if( 0<nrow(dss)) max(dss$rLogLik) else NA
+		if( 0<nrow(dss)) max(dss$rLogDen) else NA
 	})
 image( tmpx, tmpy,  matrix(dsog$z,nrow=length(tmpx)-1), col = rev(heat.colors(100)), xlab="a", ylab="b" )
 
@@ -167,20 +171,20 @@ image( tmpx, tmpy,  matrix(dsog$z,nrow=length(tmpx)-1), col = rev(heat.colors(10
 .tmp.f <- function(){
 	# library(lattice)
 	# round numbers to see something in levelplot else points get too small
-	sampleSig <- apply(sample[ sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9), ],2,function(var){
+	sampleSig <- apply(sample[ sample[,"rLogDen"] >= max(sample[,"rLogDen"]-1.9), ],2,function(var){
 			grain <- diff(range(var))/150
 			round(var/grain)*grain
 		})
-	levelplot(rLogLik~a*b, data=as.data.frame(sampleSig), col.regions=rev(heat.colors(100)))
+	levelplot(rLogDen~a*b, data=as.data.frame(sampleSig), col.regions=rev(heat.colors(100)))
 }
 
 # better seen in three dimensions
 .tmp.f <- function(){
-	sampleSig <- sample[ sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9), ]
+	sampleSig <- sample[ sample[,"rLogDen"] >= max(sample[,"rLogDen"]-1.9), ]
 	ds <- as.data.frame(sampleSig)
-	plot3d(ds$a, ds$b, ds$rLogLik
-	  ,col=rev(heat.colors(100))[round(rescale(ds$rLogLik,to=c(1,100)))]
-	  ,xlab="a", ylab="b", zlab="LogLik"
+	plot3d(ds$a, ds$b, ds$rLogDen
+	  ,col=rev(heat.colors(100))[round(rescale(ds$rLogDen,to=c(1,100)))]
+	  ,xlab="a", ylab="b", zlab="LogDen"
 	)
 	view3dTiltSpin() 
 	play3d( spin3d() )	# press ESC for stop

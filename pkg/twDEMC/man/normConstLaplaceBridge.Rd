@@ -36,10 +36,10 @@ logPostSample <- fLogPost(sample)
 (CMW <- exp(normConstLaplaceBridge( sample, logPostSample, logPostSample )) )
 
 #normd <- cov.rob(sample)
-#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik, nd=normd)}, 100))
-#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogLik=fLogLik)}, 100))
+#(res <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen, nd=normd)}, 100))
+#(res2 <-  boot( sample, function(sample, i){normConstLaplace(sample[i,], fLogDen=fLogDen)}, 100))
 
 #normd <- cov.rob(sample)
-#(res <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogLik=fLogLik, logLikSample, nd=normd)}, 100))
-#(res2 <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogLik=fLogLik, logLikSample)}, 100))
+#(res <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogDen=fLogDen, logDenSample, nd=normd)}, 100))
+#(res2 <-  boot( sample, function(sample, i){normConstLaplaceBridge(sample[i,], fLogDen=fLogDen, logDenSample)}, 100))
 }

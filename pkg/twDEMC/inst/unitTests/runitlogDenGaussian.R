@@ -1,4 +1,4 @@
-## twUtestF("logLikGaussian")
+## twUtestF("logDenGaussian")
 
 .setUp <-function () {
 	.setUpDf <- within( list(),{
@@ -23,8 +23,8 @@
 }
 
 test.noprior <- function (){
-	#mtrace(logLikGaussian)
-	res <- logLikGaussian( theta, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval )
+	#mtrace(logDenGaussian)
+	res <- logDenGaussian( theta, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval )
 	msg <- as.character(res)
 	checkTrue( is.numeric(res), msg )
 	#checkEquals( length(res),1, msg)
@@ -36,7 +36,7 @@ test.prior <- function (){
 	#invCovarTheta = solve(summary(lm(obs~xval))$cov.unscaled)	### the inverse of the Covariance of the prior parameter estimates
 	thetaPrior<- thetaTrue
 	invCovarTheta <- diag(1/(sdTheta)^2)
-	res <- logLikGaussian( theta, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta )
+	res <- logDenGaussian( theta, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta )
 	msg <- as.character(res)
 	checkTrue( is.numeric(res), msg )
 	checkEquals( c("obs","parms"), names(res))
@@ -48,17 +48,17 @@ test.twoStepMetropolis <- function (){
 	#invCovarTheta = solve(summary(lm(obs~xval))$cov.unscaled)	### the inverse of the Covariance of the prior parameter estimates
 	thetaPrior<- thetaTrue
 	invCovarTheta <- diag(1/(sdTheta)^2)
-	#mtrace(logLikGaussian)
+	#mtrace(logDenGaussian)
 	thetaProp=theta*1000	#some nearly unprobable combination
-	res <- logLikGaussian( thetaProp, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta
-		,logLikAccept=c(parms=-1e-10)	#provide a near one previous Likelihood (near zero logLik)
+	res <- logDenGaussian( thetaProp, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta
+		,logDenAccept=c(parms=-1e-10)	#provide a near one previous Density (near zero logDen)
 	)
 	msg <- as.character(res)
 	checkTrue( is.numeric(res), msg )
 	checkEquals( c(obs=NA, parms=-Inf), res )
 
-	res <- logLikGaussian( thetaProp, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval
-		,logLikAccept=c(parms=-1e-10)	#provide a near one previous Likelihood (near zero logLik)
+	res <- logDenGaussian( thetaProp, fModel=dummyTwDEMCModel, obs=obs, invCovar=invCovar, xval=xval
+		,logDenAccept=c(parms=-1e-10)	#provide a near one previous Density (near zero logDen)
 	)
 	msg <- as.character(res)
 	checkTrue( is.numeric(res), msg )
@@ -71,9 +71,9 @@ test.twoStepMetropolis <- function (){
 tmp.f <- function(){
 	#library(debug)
 	currentPackage="twDEMC"
-	#mtrace(logLikGaussian)
-	#twUtestF(logLikGaussian,"test.logLikGaussian")
-	twUtestF(logLikGaussian)
+	#mtrace(logDenGaussian)
+	#twUtestF(logDenGaussian,"test.logDenGaussian")
+	twUtestF(logDenGaussian)
 	twUtestF()
 }
 

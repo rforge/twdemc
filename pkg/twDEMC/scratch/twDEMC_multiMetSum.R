@@ -1,25 +1,25 @@
 
 # failed to base temperature on percentiles
 # better use the version with "all", 
-calcDEMCTempDiffLogLikConst <- function(
+calcDEMCTempDiffLogDenConst <- function(
 	### Estimate scalar Temperature to obtain given acceptance rate 
-	diffLogLik			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogLik.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
 	,pTarget=0.2		##<< overall acceptance rate
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed
 	,TCurr=.Machine$double.xmax		##<< current Temperature 
 ){
-	#replace non-finite values by lowest finite LogLik value
-	#ds <- diffLogLik[1,]
-	d <- t(apply( diffLogLik,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
+	#replace non-finite values by lowest finite LogDen value
+	#ds <- diffLogDen[1,]
+	d <- t(apply( diffLogDen,1,function(ds){ds[!is.finite(ds)]<-min(ds[is.finite(ds)]);ds}))
 	l05 <- log(0.5)
 	
 	nrowd <- nrow(d)
 	dF= numeric(ncol(d)) # sum fixed components*T (steps x chains)
 	dnf=d	#non fixed components
 	if( 0<length(TFix)){
-		if( 0 == length(names(TFix))) stop("calcDEMCTempDiffLogLikConst: TFix component must be named")
+		if( 0 == length(names(TFix))) stop("calcDEMCTempDiffLogDenConst: TFix component must be named")
 		TFixPos <- match( names(TFix), rownames(d) )
-		if( any(is.na(TFixPos)) ) warning("calcDEMCTempDiffLogLikConst: not all components of TFix in rownames(diffLogLik)")
+		if( any(is.na(TFixPos)) ) warning("calcDEMCTempDiffLogDenConst: not all components of TFix in rownames(diffLogDen)")
 		dF <- colSums( d[TFixPos, ,drop=FALSE]*TFix)	
 		dnf<- d[-TFixPos, ,drop=FALSE]
 		

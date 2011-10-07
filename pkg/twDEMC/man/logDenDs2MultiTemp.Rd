@@ -1,9 +1,9 @@
-\name{logLikDs2MultiTemp}
-\alias{logLikDs2MultiTemp}
-\title{logLikDs2MultiTemp}
+\name{logDenDs2MultiTemp}
+\alias{logDenDs2MultiTemp}
+\title{logDenDs2MultiTemp}
 \description{Misfit for theta}
 \usage{
-logLikDs2MultiTemp(theta, theta0, theta1 = 7, offset = -100, maxy = numeric(0))
+logDenDs2MultiTemp(theta, theta0, theta1 = 7, offset = -100, maxy = numeric(0))
 }
 \arguments{
   \item{theta}{
