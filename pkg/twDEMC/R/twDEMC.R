@@ -413,9 +413,9 @@ attr(twDEMCInt,"ex") <- function(){
 		})
 	image( tmpx, tmpy,  matrix(dsog$z,nrow=length(tmpx)-1), col = rev(heat.colors(100)), xlab="a", ylab="b" )
 	
-	#nicer and faster with packages lattice
+	#nicer and faster with package lattice
 	.tmp.f <- function(){
-		library(lattice)
+		# library(lattice)
 		# round numbers to see something in levelplot else points get too small
 		sampleSig <- apply(sample[ sample[,"rLogLik"] >= max(sample[,"rLogLik"]-1.9), ],2,function(var){
 				grain <- diff(range(var))/150

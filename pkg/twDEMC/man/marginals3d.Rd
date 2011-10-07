@@ -25,9 +25,9 @@ and dimnames equal to means of the classes}
 \seealso{\code{\link{marginals1d}}
 \code{\link{twDEMCInt}}}
 \examples{
-res <- marginals3d(sample,vars=c("kY","kO","tLagLeaf"),n=8)
-tmp.f <- function(){
-	library(Rcmdr)
+.tmp.f <- function(){
+	res <- marginals3d(sample,vars=c("kY","kO","tLagLeaf"),n=8)
+	#library(Rcmdr)
 	ds <- melt(res)
 	scatter3d(ds$kY, ds$tLagLeaf, ds$kO
 		, surface=FALSE

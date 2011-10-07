@@ -30,6 +30,9 @@ and dimnames equal to means of the classes}
 
 \seealso{\code{\link{twDEMCInt}}}
 \examples{
-res <- marginals1d(sample,vars="kO",n=20)
+data(twdemcEx1)
+sample <- stackChains(twdemcEx1)
+#res <- marginals1d(sample,vars="kO",n=20)
+res <- marginals1d(sample,vars="b",n=20)
 plot( res ~ as.numeric(names(res)) )
 }

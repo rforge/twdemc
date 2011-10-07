@@ -163,7 +163,7 @@ calcDEMCTempDiffLogLik2 <- function(
 	,rFracMin=1/4		##<< fraction of Likelihood to which data-streams with low diff-logLik are scaled to by temperatures to
 	,doConstrainNeg=FALSE	##<< if given, likelihood of accepted jumps (positive) is constrained to 0
 ){
-	if( !(is.finite(TMax) && (TMax >= 1)) ) stop("need supplying positive TMax")
+	if( !(is.finite(Tmax) && (Tmax >= 1)) ) stop("need supplying positive TMax")
 	#replace non-finite values by lowest finite LogLik value
 	#ds <- diffLogLik[1,]
 	#diffLogLik <- diffLogLikPops[c("parms","agg_amendm_2","agg_amendm_3","agg_amendm_10"),,1]

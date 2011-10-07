@@ -10,7 +10,7 @@
 	cagg <- tapply(c, tmp, fun)
 	list( cagg=cagg, xmeans=as.numeric(levels(xcuts)), ymeans=as.numeric(levels(ycuts)) )
 }
-.cut2dim3 <- function(x,y,z,c,xn=round(length(c)^(1/3)),yn=xn, zn=xn, xlab=deparse(substitute(x)), ylab=deparse(substitute(y)), fun=mean ){
+.cut2dim3 <- function(x,y,z,c,xn=round(length(c)^(1/3)),yn=xn, zn=xn, xlab=deparse(substitute(x)), ylab=deparse(substitute(y)), zlab=deparse(substitute(z)), fun=mean ){
 	#matrix mean c over cells of unregular grid over x,y, and z
 	#grid is defined by classes of equal number of observations in x and y
 	#xn and yn number of classes in x and y dimension
@@ -60,7 +60,10 @@ marginals1d <- function(
 	### and dimnames equal to means of the classes
 }
 attr(marginals1d,"ex") <- function(){
-	res <- marginals1d(sample,vars="kO",n=20)
+	data(twdemcEx1)
+	sample <- stackChains(twdemcEx1)
+	#res <- marginals1d(sample,vars="kO",n=20)
+	res <- marginals1d(sample,vars="b",n=20)
 	plot( res ~ as.numeric(names(res)) )
 }
 
@@ -88,10 +91,12 @@ marginals2d <- function(
 	### and dimnames equal to means of the classes
 }
 attr(marginals2d,"ex") <- function(){
-	res <- marginals2d(sample,vars=c("kY","kO"),n=10)
-	tmp.f <- function(){
-		library(lattice)
-		levelplot( value~kY*kO, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
+	data(twdemcEx1)
+	sample <- stackChains(twdemcEx1)
+	#res <- marginals2d(sample,vars=c("kY","kO"),n=10)
+	res <- marginals2d(sample,vars=c("a","b"),n=10)
+	if( require(lattice) ){
+		levelplot( value~a*b, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
 	}
 }
 
@@ -120,9 +125,9 @@ marginals3d <- function(
 	### and dimnames equal to means of the classes
 }
 attr(marginals3d,"ex") <- function(){
-	res <- marginals3d(sample,vars=c("kY","kO","tLagLeaf"),n=8)
-	tmp.f <- function(){
-		library(Rcmdr)
+	.tmp.f <- function(){
+		res <- marginals3d(sample,vars=c("kY","kO","tLagLeaf"),n=8)
+		#library(Rcmdr)
 		ds <- melt(res)
 		scatter3d(ds$kY, ds$tLagLeaf, ds$kO
 			, surface=FALSE

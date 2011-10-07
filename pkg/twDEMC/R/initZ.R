@@ -315,7 +315,7 @@ replaceZinitNonFiniteLogLiks <- function(
 attr(replaceZinitNonFiniteLogLiks,"ex") <- function(){
 	data(twLinreg1)
 	attach( twLinreg1 )
-	mtrace(initZtwDEMCNormal)
+	#mtrace(initZtwDEMCNormal)
 	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChains=8, nPops=2)
 	dim(Zinit)
 	res <- twCalcLogLikPar(logLikGaussian, stackChains(Zinit)

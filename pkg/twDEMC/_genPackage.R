@@ -12,8 +12,10 @@ pkg<-"twDEMC"
 	library(logitnorm)
 	library(ggplot2)
 	library(np)
+	library(MASS)	#cov.rob
 	
 	library(debug)
+	library(lattice)
 	
 	sfInit(parallel=TRUE, cpus=4)
 	

@@ -25,9 +25,11 @@ and dimnames equal to means of the classes}
 \seealso{\code{\link{marginals1d}}
 \code{\link{twDEMCInt}}}
 \examples{
-res <- marginals2d(sample,vars=c("kY","kO"),n=10)
-tmp.f <- function(){
-	library(lattice)
-	levelplot( value~kY*kO, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
+data(twdemcEx1)
+sample <- stackChains(twdemcEx1)
+#res <- marginals2d(sample,vars=c("kY","kO"),n=10)
+res <- marginals2d(sample,vars=c("a","b"),n=10)
+if( require(lattice) ){
+	levelplot( value~a*b, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
 }
 }
