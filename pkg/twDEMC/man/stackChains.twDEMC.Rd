@@ -3,11 +3,12 @@
 \title{stackChains twDEMC}
 \description{Combine MarkovChains of a twDEMC to a matrix. }
 \usage{
-\method{stackChains}{twDEMC}(x, ...)
+\method{stackChains}{twDEMC}(x, omitBurnin = FALSE, ...)
 }
 \arguments{
   \item{x}{
 }
+  \item{omitBurnin}{if TRUE, then burnin of each chain is omitted before stacking}
   \item{\dots}{
 }
 }

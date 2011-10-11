@@ -3,7 +3,7 @@
 \title{initZtwDEMCNormal}
 \description{Generate an initial population of states for \code{\link{twDEMCInt}}.}
 \usage{
-initZtwDEMCNormal(thetaPrior, covarTheta, nChains = 8, nPops = 2, m0 = calcM0twDEMC(length(thetaPrior), nPops, nChains), doIncludePrior = TRUE)
+initZtwDEMCNormal(thetaPrior, covarTheta, nChains = 8, nPops = 2, m0 = calcM0twDEMC(length(thetaPrior), nPops, nChains)/(m0FiniteFac), m0FiniteFac = 1, doIncludePrior = TRUE)
 }
 \arguments{
   \item{thetaPrior}{vector of parameters, point estimate}
@@ -11,6 +11,7 @@ initZtwDEMCNormal(thetaPrior, covarTheta, nChains = 8, nPops = 2, m0 = calcM0twD
   \item{nChains}{number of chains to run}
   \item{nPops}{number of independent populations among the chains }
   \item{m0}{number of initial states for each chain}
+  \item{m0FiniteFac}{use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities}
   \item{doIncludePrior}{If TRUE, then last sample of chain 1 to the prior estimate, 
 which might be already a kind of best estimates by an optimization. }
 }

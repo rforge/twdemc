@@ -8,8 +8,10 @@ initZtwDEMCNormal <- function(
 	### number of chains to run
 	nPops=2, 
 	### number of independent populations among the chains 
-	m0=calcM0twDEMC(length(thetaPrior),nPops,nChains)
+	m0=calcM0twDEMC(length(thetaPrior),nPops,nChains)/(m0FiniteFac)
 	### number of initial states for each chain
+	,m0FiniteFac=1
+	### use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities
 	,doIncludePrior=TRUE
 	### If TRUE, then last sample of chain 1 to the prior estimate, 
 	### which might be already a kind of best estimates by an optimization. 

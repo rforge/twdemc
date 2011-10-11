@@ -145,7 +145,7 @@ calcDEMCTempDiffLogDen3Init <- function(
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
 	
-	#from these sample from the 5% best as accepted LogDen
+	#from these 5% sample best as accepted LogDen
 	ord <- order(rLQ, decreasing = TRUE)
 	La <- Lp[sample( ord[1:ceiling(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
 	
@@ -811,7 +811,7 @@ calcDEMCTempGlobal2 <- function(
 	ba = round(log(T0)/log(Ta)+iRun)
 	TaGlobal <- Ta^(ba-(iRun+nRun))
 	TGlobal <- max(TaGlobal,TGlobal)
-	nGenBurninNew <- max(ba,nGenBurninNew)
+	nGenBurninNew <- max(ba,round(nGenBurninNew))
 
 	# calculate T
 	list(TGlobal=TGlobal,nGenBurnin=nGenBurninNew)	

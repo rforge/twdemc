@@ -51,10 +51,12 @@ setMethodS3("subChains","twDEMC", function(
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
 			res$temp <- x$temp[,iPops, drop=FALSE]	#by nPops
+			res$nGenBurnin <- x$nGenBurnin[iPops]
 		}else{
 			# no populatios given: reduce to one population
 			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
 			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogDen), ncol=1) #for backware compatibility of temp
+			res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
 		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
@@ -390,7 +392,7 @@ setMethodS3("thin","twDEMC", function(
 	res <- subset.twDEMC( x, iKeep )
 	res$thin <- newThin
 	#time2iSample(70,5)
-	res$nGenBurnin <- max(0,x$nGenBurnin-startT) 
+	res$nGenBurnin <- pmax(0,x$nGenBurnin-startT) 
 	if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
 	res
 })
@@ -466,14 +468,22 @@ setMethodS3("stackChains","array", function(
 #(tres <- twUtestF(combinePops,"test.stackChains"))
 setMethodS3("stackChains","twDEMC", function( 
 	### Combine MarkovChains of a twDEMC to a matrix. 
-	x,
-	...
+	x
+	,omitBurnin=FALSE	##<< if TRUE, then burnin of each chain is omitted before stacking
+	,...
 ){
 	#stackChains.twDEMC
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
-	cbind( rLogDen = abind( lapply( 1:dim(x$rLogDen)[2], function(i){ x$rLogDen[,i] }), along=1 )
-		,parms = stackChains.array(x$parms)
+	nPop <- getNPops(x)
+	start <- if( omitBurnin ) ceiling(x$nGenBurnin)  else rep(0,nPop)  
+	if( length(start)==1 ) start=rep(start,nPop)
+	if( length(start) != nPop) stop("stackChains.twDEMC: burnin must be of length of number of populations.")
+	startChain <- rep(start, each=getNChainsPop(x) )
+	nChain <- getNChains(x)
+	cbind( rLogDen = abind( lapply( 1:nChain, function(i){ 	if( startChain[i] == 0) x$rLogDen[,i] else x$rLogDen[-(1:(startChain[i]%/%x$thin)),i]		}), along=1 )
+		#,parms = stackChains.array(x$parms)
+		,parms = t(adrop(abind( lapply( 1:nChain, function(i){	if( startChain[i] == 0) x$parms[,,i,drop=FALSE] else x$parms[,-(1:(startChain[i]%/%x$thin)),i,drop=FALSE]	}), along=2 ),3))
 	)
 	### Matrix with first column the logDensity rLogDen and the remaining columns the variables.
 })

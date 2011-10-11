@@ -1199,6 +1199,7 @@ twDEMCBatchInt <- function(
 		}
 		nRunPrev <- nRun
 		zGen <- dim(res$parms)[2]
+		# do not remove outliers after burnin
 		if( (doResetOutlierN>0) & (iRun <= max(nGenBurnin)) ){
 			iGenOmega <- max(1,zGen-doResetOutlierN+1):zGen #(zGen%/%2):zGen
 			# according to Vrugt09
