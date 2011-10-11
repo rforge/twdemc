@@ -1,5 +1,5 @@
 .calcTemperatedDiffLogDen <- function(
-	### calculated the temperated difference of LogDens proposed-accepted per population
+	### calculates the temperated difference of LogDens proposed-accepted per population
 	diffLogDenPops		##<< the original differences (comp x pops)
 	,TFix				##<< named numeric vector: components with fixed temperature
 	,T0c				##<< the temperature per population
@@ -15,11 +15,14 @@
 calcDEMCTempProp <- function(
 	### Calculate Temperature of components 
 	temp	##<< the maximum temperature
-	,diffLogDen		##<< expected difference in LogDensitys expected-accepted per datastream 
+	,diffLogDen		##<< expected difference in LogDensitys proposed-accepted per datastream 
 	,rFracMin=1/4	##<< fraction of max DiffDensity  below which temperatue is scaled down to yield  larger importance
 ){
-	rr <- diffLogDen/max(min(diffLogDen),1e-8)	# diffLogDen per largest misfit (lowest neg diff-LogDensity)
-	Ti <- pmin(temp,1+(temp-1)/rFracMin*rr)
+	#rr <- diffLogDen/max(min(diffLogDen),1e-8)	# diffLogDen per largest misfit (lowest neg diff-LogDensity)
+	#rr <- diffLogDen/min(diffLogDen)	# diffLogDen per largest misfit (lowest neg diff-LogDensity)
+	rr <- max(diffLogDen/min(diffLogDen), 1e-8)	# ratio of diffLogLik of component per largest abs(diffLogLik), heed that all values are negative, hence min, ratio not below 1e-8
+	#Ti <- pmin(temp,1+(temp-1)/rFracMin*rr)
+	Ti <- pmin(temp,1+(temp-1)*(rr/rFracMin))
 	Ti[rr<=0] <- 1	#give NA or negative values for Ti		
 	Ti
 	### vector of temperatures corresponding to diffLogDen with maximum corresponding to temp
@@ -52,6 +55,8 @@ calcDEMCTempDiffLogDen3 <- function(
 	
 	dVar <- sampleAcceptedFixedTempDiffLogDens(d,TFix=TFix)		#cases of diffLogDen surviving the fixed temp metropolis desicion
 	nj <- ncol(dVar)
+	
+	# objective function to optimize Temperature
 	pps <- function(logtemp){  #posNonFix, expD, rFracMin, dTFix, dVar
 		temp <- exp(logtemp)
 		Ti[posNonFix] <- calcDEMCTempProp( temp, expD[posNonFix], rFracMin )
@@ -68,7 +73,7 @@ calcDEMCTempDiffLogDen3 <- function(
 			#tmp <- seq(1,1e6,length.out=200) 
 			#plot(tmp,pTarget+sapply(tmp,pps))
 			if( pps(log(1)) > 0) temp=1  # if acceptance rate at temp 1 is greater than target return temperature 1
-			else if( pps(log(Tmax)) < 0) temp=Tmax  	# if acceptance rate at given maximum temperature is already smaller than target return current temperature
+			else if( pps(log(Tmax)) < 0) temp=Tmax  	# if acceptance rate at given maximum temperature is already smaller than target return maximum temperature
 			else temp <- exp(uniroot( pps, log(c(1, Tmax)), tol=0.01 )$root)
 			Ti[posNonFix] <- calcDEMCTempProp( temp, expD[posNonFix], rFracMin )
 			TiMean <- Ti	
@@ -124,7 +129,7 @@ calcDEMCTempDiffLogDen3Init <- function(
 	}
 	
 	L <- Lp <- resLogDen$resFLogDen 
-	#recalculate logDens
+	#recalculate logDens from replaced components
 	rL <- rLQ <- rowSums(resLogDen$resFLogDen)
 	
 	
@@ -629,8 +634,9 @@ calcDEMCTempGlobal2b <- function(
 	#	nGenBurninNew <- nGenBurnin		
 	#	TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
 	#}else{
-		if( t20r > 1.2){
-			# 20 accepted rows back, temperate was more than 120% of current temperate: too fast
+		minRTback20ToTCurr <- 1.25
+		if( t20r > minRTback20ToTCurr){
+			# 20 accepted rows back, temperate was more than 125% of current temperate: too fast
 			# keep current temperature and extend burnin by generations in next batch
 			cat("  Tback20/TCurr=",round(t20r*100),"%, pAccept=",resPop$pAccept[nR,1],"\n",sep="")		
 			TGlobal <- T0

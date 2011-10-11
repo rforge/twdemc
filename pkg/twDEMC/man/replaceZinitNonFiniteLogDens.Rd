@@ -19,6 +19,7 @@ replaceZinitNonFiniteLogDens(Zinit, rLogDen)
 \seealso{\code{\link{initZtwDEMCNormal}}
 \code{\link{replaceZinitCases}}}
 \examples{
+data(twdemcEx1)
 data(twLinreg1)
 attach( twLinreg1 )
 #mtrace(initZtwDEMCNormal)
