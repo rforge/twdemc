@@ -124,18 +124,15 @@ checkConvergenceTrend <- function(
 	#rLogDenStart <- popApplyTwDEMC( resB$rLogDen[iGen[,1],], nPops=1, as.vector )
 	rLogDenStart <- popApplyTwDEMC( resB$rLogDen[iGen[,1],], nPops=nPops, as.vector )
 	rLogDenEnd <- popApplyTwDEMC( resB$rLogDen[iGen[,2],], nPops=nPops, as.vector )
-	res <- sapply( 1:nPops, function(i){ t.test(rLogDenStart[,i],rLogDenEnd[,i],alternative="greater")$p.value })
+	res <- sapply( 1:nPops, function(i){ t.test(rLogDenStart[,i],rLogDenEnd[,i],alternative="less")$p.value })
+	### numeric vector: for each population: p.value of the one-sided t.test that mean differs between first and fith halv of the logDensity 
 	res
 }
 attr(checkConvergenceTrend,"ex") <- function(){
 	data(twdemcEx1)
-	# p.value for differenc in means for each population
+	# p.value for difference in means for each population
 	(res <- checkConvergenceTrend(twdemcEx1))
-	# none of them has converged on a 5% level
-	res < 0.05
-	#discard burnin 
-	(res <- checkConvergenceTrend(thin(twdemcEx1,start=40)))
-	# none of them has converged on a 5% level
-	res < 0.05
+	# second has a trend on a 5% level and did not yet converge
+	res > 0.05
 }
 

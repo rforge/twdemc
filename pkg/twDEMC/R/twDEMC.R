@@ -1218,6 +1218,7 @@ twDEMCBatchInt <- function(
 			# according to Vrugt09
 			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogDen[iGenOmega,iChain], na.rm=TRUE)}) #mean logDen across last halv of chain
 			for( iPop in 1:nPops ){
+				cat(paste("     pop ",iPop,": ",sep=""))
 				iChains <- ((iPop-1)*nChainsPop+1):(iPop*nChainsPop)
 				q13 <- quantile( omega[iChains], c(1/4,3/4) )	#lower and upper quartile
 				bo <- omega[iChains] < q13[1] -2*diff(q13)		#outside 2 interquartile ranges, see Vrugt09
@@ -1255,7 +1256,7 @@ twDEMCBatchInt <- function(
 			#newNGenBurnin <- res$nGenBurnin # use old one, do not re-initialize, res from twDEMCInt has no entry nGenBurnin
 			TGlobal <- T0c
 			for( iPop in which( TGlobal>1 )){
-				cat(paste("pop ",iPop,": ",sep=""))
+				cat(paste("     pop ",iPop,": ",sep=""))
 				resPop <- subChains(res,iPops=iPop) 
 				dLp=adrop(diffLogDenPops[,,iPop,drop=FALSE],3)
 				Ti[,iPop] <- TiPop <- do.call( fCalcTStreamDiffLogDen, c(list(diffLogDen=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogDen) ) # optimal Temperature estimated by dLp for each variable
