@@ -116,7 +116,7 @@ twDEMCInt <- function(
 		probUpDir=0.5 	##<< probability of direction between two states of increasing Density (increase during burin may accelerate convergence)
 		,initialAcceptanceRate=rep(0.25,nPops)	##<< numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
-		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below 1.2 times this level, employ delayed rejection (DR)
+		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 	)  ##end<< 
 	## }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
@@ -1073,9 +1073,10 @@ twDEMCBatchInt <- function(
 	, nPops = 1
 		### number of independent populations
 	, probUpDirBurnin=0.75
-		### probUbDir during burnin (see twDEMC argument propuUpDir)
+		### probUbDir during burnin (see twDEMC argument propUpDir)
 	, controlTwDEMC=list()
-		### controls to twDEMC, some items are overwritten
+		### controls to \code{twDEMCInt} and twDEMCBatch, some items are overwritten before passing.
+		### This depends on convergence and accpetance during burnin.
 	#,minPCompAcceptTempDecr=0.2	
 		### if maximum di=Lpi-Lai drops below this rate 
 		### then Temperature is not decreased within the next batch.
@@ -1103,11 +1104,22 @@ twDEMCBatchInt <- function(
 	newNGenBurnin <- nGenBurnin	#initialize
 	nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)
 	
+	##details<< \describe{ \item{Detailed control parameters: \code{controlTwDEMC}}{
+	##describe<<  
+	ctrl = list( 
+		minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
+		,nSampleGelmanDiag=512	
+			### sample size of the appropriately thinned sample that will be detrended to check Gelman diagnostics before decreasing temperature.
+			### When working in high dimensional parameter space, you may encounter false high gelman diagnostics. Then you can try increasing this parameter,
+			### but be aware of increasing computational demand.
+	)  ##end<< 
+	## }}
+	ctrl[names(controlTwDEMC)] <- controlTwDEMC
+	
 	ctrl <- controlTwDEMC
 	ctrl$T0=T0
 	ctrl$Tend=T0 	#no Temp decrease in first batch (different for Zinit is not twDEMC, see below) 
 	ctrl$probUpDir=(if(nRun<=max(nGenBurnin)) probUpDirBurnin else NULL)
-	minAccepRateTempDecrease <- minPCompAcceptTempDecr <- if(is.numeric(ctrl$minPCompAcceptTempDecr)) ctrl$minPCompAcceptTempDecr else 0.16
 	TFix <- if(is.numeric(ctrl$TFix)) ctrl$TFix else numeric(0) 
 	thin <- if(is.numeric(ctrl$thin)) 	ctrl$thin else 1
 	nGen <- (nGen %/% thin)*thin
@@ -1116,7 +1128,7 @@ twDEMCBatchInt <- function(
 	##details<< 
 	## If Zinit is of class twDEMC, initial temperature is set to the temperature of the last row
 	## and the number of generations already in Zinit are skipped.
-	pTarget=minPCompAcceptTempDecr+0.02
+	pTarget=ctrl$minPCompAcceptTempDecr+0.02
 	if( is(Zinit,"twDEMC") ){
 		res <- Zinit
 		iRun <- getNGen(res)
@@ -1173,6 +1185,7 @@ twDEMCBatchInt <- function(
 	#--------- do the twDEMC ------
 	nRun <- (nRun%/%thin)*thin  #make nRun multiple of thin
 	res <- twDEMC( Zinit=Zinit, nGen=nRun, nPops=nPops, controlTwDEMC=ctrl, ... )
+	res$nGenBurnin <- newNGenBurnin	
 	attr(res,"batchCall") <- cl
 	boConverged=FALSE
 	if( hasArg(fCheckConvergence))
@@ -1183,7 +1196,7 @@ twDEMCBatchInt <- function(
 	nChains <- dim(res$parms)[3]
 	nChainsPop <- nChains %/% nPops
 	chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
-	resCols <- match( .getResFLogDenNames(res$resFLogDen), rownames(res$Y))	#index of columns of results components in Y
+	resCols <- match( twDEMC:::.getResFLogDenNames(res$resFLogDen), rownames(res$Y))	#index of columns of results components in Y
 	while( !boConverged & (iRun < nGen) ){
 		cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 		##details<< \describe{\item{Saving and restarting}{ 
@@ -1233,15 +1246,16 @@ twDEMCBatchInt <- function(
 			diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			
 			##details<< \describe{\item{cooling and acceptance rate}{ 
-			## If acceptance rate of some population drops below rate=minAccepRateTempDecrease then cooling is too fast.
+			## If acceptance rate of some population drops below rate=ctrl$minPCompAcceptTempDecr then cooling is too fast.
 			## In this moderate case do not repeat the rund but keep the current temperature for the next period for this population.
 			## and extend the burnin phase by the length of this period.
 			## }}
-			Ti <- matrix(1,nrow=nrow(res$resFLogDenX),ncol=nPops, dimnames=list(comp=.getResFLogDenNames(res$resFLogDenX),pop=NULL))
+			Ti <- matrix(1,nrow=nrow(res$resFLogDenX),ncol=nPops, dimnames=list(comp=twDEMC:::.getResFLogDenNames(res$resFLogDenX),pop=NULL))
 			pAcceptTVar <- numeric(nPops)
 			#newNGenBurnin <- res$nGenBurnin # use old one, do not re-initialize, res from twDEMCInt has no entry nGenBurnin
 			TGlobal <- T0c
 			for( iPop in which( TGlobal>1 )){
+				cat(paste("pop ",iPop,": ",sep=""))
 				resPop <- subChains(res,iPops=iPop) 
 				dLp=adrop(diffLogDenPops[,,iPop,drop=FALSE],3)
 				Ti[,iPop] <- TiPop <- do.call( fCalcTStreamDiffLogDen, c(list(diffLogDen=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogDen) ) # optimal Temperature estimated by dLp for each variable
@@ -1263,6 +1277,7 @@ twDEMCBatchInt <- function(
 		clArgs$nGen<-nRun
 		clArgs$controlTwDEMC$probUpDir <- (if((iRun+nRun)<=max(nGenBurnin)) probUpDirBurnin else NULL)	#set to NULL after burnin
 		res <- do.call( twDEMC, clArgs, quote=TRUE )
+		res$nGenBurnin <- newNGenBurnin
 		attr(res,"batchCall") <- cl
 		#res <- twDEMC( Zinit=res, nGen=nRun, ... ) problems with double Zinit 
 		if( hasArg(fCheckConvergence))

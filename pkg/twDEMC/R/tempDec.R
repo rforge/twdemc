@@ -729,7 +729,7 @@ calcDEMCTempGlobal2b <- function(
 calcDEMCTempGlobal2 <- function(
 	### Calculating global temperature and adjusted burnin period after the next batch for one population.
 	resPop		##<< twDEMC result (subChains of one population)
-	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals 
 	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
 	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
 	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
@@ -758,9 +758,12 @@ calcDEMCTempGlobal2 <- function(
 			nGenBurninNew <- nGenBurnin		
 			TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
 		}else{
-			newThinOdd <- 1/resPop$pAccept[nR,1]
+			# construct a properly thinned sample of the last part of the chain
+			# i.e. part where temperate did not exceed 120% of current temperature and at maximum 512 samples
+			newThinOdd <- 1/resPop$pAccept[nR,1]						# low acceptance rate, higher sampling
 			newThin <- max(1,(newThinOdd%/%resPop$thin))*resPop$thin	# make it multiple of current thin
-			res130 <- thin(resPop, start=max(i130, iRun-2*nRun), newThin=newThin)
+			#res130 <- thin(resPop, start=i130, newThin=newThin)		# can become very slow in detrend
+			res130 <- thin(resPop, start=max(i130, iRun-(512*newThin)), newThin=newThin)	# constrain to at maximum 512 samples
 			# if the chains of one populatin cover the minimum at given temperature, temperature may decrease
 			# hence check, if they converged to limiting distribution for given temperature
 			if( checkConvergenceTrend(res130) < 0.05){

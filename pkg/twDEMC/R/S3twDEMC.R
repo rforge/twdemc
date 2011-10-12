@@ -51,12 +51,12 @@ setMethodS3("subChains","twDEMC", function(
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
 			res$temp <- x$temp[,iPops, drop=FALSE]	#by nPops
-			res$nGenBurnin <- x$nGenBurnin[iPops]
+			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- x$nGenBurnin[iPops]
 		}else{
 			# no populatios given: reduce to one population
 			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
 			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogDen), ncol=1) #for backware compatibility of temp
-			res$nGenBurnin <- max(x$nGenBurnin)
+			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
 		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
@@ -392,7 +392,7 @@ setMethodS3("thin","twDEMC", function(
 	res <- subset.twDEMC( x, iKeep )
 	res$thin <- newThin
 	#time2iSample(70,5)
-	res$nGenBurnin <- pmax(0,x$nGenBurnin-startT) 
+	if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- pmax(0,x$nGenBurnin-startT) 
 	if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
 	res
 })
@@ -476,7 +476,7 @@ setMethodS3("stackChains","twDEMC", function(
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
 	nPop <- getNPops(x)
-	start <- if( omitBurnin ) ceiling(x$nGenBurnin)  else rep(0,nPop)  
+	start <- if( omitBurnin & !is.null(x$nGenBurnin) ) ceiling(x$nGenBurnin)  else rep(0,nPop)  
 	if( length(start)==1 ) start=rep(start,nPop)
 	if( length(start) != nPop) stop("stackChains.twDEMC: burnin must be of length of number of populations.")
 	startChain <- rep(start, each=getNChainsPop(x) )
