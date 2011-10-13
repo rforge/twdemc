@@ -118,6 +118,8 @@ twDEMCInt <- function(
 		,initialAcceptanceRate=rep(0.25,nChains)	##<< numeric vector (nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
 		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
+		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
+		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population 
 	)  ##end<< 
 	## }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
@@ -236,14 +238,16 @@ twDEMCInt <- function(
 	ctrl$Npar12  =(d$parms - 1)/2  # factor for Metropolis ratio DE Snooker update
 	ctrl$F2 = ctrl$F/sqrt(2*d$parms)
 	ctrl$F1 = 1
-	ctrl$pIndStep <- 1.5 #independent state about after 1.5 accepted steps
-	ctrl$gInd <- 10*d$parms/nChainsPop	#number of independent generations to sample from
+	ctrl$gInd <- ctrl$nPastGen*d$parms/nChainsPop	#number of independent generations to sample from, similarly to M0 (usually ctrl$nPastGen=10)
+	# terBraak report that may not sample the distribution, if not using the full past
+	# but together with decreasing temperature acceptance rate drops very low
+	# hnce constrain to the past during burnin
 	
 	#d$parms <- 16; nChainsPop=8; nPops=2; ctrl=list(thin=8); nGen=200
 	# number of requried independent generations to choose from (10*d independent states: TerBraak06 TerBraak08) devided by number of chains
 	if( length(ctrl$initialAcceptanceRate) != nChains)
 		stop("ctrl$initialAcceptanceRate must be of length nChains")
-	ar <- popMeansTwDEMC(ctrl$initialAcceptanceRate, nPops) # current acceptance rate of population
+	ar <- pmax( 1/ctrl$thin ,popMeansTwDEMC(ctrl$initialAcceptanceRate, nPops)) # current acceptance rate of population
 	#nGenBack <- pmin(mZ,ceiling(ctrl$rIndToAcc * ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	
@@ -315,7 +319,7 @@ twDEMCInt <- function(
 		genPropRes <- .generateXPropThin(nPops=nPops, Z=Z,rLogDen=rLogDen,mZ=mZ,ctrl=ctrl,nGenBack=nGenBack)
 
 		iGen = iThin0*ctrl$thin+(1:ctrl$thin)
-		tempThin = t(TstepFixed[iGen,rep(1:nPops,each=nChainsPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
+		tempThinSteps = t(TstepFixed[iGen,rep(1:nPops,each=nChainsPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
 		if( iThin0 == nThinOmitRecord ){
 			# record the initial state of the proposals record
 			Y["rLogDen",1,] <- chainState$logDenX
@@ -332,7 +336,7 @@ twDEMCInt <- function(
 		#mtrace(.doDEMCSteps)
 		# tmpf <- argsDEMCStepWrapper$remoteFun; mtrace(tmpf); argsDEMCStepWrapper$remoteFun<-tmpf
 		# tmp.remoteFunArgs <- if( !debugSequential & sfParallel() ) as.name("argsDEMCStepWrapper") else argsDEMCStepWrapper 	# eval.parent fails for argsDEMCStepWrapper within sequential function
-		resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogDenX", "logDenX")], genPropRes, list(temp=tempThin
+		resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogDenX", "logDenX")], genPropRes, list(temp=tempThinSteps
 				, nPops=nPops
 				, pAccept=ar
 				, remoteFunArgs=tmp.remoteFunArgs
@@ -360,13 +364,17 @@ twDEMCInt <- function(
 		#curAcceptRows <- (acceptPos0+1)-((aThinWinW-1):0)	# initial phase of batch strongly determined by prescribed assumed initial acceptance rate
 		#curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,4)):0) # initial phase strongly determined by random first proposals
 		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,16)):0)
+		#acceptWindow[curAcceptRows,]
 		pAccept[mZ,] <- colSums(acceptWindow[curAcceptRows,,drop=FALSE]) / (length(curAcceptRows)*ctrl$thin) 
 		temp[mZ,] <- TstepFixed[iThin0*ctrl$thin+ctrl$thin,]
 		if( boRecordProposalsIThin ) Y[,iGen+1-nGenOmitRecord,] <- resDo$Y	# recored the proposals together with Density
+		# Y["accepted",iGen+1-nGenOmitRecord,]
+
 		
 		# update the number of generations to choose from, which depends on acceptance rate
 		tmp.chains <- rep(1:nPops, each=nChainsPop)	# population of chain at position
-		ar <- pmax(0.026,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 1%=0.16*0.16 to ensure localization (else may go to 0 -> entire history -> no acceptance) 
+		#ar <- pmax(0.026,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 1%=0.16*0.16 to ensure localization (else may go to 0 -> entire history -> no acceptance) 
+		ar <- pmax( 1/ctrl$thin ,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 1%=0.16*0.16 to ensure localization (else may go to 0 -> entire history -> no acceptance) 
 		#nGenBack <- pmin(mZ,ceiling(ctrl$rIndToAcc * ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, 
 		nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, 
 		# ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one
@@ -1147,6 +1155,8 @@ twDEMCBatchInt <- function(
 	pTarget=ctrl$minPCompAcceptTempDecr+0.02
 	if( is(Zinit,"twDEMC") ){
 		res <- Zinit
+		if( !is.null(controlTwDEMC$thin) & (controlTwDEMC$thin != res$thin) ) 
+			stop(paste("twDEMCBatchInt: provided control thin=",controlTwDEMC$thin,", but Zinit$thin=",res$thin,sep=""))
 		iRun <- getNGen(res)
 		if( iRun >= nGen ) return(res)
 		ctrl$initialAcceptanceRate <- res$pAccept[nrow(res$pAccept),]
@@ -1168,6 +1178,7 @@ twDEMCBatchInt <- function(
 		#newNGenBurnin <- res$nGenBurnin #keep previous, do not reinitialize: res from twDEMC has no nGenBurnin
 		TGlobal <- T0c
 		for( iPop in which( TGlobal>1 )){
+			cat(paste("     pop ",iPop,": ",sep=""))
 			resPop <- subChains(res,iPops=iPop) 
 			dLp=adrop(diffLogDenPops[,,iPop,drop=FALSE],3)
 			Ti[,iPop] <- TiPop <- do.call( fCalcTStreamDiffLogDen, c(list(diffLogDen=dLp,TFix=TFix,Tmax=T0c[iPop],pTarget=pTarget), argsFCalcTStreamDiffLogDen) ) # optimal Temperature estimated by dLp for each variable
@@ -1220,7 +1231,7 @@ twDEMCBatchInt <- function(
 		## Runs can be continued without the need of respecifying all the parameters (see example). 
 		## This is helpful with expensive models and long cluster runs for cases where the program has to be aborted.
 		## }}
-		if(is.character(restartFilename)){
+		if((0 < length(restartFilename)) & is.character(restartFilename) & restartFilename!=""){
 			resRestart.twDEMC = res #avoid variable confusion on load by giving a longer name
 			resRestart.twDEMC$nGenBurnin <- newNGenBurnin	# also store updated calculation of burnin time
 			save(resRestart.twDEMC, file=restartFilename)
@@ -1234,7 +1245,6 @@ twDEMCBatchInt <- function(
 			# according to Vrugt09
 			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogDen[iGenOmega,iChain], na.rm=TRUE)}) #mean logDen across last halv of chain
 			for( iPop in 1:nPops ){
-				cat(paste("     pop ",iPop,": ",sep=""))
 				iChains <- ((iPop-1)*nChainsPop+1):(iPop*nChainsPop)
 				q13 <- quantile( omega[iChains], c(1/4,3/4) )	#lower and upper quartile
 				bo <- omega[iChains] < q13[1] -2*diff(q13)		#outside 2 interquartile ranges, see Vrugt09

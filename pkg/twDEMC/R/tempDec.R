@@ -747,7 +747,7 @@ calcDEMCTempGlobal2 <- function(
 	temp <- resPop$temp[,1]
 	nR <- length(temp)
 	T0 <- temp[nR]
-	acceptRowsFac <- 1/(resPop$thin*resPop$pAccept[nR,1])  # every x rows can be regarded as independent
+	acceptRowsFac <- 1/(resPop$thin*max(0.05,resPop$pAccept[nR,1]))  # every x rows can be regarded as independent
 	i <- max(1,round(nR- 20*acceptRowsFac))	# row 20 independent steps back
 	t20r<-temp[i]/T0
 	if( t20r > 1.25){
