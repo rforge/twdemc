@@ -328,12 +328,9 @@ setMethodS3("subset","twDEMC", function(
 		##details<< 
 		## If last row is dropped then all components of resFLogDenX are set to -Inf
 		## This ensures that it LogDen for last state is recalculated if object is used again in twDEMC
-		if( is.numeric(boKeep) )
-			if( !(nrow(x$rLogDen)%in%boKeep) )
-				x$resFLogDenX[] <- -Inf
-		if( is.logical(boKeep) )
-			if( !boKeep[nrow(x$rLogDen)] )
-				x$resFLogDenX[] <- -Inf
+		# heed negative numeric indices, hence first construct positive indices
+		if( !(nrow(x$rLogDen) %in% (1:nrow(x$rLogDen))[boKeep]) )
+			x$resFLogDenX[] <- -Inf
 	}
 	x$parms <- x$parms[,boKeep,, drop=FALSE] 
 	x$rLogDen <- x$rLogDen[boKeep,, drop=FALSE] 
@@ -353,7 +350,7 @@ setMethodS3("subset","twDEMC", function(
 setMethodS3("thin","twDEMC", function( 
 	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCInt}}) to correspond to a thinning of \code{newThin}.
 	x, ##<< the twDEMC list to thin 
-	newThin=x$thin, ##<< the target thinning factor, must be positive multiple of x$thin 
+	newThin=x$thin, ##<< finite numeric scalar: the target thinning factor, must be positive multiple of x$thin 
 	start=0,  
 		### numeric scalar: the start time of the chain. 
 		### Note that time starts from zero.

@@ -736,11 +736,11 @@ calcDEMCTempGlobal2 <- function(
 	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
 	,nRun		##<< integer scalar: the number of generations in next batch
 	,rHat0=1.1	##<< rHat value for which to not change the burnin period
-	,nSampleGelmanDiag=256	
+	,nSampleGelmanDiag=64	
 		### sample size of the appropriately thinned sample that will be detrended to check Gelman diagnostics before decreasing temperature.
 		### When working in high dimensional parameter space, you may encounter false high gelman diagnostics. Then you can try increasing this parameter,
 		### but be aware of increasing computational demand.
-	,nSampleTrend=128
+	,nSampleTrend=512
 		### size of the end of the appropriately thinned logDen sample that will be checked for a trend.
 ){
 	rHat0=max(rHat0,1.001)		#not smaller than 1.001 in order to avoid division by zero

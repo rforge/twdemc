@@ -224,6 +224,15 @@ attr(twCoefLnormMLE,"ex") <- function(){
 	dxEst <- dlnorm(xGrid, meanlog=thetaEst[1], sdlog=thetaEst[2])
 	plot( dx~xGrid, type="l")
 	lines( dxEst ~ xGrid, col="blue")	#overplots the original, coincide
+	
+	# example 3: explore varying the uncertainty (the upper quantile)
+	x <- seq(0.01,1.2,by=0.01)
+	mle = 0.2
+	dx <- sapply(mle*2:8,function(q99){
+			theta = twCoefLnormMLE(mle,q99,qnorm(0.99))
+			dx <- dDistr(x,theta[,"mu"],theta[,"sigma"],trans="lognorm")
+		})
+	matplot(x,dx,type="l")
 }
 
 
@@ -349,16 +358,17 @@ twConstrainPoptDistr <- function(
 }
 
 dDistr <- function(
-	### Translate density from normal to original scale
+	### Calculate density for transform of normal distribution.
 	x			##<< numeric vector of quantile at original scale for to calculate density		
 	,mu			##<< numeric vector (recycled)			
 	,sigma		##<< numeric vector (recycled)
-	,trans	##<< character vector: the Transformation to use (norm,lognorm,logitnorm)
+	,trans		##<< factor  vector: the Transformation to use levels (norm,lognorm,logitnorm)
 ){
 	##details<< 
 	## To evaluate density at original, i.e. lognormal, logitnormal, scale
 	## the density at transformed normal scale has to be multiplied with the 
 	## Jacobian, i.e the derivative of the transformation
+	if( !is.factor(trans) ) trans <- factor(trans,levels=c("norm","lognorm","logitnorm"))
 	grid <- cbind(x,mu,sigma,trans)	#recycle element
 	res <- vector("numeric", length(x))
 	i <- which(grid[,4]==which(levels(trans)=="norm"))
@@ -371,6 +381,15 @@ dDistr <- function(
 	xms <- grid[i,] 
 	res[i] <- dlogitnorm(xms[,1],mu=xms[,2],sigma=xms[,3])
 	res
-	### numeric vector of max length
+	### numeric vector of length of maximum length of the arguments
 }
+attr(dDistr,"ex") <- function(){
+	x <- seq(0.01,3,by=0.05)
+	mu=0
+	sigma=1
+	dx <- dDistr(x,mu,sigma,trans="lognorm")
+	plot( dx ~ x)
+}
+
+
 

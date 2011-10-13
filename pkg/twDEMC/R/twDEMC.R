@@ -95,6 +95,7 @@ twDEMCInt <- function(
 	## }}
 	
 	if( length(nGen) != 1 ) stop("twDEMCInt: nGen must be a scalar.")
+	nChains <- dim( if( inherits(Zinit,"twDEMC") ) Zinit$parms else Zinit )[3]
 
 	d <- as.list(structure(dim(Zinit),names=c("parms","gen","chains")))
 	##details<< \describe{ \item{Detailed control parameters: \code{controlTwDEMC}}{
@@ -114,12 +115,18 @@ twDEMCInt <- function(
 		TFix=numeric(0),	##<< named numeric vector of Temperatures of fLogDen components, whose Temperature is fixed
 		pAcceptWindowWidth = 256, ##<< number of generations back over which the acceptance rate is calculated
 		probUpDir=0.5 	##<< probability of direction between two states of increasing Density (increase during burin may accelerate convergence)
-		,initialAcceptanceRate=rep(0.25,nPops)	##<< numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
+		,initialAcceptanceRate=rep(0.25,nChains)	##<< numeric vector (nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
 		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 	)  ##end<< 
 	## }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
+
+	#,rIndToAcc=2	
+	### for some parameters, the acceptance rate might underestimate the independent generations. 
+	### Increase this factor to extend the back-Range to sample from (to be tested).
+	### Rate maybe inferred by minimum of effectiveSize(sample)/nNample
+	
 	
 	##details<< \describe{ \item{Multistep Metropolis decisions: \code{intResCompNames} }{
 	## For performance reasons one may decide to do a Metropolis decision on parameters
@@ -176,10 +183,12 @@ twDEMCInt <- function(
 	if( 0==length(rownames(X)) )
 		warning("twDEMCInt: no rownames of initial value matrix X.")
 	if( (0==length(logDenX)) || (0==length(resFLogDenX)) || !is.finite(logDenX) || any(!is.finite(resFLogDenX))){
+		#recover()
 		# calculate unnormalized density for current state if not provided yet 
 		#twCalcLogDenPar expects parameters in columns, need transpose
 		.resFLogDenXPar <- if( (0 == length(resFLogDenX))) numeric(0) else t(resFLogDenX) #transpose will fail on NULL
-		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), resFLogDenX=.resFLogDenXPar, intResCompNames=intResCompNames, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale
+		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), resFLogDenX=.resFLogDenXPar, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale
+			, intResCompNames=intResCompNames
 			,debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, ...)
 		logDenX <- .resLogDenPar$logDen
 		resFLogDenX <- t(.resLogDenPar$resFLogDen)
@@ -232,9 +241,10 @@ twDEMCInt <- function(
 	
 	#d$parms <- 16; nChainsPop=8; nPops=2; ctrl=list(thin=8); nGen=200
 	# number of requried independent generations to choose from (10*d independent states: TerBraak06 TerBraak08) devided by number of chains
-	ar <- ctrl$initialAcceptanceRate 
-	if( length(ar) != nPops)
-		stop("ctrl$initialAcceptanceRate must be of length nPops")
+	if( length(ctrl$initialAcceptanceRate) != nChains)
+		stop("ctrl$initialAcceptanceRate must be of length nChains")
+	ar <- popMeansTwDEMC(ctrl$initialAcceptanceRate, nPops) # current acceptance rate of population
+	#nGenBack <- pmin(mZ,ceiling(ctrl$rIndToAcc * ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	
 	##details<< \describe{ \item{Acceptance rate}{
@@ -247,7 +257,8 @@ twDEMCInt <- function(
 	# if its boundaries are filled up, the last nGenBack states are copied to the first interval
 	aThinWinW <- ctrl$pAcceptWindowWidth %/% ctrl$thin	# number of thinning intervals over which to calculate average acceptance rate
 	ctrl$pAcceptWindowWidth <- aThinWinW * ctrl$thin
-	acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainsPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
+	#acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainsPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
+	acceptWindow <- matrix( rep(ctrl$thin*ctrl$initialAcceptanceRate, each=2*aThinWinW), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
 	
 	# arguments to .doDEMCStep that do not change within thinning interval
 	# tmp <- try( list(...) ); if( inherits(tmp, "try-error")) recover()
@@ -348,7 +359,7 @@ twDEMCInt <- function(
 		#the first 5 thinning generations ctrl$intialAcceptanceRate in part determines the generations to go back
 		#curAcceptRows <- (acceptPos0+1)-((aThinWinW-1):0)	# initial phase of batch strongly determined by prescribed assumed initial acceptance rate
 		#curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,4)):0) # initial phase strongly determined by random first proposals
-		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,10)):0)
+		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,16)):0)
 		pAccept[mZ,] <- colSums(acceptWindow[curAcceptRows,,drop=FALSE]) / (length(curAcceptRows)*ctrl$thin) 
 		temp[mZ,] <- TstepFixed[iThin0*ctrl$thin+ctrl$thin,]
 		if( boRecordProposalsIThin ) Y[,iGen+1-nGenOmitRecord,] <- resDo$Y	# recored the proposals together with Density
@@ -356,7 +367,11 @@ twDEMCInt <- function(
 		# update the number of generations to choose from, which depends on acceptance rate
 		tmp.chains <- rep(1:nPops, each=nChainsPop)	# population of chain at position
 		ar <- pmax(0.026,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 1%=0.16*0.16 to ensure localization (else may go to 0 -> entire history -> no acceptance) 
-		nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
+		#nGenBack <- pmin(mZ,ceiling(ctrl$rIndToAcc * ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, 
+		nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, 
+		# ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one
+		# further multiplied by the factor ctrl$rIndToAcc accounts for some from several parameters are strongly autocorrelated even after thinning
+		# observed that chains run for long nearly parallel because of auto-correlation
 		
 	} # iThin0 in 0:(nThinnedGen-1)
 	#res <- list(parms=Z, rLogDen=rLogDen, thin=ctrl$thin, pAccept=pAccept, call=ccl )
@@ -988,6 +1003,7 @@ setMethodS3("twDEMC","twDEMC", function(
 	Zinit, ##<< list of class twDEMC, result of \code{\link{twDEMCInt}}
 	... ##<< further arguments to \code{\link{twDEMCInt}}
 ){
+	#twDEMC.twDEMC
 	.dots <- list(...)
 	argsList <- list(Zinit=Zinit$parms)	
 	M0 <- nrow(Zinit$rLogDen)
@@ -999,7 +1015,7 @@ setMethodS3("twDEMC","twDEMC", function(
 	if( is.null(.dots$resFLogDenX) ) 
 		argsList$resFLogDenX <- Zinit$resFLogDenX
 	if( is.null(.dots$nPops) ) 
-		argsList$nPops <- ncol(Zinit$temp)
+		argsList$nPops <- getNPops(Zinit)
 	res <- do.call( twDEMCInt, c(argsList,.dots))
 	res$rLogDen[1:M0,] <- Zinit$rLogDen
 	res$pAccept[1:M0,] <- Zinit$pAccept
@@ -1018,7 +1034,7 @@ twDEMCBatch <- function(
 	Zinit	##<< the twDEMC object returned by \code{\link{twDEMCInt}}
 	,...	
 		### Further arguments that are appended/overwrite entries of \code{batchCall}.
-		### If Zinit is of class twDEMC, arguemnts  "resFLogDenX","logDenX" are set to NULL, so that these are taken from Zinit itself.
+		### If Zinit is of class twDEMC, arguments  "resFLogDenX","logDenX" are set to NULL, so that these are taken from Zinit itself.
 ){
 	##seealso<< 
 	## \code{\link{twDEMCBatchInt}}
@@ -1133,7 +1149,7 @@ twDEMCBatchInt <- function(
 		res <- Zinit
 		iRun <- getNGen(res)
 		if( iRun >= nGen ) return(res)
-		ctrl$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
+		ctrl$initialAcceptanceRate <- res$pAccept[nrow(res$pAccept),]
 		ctrl$T0 <- T0c <- res$temp[ nrow(res$temp), ,drop=FALSE ]
 		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
@@ -1232,12 +1248,12 @@ twDEMCBatchInt <- function(
 		}
 		nRun <- min(nBatch, (if(iRun<max(nGenBurnin)) min(max(nGenBurnin),nGen) else nGen) -iRun)		#iRun: Generation after batch run
 		.dots <- list(...)
-		.dots[c("logDenX","resFLogDenX")] <- NULL;	#those will be inferred from res
+		.dots[c("logDenX","resFLogDenX")] <- NULL;	#those will be inferred from res in twDEMC.twDEMC
 		clArgs <- c(list(Zinit=res), .dots)	#Zinit must be first argument 
 		clArgs$nPops<-nPops
 		#clArgs$T0=max(1,b*exp(-a*iRun))		# if temp did not decrease start from this temperature
 		clArgs$controlTwDEMC <- controlTwDEMC
-		clArgs$controlTwDEMC$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
+		clArgs$controlTwDEMC$initialAcceptanceRate <-  res$pAccept[nrow(res$pAccept),]
 		clArgs$controlTwDEMC$T0<-T0c<-res$temp[ nrow(res$temp), ,drop=FALSE]
 		#clArgs$Tend=max(1,b*exp(-a*(iRun+nRun)))
 		##--calculating end temperature
