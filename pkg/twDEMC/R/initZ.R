@@ -29,6 +29,8 @@ initZtwDEMCNormal <- function(
 	## \item{ extending the result of a former twDEMC run to include more parameters: \code{\link{initZtwDEMCExt.twDEMC}}  } 
 	## \item{ selecting the N closes points from a sequence of points in parameter space \code{\link{constrainNStack}}  } 
 	## \item{ selecting the points inside a confindenc ellipsis in parameter \code{\link{constrainCfStack}}  } 
+	## \item{ replacing cases with in initial proposals that yield non-finite density \code{\link{replaceZinitNonFiniteLogDens}}  } 
+	## \item{ general method for replacing cases in initial proposals \code{\link{replaceZinitCases }}  } 
 	##}
 	
 	#?rmvnorm #in package mvtnorm
@@ -265,14 +267,16 @@ constrainCfStack <- function(
 
 
 replaceZinitCases <- function( 
-	### Replaces states of Zinit that yield non-finite rLogDen by sampling other states.
+	### Replaces states of Zinit by sampling the other states that are marked good.
 	Zinit, ##<< initial states of the form required by \code{\link{twDEMCInt}} 
-	boMat ##<< boolean matrix with rows cases and columns parameters
+	boMat ##<< boolean matrix specifying good cases with rows cases and columns chains. If it is a vector, then matrix is constructed number of chains last dimension
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
 	## \code{\link{replaceZinitNonFiniteLogDens}}
-	
+
+	if( is.vector(boMat))
+		boMat <- matrix(boMat, ncol=dim(Zinit)[3])
 	##details<< 
 	## Samples for the first half of chains are sampled from good cases of the second half of chains.
 	## Samples for the second half of chains are sampled from good cases of first half of chains.

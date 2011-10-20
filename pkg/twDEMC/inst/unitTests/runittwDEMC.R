@@ -393,6 +393,94 @@ test.goodStartPar <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
+test.upperParBounds <- function(){
+	# same as goodStartPar, but giving an upper parameter bound
+	.nPops=2
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,			### vector of data to compare with
+		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	
+	asplit <- 10.8
+	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	bo.keep <- as.vector(Zinit0["a",,]) <= asplit
+	#mtrace(replaceZinitCases)
+	Zinit1 <- replaceZinitCases(Zinit0, bo.keep)
+	Zinit2 <- replaceZinitCases(Zinit0, !bo.keep)
+	dim(Zinit1)
+	# replace all the cases with upperParBounds
+	
+	#mtrace(.doDEMCStep)
+	res <-  res0 <- twDEMC( Zinit0, nGen=100, 
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		nPops=.nPops
+		#,upperParBounds=c(a=asplit)
+		#,debugSequential=TRUE
+		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
+	)
+	res <-  res1 <- twDEMC( Zinit1, nGen=64*4, 
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		nPops=.nPops
+		,upperParBounds=c(a=asplit)
+		#,debugSequential=TRUE
+		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
+	)
+	res <-  res2 <- twDEMC( Zinit2, nGen=64*4, 
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		nPops=.nPops
+		,lowerParBounds=c(a=asplit)
+		#,debugSequential=TRUE
+	)
+	
+	ss0 <- stackChains(res0)
+	# importance sampling due to integrated probability
+	ss1 <- stackChains(res1)
+	lw1 <- twLogSumExp(ss1[,1])
+	ss2 <- stackChains(res2)
+	lw2 <- twLogSumExp(ss2[,1])
+	lwSum <- twLogSumExp( c(lw1,lw2) )
+	pSubs <- c( exp(lw1-lwSum),  exp(lw2-lwSum) )
+	nSubs <- floor(pSubs/max(pSubs) * nrow(ss0))
+	ssc <- rbind( ss1[sample.int(nrow(ss1),nSubs[1]),]
+		, ss2[sample.int(nrow(ss2),nSubs[2]),]
+	)
+	
+	.tmp.f <- function(){
+		str(res)
+		
+		rescoda <- as.mcmc.list(res)
+		plot(rescoda, smooth=FALSE)
+	
+		plot( density(ssc[,"a"]))	
+		lines(density(ss0[,"a"]), col="blue")
+		lines(density(ss1[,"a"]), col="green")
+		lines(density(ss2[,"a"]), col="darkgreen")
+		
+		gelman.diag(res1)
+		gelman.diag(res2)
+	}
+	
+	.popmean <- colMeans( ssc[,-1])
+	.popsd <- apply(ssc[,-1], 2, sd )
+	
+	# 1/2 orders of magnitude around prescribed sd for theta
+	.pop=1
+	for( .pop in seq(along.with=.popsd) ){
+		checkMagnitude( sdTheta, .popsd[[.pop]] )
+	}
+	
+	# check that thetaTrue is in 95% interval 
+	.pthetaTrue <- sapply(1:2, function(.pop){
+			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+		})
+	checkInterval( .pthetaTrue ) 
+}
+
 
 tmp.f <- function(){
 	twUtestF(twDEMC, "test.doAppendPrevLogDen")

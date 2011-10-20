@@ -39,6 +39,11 @@ twDEMCInt <- function(
 	, argsFDiscrProp=list()
 		### further arguments to fDiscrProp
 	, doRecordProposals=FALSE	##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
+	, upperParBounds = c()
+		### named numeric vector: giving upper parameter bounds 
+		### for exploring subspaces of the limiting distribution, see details
+	, lowerParBounds = c()
+		### named numeric vector: giving upper parameter bounds
 ){
 	##alias<< twDEMC
 	
@@ -93,6 +98,16 @@ twDEMCInt <- function(
 	## In order to assess convergence, one must run several independent populations.
 	## This is supported by specifying argument nPops. Then the n chains, i.e. dim(Zinit)[3], are grouped into several populations.
 	## }}
+	
+	##details<< \describe{ \item{Exploring subspaces}{
+	## Parameter distribution may have different shape, i.e. correlation structure or scales of variability
+	## in different regions. In order to develop a useful jumping distribution, it may be useful to devide the 
+	## parameter space into different subregions and let them explore by different chains.
+	## If proposed parameters components are outside the range given by \code{lowerParBounds} and \code{uppderParBounds} 
+	## then the proposed step is scaled into the opposite direction, ensuring the chains to stain within
+	## the given bounds.
+	## }}
+	
 	
 	if( length(nGen) != 1 ) stop("twDEMCInt: nGen must be a scalar.")
 	nChains <- dim( if( inherits(Zinit,"twDEMC") ) Zinit$parms else Zinit )[3]
@@ -189,9 +204,7 @@ twDEMCInt <- function(
 		# calculate unnormalized density for current state if not provided yet 
 		#twCalcLogDenPar expects parameters in columns, need transpose
 		.resFLogDenXPar <- if( (0 == length(resFLogDenX))) numeric(0) else t(resFLogDenX) #transpose will fail on NULL
-		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), resFLogDenX=.resFLogDenXPar, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale
-			, intResCompNames=intResCompNames
-			,debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, ...)
+		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), resFLogDenX=.resFLogDenXPar, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale	, intResCompNames=intResCompNames	,debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, ...)
 		logDenX <- .resLogDenPar$logDen
 		resFLogDenX <- t(.resLogDenPar$resFLogDen)
 		rownames(resFLogDenX) <- .getResFLogDenNames(resFLogDenX)
@@ -283,6 +296,7 @@ twDEMCInt <- function(
 		Tprop[] = apply(Tprop,2,function(Tprop){Tprop / max(Tprop)}) #scale to maximum 1 per population
 	}
 
+	# arguments to remote .doDEMCStep, that do not change between invocations and need to be distributed only once 
 	argsDEMCStep = list(
 		fDiscrProp=fDiscrProp, argsFDiscrProp=argsFDiscrProp,
 		fLogDen=fLogDen,
@@ -295,6 +309,8 @@ twDEMCInt <- function(
 		,Tprop=Tprop
 		,TFix=ctrl$TFix
 		,posTFix=match(names(ctrl$TFix),.getResFLogDenNames(resFLogDenX))
+		,upperParBounds=upperParBounds
+		,lowerParBounds=lowerParBounds
 	)
 	argsDEMCStepWrapper <- list( 
 		remoteFun=.doDEMCStep,
@@ -766,7 +782,8 @@ attr(twDEMCInt,"ex") <- function(){
 ### \item{TFix}{named numeric vector (comp): components with fixed Temperature}
 ### \item{posTFix}{integer vector (comp): =match(TFix, compNames): positions of TFix within comp provided for performance reasons}
 ### \item{DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
-### \item{DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
+### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
+### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
 ### }
 ){
 	#.doDEMCStep
@@ -800,57 +817,18 @@ attr(twDEMCInt,"ex") <- function(){
 		if( 0 < length(posTFix)){			Ti[posTFix] <- TFix		}
 		accepted<-FALSE
 		xProp = x + step
-		if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
-		res <- if(boResFLogDenX){
-				resFLogDenInt <- resFLogDenAcc[posLogDenInt]
-				TiInt <- Ti[posLogDenInt]
-				do.call( fLogDen, c(list(xProp, resFLogDenInt, TiInt), argsFLogDen) )	# evaluate logDen
-			}else
-				do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
-		#take care that the result has always the same sames, even when if fails
-		#if( 0==length(names(res)))
-		#	stop("encountered result of fLogDen without names")
-		#if( !identical(names(resFLogDenAcc),names(res)))
-		#	stop("encountered result with different names")
-		#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
-		attributes(res) <- list(names=names(res))
-		logDenProp=-Inf
-		Lp <- res*fLogDenScale	# LogDensity of proposal
-		#make sure Lp, La have the same order and legnth
-		#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: resFLogDenAcc must contain the same components and the order of result of fLogDen." )
-		if( all(is.finite(Lp))){
-			logDenProp <- sum(Lp)
-			##details<< \describe{\item{internal Metropolis step}{
-			## if posLogDenInt is given, then these components of result of fLogDen are handled
-			## internally. Hence, for Metropolis step here operates only on other remaining components.
-			## }}
-			posTExt <- setdiff( seq_along(Ti), posLogDenInt )		#externally handled components
-			nExt <- length(posTExt)
-			#posTFixExt <- setdiff(posTFix,posLogDenInt)		#externally handled components with fixed temperature
-			#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogDenInt))	#externally handled componetns with variable temperature
-			#nFixExt <- length(posTFixExt)
-			#nVarExt <- length(posTVarExt)
-			#nExt <- nFixExt + nVarExt
-			
-			#Metropolis step
-			#logr = (logDenPropExt+rExtra - logDenXExt) / temp
-			logrDS10 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
-			logAlpha10 <- rExtra + sum(logrDS10) 
-			accepted <-  is.finite(logAlpha10) && (logAlpha10  > log(runif(1)) )
-			if(accepted){
-				x <- xProp
-				logDenAcc <- logDenProp
-				resFLogDenAcc <- res
-			}				
-		}else logAlpha10 <- -Inf
 		
-		if(!accepted && !is.null(argsDEMCStep$DRgamma) && !is.null(argsDEMCStep$minPCompAcceptTempDecr) && (argsDEMCStep$DRgamma > 0) && (pAccept < 1.2*argsDEMCStep$minPCompAcceptTempDecr)) {
-			#----- delayed rejection (DR) step
-			# only if acceptance rate drops below 1.2*minAcceptrate
-			# repeat all above with delayed rejection (DR) step, only adjust DRfac after calculating Lp
-			Lp1 <- Lp
-			xProp1 <- xProp
-			xProp <- x + argsDEMCStep$DRgamma*step
+		boOutside <- 
+			any( sapply( names(upperParBounds), function(pname){ xProp[pname] > upperParBounds[pname] })) ||
+			any( sapply( names(lowerParBounds), function(pname){ xProp[pname] < lowerParBounds[pname] }))
+		if( boOutside ){
+			# if it is still outside (maybe opposite border) reject step and give -Inf as logDenResult
+			logDenProp=logAlpha10=-Inf		#logAlpha10 is log of the initial acceptance ratio for DR step (-Inf no chance of acceptance)
+			res <- resFLogDenAcc	#results for the proposal
+			res[] <- -Inf
+			Lp <- res
+		}else{
+			# discrtize proposal
 			if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
 			res <- if(boResFLogDenX){
 					resFLogDenInt <- resFLogDenAcc[posLogDenInt]
@@ -882,22 +860,82 @@ attr(twDEMCInt,"ex") <- function(){
 				#nFixExt <- length(posTFixExt)
 				#nVarExt <- length(posTVarExt)
 				#nExt <- nFixExt + nVarExt
-				#Metropolis step 
+				
+				#Metropolis step
 				#logr = (logDenPropExt+rExtra - logDenXExt) / temp
-				logrDS20 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
-				logAlpha20 <- rExtra + sum(logrDS20)
-				#---  here correct with first stage DR factor (1-alpha21)/(1-alpha10) with meaning 0:accepted 1:first proposal 2:second proposal
-				logrDS21 <- (Lp1[posTExt]-Lp[posTExt])/Ti[posTExt]
-				logAlpha21 <- sum(logrDS21)
-				logAlpha2 <- suppressWarnings( logAlpha20  +log(1-exp(logAlpha21)) -log(1-exp(logAlpha10)) )	# log and exp may produce NaNs 
-				accepted <-  is.finite(logAlpha2) && ( logAlpha2 > log(runif(1)) ) 
+				logrDS10 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
+				logAlpha10 <- rExtra + sum(logrDS10) 
+				accepted <-  is.finite(logAlpha10) && (logAlpha10  > log(runif(1)) )
 				if(accepted){
 					x <- xProp
 					logDenAcc <- logDenProp
 					resFLogDenAcc <- res
 				}				
-			}
-		}	## end DR step
+			}else logAlpha10 <- -Inf
+		} # end check outside parBounds
+		
+		if(!accepted && !is.null(argsDEMCStep$DRgamma) && (argsDEMCStep$DRgamma > 0) && 
+				( boOutside ||	(!is.null(argsDEMCStep$minPCompAcceptTempDecr) && (pAccept < 1.2*argsDEMCStep$minPCompAcceptTempDecr)))
+		) {
+			#----- delayed rejection (DR) step
+			# only if across parBoundEdge or acceptance rate drops below 1.2*minAcceptrate
+			# repeat all above with delayed rejection (DR) step, only adjust DRfac after calculating Lp
+			Lp1 <- Lp
+			xProp1 <- xProp
+			xProp <- x + argsDEMCStep$DRgamma*step
+			
+			boOutside <- 
+				any( sapply( names(upperParBounds), function(pname){ xProp[pname] > upperParBounds[pname] })) ||
+				any( sapply( names(lowerParBounds), function(pname){ xProp[pname] < lowerParBounds[pname] }))
+			if( !boOutside ){
+				if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
+				res <- if(boResFLogDenX){
+						resFLogDenInt <- resFLogDenAcc[posLogDenInt]
+						TiInt <- Ti[posLogDenInt]
+						do.call( fLogDen, c(list(xProp, resFLogDenInt, TiInt), argsFLogDen) )	# evaluate logDen
+					}else
+						do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
+				#take care that the result has always the same sames, even when if fails
+				#if( 0==length(names(res)))
+				#	stop("encountered result of fLogDen without names")
+				#if( !identical(names(resFLogDenAcc),names(res)))
+				#	stop("encountered result with different names")
+				#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
+				attributes(res) <- list(names=names(res))
+				logDenProp=-Inf
+				Lp <- res*fLogDenScale	# LogDensity of proposal
+				#make sure Lp, La have the same order and legnth
+				#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: resFLogDenAcc must contain the same components and the order of result of fLogDen." )
+				if( all(is.finite(Lp))){
+					logDenProp <- sum(Lp)
+					##details<< \describe{\item{internal Metropolis step}{
+					## if posLogDenInt is given, then these components of result of fLogDen are handled
+					## internally. Hence, for Metropolis step here operates only on other remaining components.
+					## }}
+					posTExt <- setdiff( seq_along(Ti), posLogDenInt )		#externally handled components
+					nExt <- length(posTExt)
+					#posTFixExt <- setdiff(posTFix,posLogDenInt)		#externally handled components with fixed temperature
+					#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogDenInt))	#externally handled componetns with variable temperature
+					#nFixExt <- length(posTFixExt)
+					#nVarExt <- length(posTVarExt)
+					#nExt <- nFixExt + nVarExt
+					#Metropolis step 
+					#logr = (logDenPropExt+rExtra - logDenXExt) / temp
+					logrDS20 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
+					logAlpha20 <- rExtra + sum(logrDS20)
+					#---  here correct with first stage DR factor (1-alpha21)/(1-alpha10) with meaning 0:accepted 1:first proposal 2:second proposal
+					logrDS21 <- (Lp1[posTExt]-Lp[posTExt])/Ti[posTExt]
+					logAlpha21 <- sum(logrDS21)
+					logAlpha2 <- suppressWarnings( logAlpha20  +log(1-exp(logAlpha21)) -log(1-exp(logAlpha10)) )	# log and exp may produce NaNs 
+					accepted <-  is.finite(logAlpha2) && ( logAlpha2 > log(runif(1)) ) 
+					if(accepted){
+						x <- xProp
+						logDenAcc <- logDenProp
+						resFLogDenAcc <- res
+					}				
+				}
+			} # end !boOutside in DR step 
+		}	# end DR step
 		
 		#will invoke prevRes[c("x", "resFLogDenAcc", "logDenAcc")]
 		if(!is.numeric(x) | !is.numeric(resFLogDenAcc) | !is.numeric(logDenAcc) )
@@ -908,7 +946,7 @@ attr(twDEMCInt,"ex") <- function(){
 			,xProp=xProp,resFLogDenProp=res, logDenProp=logDenProp
 		)
 	})
-	#detach( argsDEMCStep ); list(accepted=accepted,x=x,resFLogDenX=resFLogDenX,logDenX=logDenX)
+	#detach( argsDEMCStep ); list(accepted=accepted,x=x,resFLogDenAcc=resFLogDenAcc, logDenAcc =logDenAcc,xProp=xProp,resFLogDenProp=res, logDenProp=logDenProp	) 
 	### list with components \describe{
 	### \item{accepted}{boolean scalar: if step was accepted}
 	### \item{x}{numeric vector: current position in parameter space}
@@ -918,6 +956,26 @@ attr(twDEMCInt,"ex") <- function(){
 	### \item{resFLogDenProp}{numeric vector: result components of fLogDen for proposal }
 	### \item{logDenProp}{numeric vector: summed fLogDen for proposal}
 	### }
+}
+
+.tmp.f <- function(){
+	# old code for adjusting step on outside parBounds
+	# but better take DR step or stay at current state
+	#x <- a = c(4,
+	facOutside <- 
+		max(1
+			, sapply( names(upperParBounds), function(pname){ (upperParBounds[pname]-x[pName]+upperParBounds[pname]-xProp[pname])/(upperParBound[pname]-x[pname]) }) 
+			, sapply( names(lowerParBounds), function(pname){ (lowerParBounds[pname]-x[pName]+lowerParBounds[pname]-xProp[pname])/(upperParBound[pname]-x[pname]) })
+		)
+	if( facOutside > 1){
+		xProp = x + facOutside*step
+	}
+	if( boOutside){
+		# if it is still outside (maybe opposite border) reject step and give -Inf as logDenResult
+		logDenProp=-Inf
+		res <- resFLogDenAcc	#results for the proposal
+		res[] <- -Inf
+	} else {}
 }
 
 twCalcLogDenPar <- function(
@@ -956,8 +1014,7 @@ twCalcLogDenPar <- function(
 		#call fLogDen with second argument
 		F_ARGS <- function(i){c(list(xProp[i,]),list(resFLogDenXInt[i,]))}
 		#F_ARGS(1)
-		resl <- sfFArgsApplyLB( nrow(xProp), F_ARGS, F_APPLY=sfRemoteWrapper, remoteFun=fLogDen
-		, debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, SFFARGSAPPLY_ADDARGS=argsFLogDen, ...) 
+		resl <- sfFArgsApplyLB( nrow(xProp), F_ARGS, F_APPLY=sfRemoteWrapper, remoteFun=fLogDen	, debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, SFFARGSAPPLY_ADDARGS=argsFLogDen, ...) 
 		sfSimplifyLBResult(resl)
 	}else{
 		do.call( sfApplyMatrixLB, c(list( X=xProp, MARGIN=1, FUN=sfRemoteWrapper, remoteFun=fLogDen		, debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename), argsFLogDen, list(...)) )	#use doCall in order to use argsFLogDen
@@ -1155,7 +1212,7 @@ twDEMCBatchInt <- function(
 	pTarget=ctrl$minPCompAcceptTempDecr+0.02
 	if( is(Zinit,"twDEMC") ){
 		res <- Zinit
-		if( !is.null(controlTwDEMC$thin) & (controlTwDEMC$thin != res$thin) ) 
+		if( !is.null(controlTwDEMC$thin) && (controlTwDEMC$thin != res$thin) ) 
 			stop(paste("twDEMCBatchInt: provided control thin=",controlTwDEMC$thin,", but Zinit$thin=",res$thin,sep=""))
 		iRun <- getNGen(res)
 		if( iRun >= nGen ) return(res)
@@ -1511,12 +1568,17 @@ twRunFLogDenPar <- function(
 	### Extracting/Creating names for result components of resFLogDen
 	resFLogDenX
 ){
+	##details<< 
+	## Names of the result components of fLogDen are used to ditinguish internal components.
+	## If the density function does not provide names, they are created.
+	## If the density function has only one result component, the name is lost during parallel execution.
+	## Hence, a single name is also re-created, to avoid errors on checking. 
 	if( is.array(resFLogDenX)){
 		res <- rownames(resFLogDenX)
 		return( if( !is.null(res) ) res else paste("logDenResComp",1:nrow(resFLogDenX),sep="") )
 	}else{
 		res <- names(resFLogDenX)
-		return( if( !is.null(res) ) res else paste("logDenResComp",1:length(resFLogDenX),sep="") )
+		return( if( !is.null(res) && length(res) > 1) res else paste("logDenResComp",1:length(resFLogDenX),sep="") )
 	}
 }
 
