@@ -15,7 +15,7 @@ den2dCor <- function(
 	#-1/2 * ( lda + max(ldb,0.9*lda))  # may not be a density 	
 	c( den = as.numeric(-1/2 * ( lda + ldb )) )			   # also not a density because sigmab depends on a and does not factor out
 }
-#attr(den2dCor,"ex") <- function(){
+attr(den2dCor,"ex") <- function(){
 	#gridlogx <- seq(log(0.1),log(+4),length.out=91)
 	#gridx <- exp(gridlogx)
 	gridx <- a <- seq(-0.5,2,length.out=91)
@@ -42,15 +42,17 @@ den2dCor <- function(
 	##------------------ do an MCMC run
 	(.expTheta <- c(a=0,b=0) )
 	(.expCovTheta <- diag(c(a=2,b=2)) )		
-	.nPops=1
+	.nPops=2
 	Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
 	#mtrace(twDEMCInt)
-	res <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor )
-	res <- twDEMCBatch(res, nGen=1000)
-	plot( thinN(as.mcmc.list(res)))
-	matplot( res$pAccept, type="l" )
-	pps <- stackChains(res)[-(1:500),]
+	
+	den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
+	den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+	plot( thinN(as.mcmc.list(den2dCorTwDEMC)))
+	matplot( den2dCorTwDEMC$pAccept, type="l" )
+	pps <- stackChains(den2dCorTwDEMC)[-(1:500),]
 	ss <- pps[,-1]
+	#plot( ss[,1], ss[,2] )
 	plot( ss[,1], ss[,2], ylim=c(-40,80) )
 	plot( density(ss[,1]) )
 	plot( ecdf( ss[,1] ) )
@@ -58,4 +60,4 @@ den2dCor <- function(
 	
 	
 
-#}
+}

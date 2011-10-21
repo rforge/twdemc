@@ -17,8 +17,8 @@ pkg<-"twDEMC"
 	library(debug)
 	library(lattice)
 	
-	#sfInit(parallel=TRUE, cpus=4)
-	sfInit(parallel=TRUE, cpus=2)
+	sfInit(parallel=TRUE, cpus=4)
+	#sfInit(parallel=TRUE, cpus=2)
 	
 	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
 	tmp <- sapply(Sys.glob(file.path("R","multiTemp.R")), sfSource)

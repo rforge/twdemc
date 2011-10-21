@@ -426,15 +426,15 @@ test.upperParBounds <- function(){
 	res <-  res1 <- twDEMC( Zinit1, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
-		,upperParBounds=c(a=asplit)
-		#,debugSequential=TRUE
+		,upperParBounds=rep( list(c(a=asplit)), .nPops)
+		,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	)
 	res <-  res2 <- twDEMC( Zinit2, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
-		,lowerParBounds=c(a=asplit)
-		#,debugSequential=TRUE
+		,lowerParBounds=rep( list(c(a=asplit)), .nPops )
+		,debugSequential=TRUE
 	)
 	
 	ss0 <- stackChains(res0)
@@ -464,6 +464,8 @@ test.upperParBounds <- function(){
 		gelman.diag(res1)
 		gelman.diag(res2)
 	}
+	checkTrue( all( ss1[,"a"] <= asplit ) )
+	checkTrue( all( ss2[,"a"] >= asplit ) )
 	
 	.popmean <- colMeans( ssc[,-1])
 	.popsd <- apply(ssc[,-1], 2, sd )

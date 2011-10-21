@@ -39,11 +39,11 @@ twDEMCInt <- function(
 	, argsFDiscrProp=list()
 		### further arguments to fDiscrProp
 	, doRecordProposals=FALSE	##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
-	, upperParBounds = c()
-		### named numeric vector: giving upper parameter bounds 
+	, upperParBounds = vector("list",nPops)
+		### list of named numeric vectors: giving upper parameter bounds for each population 
 		### for exploring subspaces of the limiting distribution, see details
-	, lowerParBounds = c()
-		### named numeric vector: giving upper parameter bounds
+	, lowerParBounds = vector("list",nPops)
+		### similar to upperParBounds
 ){
 	##alias<< twDEMC
 	
@@ -132,7 +132,7 @@ twDEMCInt <- function(
 		probUpDir=0.5 	##<< probability of direction between two states of increasing Density (increase during burin may accelerate convergence)
 		,initialAcceptanceRate=rep(0.25,nChains)	##<< numeric vector (nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
-		,minPCompAcceptTempDecr=0.2  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
+		,minPCompAcceptTempDecr=0.15  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
 		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population 
 	)  ##end<< 
@@ -819,8 +819,9 @@ attr(twDEMCInt,"ex") <- function(){
 		xProp = x + step
 		
 		boOutside <- 
-			any( sapply( names(upperParBounds), function(pname){ xProp[pname] > upperParBounds[pname] })) ||
-			any( sapply( names(lowerParBounds), function(pname){ xProp[pname] < lowerParBounds[pname] }))
+			any( sapply( names(upperParBounds[[iPop]]), function(pname){ xProp[pname] > upperParBounds[[iPop]][pname] })) ||
+			any( sapply( names(lowerParBounds[[iPop]]), function(pname){ xProp[pname] < lowerParBounds[[iPop]][pname] }))
+	#if(xProp[1] < 10.8)	recover()
 		if( boOutside ){
 			# if it is still outside (maybe opposite border) reject step and give -Inf as logDenResult
 			logDenProp=logAlpha10=-Inf		#logAlpha10 is log of the initial acceptance ratio for DR step (-Inf no chance of acceptance)
@@ -1165,7 +1166,7 @@ twDEMCBatchInt <- function(
 	, maxNGenBurnin=50000	##<< maximum burnin beyond which can not be extendend on too low acceptance rate
 	, fCalcTStreamDiffLogDen=calcDEMCTempDiffLogDen3	##<< function calculate optimal Temperature and acceptance rates based on Lp-La 
 	, argsFCalcTStreamDiffLogDen=list()		##<< further arguments to fCalcTStreamDiffLogDen  
-	, fCalcTGlobal=calcDEMCTempGlobal2		##<< function calculating global target temperature
+	, fCalcTGlobal=calcDEMCTempGlobal3		##<< function calculating global target temperature
 	, argsFCalcTGlobal=list()				##<< further arguments to fCalcTStreamDiffLogDen  
 ){
 	# twDEMCBatchInt

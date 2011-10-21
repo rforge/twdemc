@@ -1,31 +1,32 @@
 findSplit <- function(
 	### determine the parameter and its value, where to split the parameter space
-	ss	##<< the sample (stacked chains)
+	aSample	##<< the sample (stacked chains)
 	,nSplit = 4 ##<< how points per parameter dimension to check for split
 	,rVarCrit = 20^2	##<< minimla ratio of variances of a variable between right and left side of a splitting point
-	,rAlphaSlopeCrit = base:::pi/2/3	## minimal ratio of angle between scaled slopes, defaults to a third of a quarter of a cirle 
-	,iVars = 1:ncol(ss)		#<< variables to check for split		
-	,jVars = 1:ncol(ss)		#<< variables to check for different scales of variance
+	,rAlphaSlopeCrit = base:::pi/3	## minimal ratio of angle between scaled slopes, defaults to a third of a half cirle 
+	,iVars = 1:ncol(aSample)		#<< integer vector: index or parameter dimensions, i.e. variables, to check for split		
+	,jVars = 1:ncol(aSample)		#<< integer vector: index or parameter dimensions, i.e. variables, to check for different scales of variance
 ){
 	##details<< 
 	## First it checks for different scales of variance in other variables. 
 	foundSplit <- FALSE
+	percentiles <- 1:(nSplit)/(nSplit+1)
 	quantVar <- iVarLeft <- iVarRight <- matrix( NA_real_, nrow=length(iVars), ncol=nSplit )
 	slope <- parVarLeft <- parVarRight <- array( NA_real_, dim=c(length(iVars),length(jVars),nSplit)
-	, dimnames=list(iVar=colnames(ss)[iVars], jVar=colnames(ss)[jVars], iSub=NULL ))
+	, dimnames=list(iVar=colnames(aSample)[iVars], jVar=colnames(aSample)[jVars], iSub=NULL ))
 	ssSubLeft <- ssSubRight <- vector(mode="list",length=length(iVars) )
 	#i <- 1
 	for( i in seq_along(iVars)){
 		iVar <- iVars[i]
-		p <- ss[,iVar] 
-		qp <- quantVar[i, ] <- quantile( p, 1:(nSplit)/(nSplit+1) )
+		p <- aSample[,iVar] 
+		qp <- quantVar[i, ] <- quantile( p, percentiles )
 		#iSub <- 1
 		#iSub <- nSub
 		ssSubLeft[[i]] <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- ss[ (p <= qp[iSplit]),]
+				ssSub <- aSample[ (p <= qp[iSplit]),]
 			})
 		ssSubRight[[i]] <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- ss[ (p >= qp[iSplit]),]
+				ssSub <- aSample[ (p >= qp[iSplit]),]
 			})
 		# ratio of variances of subsets left and right of splitting points
 		#j <- 1
@@ -43,7 +44,11 @@ findSplit <- function(
 				pVar[ pVar < 1 ] <- 1/pVar[pVar<1]
 				if( max(pVar) > rVarCrit){
 					iSplit <- which.max(pVar)
-					return( structure( quantVar[i,iSplit], names=colnames(ss)[iVar] ) )
+					res <- list( 
+						split=structure( quantVar[i,iSplit], names=colnames(aSample)[iVar])
+						, varName=colnames(aSample)[iVar]
+						, perc=percentiles[iSplit] )
+					return(res)
 				}
 			} # end if( jVar!=iVar)
 		} # end for jVar variance
@@ -68,8 +73,8 @@ findSplit <- function(
 				dAlphaSlope <- sapply( 1:nSplit, function(iSplit){
 						#XXTODO names are not know to construct formula, lookup direct equation for
 						#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] )
-						lmLeft <- lm( as.formula(paste(colnames(ss)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubLeft[[i]][[iSplit]][,c(jVar,iVar)]) )
-						lmRight <- lm( as.formula(paste(colnames(ss)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubRight[[i]][[iSplit]][,c(jVar,iVar)]) )
+						lmLeft <- lm( as.formula(paste(colnames(aSample)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubLeft[[i]][[iSplit]][,c(jVar,iVar)]) )
+						lmRight <- lm( as.formula(paste(colnames(aSample)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubRight[[i]][[iSplit]][,c(jVar,iVar)]) )
 						#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] ); abline(lmLeft)
 						#plot( ssSubRight[[i]][[iSplit]][,iVar], ssSubRight[[i]][[iSplit]][,jVar] ); abline(lmRight)
 						slopeLeft <- coef(lmLeft)[2] * sqrt(iVarLeft[i,iSplit]/parVarLeft[i,j,iSplit]) 
@@ -80,14 +85,23 @@ findSplit <- function(
 					})
 				if( max(dAlphaSlope) > rAlphaSlopeCrit){
 					iSplit <- which.max(dAlphaSlope)
-					return( structure( quantVar[i,iSplit], names=colnames(ss)[iVar] ) )
+					res <- list( 
+						split=structure( quantVar[i,iSplit], names=colnames(aSample)[iVar])
+						, varName=colnames(aSample)[iVar]
+						, perc=percentiles[iSplit] )
+					return(res)
 				}
 			} # end if( jVar!=iVar)
 		} # end for jVar variance
 	} # for iVar
 
-	### named scalar: splitting value with the name of the parameter dimension that is to split 
-	return( NA_real_ )
+	##value<< list with components  
+	return( list(
+		split=NA_real_	##<< named scalar: splitting value with the name of the parameter dimension that is to split
+		,varName=NA_character_ ##<< name of the splitting variable
+		,perc=NA_real_	##<< scalar: percentile of the splitting point
+	))
+	##end<< 
 }
 attr(findSplit,"ex") <- function(){
 	ss1 <- ss <- pps[,-1]
@@ -105,4 +119,60 @@ attr(findSplit,"ex") <- function(){
 	(res <- findSplit(ss1, iVars=c(2,1) ))
 	(res <- findSplit(ss1, iVars=c(2) ))
 	plot( ss[,1], ss[,2], col=c("blue","red")[as.integer(ss[,names(res)] >= res)+1])
+}
+
+
+divideTwDEMC <- function(
+	aTwDEMC
+	,argsFSplit=list()
+	, X=NULL
+	, logDenX=NULL
+	, resFLogDenX=NULL #numeric(0)  #Zinit[FALSE,1,]
+	, upperParBounds = c()
+	, lowerParBounds = c()
+	, nChainsPop=getNChainsPop(aTwDEMC)
+	, ...
+){
+	popSamples <- stackChainsPop(aTwDEMC)
+	Zinit <- getZinitDivide(popSamples)
+	#aSample <- popSamples[,,1]
+	resSplit <- apply(popSamples,3, function(aSample){ do.call( findSplit, c(list(aSample=aSample[,-1]),argsFSplit)) })
+	if( is.na(resSplit$split) ){
+		return(twDEMC(aSample,...))	
+	}else{
+		# do two MCMC samples on constrained subspace
+		boLeft <- (aSample[,resSplit$varName] <= resSplit$split)
+		sampleLeft <- aSample[boLeft, ]
+		sampleRight <- aSample[boLeft,]
+		upperLeft <- unlist({ tmp<-upperParBounds;tmp[resSplit$varName]<-resSplit$split })
+		#res1 <- divideTwDEMC(sampleLeft,argsFSplit,lowerParBounds=lowerParBounds,upperParBounds=upperLeft,...)
+		Zinit1 <- array(t(sampleLeft)[,(nrow(sampleLeft)%/%nChains)*nChains]
+			, dim=c(ncol(sampleLeft), (nrow(sampleLeft)%/%nChains), nChains)
+			, dimnames=list(parms=colnames(aSample),cases=NULL,chains=NULL)
+		)   
+		res1 <- twDEMC(Zinit1,lowerParBounds=lowerParBounds,upperParBounds=upperLeft, nGen=500, fLogDen=den2dCor
+					X=X, 
+				)
+		lowerRight <- unlist({ tmp<-lowerParBounds;tmp[resSplit$varName]<-resSplit$split })
+		#res2 <- divideTwDEMC(sampleLeft,argsFSplit,lowerParBounds=lowerRight,upperParBounds=upperParBounds,...)
+		res2 <- twDEMC(sampleRight,lowerParBounds=lowerRight,upperParBounds=upperParBounds
+			, nGen=500, fLogDen=den2dCor  )
+		# do an importance sampling to combine populations of both
+		ss1 <- stackChains(res1)
+		lw1 <- twLogSumExp(ss1[,1])
+		ss2 <- stackChains(res2)
+		lw2 <- twLogSumExp(ss2[,1])
+		lwSum <- twLogSumExp( c(lw1,lw2) )
+		pSubs <- c( exp(lw1-lwSum),  exp(lw2-lwSum) )
+		nSubs <- floor(pSubs/max(pSubs) * nrow(ss0))
+		ssc <- rbind( ss1[sample.int(nrow(ss1),nSubs[1]),]
+			, ss2[sample.int(nrow(ss2),nSubs[2]),]
+		)
+		
+	}
+	
+}
+attr(findSplit,"ex") <- function(){
+	aTwDEMC <- den2dCorTwDEMC 
+	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
 }

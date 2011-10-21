@@ -874,4 +874,110 @@ calcDEMCTempGlobal2 <- function(
 	### numeric matrix 
 }
 
+calcDEMCTempGlobal3 <- function(
+	### Calculating global temperature and adjusted burnin period after the next batch for one population.
+	resPop		##<< twDEMC result (subChains of one population)
+	,diffLogDen	##<< numeric vector: Lp-La of the previous proposals 
+	,TLp		##<< numeric scalar: max Temperature suggested by optimizing Lp  (from \code{\link{calcDEMCTempDiffLogDen3}}			
+	,pAcceptTVar ##<< numeric scalar: Acceptance rate of temperatue dependent step (from \code{\link{calcDEMCTempDiffLogDen3}}
+	,iRun=getNGen(resPop)	##<< current generation: may be passed for efficiency
+	,nGenBurnin ##<< integer scalar: the number of Generations in burnin
+	,nRun		##<< integer scalar: the number of generations in next batch
+	,rHat0=1.2	##<< rHat value for which to not change the burnin period
+	,nSampleGelmanDiag=64	
+	### sample size of the appropriately thinned sample that will be detrended to check Gelman diagnostics before decreasing temperature.
+	### When working in high dimensional parameter space, you may encounter false high gelman diagnostics. Then you can try increasing this parameter,
+	### but be aware of increasing computational demand.
+	,nSampleTrend=512
+### size of the end of the appropriately thinned logDen sample that will be checked for a trend.
+){
+	# adjust calcDEMCTempGlobal2 to not decrease Temp before checking Gelman diagnostics and trend
+	rHat0=max(rHat0,1.001)		#not smaller than 1.001 in order to avoid division by zero
+	temp <- resPop$temp[,1]
+	nR <- length(temp)
+	T0 <- temp[nR]
+	acceptRowsFac <- 1/(resPop$thin*max(0.05,resPop$pAccept[nR,1]))  # every x rows can be regarded as independent, avoid division by zero or very small numbers
+	i <- max(1,round(nR- 20*acceptRowsFac))	# row 20 independent steps back
+	t20r<-temp[i]/T0
+	if( t20r > 1.25){
+		# 20 independent rows back, temperate was more than 125% of current temperate: too fast
+		# keep current temperature and extend burnin by generations in next batch
+		cat("  Tback20/TCurr=",round(t20r*100),"%, pAccept=",resPop$pAccept[nR,1]," keep T0 and extend burnin\n",sep="")		
+		TGlobal <- T0
+		nGenBurninNew <- iRun+(nGenBurnin-iRun)*1.1+nRun
+	}else{
+		temp2 <- temp[temp!=T0]	# if Temperature did not change yet, twBinOptimize is undetermined	
+		i130 <- if(length(temp2)>0) twBinOptimize(temp2, 1.2*T0)$where else NA   # index where temperature is closest to 120% of current temperature
+		if(is.na(i130) || (temp[i130]<1.1*T0) ) i130 <- 0  # start checking at the beginning
+		# if the chains of one populatin cover the minimum at given temperature, temperature may decrease
+		# hence check, if they converged to limiting distribution for given temperature
+		# proper thin based on acceptance ratio
+		newThinOdd <- 1/max( 1/256 ,resPop$pAccept[nR,1])			# low acceptance rate, higher sampling, avoid division by very small number
+		newThin <- max(1,(newThinOdd%/%resPop$thin))*resPop$thin	# make it multiple of current thin
+		res2Batch <- thin(resPop,start=max(0,iRun-(nSampleTrend*newThin)),newThin)			# check trend over last two batches
+		#windows(record=TRUE); rescoda <- as.mcmc.list(res2Batch); plot(thinN(rescoda), smooth=FALSE)
+		#matplot(res2Batch$rLogDen)
+		#mtrace(checkConvergenceTrend)
+		if( checkConvergenceTrend(res2Batch) < 0.05){
+			# for a significant upward trend in rLogDen of resPop, stay at given temperature
+			cat("  trend in logDensity: stay at given temperature one more batch\n")		
+			nGenBurninNew <- nGenBurnin+nRun
+			TGlobal <- T0
+		}else{
+			# construct a properly thinned sample of the last part of the chain
+			# i.e. part where temperate did not exceed 120% of current temperature and at maximum 512 samples
+			#res130 <- thin(resPop, start=i130, newThin=newThin)		# can become very slow in detrend
+			res130 <- thin(resPop, start=max(0,i130, iRun-(nSampleGelmanDiag*newThin)), newThin=newThin)	# constrain to at maximum 512 samples
+			# base diagnostics on end of the chain with a temperatue decrease of 10%
+			#dump.frames(file.path("tmp","tempDecGelman"),TRUE)
+			#stop("dump to tmp/tempDecGelman.rda")
+			d <- dim(res130$parms)[2:3]
+			xGrid <- rep(1:d[1],d[2])
+			rHat2 <- apply(res130$parms,1,function(parmsi){
+					# before Gelman diag, first remove trend common to all chains 
+					# that will otherwise dominate both variances
+					# with decreasing temperature a trend is very probable, despite the Gelman diag measures the mixing of the chains
+					parmsid <- .detrendMatrix(parmsi,xGrid=xGrid,df=3)
+					rHat2 <- twDEMC:::.calcRhat2( parmsid, n=d[1], m=d[2] )
+				})
+			rHatMax <- sqrt(max(1,rHat2))
+			cat("  Gelman diag: max(rHat)=",rHatMax,": ",ifelse(rHatMax <rHat0,"decreasing","increasing")," burnin\n",sep="")		
+			# map gelman diag to a change in nGenBurnin (multiply the period until nGenBurnin by a factor)
+			#rHatMax <- seq(1.0,2,by=0.02)
+			#burninFac <- pmax(-1/2, log(1/3)/(rHat0-1.0) * (rHat0-rHatMax))	# decrease to strong
+			burninFac <- pmax(-1/2, -0.1/(rHat0-1.0) * (rHat0-rHatMax))
+			#plot(burninFac~rHatMax); abline(h=0); abline(v=rHat0)
+			#rHat0 <- seq(1.00,1.4,by=0.01); 
+			#plot( burninFac ~ rHat0 ); abline(h=c(log(1/3),0,1));
+			if( burninFac > 0){
+				# do not decrease Temperature in the next run
+				TGlobal <- T0
+				# increase by factor + next batch
+				nGenBurninNew <- round(nGenBurnin+(nGenBurnin-iRun)*burninFac)+nRun
+				#plot( nGenBurninNew ~ burninFac ); abline(h=nGenBurnin); abline(v=0)
+				#plot( nGenBurninNew ~ rHatMax ); abline(v=rHat0); abline(h=nGenBurnin)
+			}else{
+				#decrease Temperature and shorten burnin
+				nGenBurninNew <- (nGenBurnin+(nGenBurnin-iRun)*burninFac)
+				TGlobal <- T0^(1-nRun/(nGenBurninNew-iRun))
+			} 
+		}# end Gelman Diag 
+	} #20 end accepted rows back
+	# make sure that Temperature decrease is not gerater than 100/120 within next 20  accepted steps (a)
+	a <- 20/(0.8*resPop$pAccept[nR,1])	# calculate with slightly lower acceptance rate to get a robust estimate
+	Ta = 1.2^(1/a)				# T and burnin so that Ta^(ba-(i+a) = 100/120 T0
+	ba = round(log(T0)/log(Ta)+iRun)
+	TaGlobal <- Ta^(ba-(iRun+nRun))
+	TGlobal <- max(TaGlobal,TGlobal)
+	nGenBurninNew <- max(ba,round(nGenBurninNew))
+	
+	# calculate T
+	list(TGlobal=TGlobal,nGenBurnin=nGenBurninNew)	
+	### list with components \itemize{
+	### \item{TGlobal: numeric scalar: the global Temperature}
+	### \item{nGenBurnin: recalculated burnin period}
+	### }
+}
+
+
 
