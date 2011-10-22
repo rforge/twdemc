@@ -24,11 +24,14 @@ attr(den2dCor,"ex") <- function(){
 	gridX <- expand.grid(gridx, gridy)
 	den2dCor(c(0.8,0.8))
 	luden <- apply( gridX, 1, den2dCor ) 
+	mLuden <- matrix(luden,nrow=length(gridx))
+	#plot( rowSums(mLuden) ~ gridx )
 	imax <- which( matrix(luden,nrow=length(gridx))==max(luden), arr.ind=TRUE)
 	#c( gridx[ imax[1] ], gridy[ imax[2] ] )
 
-	image( gridx, gridy,  matrix(luden,nrow=length(gridx)), col = rev(heat.colors(100)), xlab="a", ylab="b" )
-	points( gridx[ imax[1] ], gridy[ imax[2] ]  )
+	image( gridx, gridy,  mLuden, col = rev(heat.colors(100)), xlab="a", ylab="b" )
+	xyMax <- c(x=gridx[ imax[1] ], y=gridy[ imax[2] ])
+	points(   )
 	
 	image( gridx, gridy,  matrix(exp(luden),nrow=length(gridx)), col = rev(heat.colors(100)), xlab="a", ylab="b" )
 	points( gridx[ imax[1] ], gridy[ imax[2] ]  )
@@ -50,8 +53,8 @@ attr(den2dCor,"ex") <- function(){
 	den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
 	plot( thinN(as.mcmc.list(den2dCorTwDEMC)))
 	matplot( den2dCorTwDEMC$pAccept, type="l" )
-	pps <- stackChains(den2dCorTwDEMC)[-(1:500),]
-	ss <- pps[,-1]
+	pps <- pps0 <- stackChains(thin(den2dCorTwDEMC,start=300))
+	ss <- ss0 <- pps[,-1]
 	#plot( ss[,1], ss[,2] )
 	plot( ss[,1], ss[,2], ylim=c(-40,80) )
 	plot( density(ss[,1]) )

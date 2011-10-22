@@ -56,8 +56,8 @@ initZtwDEMCNormal <- function(
 calcM0twDEMC <- function(
 	### Calculate appropriate number of cases for initializing twDEMC.
 	nPar,	##<< the number of parameters to estimate
-	nPops, 	##<< the number of independent populations
-	nChains ##<< the number of chains 
+	nPops=1, 	##<< the number of independent populations
+	nChains 	##<< the number of chains 
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}

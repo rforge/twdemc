@@ -2,9 +2,9 @@
 # inlcuding generation of Rd files from inline-docs
 # install.packages("inlinedocs")
 
-pkg<-"twDEMC"
 
 .tmp.f <- function(){
+	pkg<-"twDEMC"
 	library(twMiscRgl)
 	library(twSnowfall)
 	library(coda)
