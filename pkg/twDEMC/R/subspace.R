@@ -274,9 +274,9 @@ divideTwDEMC <- function(
 	## to their contribution to the sum of unnormalized densities.
 	wSubsL <- lapply( 1:nPops, function(iPop){
 			iSubs <- iSubPops[[iPop]]
-			lw <- sapply(iSubs,function(iSub){ twLogSumExp(ssSub[[iSub]][,1])-nSamplesSubs[iSub] })		# average the unnormalized densities, providing log of the weights
+			lw <- sapply(iSubs,function(iSub){ twLogSumExp(ssSub[[iSub]][,1])-log(nSamplesSubs[iSub]) })		# average the unnormalized densities, providing log of the weights
 			lSumW <- twLogSumExp(lw) 
-			wSubs <- pSubsAll[iSubs] <- exp( lw-lSumW ) 			#w/sumW
+			wSubs <- exp( lw-lSumW ) 			#w/sumW
 		})
 	wSubs <- do.call(c, wSubsL )
 	
@@ -293,8 +293,8 @@ divideTwDEMC <- function(
 		dGen <- nGenThin/thin - sum(nSamplesSubsReq[iSubPops[[iPop]] ])  
 		if( dGen != 0 ){
 			if( abs(dGen)>length(iSubPops[[iPop]]) ) stop("divideTwDEMC: problem in calculating subspace sample numbers")
-			imax <- which.max( nSamplesSubsReq[iSubPops[[iPop]] ])
-			nSamplesSubsReq[imax] <- nSamplesSubsReq[imax] + dGen
+			iSubMax <- iSubPops[[iPop]][ which.max( nSamplesSubsReq[iSubPops[[iPop]] ]) ]
+			nSamplesSubsReq[iSubMax] <- nSamplesSubsReq[iSubMax] + dGen
 		} 
 	}
 	nGenSubsTodo <- nSamplesSubsReq*thin - nGenSubs
@@ -307,7 +307,7 @@ divideTwDEMC <- function(
 		nGenIRun <- max(nGenSubsTodo[iSubsRun])
 		twDEMC0 <- subChains( resITwDEMC[[iRun]], iPops= match( iSubsRun, which(iRunSubs==iRun)) ) 
 		resTwDEMC <- twDEMC(twDEMC0
-				, nGen=nGenIRun - getNGen(twDEMC0)
+				, nGen=nGenIRun
 				, nPops=length(iSubsRun)
 				, upperParBounds=upperParBounds[iSubsRun]
 				, lowerParBounds=lowerParBounds[iSubsRun]
@@ -366,7 +366,6 @@ attr(divideTwDEMC,"ex") <- function(){
 	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-2,3), ylim=c(-80,80) ); points(xyMax[1], xyMax[2], col="red" )
 	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-2,3), ylim=c(-80,80) ); points(xyMax[1], xyMax[2], col="red" )
 	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
-	plot(density( ssImpPops[,"a",2]));lines(density( ssImpPops[,"a",1]),col="green"); lines(density( ss0[,"a"]),col="blue")
 	#plot(density( ssImpPops[,"b",1]));lines(density( ssImpPops[,"b",2]),col="green"); lines(density( ss0[,"b"]),col="blue")
 	ssImpPops2 <- ssImpPops <- divideTwDEMC(ssImpPops1[,-1,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE )
 	#mtrace(divideTwDEMC)
