@@ -51,6 +51,7 @@ attr(den2dCor,"ex") <- function(){
 	
 	den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
 	den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+	
 	plot( thinN(as.mcmc.list(den2dCorTwDEMC)))
 	matplot( den2dCorTwDEMC$pAccept, type="l" )
 	pps <- pps0 <- stackChains(thin(den2dCorTwDEMC,start=300))
