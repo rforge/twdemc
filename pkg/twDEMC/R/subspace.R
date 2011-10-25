@@ -10,6 +10,8 @@ findSplit <- function(
 ){
 	##details<< 
 	## First it checks for different scales of variance in other variables. 
+	if( is.character(iVars) ) iVars <- sapply(iVars, match, colnames(aSample))
+	if( is.character(jVars) ) jVars <- sapply(jVars, match, colnames(aSample))
 	foundSplit <- FALSE
 	percentiles <- 1:(nSplit)/(nSplit+1)
 	quantVar <- iVarLeft <- iVarRight <- matrix( NA_real_, nrow=length(iVars), ncol=nSplit )
@@ -108,29 +110,33 @@ findSplit <- function(
 	##end<< 
 }
 attr(findSplit,"ex") <- function(){
-	ss1 <- ss <- pps[,-1]
+	data(den2dCorTwDEMC)
+	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(findSplit)
-	(res <- findSplit(ss1))
-		
-	ss2 <- ss <- ss1[ ss1[,res$iVar] > res$splitValue,]
-	res2 <- findSplit(ss2)
-	ss3 <- ss <- ss2[ ss2[,res2$iVar] > res2$splitValue,]
-	res3 <- findSplit(ss3)
-	ss4 <- ss <- ss3[ ss3[,res3$iVar] > res3$splitValue,]
-	res4 <- findSplit(ss4)
+	(res <- res1 <- findSplit(ss1))
 	
+	# successively find splits in subsets
+	ss2 <- ss <- ss1[ ss1[,res$varName] > res$split,]
+	res2 <- findSplit(ss2)
+	ss3 <- ss <- ss2[ ss2[,res2$varName] > res2$split,]
+	res3 <- findSplit(ss3)
+	# NA indicates: no further split found
+	
+	# try different orders of the variables
 	#mtrace(findSplit)
 	(res <- findSplit(ss1, iVars=c(2,1) ))
-	(res <- findSplit(ss1, iVars=c(2) ))
-	plot( ss[,1], ss[,2], col=c("blue","red")[as.integer(ss[,names(res)] >= res)+1])
+	(res <- findSplit(ss1, iVars=c("b") ))
+	plot( ss1[,1], ss1[,2], col=c("blue","red")[as.integer(ss1[,res1$varName] >= res1$split)+1])
 }
 
+
+
 getSubSpaces <- function( 
-	### Splitting the sample into subsamples and recording the upper and lower bounds
+	### Recursively splitting the sample into subsamples and recording the upper and lower bounds
 	aSample 			##<< numeric matrix with parameters in columns: sample or subsample that is devided
 	,nSplit=4			##<< see \code{\link{findSplit}}, potentially modified due to argument \code{minPSub}
 	,argsFSplit=list()	##<< further arguments to \code{\link{findSplit}}
-	,pSub=1				##<< the fraction that a subSample comprises within a bigger sample 
+	,pSub=1				##<< the fraction that a subSample comprises within a bigger sample (used in recursive calls) 
 	,minPSub=0.05		##<< minimum fraction a subSample, below which the sample is not split further
 ){
 	# search for a single splitting point
@@ -171,6 +177,7 @@ getSubSpaces <- function(
 	}
 } 
 attr(getSubSpaces,"ex") <- function(){
+	data(den2dCorTwDEMC)
 	aSample <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(getSubSpaces)
 	subSpaces <- getSubSpaces(aSample, minPSub=0.4)
@@ -194,8 +201,10 @@ divideTwDEMC <- function(
 	, attachDetails=FALSE	##<< set TRUE to report upperParBounds, lowerParBounds, and pSubs per subPopulation
 	, nChainPar=13			##<< number of chains to run in parallel, good choice is 2*nCpu
 	, minNSamplesSub=32		##<< minimum number of records in a subspace sample, increase to avoid wrong estimation of weights
-	, maxFacSubWeight		##<< maximum ratio of the weight of a subspace per average weight of subspaces XXTodo
 ){
+	##details<< 
+	## the first column of aSample records the logDensity of the sample for consitency. 
+	## It is not used and may be initialized to any value. 
 	#samplePop <- aSample[,,1]
 	nPops <- dim(aSample)[3]
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
@@ -209,14 +218,15 @@ divideTwDEMC <- function(
 	#mtrace(getSubSpaces)
 	subSpaces <- apply( thinnedSample, 3, function(samplePop){
 			#mtrace(getSubSpaces)
-			getSubSpaces(samplePop, minPSub=minPSub)
+			getSubSpaces(samplePop[,-1], minPSub=minPSub)	# here omit the logDensity column
 		})
 	nSubPops <- sapply(subSpaces, length)	# number of subs per populations
 	subSpacesFlat <- do.call( c, subSpaces )	# put all subPopulations of all populations on same level
 	cumNSubPops <- cumsum(nSubPops)
 	iSubPops <- lapply(1:nPops, function(iPop){ cumNSubPops[iPop]+1-(nSubPops[iPop]:1)})	# index of subs in flat version for each pop 			
 	ZinitSubs <- abind( lapply( subSpacesFlat, function(ssEntry){
-						s0 <- ssEntry$sample[ round(seq(1,nrow(ssEntry$sample),length.out=nInit)), ]
+						#s0 <- ssEntry$sample[ round(seq(1,nrow(ssEntry$sample),length.out=nInit)), ]
+						s0 <- ssEntry$sample[ sample.int(nrow(ssEntry$sample),nInit), ]	# here use random draws instead thinned interval
 						Zinit <- array( t(s0), dim=c(ncol(s0),m0,nChainsPop), dimnames=list(parms=colnames(s0),steps=NULL,chains=NULL) )
 					}), along=3)
 	upperParBounds <- lapply( subSpacesFlat, function(ssEntry){ ssEntry$upperParBounds})
@@ -250,7 +260,8 @@ divideTwDEMC <- function(
 				, lowerParBounds=lowerParBounds[iSubsRun]
 				, controlTwDEMC=controlTwDEMC
 				, nGen=nGenIRun
-				, fLogDen=den2dCor 
+				#, fLogDen=den2dCor
+				, ...
 			)
 		})
 	nGenIRuns <- sapply( resITwDEMC, function(r){getNGen(r)})
@@ -312,7 +323,8 @@ divideTwDEMC <- function(
 				, upperParBounds=upperParBounds[iSubsRun]
 				, lowerParBounds=lowerParBounds[iSubsRun]
 				, controlTwDEMC=controlTwDEMC
-				, fLogDen=den2dCor 
+				#, fLogDen=den2dCor 
+				, ... 
 			)
 		## update the sample 
 		#iiSub <- 1
@@ -338,41 +350,135 @@ divideTwDEMC <- function(
 	}
 	#mtrace(tmp.f)
 	resl <- lapply( 1:nPops, tmp.f)	# end lapply iPop: giving a single combined sample for each population
-	ssImpPops <- abind(resl, rev.along=0)
+	res <- ssImpPops <- abind(resl, rev.along=0)
 	
-	if( attachDetails ){
-		attr(ssImpPops,"subSpaces") <- tmp <- lapply(1:nPops,function(iPop){
-				posPop <- which(popSubPops==iPop)
-				list(
-					upperParBounds=upperParBounds[posPop]
-					,lowerParBounds=lowerParBounds[posPop]
-					,pSubs0=pSubs0[posPop]
-					,wSubs=wSubs[posPop]
-					,pSubs2=p2[posPop]
-				)
-			})
-	}
-	ssImpPops
+	##value<< 
+	## For each population, a list with entries
+	res <- lapply(1:nPops,function(iPop){
+			posPop <- which(popSubPops==iPop)
+			list(
+				sample=resl[[iPop]]					##<< numeric matrix: the sampled parameters (rows: cases, cols: 1: logDensity, others parameter dimensions
+				,wSubs=wSubs[posPop]					##<< numeric vector: the weights according to average density of the subspaces
+				,upperParBounds=upperParBounds[posPop]	##<< list of named numeric vectors: the upper parameter bounds for the subspaces
+				,lowerParBounds=lowerParBounds[posPop]	##<<  
+				#,pSubs0=pSubs0[posPop]
+				#,pSubs2=p2[posPop]
+			)
+		})
+	##end<<
+	
 }
 attr(divideTwDEMC,"ex") <- function(){
+	data(den2dCorTwDEMC)
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
 	aSample <- stackChainsPop(aTwDEMC)[,-1,]
-	#ssImpPops1 <- ssImpPops <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
-	ssImpPops1 <- ssImpPops <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
-	plot( b ~ a, as.data.frame(ss0), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
+	#res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
+	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
+	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
+	#barplot(res[[1]]$wSubs)
+	ssImpPops1 <- ssImpPops <- abind( lapply( res, "[[", "sample"), rev.along=0 )
+	plot( b ~ a, as.data.frame(ss0), xlim=c(-0.5,2), ylim=c(-20,40) ); points(0.8, 0, col="red" )
 	#plot( b ~ a, as.data.frame(ssImpPops[,,2]) ); points(xyMax[1], xyMax[2], col="red" )
 	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
 	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
-	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-2,3), ylim=c(-80,80) ); points(xyMax[1], xyMax[2], col="red" )
-	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-2,3), ylim=c(-80,80) ); points(xyMax[1], xyMax[2], col="red" )
 	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
 	#plot(density( ssImpPops[,"b",1]));lines(density( ssImpPops[,"b",2]),col="green"); lines(density( ss0[,"b"]),col="blue")
-	ssImpPops2 <- ssImpPops <- divideTwDEMC(ssImpPops1[,-1,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE )
+	ssImpPops2 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops1[,,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE ), "[[", "sample"), rev.along=0 )
 	#mtrace(divideTwDEMC)
 	#ssImpPops2 <- ssImpPops <- divideTwDEMC(ssImpPops1[,-1,], nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
-	ssImpPops3 <- ssImpPops <- divideTwDEMC(ssImpPops2[,-1,], nGen=500, fLogDen=den2dCor )
-	ssImpPops4 <- ssImpPops <- divideTwDEMC(ssImpPops3[,-1,], nGen=500, fLogDen=den2dCor )
-	ssImpPops5 <- ssImpPops <- divideTwDEMC(ssImpPops4[,-1,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE )
-	ssImpPops6 <- ssImpPops <- divideTwDEMC(ssImpPops5[,-1,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE )
+	ssImpPops3 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops2[,,], nGen=500, fLogDen=den2dCor ), "[[", "sample"), rev.along=0 )
+	ssImpPops4 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops3[,,], nGen=500, fLogDen=den2dCor ), "[[", "sample"), rev.along=0 )
+	ssImpPops5 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops4[,,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE ), "[[", "sample"), rev.along=0 )
+	ssImpPops6 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops5[,,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE ), "[[", "sample"), rev.along=0 )
+	str(ssImpPops)
+}
+
+setMethodS3("divideTwDEMCBatch","divideTwDEMCBatch", function(
+	### append runs to result of \code{\link{divideTwDEMCBatch.default}}
+	x						##<< result of former call to divideTwDEMCBatch
+	, ...					##<< further arguments to \code{\link{divideTwDEMCBatch.default}}
+){
+	resArray <- divideTwDEMCBatch.default(x$sample,...)
+	within(resArray,{
+		wSubs <- rbind( x$wSubs, wSubs )
+	})
+})
+		
+
+setMethodS3("divideTwDEMCBatch","default", function( 
+	### iteratively run batches using divideTwDEMCBatch
+	x						##<< numeric array: rows:steps, col:parameters including logLik, 3: independent populations
+	, ...					##<< further arguments to \code{\link{divideTwDEMC}}
+	, nGen=2*512			##<< number of generations
+	, nGenBatch=512			##<< number of generations within one batch
+	, thinPastFac=0.2		##<< thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)
+	, wSubFacMax=2			##<< maximimum factor of largest weight to 25% quantile weight for accessing convergence 
+){
+	#divideTwDEMCBatch.default
+	if( !is.null(thinPastFac) && thinPastFac == 1) thinPastFac <- NULL	# no need to thin
+	if( !is.null(thinPastFac) && (length(thinPastFac) != 1 || !is.finite(thinPastFac) || thinPastFac<0 || thinPastFac>1) ) 
+		stop("divideTwDEMCBatch: thinPastFac must a positive scalar between 0 and 1.")
+	if( !is.null(thinPastFac) &&  ((nGen %% nGenBatch) != 0) )
+		warning("divideTwDEMCBatch: nGenBatch is not a factor of nGen. Together with thinning the past, this may yield low sample number.")
+	iBatch <- 0
+	iN <- 0
+	ss <- x
+	nBatch <- ceiling(nGen/nGenBatch)
+	nPops <- dim(x)[3]
+	wSubs <- matrix(nrow=nBatch, vector("list",nBatch*nPops))
+	for( iBatch in 1:nBatch ){
+		cat(paste(iN," out of ",nGen," generations completed.     ",date(),"\n",sep=""))
+		resBatch <- divideTwDEMC(  ss,nGen=min(nGenBatch, nGen-iN)	
+		#,fLogDen=den2dCor 
+		,...
+		)
+		wSubs[iBatch,] <- wSubsCur <- lapply( resBatch, "[[", "wSubs" )
+		ssCurrent <- abind(lapply(resBatch,"[[","sample"), rev.along=0)
+		ssPast <-  if( !is.null(thinPastFac) ){
+			iKeep <- round(seq(1,nrow(ss),length.out=nrow(ss)*thinPastFac))
+			ss[iKeep,,]
+		}else ss
+		ss <- abind( ssPast, ssCurrent, along=1 )
+		iN <- iN + nGenBatch
+		#if( iBatch >1 && wSubs[iBatch,]) XXTODO
+	}
+	##value<< A list with components 
+	res <- list(
+		sample = ss				##<< numeric array same as argument \code{x} but thinned and new sample appended
+		,wSubs = wSubs			##<< matrix of numeric vectors giving the weights of sub-populations
+		,resDivideTwDEMC = resBatch	##<< result of last call to \code{\link{divideTwDEMC}}
+	)
+	##end<<
+	class( res ) <- c("divideTwDEMCBatch", class(res) )
+	res
+})
+attr(divideTwDEMCBatch.default,"ex") <- function(){
+	data(den2dCorTwDEMC)
+	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
+	aSample <- stackChainsPop(aTwDEMC)
+	ssRes1 <- ssRes <- divideTwDEMCBatch(aSample, nGen=512*6, fLogDen=den2dCor )
+	#mtrace(divideTwDEMCBatch.divideTwDEMCBatch)
+	#mtrace(divideTwDEMCBatch.default)
+	#ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*1, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
+	#mtrace(getSubSpaces)
+	#tmp <- getSubSpaces(ssRes1$sample[,-1,1])
+	ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*4, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
+	
+	tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
+	ssImpPops <- abind( tmp[[1]]$sample, tmp[[1]]$sample, rev.along=0) 
+	
+	wSubsB <- ssRes$wSubs[,1]
+	wSubsB <- ssRes$wSubs[,2]
+	#wSubsB <- resBatch[[1]]$wSubs
+	sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] }) 
+	
+	ssImpPops <- ssRes$sample
+	#ssImpPops <- ssRes1$sample
+	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
+	#ssImpPops <- ssRes1$sample
+	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,1])); points(xyMax[1], xyMax[2], col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,2])); points(xyMax[1], xyMax[2], col="red" )
 	str(ssImpPops)
 }

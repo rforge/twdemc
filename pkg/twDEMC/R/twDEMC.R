@@ -1289,7 +1289,7 @@ twDEMCBatchInt <- function(
 		## Runs can be continued without the need of respecifying all the parameters (see example). 
 		## This is helpful with expensive models and long cluster runs for cases where the program has to be aborted.
 		## }}
-		if((0 < length(restartFilename)) & is.character(restartFilename) & restartFilename!=""){
+		if((0 < length(restartFilename)) && is.character(restartFilename) && restartFilename!=""){
 			resRestart.twDEMC = res #avoid variable confusion on load by giving a longer name
 			resRestart.twDEMC$nGenBurnin <- newNGenBurnin	# also store updated calculation of burnin time
 			save(resRestart.twDEMC, file=restartFilename)
