@@ -188,6 +188,34 @@ attr(getSubSpaces,"ex") <- function(){
 
 
 
+checkProblemsGelman1 <- function(
+	### convergence between several populations
+	aSamplePure
+	, criticalGelmanDiag=1.2
+){
+	tmp <- lapply( 1:dim(aSamplePure)[3], function(iPop){mcmc(aSamplePure[,,iPop])})
+	resCoda <- mcmc.list(tmp)
+	#str(resCoda)
+	#plot( resCoda, smooth=FALSE )
+	tmp2 <- gelman.diag(resCoda)
+	list(
+		hasProblem = (tmp2$mpsrf > criticalGelmanDiag)
+		,resGelmanDiag = tmp2
+	)
+}
+
+checkProblemsSpectral <- function(aSamplePure, critSpecVarRattio=50){
+	specVarRatio <- apply( aSamplePure, 3, function(aSamplePurePop){
+			spec <- spectrum0.ar(aSamplePurePop)$spec
+			varSample <- apply(aSamplePurePop, 2, var)
+			spec/varSample
+		})
+	list(
+		hasProblems = any(specVarRatio >= critSpecVarRattio)
+		,specVarRatio = specVarRatio 
+	)
+}
+
 divideTwDEMC <- function(
 	### run twDEMC on subspaces
 	aSample					##<< numeric array: rows:steps, col:parameters without logLik, 3: independent populations
@@ -199,8 +227,11 @@ divideTwDEMC <- function(
 	, m0 = calcM0twDEMC( ncol(aSample), nChains=nChainsPop )	##<< number of samples per chain to initialize subPopulations
 	, nrow0 = 4000			##<< number of rows in initial overall sample
 	, attachDetails=FALSE	##<< set TRUE to report upperParBounds, lowerParBounds, and pSubs per subPopulation
-	, nChainPar=13			##<< number of chains to run in parallel, good choice is 2*nCpu
+	, nChainPar=16			##<< number of chains to run in parallel, good choice is 2*nCpu
 	, minNSamplesSub=32		##<< minimum number of records in a subspace sample, increase to avoid wrong estimation of weights
+	, fCheckProblems=checkProblemsSpectral		
+	, argsFCheckProblems=list()
+	, dumpfileBasename="recover"
 ){
 	##details<< 
 	## the first column of aSample records the logDensity of the sample for consitency. 
@@ -274,7 +305,11 @@ divideTwDEMC <- function(
 	# get the samples of all subPopulations
 	ssSub <- lapply( 1:nSubs, function(iSub){
 			iRun <- iRunSubs[iSub]
-			stackChains( subChains(resITwDEMC[[iRun]], iPops=match(iSub, which(iRunSubs==iRun)) ))
+			#stackChains( subChains(resITwDEMC[[iRun]], iPops=match(iSub, which(iRunSubs==iRun)) ))
+			#do not stack yet, so that can monitor convergence of the chains
+			#sc <- aTwDEMC
+			subc <- subChains(resITwDEMC[[iRun]], iPops=match(iSub, which(iRunSubs==iRun)) )
+			abind( rlogDen=subc$rLogDen, subc$parms, along=1)
 		}) 
 	popSubPops <- do.call( c, lapply( 1:nPops, function(iPop){ rep(iPop,nSubPops[iPop])} ))		# each index gives the population that the subPopulatios is part of
 	#iPop <- 1
@@ -285,7 +320,10 @@ divideTwDEMC <- function(
 	## to their contribution to the sum of unnormalized densities.
 	wSubsL <- lapply( 1:nPops, function(iPop){
 			iSubs <- iSubPops[[iPop]]
-			lw <- sapply(iSubs,function(iSub){ twLogSumExp(ssSub[[iSub]][,1])-log(nSamplesSubs[iSub]) })		# average the unnormalized densities, providing log of the weights
+			lw <- sapply(iSubs,function(iSub){
+					ssLogDen <- as.vector(ssSub[[iSub]][1,,])
+					twLogSumExp(ssLogDen)-log(nSamplesSubs[iSub]) 
+				})		# average the unnormalized densities, providing log of the weights
 			lSumW <- twLogSumExp(lw) 
 			wSubs <- exp( lw-lSumW ) 			#w/sumW
 		})
@@ -329,8 +367,9 @@ divideTwDEMC <- function(
 		## update the sample 
 		#iiSub <- 1
 		for( iiSub in seq_along(iSubsRun)){
-			iSub <- iSubsRun[iiSub]			
-			ssSub[[iSub]] <- stackChains( subChains(resTwDEMC, iPops=iiSub) )
+			iSub <- iSubsRun[iiSub]		
+			subc <- subChains(resTwDEMC, iPops=iiSub)
+			ssSub[[iSub]] <- abind( rlogDen=subc$rLogDen, subc$parms, along=1)
 		}
 	}
 
@@ -341,10 +380,17 @@ divideTwDEMC <- function(
 		#nSamplesSubsReq[iSubs]
 		#(iSub <- iSubs[8])
 		ssImpList <-  lapply( iSubs, function(iSub){
-				ss <- ssSub[[iSub]]
+				ssc <- ssSub[[iSub]]
+				if( do.call( fCheckProblems, c(list(ssc), argsFCheckProblems))$hasProblems ){
+					if( !is.null(dumpfileBasename) )
+						if( dumpfileBasename == "recover") recover() else dump.frames(dumpfileBasename,TRUE)
+					stop(paste("divideTwDEMC: checking function encountered problems. Dump in ",dumpfileBasename,sep=""))
+				}
+				ss <- stackChains(ssc)
 				if( nSamplesSubsReq[iSub] == 0) c() else
-				if( nSamplesSubsReq[iSub] == 1) ss[ sample.int( nrow(ss),1),] else
-					ss[ round(seq(1,nrow(ss),length.out=nSamplesSubsReq[iSub])),]
+				if( nSamplesSubsReq[iSub] == 1) ss[ sample.int( nrow(ss),1),] else {
+					sst <- ss[ round(seq(1,nrow(ss),length.out=nSamplesSubsReq[iSub])),]
+				}
 			})
 		ssImp <- do.call( rbind, ssImpList )
 	}
@@ -371,8 +417,11 @@ divideTwDEMC <- function(
 attr(divideTwDEMC,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
-	aSample <- stackChainsPop(aTwDEMC)[,-1,]
-	#res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
+	aSample <- stackChainsPop(aTwDEMC)
+	aSamplePure <- aSample[,-1,]
+	aSamplePurePop <- aSamplePure[,,1]
+	#mtrace(divideTwDEMC)
+	#res <- divideTwDEMC(aSample, nGen=50, fLogDen=den2dCor, attachDetails=TRUE )
 	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
 	#barplot(res[[1]]$wSubs)
@@ -412,7 +461,7 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	, nGen=2*512			##<< number of generations
 	, nGenBatch=512			##<< number of generations within one batch
 	, thinPastFac=0.2		##<< thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)
-	, wSubFacMax=2			##<< maximimum factor of largest weight to 25% quantile weight for accessing convergence 
+	, wSubFacMax=1.6			##<< maximimum factor of largest weight to 25% quantile weight for accessing convergence 
 ){
 	#divideTwDEMCBatch.default
 	if( !is.null(thinPastFac) && thinPastFac == 1) thinPastFac <- NULL	# no need to thin
@@ -440,12 +489,18 @@ setMethodS3("divideTwDEMCBatch","default", function(
 		}else ss
 		ss <- abind( ssPast, ssCurrent, along=1 )
 		iN <- iN + nGenBatch
-		#if( iBatch >1 && wSubs[iBatch,]) XXTODO
+		# check if weights of sub-populations converged, then do not need further runs
+		wSubsB <- wSubs[iBatch+(-1:0),]	#
+		wSubFac <- sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] })
+		if( all(wSubFac <= wSubFacMax) ) {
+			cat("divideTwDEMCBatch: weights of sub-populations converged. Skip further generations.")
+			break
+		}
 	}
 	##value<< A list with components 
 	res <- list(
-		sample = ss				##<< numeric array same as argument \code{x} but thinned and new sample appended
-		,wSubs = wSubs			##<< matrix of numeric vectors giving the weights of sub-populations
+		sample = ss					##<< numeric array same as argument \code{x} but thinned and new sample appended
+		,wSubs = wSubs[1:iBatch,]	##<< matrix of numeric vectors giving the weights of sub-populations
 		,resDivideTwDEMC = resBatch	##<< result of last call to \code{\link{divideTwDEMC}}
 	)
 	##end<<
@@ -462,14 +517,14 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	#ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*1, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 	#mtrace(getSubSpaces)
 	#tmp <- getSubSpaces(ssRes1$sample[,-1,1])
-	ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*4, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
+	ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*6, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 	
 	tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
 	ssImpPops <- abind( tmp[[1]]$sample, tmp[[1]]$sample, rev.along=0) 
 	
-	wSubsB <- ssRes$wSubs[,1]
-	wSubsB <- ssRes$wSubs[,2]
-	#wSubsB <- resBatch[[1]]$wSubs
+	#wSubsB <- ssRes$wSubs[,1]
+	#wSubsB <- ssRes$wSubs[,2]
+	wSubsB <- ssRes$wSubs
 	sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] }) 
 	
 	ssImpPops <- ssRes$sample
