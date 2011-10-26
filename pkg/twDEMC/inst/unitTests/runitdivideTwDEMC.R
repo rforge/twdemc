@@ -18,14 +18,15 @@ test.runDivideTwDEMC <- function(){
 	ss <- lapply(res , "[[" ,"sample" )	
 	checkEquals( length(ss), 2, msg="wrong number of populations")	# two populations
 	#ssPop <- ss[[1]]
+	#ssPop <- ss[[2]]
 	sapply(ss, function(ssPop){ 
-		checkEquals( nrow(ssPop), 500/4, msg="wrong number of generations in subPopulation") # number of generations 
-		checkEquals( ncol(ssPop), 3, msg="wrong number of parameters in subPopulation") 	 # number of parameters + rLogLik
+		checkEquals( nrow(ssPop), 500/4, msg=" wrong number of generations in subPopulation") # number of generations 
+		checkEquals( ncol(ssPop), 3, msg=" wrong number of parameters in subPopulation") 	 # number of parameters + rLogLik
 		imax <- which.max(ssPop[,1])
 		thetaHat <- ssPop[imax,]			
-		checkMagnitude(thetaHat["a"], 0.8 ,msg="wrong thetaHat[a]")
-		checkInterval(thetaHat["b"], -5, +5,msg="wrong thetaHat[b]")
+		checkMagnitude(thetaHat["a"], 0.8 ,msg=" wrong thetaHat[a]")
+		checkInterval(thetaHat["b"], -5, +5,msg=" wrong thetaHat[b]")
 		means <- apply( ssPop,2, mean)
-		checkInterval( means["a"], 0, 1.2,msg="wrong mean(a)")
+		checkInterval( means["a"], 0, 1.2,msg=" wrong mean(a)")
 	})	
 }
