@@ -441,6 +441,7 @@ attr(divideTwDEMC,"ex") <- function(){
 	ssImpPops6 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops5[,,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE ), "[[", "sample"), rev.along=0 )
 	str(ssImpPops)
 }
+#twUtestF(divideTwDEMC)
 
 setMethodS3("divideTwDEMCBatch","divideTwDEMCBatch", function(
 	### append runs to result of \code{\link{divideTwDEMCBatch.default}}
@@ -494,6 +495,7 @@ setMethodS3("divideTwDEMCBatch","default", function(
 		wSubFac <- sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] })
 		if( all(wSubFac <= wSubFacMax) ) {
 			cat("divideTwDEMCBatch: weights of sub-populations converged. Skip further generations.")
+			cat("\n")
 			break
 		}
 	}
@@ -537,3 +539,4 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	plot( b ~ a, as.data.frame(ssImpPops[,,2])); points(xyMax[1], xyMax[2], col="red" )
 	str(ssImpPops)
 }
+#twUtestF(divideTwDEMCBatch)
