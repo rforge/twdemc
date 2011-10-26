@@ -220,6 +220,8 @@ checkProblemsSpectral <- function(
 	)
 }
 
+
+
 divideTwDEMC <- function(
 	### run twDEMC on subspaces
 	aSample					##<< numeric array: rows:steps, col:parameters without logLik, 3: independent populations
@@ -241,6 +243,10 @@ divideTwDEMC <- function(
 	## the first column of aSample records the logDensity of the sample for consitency. 
 	## It is not used and may be initialized to any value. 
 	#samplePop <- aSample[,,1]
+	if( length(dim(aSample))==2 ){
+		warning("divideTwDEMC:third dimension missing of aSample missing - assuming 1 population.")
+		aSample <- array(aSample, dim=c(dim(aSample),1), dimnames=c(dimnames(aSample), pops=NULL) )
+	}
 	nPops <- dim(aSample)[3]
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
@@ -325,21 +331,21 @@ divideTwDEMC <- function(
 	## to their contribution to the sum of unnormalized densities.
 	#iPop <- 1
 	#iPop <- 2
-	wSubsL <- lapply( 1:nPops, function(iPop){
+	wSubsL <- wSubsLNew <- lapply( 1:nPops, function(iPop){
 			iSubs <- iSubPops[[iPop]]
-			#iSub <- 1
+			#iSub <- 2
 			#iSub <- 14
 			lw <- sapply(iSubs,function(iSub){
 					#ssLogDen <- as.vector(ssSub[[iSub]][1,,])
 					si <- subInfo[iSub, ]
-					ssLogDen <- resITwDEMC[[ si["run"] ]]$rLogDen[,si["rpop"] ]
+					ssLogDen <- ssLogDenNew <- resITwDEMC[[ si["run"] ]]$rLogDen[,(si["rpop"]-1)*thin+(1:4) ]
 					twLogSumExp(ssLogDen)-log(length(ssLogDen)) 
 				})	# average the unnormalized densities
 			lSumW <- twLogSumExp(lw) 
 			wSubs <- exp( lw-lSumW ) 			#w/sumW
 		})
-	wSubs <- do.call(c, wSubsL )
-	
+	wSubs <- wSubsNew <- do.call(c, wSubsL )
+	#barplot(wSubs)
 	
 	# extend chains of those populations that do not have enough samples yet
 	p2 <- do.call(c, lapply( 1:nPops, function(iPop){
@@ -391,7 +397,7 @@ divideTwDEMC <- function(
 
 	# do a subsampling
 	# iPop=2
-	tmp.f <- function(iPop){
+	subSamplePop <- function(iPop){
 		iSubs  <- iSubPops[[iPop]] 
 		#nSamplesSubsReq[iSubs]
 		#(iSub <- iSubs[1])
@@ -413,7 +419,7 @@ divideTwDEMC <- function(
 		ssImp <- do.call( rbind, ssImpList )
 	}
 	#mtrace(tmp.f)
-	resl <- lapply( 1:nPops, tmp.f)	# end lapply iPop: giving a single combined sample for each population
+	resl <- lapply( 1:nPops, subSamplePop)	# end lapply iPop: giving a single combined sample for each population
 	#res <- ssImpPops <- abind(resl, rev.along=0)
 	
 	##value<< 
@@ -439,8 +445,8 @@ attr(divideTwDEMC,"ex") <- function(){
 	ss0 <- stackChains(aTwDEMC)
 	#aSamplePure <- aSample[,-1,]
 	#aSamplePurePop <- aSamplePure[,,1]
-	#mtrace(divideTwDEMC)
 	#res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
+	#mtrace(divideTwDEMC)
 	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
 	#barplot(res[[1]]$wSubs, names.arg=seq_along(res[[1]]$wSubs) )
@@ -544,8 +550,8 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	#tmp <- getSubSpaces(ssRes1$sample[,-1,1])
 	ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*6, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 	
-	tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
-	ssImpPops <- abind( tmp[[1]]$sample, tmp[[1]]$sample, rev.along=0) 
+	#tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
+	#ssImpPops <- abind( tmp[[1]]$sample, tmp[[1]]$sample, rev.along=0) 
 	
 	#wSubsB <- ssRes$wSubs[,1]
 	#wSubsB <- ssRes$wSubs[,2]
@@ -556,10 +562,10 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	#ssImpPops <- ssRes1$sample
 	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
 	#ssImpPops <- ssRes1$sample
-	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
-	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(xyMax[1], xyMax[2], col="red" )
-	plot( b ~ a, as.data.frame(ssImpPops[,,1])); points(xyMax[1], xyMax[2], col="red" )
-	plot( b ~ a, as.data.frame(ssImpPops[,,2])); points(xyMax[1], xyMax[2], col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(0.8,0, col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,2]), xlim=c(-0.5,2), ylim=c(-20,40) ); points(0.8,0, col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,1])); points(0.8,0, col="red" )
+	plot( b ~ a, as.data.frame(ssImpPops[,,2])); points(0.8,0, col="red" )
 	str(ssImpPops)
 }
 #twUtestF(divideTwDEMCBatch)
