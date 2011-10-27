@@ -17,10 +17,12 @@ which might be already a kind of best estimates by an optimization. }
 }
 \details{There are several methods to establish the initial population for a twDEMC run. \itemize{
 \item{ drawing from a multivariate normal distribution: this method  } 
-\item{ subsetting the result of a former twDEMC run: \code{\link{initZtwDEMCSub.twDEMC}}  } 
+\item{ subsetting the result of a former twDEMC run: \code{\link{initZtwDEMCSub.twDEMC}} or sample matrix \code{\link{initZtwDEMCSub.matrix}}  } 
 \item{ extending the result of a former twDEMC run to include more parameters: \code{\link{initZtwDEMCExt.twDEMC}}  } 
 \item{ selecting the N closes points from a sequence of points in parameter space \code{\link{constrainNStack}}  } 
 \item{ selecting the points inside a confindenc ellipsis in parameter \code{\link{constrainCfStack}}  } 
+\item{ replacing cases with in initial proposals that yield non-finite density \code{\link{replaceZinitNonFiniteLogDens}}  } 
+\item{ general method for replacing cases in initial proposals \code{\link{replaceZinitCases }}  } 
 }}
 \value{a matrix of number of parameters by number of individuals (d x m0 x Npop), with d dimension of theta}
 

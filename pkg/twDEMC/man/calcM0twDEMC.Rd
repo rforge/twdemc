@@ -3,7 +3,7 @@
 \title{calcM0twDEMC}
 \description{Calculate appropriate number of cases for initializing twDEMC.}
 \usage{
-calcM0twDEMC(nPar, nPops, nChains)
+calcM0twDEMC(nPar, nPops = 1, nChains)
 }
 \arguments{
   \item{nPar}{the number of parameters to estimate}

@@ -8,7 +8,7 @@ twDEMCBatch(Zinit, ...)
 \arguments{
   \item{Zinit}{the twDEMC object returned by \code{\link{twDEMCInt}}}
   \item{\dots}{Further arguments that are appended/overwrite entries of \code{batchCall}.
-If Zinit is of class twDEMC, arguemnts  "resFLogDenX","logDenX" are set to NULL, so that these are taken from Zinit itself.}
+If Zinit is of class twDEMC, arguments  "resFLogDenX","logDenX" are set to NULL, so that these are taken from Zinit itself.}
 }
 \details{If twDEMC-list Zinit has no attribute batchCall, then \code{\link{twDEMCBatchInt}} is called with arguments provided.
 

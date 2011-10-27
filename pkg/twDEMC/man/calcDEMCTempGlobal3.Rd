@@ -1,9 +1,9 @@
-\name{calcDEMCTempGlobal2}
-\alias{calcDEMCTempGlobal2}
-\title{calcDEMCTempGlobal2}
+\name{calcDEMCTempGlobal3}
+\alias{calcDEMCTempGlobal3}
+\title{calcDEMCTempGlobal3}
 \description{Calculating global temperature and adjusted burnin period after the next batch for one population.}
 \usage{
-calcDEMCTempGlobal2(resPop, diffLogDen, TLp, pAcceptTVar, iRun = getNGen(resPop), nGenBurnin, nRun, rHat0 = 1.1, nSampleGelmanDiag = 64, nSampleTrend = 512)
+calcDEMCTempGlobal3(resPop, diffLogDen, TLp, pAcceptTVar, iRun = getNGen(resPop), nGenBurnin, nRun, rHat0 = 1.2, nSampleGelmanDiag = 64, nSampleTrend = 512)
 }
 \arguments{
   \item{resPop}{twDEMC result (subChains of one population)}

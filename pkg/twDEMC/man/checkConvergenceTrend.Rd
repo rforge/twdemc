@@ -20,12 +20,8 @@ checkConvergenceTrend(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rL
 
 \examples{
 data(twdemcEx1)
-# p.value for differenc in means for each population
+# p.value for difference in means for each population
 (res <- checkConvergenceTrend(twdemcEx1))
-# none of them has converged on a 5\% level
-res < 0.05
-#discard burnin 
-(res <- checkConvergenceTrend(thin(twdemcEx1,start=40)))
-# none of them has converged on a 5\% level
-res < 0.05
+# second has a trend on a 5\% level and did not yet converge
+res > 0.05
 }

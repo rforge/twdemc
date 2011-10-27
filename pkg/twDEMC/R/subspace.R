@@ -272,9 +272,9 @@ divideTwDEMC <- function(
 					}), along=3)
 	upperParBounds <- lapply( subSpacesFlat, function(ssEntry){ ssEntry$upperParBounds})
 	lowerParBounds <- lapply( subSpacesFlat, function(ssEntry){ ssEntry$lowerParBounds})
-	pSubs0L <- lapply( subSpaces, sapply, "[[","pSub" ) # percentile of subspace of the overall space
-	pSubs0 <- do.call(c,pSubs0L)
-	nGen0 <- pmax(m0*thin, ceiling(minNSamplesSub*thin/nChainsPop), nGen*pSubs0)		# at minimum m0*thin generations to keep sufficient samples for extending the run
+	popQSubs <- lapply( subSpaces, sapply, "[[","pSub" ) # initial percentile of subspace of the overall space
+	qSubs <- do.call(c,popQSubs)
+	nGen0 <- pmax(m0*thin, ceiling(minNSamplesSub*thin/nChainsPop), nGen*qSubs)		# at minimum m0*thin generations to keep sufficient samples for extending the run
 	nGen0Thin <- (ceiling(nGen0/thin)+2)*thin		# +2 to avoid extending runs with little shift 
 	
 	# in one call of twDEMC all chains have the same number of generations
@@ -326,12 +326,15 @@ divideTwDEMC <- function(
 	#pSubs1 <- subInfo[,"nGen"]/(nGen*pSubs0)		# sampling weights (>1 obtained more samples than required by quantile)
 	
 	##details<< 
-	## The samples of the subspaces are combined again after thinning the subsamples 
-	## inversly proportional
-	## to their contribution to the sum of unnormalized densities.
+	## A first estimate of the proportion of samples from different subspaces
+	## are the initial percentiles qp. 
+	## The proportion of the samples from different subspaces is estimated
+	## by the proportions of integrated density of the subspaces.
+	## These proportions are esimated by average density over all samples multiplied by an
+	## estimate proportional to the volume: the initial quantiles.
 	#iPop <- 1
 	#iPop <- 2
-	wSubsL <- wSubsLNew <- lapply( 1:nPops, function(iPop){
+	popLogMeanDensSubs <- lapply( 1:nPops, function(iPop){
 			iSubs <- iSubPops[[iPop]]
 			#iSub <- 2
 			#iSub <- 14
@@ -341,18 +344,22 @@ divideTwDEMC <- function(
 					ssLogDen <- ssLogDenNew <- resITwDEMC[[ si["run"] ]]$rLogDen[,(si["rpop"]-1)*thin+(1:4) ]
 					twLogSumExp(ssLogDen)-log(length(ssLogDen)) 
 				})	# average the unnormalized densities
-			lSumW <- twLogSumExp(lw) 
-			wSubs <- exp( lw-lSumW ) 			#w/sumW
-		})
-	wSubs <- wSubsNew <- do.call(c, wSubsL )
-	#barplot(wSubs)
+			# normalization is done below
+			#lSumW <- twLogSumExp(lw) 
+			#wSubs <- exp( lw-lSumW ) 			#w/sumW
+			lw - max(lw)						#divide by a constant on exp scale to avoid numerical errors
+		})	
+	logMeanDensSubs <- do.call(c, popLogMeanDensSubs )
+	#barplot(logMeanDensSubs)
 	
-	# extend chains of those populations that do not have enough samples yet
-	p2 <- do.call(c, lapply( 1:nPops, function(iPop){
-			p2u <- wSubsL[[iPop]]*pSubs0L[[iPop]]		# two weights: quantile and density importance
-			p2 <- p2u/sum(p2u)							# normalize to 1 within population 
+	# estimate proportion of subspaces in the limiting distribution
+	# it will be used to sample from the subspaces 
+	pSubs <- do.call(c, lapply( 1:nPops, function(iPop){
+			p2u <- exp(popLogMeanDensSubs[[iPop]])*popQSubs[[iPop]]		# two weights: quantile and density importance
+			p2 <- p2u/sum(p2u)									# normalize to 1 within population 
 		}))
-	nSamplesSubsReq <- round(nGen/thin * p2)
+	subPercChange <- pSubs/qSubs	# estimated proportion in limiting distribution to proportion of initial proportion 
+	nSamplesSubsReq <- round(nGen/thin * pSubs)
 	# because of rounding small differences in sum of sample numbers may occur 
 	# for small deviations, adjust the number of samples in the largest sample
 	for( iPop in 1:nPops ){
@@ -363,6 +370,8 @@ divideTwDEMC <- function(
 			nSamplesSubsReq[iSubMax] <- nSamplesSubsReq[iSubMax] + dGen
 		} 
 	}
+	
+	# extend chains of those populations that do not have enough samples yet
 	nGenSubsTodo <- nSamplesSubsReq*thin - subInfo[,"nGen"]
 	iSubsExt <- which(nGenSubsTodo > 0)
 	prevIRunsExt <- subInfo[iSubsExt,"run"]
@@ -402,20 +411,25 @@ divideTwDEMC <- function(
 		#nSamplesSubsReq[iSubs]
 		#(iSub <- iSubs[1])
 		ssImpList <-  lapply( iSubs, function(iSub){
-				aTwDEMC <- subChains( resITwDEMC[[ subInfo[iSub,"run"] ]], iPops=subInfo[iSub,"rpop"] )
+			if( nSamplesSubsReq[iSub] == 0) c() else{
+				aTwDEMC <- resITwDEMC[[ subInfo[iSub,"run"] ]]
+				aTwDEMCSub <- subChains( aTwDEMC, iPops=subInfo[iSub,"rpop"] )
+				ss <- stackChains(aTwDEMCSub)
 				#plot(as.mcmc.list(aTwDEMC), smooth=FALSE )
 				#matplot( aTwDEMC$pAccept, type="l" )
-				if( do.call( fCheckProblems, c(list(aTwDEMC), argsFCheckProblems))$hasProblems ){
-					if( !is.null(dumpfileBasename) )
-						if( dumpfileBasename == "recover") recover() else dump.frames(dumpfileBasename,TRUE)
-					stop(paste("divideTwDEMC: checking function encountered problems. Dump in ",dumpfileBasename,sep=""))
-				}
-				ss <- stackChains(aTwDEMC)
-				if( nSamplesSubsReq[iSub] == 0) c() else
-				if( nSamplesSubsReq[iSub] == 1) ss[ sample.int( nrow(ss),1),] else {
+				if( nSamplesSubsReq[iSub] == 1) 
+					ss[ sample.int( nrow(ss),1),] 
+				else {
+					resFCheck <- do.call( fCheckProblems, c(list(aTwDEMCSub), argsFCheckProblems)) 
+					if( resFCheck$hasProblems ){
+						if( !is.null(dumpfileBasename) )
+							if( dumpfileBasename == "recover") recover() else dump.frames(dumpfileBasename,TRUE)
+						stop(paste("divideTwDEMC: checking function encountered problems. Dump in ",dumpfileBasename,sep=""))
+					}
 					sst <- ss[ round(seq(1,nrow(ss),length.out=nSamplesSubsReq[iSub])),]
 				}
-			})
+			}
+		})
 		ssImp <- do.call( rbind, ssImpList )
 	}
 	#mtrace(tmp.f)
@@ -428,7 +442,7 @@ divideTwDEMC <- function(
 			posPop <- which(popSubPops==iPop)
 			list(
 				sample=resl[[iPop]]					##<< numeric matrix: the sampled parameters (rows: cases, cols: 1: logDensity, others parameter dimensions
-				,wSubs=wSubs[posPop]					##<< numeric vector: the weights according to average density of the subspaces
+				,subPercChange=subPercChange[posPop]	##<< numeric vector: estimated proportion in limiting distribution to proportion of initial proportion 
 				,upperParBounds=upperParBounds[posPop]	##<< list of named numeric vectors: the upper parameter bounds for the subspaces
 				,lowerParBounds=lowerParBounds[posPop]	##<<  
 				#,pSubs0=pSubs0[posPop]
@@ -449,7 +463,7 @@ attr(divideTwDEMC,"ex") <- function(){
 	#mtrace(divideTwDEMC)
 	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
-	#barplot(res[[1]]$wSubs, names.arg=seq_along(res[[1]]$wSubs) )
+	#barplot(res[[1]]$subPercChange, names.arg=seq_along(res[[1]]$subPercChange) )
 	#str(res[[1]]$lowerParBounds)
 	ssImpPops1 <- ssImpPops <- abind( lapply( res, "[[", "sample"), rev.along=0 )
 	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
@@ -489,7 +503,7 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	, nGen=2*512			##<< number of generations
 	, nGenBatch=512			##<< number of generations within one batch
 	, thinPastFac=0.2		##<< thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)
-	, wSubFacMax=1.6			##<< maximimum factor of largest weight to 25% quantile weight for accessing convergence 
+	, subPercChangeCrit=1.6	##<< if all subPercChange of all sub-populations are belwo this value in two last batches, may assume convergence and skip further batches 
 ){
 	#divideTwDEMCBatch.default
 	if( !is.null(thinPastFac) && thinPastFac == 1) thinPastFac <- NULL	# no need to thin
@@ -502,15 +516,16 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	ss <- x
 	nBatch <- ceiling(nGen/nGenBatch)
 	nPops <- dim(x)[3]
-	wSubs <- matrix(vector("list",nBatch*nPops), nrow=nBatch )
-	wSubFacs <- matrix( vector("numeric", nBatch*nPops ), nrow=nBatch, ncol=nPops )	# cols: populations
+	subPercChange <- matrix(vector("list",nBatch*nPops), nrow=nBatch )
+	maxSubPercChange <- matrix( vector("numeric", nBatch*nPops ), nrow=nBatch, ncol=nPops )	# cols: populations
 	for( iBatch in 1:nBatch ){
 		cat(paste(iN," out of ",nGen," generations completed.     ",date(),"\n",sep=""))
 		resBatch <- divideTwDEMC(  ss,nGen=min(nGenBatch, nGen-iN)	
 		#,fLogDen=den2dCor 
 		,...
 		)
-		wSubs[iBatch,] <- wSubsCur <- lapply( resBatch, "[[", "wSubs" )
+		subPercChange[iBatch,] <- subPercChangeCur <- lapply( resBatch, "[[", "subPercChange" )
+		maxSubPercChange[iBatch,] <- maxSubPercChangeCur <- sapply( subPercChangeCur, max )
 		ssCurrent <- abind(lapply(resBatch,"[[","sample"), rev.along=0)
 		ssPast <-  if( !is.null(thinPastFac) ){
 			iKeep <- round(seq(1,nrow(ss),length.out=nrow(ss)*thinPastFac))
@@ -518,10 +533,8 @@ setMethodS3("divideTwDEMCBatch","default", function(
 		}else ss
 		ss <- abind( ssPast, ssCurrent, along=1 )
 		iN <- iN + nGenBatch
-		# ratio largest weight/25quantile weight
-		wSubFac <- wSubFacs[iBatch,] <- sapply( lapply(wSubsCur, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] })
 		# check if weights of sub-populations converged, then do not need further runs
-		if( all(wSubFacs[iBatch-(0:1),] <= wSubFacMax) ) {
+		if( all(maxSubPercChange[iBatch-(0:1),] <= subPercChangeCrit) ) {
 			cat("divideTwDEMCBatch: weights of sub-populations converged. Skip further generations.")
 			cat("\n")
 			break
@@ -530,8 +543,8 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	##value<< A list with components 
 	res <- list(
 		sample = ss					##<< numeric array same as argument \code{x} but thinned and new sample appended
-		,wSubs = wSubs[1:iBatch,]	##<< matrix of numeric vectors giving the weights of sub-populations
-		,wSubsFac = wSubFacs[1:iBatch,]	##<< numeric vector: calculated ratio of subspace weights, see argument \code{wSubFacMax}
+		,subPercChange = subPercChange[1:iBatch,]	##<< matrix of numeric vectors giving the weights of sub-populations
+		,maxSubPercChange = maxSubPercChange[1:iBatch,]	##<< numeric vector: calculated ratio of subspace weights, see argument \code{wSubFacMax}
 		,resDivideTwDEMC = resBatch	##<< result of last call to \code{\link{divideTwDEMC}}
 	)
 	##end<<

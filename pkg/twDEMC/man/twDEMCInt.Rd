@@ -4,7 +4,7 @@
 \title{twDEMCInt}
 \description{Differential Evolution Markov Chain}
 \usage{
-twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logDenX = NULL, fLogDen, argsFLogDen = list(), resFLogDenX = NULL, intResCompNames = character(0), fLogDenScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE)
+twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logDenX = NULL, fLogDen, argsFLogDen = list(), resFLogDenX = NULL, intResCompNames = character(0), fLogDenScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE, upperParBounds = vector("list", nPops), lowerParBounds = vector("list", nPops))
 }
 \arguments{
   \item{Zinit}{initial population: a matrix of number of parameters by number of individuals (d x m0 x nChains) see details and \code{\link{initZtwDEMCNormal}}.}
@@ -30,6 +30,9 @@ allows using functions of negative LogDensity (-1) or Gaussian misfit function (
   \item{fDiscrProp}{function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)}
   \item{argsFDiscrProp}{further arguments to fDiscrProp}
   \item{doRecordProposals}{if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y}
+  \item{upperParBounds}{list of named numeric vectors: giving upper parameter bounds for each population 
+for exploring subspaces of the limiting distribution, see details}
+  \item{lowerParBounds}{similar to upperParBounds}
 }
 \details{This is the central method for applying a Differential Evolution Markov Chain given a function of 
 an unnormalized probability density.
@@ -53,6 +56,15 @@ In order to assess convergence, one must run several independent populations.
 This is supported by specifying argument nPops. Then the n chains, i.e. dim(Zinit)[3], are grouped into several populations.
 }}
 
+\describe{ \item{Exploring subspaces}{
+Parameter distribution may have different shape, i.e. correlation structure or scales of variability
+in different regions. In order to develop a useful jumping distribution, it may be useful to devide the 
+parameter space into different subregions and let them explore by different chains.
+If proposed parameters components are outside the range given by \code{lowerParBounds} and \code{uppderParBounds} 
+then the proposed step is scaled into the opposite direction, ensuring the chains to stain within
+the given bounds.
+}}
+
 \describe{ \item{Detailed control parameters: \code{controlTwDEMC}}{\describe{
 \item{F}{related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult}
 \item{pSnooker}{probability of a snooker update (others parallel updates)}
@@ -65,9 +77,11 @@ This is supported by specifying argument nPops. Then the n chains, i.e. dim(Zini
 \item{TFix}{named numeric vector of Temperatures of fLogDen components, whose Temperature is fixed}
 \item{pAcceptWindowWidth}{number of generations back over which the acceptance rate is calculated}
 \item{probUpDir}{probability of direction between two states of increasing Density (increase during burin may accelerate convergence)}
-\item{initialAcceptanceRate}{numeric vector (nPops) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from}
+\item{initialAcceptanceRate}{numeric vector (nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from}
 \item{DRgamma}{factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step}
-\item{minPCompAcceptTempDecr}{if acceptance rate drops below 1.2 times this level, employ delayed rejection (DR)
+\item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)}
+\item{pIndStep}{independent state about after on average about those number of 1.5 accepted steps}
+\item{nPastGen}{factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population
 }}}
 }
 

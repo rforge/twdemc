@@ -5,7 +5,7 @@
 \usage{
 twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fCheckConvergence = function(res, addArgs) {
     FALSE
-}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000, fCalcTStreamDiffLogDen = calcDEMCTempDiffLogDen3, argsFCalcTStreamDiffLogDen = list(), fCalcTGlobal = calcDEMCTempGlobal2, argsFCalcTGlobal = list())
+}, fCheckConvergenceArgs = list(), T0 = 1, nGenBurnin = 0, doResetOutlierN = 256, nPops = 1, probUpDirBurnin = 0.75, controlTwDEMC = list(), doRepeatLowAcceptanceChains = TRUE, maxNGenBurnin = 50000, fCalcTStreamDiffLogDen = calcDEMCTempDiffLogDen3, argsFCalcTStreamDiffLogDen = list(), fCalcTGlobal = calcDEMCTempGlobal3, argsFCalcTGlobal = list())
 }
 \arguments{
   \item{Zinit}{the initial population}
@@ -20,8 +20,9 @@ twDEMCBatchInt(Zinit, nGen = 10, nBatch = 512, ..., restartFilename = NULL, fChe
 either numeric vector of length nPops or scalar}
   \item{doResetOutlierN}{if > 0, outlier chains are reset to best chain}
   \item{nPops}{number of independent populations}
-  \item{probUpDirBurnin}{probUbDir during burnin (see twDEMC argument propuUpDir)}
-  \item{controlTwDEMC}{controls to twDEMC, some items are overwritten}
+  \item{probUpDirBurnin}{probUbDir during burnin (see twDEMC argument propUpDir)}
+  \item{controlTwDEMC}{controls to \code{twDEMCInt} and twDEMCBatch, some items are overwritten before passing.
+This depends on convergence and accpetance during burnin.}
   \item{doRepeatLowAcceptanceChains}{
 }
   \item{maxNGenBurnin}{maximum burnin beyond which can not be extendend on too low acceptance rate}
@@ -31,6 +32,11 @@ either numeric vector of length nPops or scalar}
   \item{argsFCalcTGlobal}{further arguments to fCalcTStreamDiffLogDen}
 }
 \details{Usually invoked by \code{\link{twDEMCBatch}}.
+
+\describe{ \item{Detailed control parameters: \code{controlTwDEMC}}{\describe{
+\item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
+}}}
+}
 
 If Zinit is of class twDEMC, initial temperature is set to the temperature of the last row
 and the number of generations already in Zinit are skipped.
@@ -53,7 +59,7 @@ This is helpful with expensive models and long cluster runs for cases where the 
 }}
 
 \describe{\item{cooling and acceptance rate}{ 
-If acceptance rate of some population drops below rate=minAccepRateTempDecrease then cooling is too fast.
+If acceptance rate of some population drops below rate=ctrl$minPCompAcceptTempDecr then cooling is too fast.
 In this moderate case do not repeat the rund but keep the current temperature for the next period for this population.
 and extend the burnin phase by the length of this period.
 }}}

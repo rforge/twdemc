@@ -20,7 +20,7 @@ test.runDivideTwDEMC <- function(){
 	#ssPop <- ss[[1]]
 	#ssPop <- ss[[2]]
 	sapply(ss, function(ssPop){ 
-		checkEquals( nrow(ssPop), 500/4, msg=" wrong number of generations in subPopulation") # number of generations 
+		checkEquals( nrow(ssPop), 512/4, msg=" wrong number of generations in subPopulation") # number of generations 
 		checkEquals( ncol(ssPop), 3, msg=" wrong number of parameters in subPopulation") 	 # number of parameters + rLogLik
 		imax <- which.max(ssPop[,1])
 		thetaHat <- ssPop[imax,]			

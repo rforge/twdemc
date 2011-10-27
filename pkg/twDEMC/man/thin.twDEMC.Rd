@@ -7,7 +7,7 @@
 }
 \arguments{
   \item{x}{the twDEMC list to thin}
-  \item{newThin}{the target thinning factor, must be positive multiple of x$thin}
+  \item{newThin}{finite numeric scalar: the target thinning factor, must be positive multiple of x$thin}
   \item{start}{numeric scalar: the start time of the chain. 
 Note that time starts from zero.
 If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used}

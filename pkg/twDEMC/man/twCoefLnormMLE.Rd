@@ -42,4 +42,13 @@ dx <- dlnorm(xGrid, meanlog=theta0[1], sdlog=theta0[2])
 dxEst <- dlnorm(xGrid, meanlog=thetaEst[1], sdlog=thetaEst[2])
 plot( dx~xGrid, type="l")
 lines( dxEst ~ xGrid, col="blue")	#overplots the original, coincide
+
+# example 3: explore varying the uncertainty (the upper quantile)
+x <- seq(0.01,1.2,by=0.01)
+mle = 0.2
+dx <- sapply(mle*2:8,function(q99){
+		theta = twCoefLnormMLE(mle,q99,qnorm(0.99))
+		dx <- dDistr(x,theta[,"mu"],theta[,"sigma"],trans="lognorm")
+	})
+matplot(x,dx,type="l")
 }
