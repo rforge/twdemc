@@ -1,0 +1,11 @@
+Package: mcmcMarginals
+Title: mcmcMarginals  
+Version: 1.0
+Date: 2010-04-15
+Author: Thomas Wutzler
+Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
+Description: Calculating marginals using MCMC for calculating Bayes-Factors.
+License: GPL-2
+LazyLoad: yes
+Depends: R (>= 1.8.0), R.methodsS3, RUnit, twMisc, twDEMC 
+
