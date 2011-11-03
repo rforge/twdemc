@@ -61,7 +61,4 @@ attr(den2dCor,"ex") <- function(){
 	plot( density(ss[,1]) )
 	plot( ecdf( ss[,1] ) )
 	plot( ecdf( ss[,2] ) )
-	
-	
-
 }

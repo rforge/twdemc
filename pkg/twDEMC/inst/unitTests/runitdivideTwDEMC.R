@@ -10,7 +10,6 @@
 	#detach( twLinreg1 )
 }
 
-
 test.runDivideTwDEMC <- function(){
 	res <- divideTwDEMC(den2dCorDivideTwDEMC$sample, nGen=512, fLogDen=den2dCor )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
@@ -30,6 +29,7 @@ test.runDivideTwDEMC <- function(){
 		checkInterval( means["a"], 0, 1.2,msg=" wrong mean(a)")
 	})	
 }
+#twUtestF(getSubSpaces)
 
 test.initialShift <- function(){
 	# start on a worse sample
@@ -39,5 +39,6 @@ test.initialShift <- function(){
 	ssImpPops1 <- ssImpPops <- abind( lapply( res, "[[", "sample"), rev.along=0 )
 	plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")
 	checkTrue( all(apply(ssImpPops1[,"a",], 2, mean) > -0.8), msg="did not shift means(a) towards narrow part." )
+	
 }
 

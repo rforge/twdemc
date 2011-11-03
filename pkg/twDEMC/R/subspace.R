@@ -7,16 +7,23 @@ findSplit <- function(
 	,pSlopeMax=0.05					##<< confidence level for the slope, above which no difference in slopes is calculated 
 	,iVars = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for split		
 	,jVars = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for different scales of variance
+	,isBreakEarly = TRUE			##<< if TRUE returns on first checked variable that has a breakpoint, else check all variables and return order of variables
 ){
 	##details<< 
-	## First it checks for different scales of variance in other variables. 
-	if( is.character(iVars) ) iVars <- sapply(iVars, match, colnames(aSample))
-	if( is.character(jVars) ) jVars <- sapply(jVars, match, colnames(aSample))
+	## First it checks for different scales of variance in other variables.
+	cNames <- colnames(aSample)
+	if( is.character(iVars) ) iVars <- as.numeric(sapply(iVars, match, cNames))
+	if( is.character(jVars) ) jVars <- as.numeric(sapply(jVars, match, cNames))
 	foundSplit <- FALSE
 	percentiles <- 1:(nSplit)/(nSplit+1)
+	# value of the variable (var x split)
 	quantVar <- iVarLeft <- iVarRight <- matrix( NA_real_, nrow=length(iVars), ncol=nSplit )
+	# slope, variance of the left subset and variance of the right subset (splitVar, varVar, split)
 	slope <- parVarLeft <- parVarRight <- array( NA_real_, dim=c(length(iVars),length(jVars),nSplit)
-	, dimnames=list(iVar=colnames(aSample)[iVars], jVar=colnames(aSample)[jVars], iSub=NULL ))
+	, dimnames=list(iVar=cNames[iVars], jVar=cNames[jVars], iSub=NULL ))
+	# results of pVar and slope for best split per variable combination (varj x varj x (val,pVar,perc))
+	pVars <- dAlphaSlopes <- array( NA_real_, dim=c(length(iVars),length(jVars),3), dimnames=list(iVar=cNames[iVars],jVar=cNames[jVars],c("varVal","perc","val")) )
+	# left and right samples var -> split -> sample
 	ssSubLeft <- ssSubRight <- vector(mode="list",length=length(iVars) )
 	#i <- 1
 	for( i in seq_along(iVars)){
@@ -43,26 +50,46 @@ findSplit <- function(
 					varRight <- parVarRight[i,j,iSplit] <- var(ssSubRight[[i]][[iSplit]][,jVar]) 
 					#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] )
 					pVar[iSplit] <- varLeft /varRight
+					#pVars[i,j,] <- c( val=percentiles[iSplit], pVar=pVar[iSplit])
 				}
 				pVar[ pVar < 1 ] <- 1/pVar[pVar<1]
-				if( max(pVar) > rVarCrit){
-					iSplit <- which.max(pVar)
+				iSplit <- which.max(pVar)	# get the best split
+				pVars[i,j,c("varVal","val","perc")] <- c( varVal=qp[iSplit], val=pVar[iSplit], perc=percentiles[iSplit] )	# store value and variance ratio					
+				if( isBreakEarly && (pVar[iSplit] > rVarCrit) ){
 					res <- list( 
-						split=structure( quantVar[i,iSplit], names=colnames(aSample)[iVar])
-						, varName=colnames(aSample)[iVar]
-						, perc=percentiles[iSplit] )
+						split=structure( quantVar[i,iSplit], names=cNames[iVar])
+						, varName=cNames[iVar]
+						, perc=percentiles[iSplit]
+						, iVars=iVars
+						, jVars=jVars
+					)
 					return(res)
 				}
 			} # end if( jVar!=iVar)
 		} # end for jVar variance
 	} # for iVar
+	maxPVar <- suppressWarnings( apply(pVars[,,"val"],1, max , na.rm=TRUE ) )
+	sortI <- order(maxPVar, decreasing = TRUE)		
+	sortJ <- order(pVars[sortI[1],,"val"], decreasing = TRUE)
+	if( pVars[sortI[1], sortJ[1],"val"] > rVarCrit ){
+		varName=cNames[iVars[ sortI[1] ] ]
+		res <- list( 
+			split=structure( pVars[sortI[1], sortJ[1],"varVal"], names=varName)
+			, varName=varName
+			, perc=as.numeric(pVars[sortI[1], sortJ[1],"perc"]) 
+			, iVars=iVars[sortI]
+			, jVars=jVars[sortJ]
+		)
+		return(res)
+	}	
 	
 	##details<< 
 	## Next it checks for different angles of the normalized slopes in relation of the parameters 
 	#i<-1
-	if( !foundSplit) for( i in seq_along(iVars)){
+	for( i in seq_along(iVars)){
 		# check difference in slope angles
 		iVar <- iVars[i]
+		qp <- quantVar[i, ]
 		# also need the variance of iVar for scaling the slope
 		iPos <- match( iVar, jVars )
 		iVarLeft[i, ] <- sapply( 1:(nSplit), function(iSplit){ var(ssSubLeft[[i]][[iSplit]][,iVar]) })
@@ -77,8 +104,8 @@ findSplit <- function(
 						#XXTODO names are not know to construct formula, lookup direct equation for
 						#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] )
 						#plot( ssSubRight[[i]][[iSplit]][,iVar], ssSubRight[[i]][[iSplit]][,jVar] )
-						lmLeft <- lm( as.formula(paste(colnames(aSample)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubLeft[[i]][[iSplit]][,c(jVar,iVar)]) )
-						lmRight <- lm( as.formula(paste(colnames(aSample)[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubRight[[i]][[iSplit]][,c(jVar,iVar)]) )
+						lmLeft <- lm( as.formula(paste(cNames[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubLeft[[i]][[iSplit]][,c(jVar,iVar)]) )
+						lmRight <- lm( as.formula(paste(cNames[c(jVar,iVar)],collapse=" ~ ")), data=as.data.frame(ssSubRight[[i]][[iSplit]][,c(jVar,iVar)]) )
 						#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] ); abline(lmLeft)
 						#plot( ssSubRight[[i]][[iSplit]][,iVar], ssSubRight[[i]][[iSplit]][,jVar] ); abline(lmRight)
 						if( (anova(lmLeft)[["Pr(>F)"]][1] < pSlopeMax) || (anova(lmRight)[["Pr(>F)"]][1] < pSlopeMax) ){ 
@@ -89,30 +116,53 @@ findSplit <- function(
 							abs( alphaLeft - alphaRight )
 						}else{ 0 }  # both slopes are non-significant
 					})
-				if( max(dAlphaSlope) > rAlphaSlopeCrit){
-					iSplit <- which.max(dAlphaSlope)
+				iSplit <- which.max(dAlphaSlope)
+				#plot( ssSubLeft[[i]][[iSplit]][,iVar], ssSubLeft[[i]][[iSplit]][,jVar] ); abline(lmLeft)
+				#plot( ssSubRight[[i]][[iSplit]][,iVar], ssSubRight[[i]][[iSplit]][,jVar] ); abline(lmRight)
+				dAlphaSlopes[i,j,c("varVal","val","perc")] <- c( varVal=qp[iSplit], val=dAlphaSlope[iSplit], perc=percentiles[iSplit] )	# store value and variance ratio					
+				if( isBreakEarly && (dAlphaSlope[iSplit] > rAlphaSlopeCrit)){
 					res <- list( 
-						split=structure( quantVar[i,iSplit], names=colnames(aSample)[iVar])
-						, varName=colnames(aSample)[iVar]
-						, perc=percentiles[iSplit] )
+						split=structure( quantVar[i,iSplit], names=cNames[iVar])
+						, varName=cNames[iVar]
+						, perc=percentiles[iSplit] 
+						, iVars=iVars
+						, jVars=jVars
+					)
 					return(res)
 				}
 			} # end if( jVar!=iVar)
 		} # end for jVar variance
 	} # for iVar
-
+	maxDAlphaSlope <- suppressWarnings( apply(dAlphaSlopes[,,"val"],1, max , na.rm=TRUE ) )
+	sortI <- order(maxDAlphaSlope, decreasing = TRUE)		
+	sortJ <- order(dAlphaSlopes[sortI[1],,"val"], decreasing = TRUE)
+	if( dAlphaSlopes[sortI[1], sortJ[1],"val"] > rAlphaSlopeCrit ){
+		varName=cNames[iVars[ sortI[1] ] ]
+		res <- list( 
+			split=structure( dAlphaSlopes[sortI[1], sortJ[1],"varVal"], names=varName)
+			, varName=varName
+			, perc=as.numeric(dAlphaSlopes[sortI[1], sortJ[1],"perc"]) 
+			, iVars=iVars[sortI]
+			, jVars=jVars[sortJ]
+		)
+		return(res)
+	}	
+	
 	##value<< list with components  
 	return( list(
 		split=NA_real_	##<< named scalar: splitting value with the name of the parameter dimension that is to split
 		,varName=NA_character_ ##<< name of the splitting variable
 		,perc=NA_real_	##<< scalar: percentile of the splitting point
-	))
+		, iVars=sortI	##<< integer vector: argument \code{iVars} ordered by maximum proportion of variances or difference in slopes
+		, jVars=sortJ	##<< integer vector: argument \code{jVars} ordered by proportion of varainces or difference in slopes for iVars[1]
+))
 	##end<< 
 }
 attr(findSplit,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(findSplit)
+	(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE))	# check all variable and return ordering
 	(res <- res1 <- findSplit(ss1))
 	
 	# successively find splits in subsets
@@ -135,56 +185,79 @@ getSubSpaces <- function(
 	### Recursively splitting the sample into subsamples and recording the upper and lower bounds
 	aSample 			##<< numeric matrix with parameters in columns: sample or subsample that is devided
 	,nSplit=4			##<< see \code{\link{findSplit}}, potentially modified due to argument \code{minPSub}
+	,isBreakEarly=TRUE	##<< if set to FALSE all variable combinations are checked and an updated order of variables is returned
 	,argsFSplit=list()	##<< further arguments to \code{\link{findSplit}}
 	,pSub=1				##<< the fraction that a subSample comprises within a bigger sample (used in recursive calls) 
 	,minPSub=0.05		##<< minimum fraction a subSample, below which the sample is not split further
 ){
 	# search for a single splitting point
 	nSplitMin <- min( nSplit, floor(pSub/minPSub)-1 )		# each subPopulation must comprise at least part minPSub, hence do not split in too many parts
+	if( is.null(argsFSplit) ) argsFSplit <- list()
 	argsFSplitMod <- within(argsFSplit, nSplit<-nSplitMin )
 	boMinPSub <- (nSplitMin < 1)
-	if( !boMinPSub) resSplit <- do.call( findSplit, c(list(aSample=aSample), argsFSplitMod ))
+	if( !boMinPSub) resSplit <- do.call( findSplit, c(list(aSample=aSample, isBreakEarly=isBreakEarly), argsFSplitMod ))
 	if( boMinPSub || is.na(resSplit$split) ){
 		# when no splitting point was found, return the sample without parameter bounds
-		##value<< list with an entry for each subspace. Entry is a list with 
-		list( list( 
-			sample = aSample		##<< numeric matrix: a subsample constrained to the subspace with col parameters
-			, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
-			, lowerParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
-			, pSub = pSub			##<< the proportion of the subSample to the overall Sample
-		))	##end<<
+		##value<< a list with entries
+		list( 
+			spaces=list(list(	##<< a list with an entry for each subspace. Each Entry is a list with
+				##describe<<
+				sample = aSample		##<< numeric matrix: a subsample constrained to the subspace with col parameters
+				, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
+				, lowerParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
+				, pSub = pSub			##<< the proportion of the subSample to the overall Sample
+				##end<<
+			))
+			, iVars=NA	##<< integer vector: the indices of variables to check for splits. If \code{isBreakEarly=FALSE} its has been updated. NA if no split was found. 
+			, jVars=NA	##<< integer vector: the indices of variables to check scales of variances given a split in iVar. If \code{isBreakEarly=FALSE} its has been updated. NA if no split was found.
+		)	##end<<
 	}else{
 		# split the sample and recursively invoke \code{getSubSpaces}
+		argsFSplit$iVars <- resSplit$iVars
+		argsFSplit$jVars <- resSplit$jVars
 		boLeft <- (aSample[,resSplit$varName] <= resSplit$split)
 		sampleLeft <- aSample[boLeft, ]
 		sampleRight <- aSample[!boLeft,]
 		pSubLeft <- pSub*resSplit$perc
 		pSubRight <- pSub*(1-resSplit$perc)
-		spacesLeft <- getSubSpaces(sampleLeft, nSplit, argsFSplit, pSubLeft, minPSub)
-		spacesRight <- getSubSpaces(sampleRight, nSplit, argsFSplit, pSubRight, minPSub)
+		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub)$spaces
+		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
 		# add the splitting point as a new border to the results
+		# XXadd return iVars and jVars
 		resLeft <- lapply( spacesLeft, function(spEntry){
-				if( !(resSplit$varName %in% names(spEntry$upperParBounds)) )
+				posVar <- match(resSplit$varName, names(spEntry$upperParBounds) )
+				spEntry$upperParBounds <- if( is.finite(posVar) )
+					c(spEntry$upperParBounds[posVar], spEntry$upperParBounds[-posVar]) # make this variable first position in parBounds
+				else
 					spEntry$upperParBounds <- c(resSplit$split, spEntry$upperParBounds)
 				spEntry
 			})
 		resRight <- lapply( spacesRight, function(spEntry){
-				if( !(resSplit$varName %in% names(spEntry$lowerParBounds)) )
-					spEntry$lowerParBounds <- c(resSplit$split, spEntry$lowerParBounds)
+				posVar <- match(resSplit$varName, names(spEntry$lowerParBounds) )
+				spEntry$lowerParBounds <- if( is.finite(posVar) )
+						c(spEntry$lowerParBounds[posVar], spEntry$lowerParBounds[-posVar])
+					else
+						spEntry$lowerParBounds <- c(resSplit$split, spEntry$lowerParBounds)
 				spEntry
 			})
-		c( resLeft, resRight )
+		list(
+			spaces = c( resLeft, resRight)	
+			, iVars=resSplit$iVars	##<< the index of variables to check for splits. If \code{isBreakEarly=FALSE} its has been updated. 
+			, jVars=resSplit$jVars	##<< the index of variables to check scales of variances given a split in iVar. If \code{isBreakEarly=FALSE} its has been updated.
+		)
 	}
 } 
 attr(getSubSpaces,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	aSample <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(getSubSpaces)
-	subSpaces <- getSubSpaces(aSample, minPSub=0.4)
+	subSpaces <- getSubSpaces(aSample, minPSub=0.4, isBreakEarly=FALSE )
 	str(subSpaces)
 	subSpaces <- getSubSpaces(aSample, minPSub=0.05)
 	(tmp <- sapply( subSpaces, function(subSpace){nrow(subSpace$sample)})/nrow(aSample))
+	#twUtestF(getSubSpaces)	# there are unit tests for this function
 }
+
 
 
 
@@ -221,22 +294,24 @@ checkProblemsSpectral <- function(
 }
 
 
-
+#XXTODO: adapt divideTwDEMC to changed getSubSpaces that returns now updated iVars and jVars 
 divideTwDEMC <- function(
 	### run twDEMC on subspaces
 	aSample					##<< numeric array: rows:steps, col:parameters without logLik, 3: independent populations
 	,nGen=512				##<< the number of generations for twDEMC
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMC}} containing entry thin
 	, ...					##<< further arguments to \code{\link{twDEMC}}
-	, minPSub = 0.05		##<< see \code{\link{getSubSpaces}}
+	, minPSub = 0.05		##<< passed to \code{\link{getSubSpaces}}
+	, isBreakEarly = TRUE	##<< passed to \code{\link{getSubSpaces}}
+	, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}
 	, nChainsPop=4			##<< number of chains in subPopulations
 	, m0 = calcM0twDEMC( ncol(aSample), nChains=nChainsPop )	##<< number of samples per chain to initialize subPopulations
 	, nrow0 = 4000			##<< number of rows in initial overall sample
 	, attachDetails=FALSE	##<< set TRUE to report upperParBounds, lowerParBounds, and pSubs per subPopulation
 	, nChainPar=16			##<< number of chains to run in parallel, good choice is 2*nCpu
 	, minNSamplesSub=32		##<< minimum number of records in a subspace sample, increase to avoid wrong estimation of weights
-	, fCheckProblems=checkProblemsSpectral		
-	, argsFCheckProblems=list()
+	, fCheckProblems=checkProblemsSpectral	##<< function applied to twDEMC results of each subspace	
+	, argsFCheckProblems=list() ##<< further arguments to argsFCheckProblems
 	, dumpfileBasename="recover"
 ){
 	##details<< 
@@ -257,10 +332,12 @@ divideTwDEMC <- function(
 	if( nInit > nrow(thinnedSample) ) stop(paste("divideTwDEMC: aSample or nGen has too few cases, need at least",nInit))
 	minPSub <- max( minPSub, nInit/nrow(thinnedSample) )
 	#mtrace(getSubSpaces)
-	subSpaces <- apply( thinnedSample, 3, function(samplePop){
+	resSubSpaces <- lapply( 1:dim(thinnedSample)[3], function(iPop){
+			samplePop <- thinnedSample[,,iPop]
 			#mtrace(getSubSpaces)
-			getSubSpaces(samplePop[,-1], minPSub=minPSub)	# here omit the logDensity column
+			getSubSpaces(samplePop[,-1], minPSub=minPSub, isBreakEarly=isBreakEarly, argsFSplit=argsFSplitPop[[iPop]])	# here omit the logDensity column
 		})
+	subSpaces <- lapply( resSubSpaces, "[[" ,"spaces" )
 	nSubPops <- sapply(subSpaces, length)	# number of subs per populations
 	subSpacesFlat <- do.call( c, subSpaces )	# put all subPopulations of all populations on same level
 	cumNSubPops <- cumsum(nSubPops)
@@ -444,7 +521,9 @@ divideTwDEMC <- function(
 				sample=resl[[iPop]]					##<< numeric matrix: the sampled parameters (rows: cases, cols: 1: logDensity, others parameter dimensions
 				,subPercChange=subPercChange[posPop]	##<< numeric vector: estimated proportion in limiting distribution to proportion of initial proportion 
 				,upperParBounds=upperParBounds[posPop]	##<< list of named numeric vectors: the upper parameter bounds for the subspaces
-				,lowerParBounds=lowerParBounds[posPop]	##<<  
+				,lowerParBounds=lowerParBounds[posPop]	##<< dito upperParBounds
+				,iVars=resSubSpaces[[iPop]]$iVars		##<< reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}
+				,jVars=resSubSpaces[[iPop]]$jVars		##<< reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}
 				#,pSubs0=pSubs0[posPop]
 				#,pSubs2=p2[posPop]
 			)
@@ -461,7 +540,7 @@ attr(divideTwDEMC,"ex") <- function(){
 	#aSamplePurePop <- aSamplePure[,,1]
 	#res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
 	#mtrace(divideTwDEMC)
-	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
+	res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor,  isBreakEarly=FALSE )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
 	#barplot(res[[1]]$subPercChange, names.arg=seq_along(res[[1]]$subPercChange) )
 	#str(res[[1]]$lowerParBounds)
@@ -489,9 +568,20 @@ setMethodS3("divideTwDEMCBatch","divideTwDEMCBatch", function(
 	x						##<< result of former call to divideTwDEMCBatch
 	, ...					##<< further arguments to \code{\link{divideTwDEMCBatch.default}}
 ){
-	resArray <- divideTwDEMCBatch.default(x$sample,...)
+	.dots <- list(...)
+	# extract iVars and jVars per population from x$resDivideTwDEMC
+	if( is.null(.dots$argsFSplitPops) ){
+		 nPops = dim(x$sample)[3]
+		 .dots$argsFSplitPop <- vector("list",nPops)
+		 for( iPop in 1:nPops ){
+			.dots$argsFSplitPop[[iPop]]$iVars <- x$resDivideTwDEMC[[iPop]]$iVars	# update variable order
+			.dots$argsFSplitPop[[iPop]]$jVars <- x$resDivideTwDEMC[[iPop]]$jVars	# update variable order
+		 }
+	}
+	resArray <- do.call( divideTwDEMCBatch.default, c(list(x$sample), .dots) )
 	within(resArray,{
-		wSubs <- rbind( x$wSubs, wSubs )
+		subPercChange <- rbind( x$subPercChange, subPercChange )
+		maxSubPercChange <- c(x$maxSubPercChange, maxSubPercChange)
 	})
 })
 		
@@ -504,6 +594,8 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	, nGenBatch=512			##<< number of generations within one batch
 	, thinPastFac=0.2		##<< thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)
 	, subPercChangeCrit=1.6	##<< if all subPercChange of all sub-populations are belwo this value in two last batches, may assume convergence and skip further batches 
+	, iCheckAllSplitVars=5	##<< every i batches, findSplit is called with breakEarly=FALSE to update the order of searching for splits
+	, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}
 ){
 	#divideTwDEMCBatch.default
 	if( !is.null(thinPastFac) && thinPastFac == 1) thinPastFac <- NULL	# no need to thin
@@ -518,12 +610,21 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	nPops <- dim(x)[3]
 	subPercChange <- matrix(vector("list",nBatch*nPops), nrow=nBatch )
 	maxSubPercChange <- matrix( vector("numeric", nBatch*nPops ), nrow=nBatch, ncol=nPops )	# cols: populations
+	argsFSplitPop <- vector("list",nPops)
+	# if iVars and jVars for all populations have been supplied, then do not need to check all splits on first batch
+		#argsFSplit<- argsFSplitPop[[1]]
+	firstIsCheckSplitVars <- any( sapply(argsFSplitPop, function(argsFSplit){ is.null(argsFSplit$iVars) || is.null(argsFSplit$jVars) }) )
 	for( iBatch in 1:nBatch ){
+		isCheckAllSplitVars <- (iBatch %% iCheckAllSplitVars == 0) || (firstIsCheckSplitVars && iBatch==1) 
 		cat(paste(iN," out of ",nGen," generations completed.     ",date(),"\n",sep=""))
-		resBatch <- divideTwDEMC(  ss,nGen=min(nGenBatch, nGen-iN)	
+		resBatch <- divideTwDEMC(  ss,nGen=min(nGenBatch, nGen-iN), isBreakEarly=!isCheckAllSplitVars, argsFSplitPop=argsFSplitPop	
 		#,fLogDen=den2dCor 
 		,...
 		)
+		if(isCheckAllSplitVars) for( iPop in 1:nPops ){
+			argsFSplitPop[[iPop]]$iVars <- resBatch[[iPop]]$iVars	# update variable order
+			argsFSplitPop[[iPop]]$jVars <- resBatch[[iPop]]$jVars	# update variable order
+		}
 		subPercChange[iBatch,] <- subPercChangeCur <- lapply( resBatch, "[[", "subPercChange" )
 		maxSubPercChange[iBatch,] <- maxSubPercChangeCur <- sapply( subPercChangeCur, max )
 		ssCurrent <- abind(lapply(resBatch,"[[","sample"), rev.along=0)
@@ -556,11 +657,11 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
 	aSample <- stackChainsPop(aTwDEMC)
 	#mtrace(divideTwDEMCBatch.default)
-	ssRes1 <- ssRes <- divideTwDEMCBatch(aSample, nGen=512*6, fLogDen=den2dCor )
-	#mtrace(divideTwDEMCBatch.divideTwDEMCBatch)
+	ssRes1 <- ssRes <- divideTwDEMCBatch(aSample, nGen=512*3, fLogDen=den2dCor )
 	#ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*1, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 	#mtrace(getSubSpaces)
 	#tmp <- getSubSpaces(ssRes1$sample[,-1,1])
+	#mtrace(divideTwDEMCBatch.divideTwDEMCBatch)
 	ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*6, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 	
 	#tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
@@ -568,6 +669,7 @@ attr(divideTwDEMCBatch.default,"ex") <- function(){
 	
 	#wSubsB <- ssRes$wSubs[,1]
 	#wSubsB <- ssRes$wSubs[,2]
+	ssRes$maxSubPercChange
 	wSubsB <- ssRes$wSubs
 	sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] }) 
 	
