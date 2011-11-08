@@ -3,7 +3,7 @@
 \title{findSplit}
 \description{determine the parameter and its value, where to split the parameter space}
 \usage{
-findSplit(aSample, nSplit = 4, rVarCrit = 10^2, rAlphaSlopeCrit = base:::pi/3, pSlopeMax = 0.05, iVars = 1:ncol(aSample), jVars = 1:ncol(aSample))
+findSplit(aSample, nSplit = 4, rVarCrit = 10^2, rAlphaSlopeCrit = base:::pi/3, pSlopeMax = 0.05, iVars = 1:ncol(aSample), jVars = 1:ncol(aSample), isBreakEarly = TRUE)
 }
 \arguments{
   \item{aSample}{the sample (stacked chains)}
@@ -13,14 +13,17 @@ findSplit(aSample, nSplit = 4, rVarCrit = 10^2, rAlphaSlopeCrit = base:::pi/3, p
   \item{pSlopeMax}{confidence level for the slope, above which no difference in slopes is calculated}
   \item{iVars}{integer vector: index or parameter dimensions, i.e. variables, to check for split}
   \item{jVars}{integer vector: index or parameter dimensions, i.e. variables, to check for different scales of variance}
+  \item{isBreakEarly}{if TRUE returns on first checked variable that has a breakpoint, else check all variables and return order of variables}
 }
-\details{First it checks for different scales of variance in other variables. 
+\details{First it checks for different scales of variance in other variables.
 
 Next it checks for different angles of the normalized slopes in relation of the parameters }
 \value{list with components  
 \item{split}{named scalar: splitting value with the name of the parameter dimension that is to split}
 \item{varName}{name of the splitting variable}
-\item{perc}{scalar: percentile of the splitting point}}
+\item{perc}{scalar: percentile of the splitting point}
+\item{iVars}{integer vector: argument \code{iVars} ordered by maximum proportion of variances or difference in slopes}
+\item{jVars}{integer vector: argument \code{jVars} ordered by proportion of varainces or difference in slopes for iVars[1]}}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
 
@@ -31,6 +34,7 @@ Next it checks for different angles of the normalized slopes in relation of the 
 data(den2dCorTwDEMC)
 ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 #mtrace(findSplit)
+(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE))	# check all variable and return ordering
 (res <- res1 <- findSplit(ss1))
 
 # successively find splits in subsets

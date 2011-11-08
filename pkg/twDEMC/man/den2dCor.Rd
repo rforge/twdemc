@@ -68,7 +68,4 @@ plot( ss[,1], ss[,2], ylim=c(-40,80) )
 plot( density(ss[,1]) )
 plot( ecdf( ss[,1] ) )
 plot( ecdf( ss[,2] ) )
-
-
-
 }

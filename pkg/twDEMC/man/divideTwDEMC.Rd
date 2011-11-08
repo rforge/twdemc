@@ -3,37 +3,43 @@
 \title{divideTwDEMC}
 \description{run twDEMC on subspaces}
 \usage{
-divideTwDEMC(aSample, nGen = 512, controlTwDEMC = list(), ..., minPSub = 0.05, nChainsPop = 4, m0 = calcM0twDEMC(ncol(aSample), nChains = nChainsPop), nrow0 = 4000, attachDetails = FALSE, nChainPar = 16, minNSamplesSub = 32, fCheckProblems = checkProblemsSpectral, argsFCheckProblems = list(), dumpfileBasename = "recover")
+divideTwDEMC(aSample, nGen = 512, controlTwDEMC = list(), ..., minPSub = 0.05, isBreakEarly = TRUE, argsFSplitPop = vector("list", dim(aSample)[3]), nChainsPop = 4, m0 = calcM0twDEMC(ncol(aSample), nChains = nChainsPop), nrow0 = 4000, attachDetails = FALSE, nChainPar = 16, minNSamplesSub = 32, fCheckProblems = checkProblemsSpectral, argsFCheckProblems = list(), dumpfileBasename = "recover")
 }
 \arguments{
   \item{aSample}{numeric array: rows:steps, col:parameters without logLik, 3: independent populations}
   \item{nGen}{the number of generations for twDEMC}
   \item{controlTwDEMC}{list argument to \code{\link{twDEMC}} containing entry thin}
   \item{\dots}{further arguments to \code{\link{twDEMC}}}
-  \item{minPSub}{see \code{\link{getSubSpaces}}}
+  \item{minPSub}{passed to \code{\link{getSubSpaces}}}
+  \item{isBreakEarly}{passed to \code{\link{getSubSpaces}}}
+  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}}
   \item{nChainsPop}{number of chains in subPopulations}
   \item{m0}{number of samples per chain to initialize subPopulations}
   \item{nrow0}{number of rows in initial overall sample}
   \item{attachDetails}{set TRUE to report upperParBounds, lowerParBounds, and pSubs per subPopulation}
   \item{nChainPar}{number of chains to run in parallel, good choice is 2*nCpu}
   \item{minNSamplesSub}{minimum number of records in a subspace sample, increase to avoid wrong estimation of weights}
-  \item{fCheckProblems}{
-}
-  \item{argsFCheckProblems}{
-}
+  \item{fCheckProblems}{function applied to twDEMC results of each subspace}
+  \item{argsFCheckProblems}{further arguments to argsFCheckProblems}
   \item{dumpfileBasename}{
 }
 }
 \details{the first column of aSample records the logDensity of the sample for consitency. 
 It is not used and may be initialized to any value. 
 
-The samples of the subspaces are combined again after thinning the subsamples 
-inversly proportional
-to their contribution to the sum of unnormalized densities.}
+A first estimate of the proportion of samples from different subspaces
+are the initial percentiles qp. 
+The proportion of the samples from different subspaces is estimated
+by the proportions of integrated density of the subspaces.
+These proportions are esimated by average density over all samples multiplied by an
+estimate proportional to the volume: the initial quantiles.}
 \value{For each population, a list with entries
 \item{sample}{numeric matrix: the sampled parameters (rows: cases, cols: 1: logDensity, others parameter dimensions}
-\item{wSubs}{numeric vector: the weights according to average density of the subspaces}
-\item{upperParBounds}{list of named numeric vectors: the upper parameter bounds for the subspaces}}
+\item{subPercChange}{numeric vector: estimated proportion in limiting distribution to proportion of initial proportion}
+\item{upperParBounds}{list of named numeric vectors: the upper parameter bounds for the subspaces}
+\item{lowerParBounds}{dito upperParBounds}
+\item{iVars}{reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}}
+\item{jVars}{reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}}}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
 
@@ -49,9 +55,9 @@ ss0 <- stackChains(aTwDEMC)
 #aSamplePurePop <- aSamplePure[,,1]
 #res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
 #mtrace(divideTwDEMC)
-res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor )
+res <- divideTwDEMC(aSample, nGen=500, fLogDen=den2dCor,  isBreakEarly=FALSE )
 plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
-#barplot(res[[1]]$wSubs, names.arg=seq_along(res[[1]]$wSubs) )
+#barplot(res[[1]]$subPercChange, names.arg=seq_along(res[[1]]$subPercChange) )
 #str(res[[1]]$lowerParBounds)
 ssImpPops1 <- ssImpPops <- abind( lapply( res, "[[", "sample"), rev.along=0 )
 plot(density( ssImpPops[,"a",1]));lines(density( ssImpPops[,"a",2]),col="green"); lines(density( ss0[,"a"]),col="blue")

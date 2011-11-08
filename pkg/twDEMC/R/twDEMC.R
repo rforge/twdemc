@@ -122,7 +122,8 @@ twDEMCInt <- function(
 		epsMult =0.2,	##<< >0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update 
 		epsAdd = 0,	   	##<< >0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update. 
 		thin = 4, 	   	##<< thinning interval	 
-		T0=1, Tend=1, 	##<< initial and end Temperature to flatten the density surface, for each population
+		T0=1,			##<< initial Temperature to flatten the density surface, for each population
+		Tend=1, 		##<< end Temperature to flatten the density surface, for each population
 		Tprop=1,		
 			### numeric matrix (result components x populations) proportions of Temperature for different data streams
 			### Alternatively twDEMCInt can handle vectors (components) which are replicated for populations.

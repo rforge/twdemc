@@ -3,7 +3,7 @@
 \title{divideTwDEMCBatch default}
 \description{iteratively run batches using divideTwDEMCBatch}
 \usage{
-\method{divideTwDEMCBatch}{default}(x, ..., nGen = 2 * 512, nGenBatch = 512, thinPastFac = 0.2, wSubFacMax = 1.6)
+\method{divideTwDEMCBatch}{default}(x, ..., nGen = 2 * 512, nGenBatch = 512, thinPastFac = 0.2, subPercChangeCrit = 1.6, iCheckAllSplitVars = 5, argsFSplitPop = vector("list", dim(aSample)[3]))
 }
 \arguments{
   \item{x}{numeric array: rows:steps, col:parameters including logLik, 3: independent populations}
@@ -11,13 +11,15 @@
   \item{nGen}{number of generations}
   \item{nGenBatch}{number of generations within one batch}
   \item{thinPastFac}{thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)}
-  \item{wSubFacMax}{maximimum factor of largest weight to 25\% quantile weight for accessing convergence}
+  \item{subPercChangeCrit}{if all subPercChange of all sub-populations are belwo this value in two last batches, may assume convergence and skip further batches}
+  \item{iCheckAllSplitVars}{every i batches, findSplit is called with breakEarly=FALSE to update the order of searching for splits}
+  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}}
 }
 
 \value{A list with components 
 \item{sample}{numeric array same as argument \code{x} but thinned and new sample appended}
-\item{wSubs}{matrix of numeric vectors giving the weights of sub-populations}
-\item{wSubsFac}{numeric vector: calculated ratio of subspace weights, see argument \code{wSubFacMax}}
+\item{subPercChange}{matrix of numeric vectors giving the weights of sub-populations}
+\item{maxSubPercChange}{numeric vector: calculated ratio of subspace weights, see argument \code{wSubFacMax}}
 \item{resDivideTwDEMC}{result of last call to \code{\link{divideTwDEMC}}}}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
@@ -30,11 +32,11 @@ data(den2dCorTwDEMC)
 aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
 aSample <- stackChainsPop(aTwDEMC)
 #mtrace(divideTwDEMCBatch.default)
-ssRes1 <- ssRes <- divideTwDEMCBatch(aSample, nGen=512*6, fLogDen=den2dCor )
-#mtrace(divideTwDEMCBatch.divideTwDEMCBatch)
+ssRes1 <- ssRes <- divideTwDEMCBatch(aSample, nGen=512*3, fLogDen=den2dCor )
 #ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*1, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 #mtrace(getSubSpaces)
 #tmp <- getSubSpaces(ssRes1$sample[,-1,1])
+#mtrace(divideTwDEMCBatch.divideTwDEMCBatch)
 ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*6, fLogDen=den2dCor )	#calling divideTwDEMCBatch.divideTwDEMCBatch
 
 #tmp <- divideTwDEMC( ssRes1$sample[,,2,drop=FALSE], nGen=512, fLogDen=den2dCor)
@@ -42,6 +44,7 @@ ssRes2 <- ssRes <- divideTwDEMCBatch(ssRes1, nGen=512*6, fLogDen=den2dCor )	#cal
 
 #wSubsB <- ssRes$wSubs[,1]
 #wSubsB <- ssRes$wSubs[,2]
+ssRes$maxSubPercChange
 wSubsB <- ssRes$wSubs
 sapply( lapply(wSubsB, quantile, probs = c(1, 0.25) ), function(entry){ entry[1] / entry[2] }) 
 
