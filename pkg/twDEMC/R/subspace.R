@@ -1,4 +1,236 @@
-.fPVarI <- function(iVar,qp,ssiSubLeft,ssiSubRight, jVarsVar, nSplit, cNames, percentiles){
+findSplit <- function(
+	### determine the parameter and its value, where to split the parameter space
+	aSample	##<< the sample (stacked chains)
+	,nSplit = 4 ##<< how many points per parameter dimension to check for split
+	,rVarCrit = 3^2	##<< minimal ratio of variances of a variable between right and left side of a splitting point
+	,rAlphaSlopeCrit = base:::pi/4	##<< minimal ratio of angle between scaled slopes, defaults to a third of a half cirle
+	,pSlopeMax=0.05					##<< confidence level for the slope, above which no difference in slopes is calculated 
+	,iVars = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for split		
+	,jVarsVar = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for different scales of variance
+	,jVarsSlope = 1:ncol(aSample)	##<< integer vector: index or parameter dimensions, i.e. variables, to check for differences in angle of normalized slopes
+	,isBreakEarly = TRUE			##<< if TRUE and argument \code{checkSlopesFirst} is given, then check slope angles for variables given in checkSlopesFirst first and if break is found, do not evaluate all the other slope angles
+	,checkSlopesFirst = data.frame(ivar=1,j1AlphaSlope=1,jAlphaSlope=2)[FALSE,]	##<< data.frame with entries ivar, j1AlphaSlope and j2AlphaSlope as returned in entry resD in result of ressplit
+	,maxNSample=128					##<< if given a value, then aSample is thinned before to given number of records (for efficiently calculating variances)
+	,calcVarParallel=TRUE			##<< having less than 30 parameters it is often faster not to parallelize variance calculation 
+	,debugSequential=FALSE			##<< by default calcualation is distributed to sup-processes for parralel execution, set to TRUE for non-distributed execution
+){
+	##details<< 
+	## First it checks for different scales of variance in other variables.
+	# i and j are indexes within iVars and jVarsVar which are indexes in colnames(aSample)
+	cNames <- colnames(aSample)
+	if( is.character(iVars) ) iVars <- as.numeric(sapply(iVars, match, cNames))
+	if( is.character(jVarsVar) ) jVarsVar <- as.numeric(sapply(jVarsVar, match, cNames))
+	if( is.character(jVarsSlope) ) jVarsSlope <- as.numeric(sapply(jVarsSlope, match, cNames))
+	jVarsVar <- union(jVarsSlope, jVarsVar)	# make sure to check variances for all slope variables, jVarsSlope must be first so that indexing j works in parVarRight and parVarLeft
+	if( is.finite(maxNSample) && (maxNSample < nrow(aSample)) ) aSample <- aSample[ round(seq(1,nrow(aSample),length.out=maxNSample)),]
+	foundSplit <- FALSE
+	percentiles <- 1:(nSplit)/(nSplit+1)
+	# value of the variable (var x split)
+	quantVar <- iVarLeft <- iVarRight <- matrix( NA_real_, nrow=length(iVars), ncol=nSplit )
+	# variance of the left subset and variance of the right subset (splitVar, varVar, split)
+	parVarLeft <- parVarRight <- array( NA_real_, dim=c(length(iVars),length(jVarsVar),nSplit)
+		, dimnames=list(iVar=cNames[iVars], jVar=cNames[jVarsVar], iSplit=NULL ))
+	# slope of the left subset and variance of the right subset (splitVar, aVar1, aVar2, split)
+	# results of pVar and slope for best split per variable combination (varj x varj x (val,pVar,perc))
+	pVars <- array( NA_real_, dim=c(length(iVars),length(jVarsVar),3), dimnames=list(iVar=cNames[iVars],jVar=cNames[jVarsVar],c("varVal","perc","val")) )
+	dAlphaSlopes <- array( NA_real_, dim=c(length(iVars),length(jVarsSlope),length(jVarsSlope),3), dimnames=list(iVar=cNames[iVars],jVar1=cNames[jVarsSlope],jVar2=cNames[jVarsSlope],c("varVal","perc","val")) )
+	# left and right samples var -> split -> sample
+	ssSubLeft <- ssSubRight <- vector(mode="list",length=length(iVars) )
+	# result details
+	resD <- data.frame(iVar=iVars				##<< index of the splitting variable
+		, jPVar=NA_integer_						##<< index of the variable with maxium difference of variance when splitting on variable iVar 
+		, pVar=NA_real_							##<< max( abs(proportion of the variances))
+		, j1AlphaSlope=NA_integer_				##<< index of the first variable with maxium difference in slopes
+		, j2AlphaSlope=NA_integer_				##<< index of the second variable with maxium difference in slopes
+		, dAlphaSlope=NA_real_					##<< maximum diffrence in slope angle
+	)
+	
+	# calculate all quantiles and subsamples
+	#i <- 1
+	for( i in seq_along(iVars)){
+		iVar <- iVars[i]
+		p <- aSample[,iVar] 
+		qp <- quantVar[i, ] <- quantile( p, percentiles )
+		#iSub <- 1
+		#iSub <- nSub
+		ssSubLeft[[i]] <- ssiSubLeft <- lapply( 1:(nSplit), function(iSplit){
+				ssSub <- aSample[ (p <= qp[iSplit]),]
+			})
+		ssSubRight[[i]] <- ssiSubRight <- lapply( 1:(nSplit), function(iSplit){
+				ssSub <- aSample[ (p >= qp[iSplit]),]
+			})
+	}
+	
+	# invoke calculating variances in parallel manner
+	# ?sfFArgsApplyLB
+	F_ARGS <- function(i){ list(
+			iVar=iVars[i]
+			,qp=quantVar[i,]
+			,ssiSubLeft=ssSubLeft[[i]]
+			,ssiSubRight=ssSubRight[[i]]
+		)}
+	resVarIL <- sfFArgsApplyLB( length(iVars), F_ARGS, .fPVarI		,jVarsVar=jVarsVar, nSplit=nSplit, cNames=cNames, percentiles=percentiles		,debugSequential=(!calcVarParallel || debugSequential)	)
+	#resVarI <- .fPVarI(iVar=iVar,p=p,qp=qp,ssiSubLeft=ssiSubLeft,ssiSubRight=ssiSubRight, jVarsVar=jVarsVar, nSplit=nSplit, cNames=cNames, percentiles=percentiles)
+	
+	# reformat the results
+	# i=2
+	for( i in seq_along(iVars)){
+		resVarI <- resVarIL[[i]]
+		parVarLeft[i,,] <- resVarI$parVarLeft
+		parVarRight[i,,] <- resVarI$parVarRight
+		pVars[i,,] <- resVarI$pVars
+		#pVars[i,(colnames(pVars) == cNames[i]),"val"] <- NA  # variance ratio for splitting variable does not make sense and confuses selection of highest pVar	
+		
+		jmax <- which.max( pVars[i,,"val"])		
+		resD[i,"jPVar"] <- jVarsVar[jmax]
+		resD[i,"pVar"] <- pVars[i,jmax,"val"]
+	} # for iVar
+	
+	#maxPVar <- suppressWarnings( apply(pVars[,,"val"],1, max , na.rm=TRUE ) )
+	#sortI <- order(maxPVar, decreasing = TRUE)		
+	#sortJ <- order(pVars[sortI[1],,"val"], decreasing = TRUE)
+	oi <- order(resD$pVar, decreasing=TRUE)
+	imax <- oi[1]
+	if( resD$pVar[imax] > rVarCrit ){
+		varName=cNames[ iVars[imax] ]
+		pVarsMax <- pVars[imax, match( resD$jPVar[imax],jVarsVar),]
+		res <- list( 
+			split=structure( pVarsMax["varVal"], names=varName)
+			, varName=varName
+			, perc=as.numeric(pVarsMax["perc"]) 
+			#, iVars=resD$iVar[oi] 
+			#, jVarsVar=resD$jPVar[oi]
+			, resD=resD
+		)
+		return(res)
+	}	
+	
+	##details<< 
+	## Next it checks for different angles of the normalized slopes in relation of the parameters
+	F_ARGS <- function(i){ list(
+			qp=quantVar[i,]
+			,ssiSubLeft=ssSubLeft[[i]]
+			,ssiSubRight=ssSubRight[[i]]
+			,pariVarLeft=adrop(parVarLeft[i,,,drop=FALSE],1)	# only drop the i dimension, avoid dropping only one jVar or only one iSplit
+			,pariVarRight=adrop(parVarRight[i,,,drop=FALSE],1)
+		)}
+
+	if( isBreakEarly && is.data.frame(checkSlopesFirst) ){
+		checkSlopesFirst <- checkSlopesFirst[ 
+			(checkSlopesFirst$iVar %in% iVars) &  
+			is.finite(checkSlopesFirst$j1AlphaSlope) & 
+			is.finite(checkSlopesFirst$j2AlphaSlope)
+			,]	# do not check the ones that are not in iVars or have non-finite jAlphaSlope
+		ind <- match( checkSlopesFirst$iVar, iVars )
+		if( (nRowResD <- nrow(checkSlopesFirst)) >0 ){
+			# first check the correlations given in checkSlopesFirst
+			# mtrace(.fCheckAlphaSlopeSplit)
+			#iResD=3
+			F_ARGS3 <- function(iResD){ c(
+					list( j1=match( checkSlopesFirst$j1AlphaSlope[iResD], jVarsSlope)
+						,j2=match( checkSlopesFirst$j2AlphaSlope[iResD], jVarsSlope) )
+					,F_ARGS( ind[iResD] )
+				)}
+			resCheckL <- sfFArgsApplyLB( nRowResD, F_ARGS3, .fCheckAlphaSlopeSplit
+					, jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles 
+					, debugSequential=debugSequential
+				)
+			resCheck <- do.call(rbind, resCheckL)
+			if( !is.null(resCheck) ){
+				resD[ match(checkSlopesFirst$iVar, resD$iVar), c("j1AlphaSlope","j2AlphaSlope","dAlphaSlope")] <- 
+					cbind(checkSlopesFirst[,c("j1AlphaSlope","j2AlphaSlope")], resCheck[,"val"] )
+				# search the maximum and if found critical slope, return early
+				oiAlpha <- order(resD$dAlphaSlope, decreasing=TRUE)
+				imax <- oiAlpha[1]
+				if( resD$dAlphaSlope[imax] > rAlphaSlopeCrit ){
+					varName=cNames[ iVars[imax] ]
+					resCheckMax <- resCheck[imax, ] 
+					res <- list( 
+						split=structure( resCheckMax["varVal"], names=varName)
+						, varName=varName
+						, perc=as.numeric(resCheckMax["perc"]) 
+						#, iVars=resD$iVar[oi] 
+						#, jVarsVar=resD$jPVar[oi]
+						, resD=resD
+					)
+					return(res)
+				}
+			}# resCheck not null
+		}# nrow(checkSlopesFirst)>0
+	} # if breakearly
+	#i<-1
+	if( length(jVarsSlope) >= 2 ){
+		#mtrace(.fDAlphaSlopeI)
+		resDAlphaSlopesIL <- sfFArgsApplyLB( length(iVars), F_ARGS, .fDAlphaSlopeI
+			, jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles
+			, fCheckAlphaSlopeSplit=.fCheckAlphaSlopeSplit	# must be transported to foreign process
+			,debugSequential=debugSequential
+		)
+		#dAlphaSlopes[i,,,] <- .fDAlphaSlopeI(qp=qp, ssiSubLeft=ssiSubLeft, ssiSubRight=ssiSubRight, pariVarLeft=pariVarLeft, pariVarRight=pariVarRight, jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles)
+		
+		for( i in seq_along(iVars)){
+			iVar <- iVars[i]
+			dAlphaSlopes[i,,,] <- resDAlphaSlopesIL[[i]]
+			x <- dAlphaSlopes[i,,,"val"]
+			j12max <- arrayInd( which.max(x), dim(x) )
+			resD[i,c("j1AlphaSlope","j2AlphaSlope")] <- jVarsSlope[ j12max ]  
+			resD[i,"dAlphaSlope"] <- x[j12max[1],j12max[2] ]
+			dAlphaSlopesMax <- 	dAlphaSlopes[i, match(resD$j1AlphaSlope[i],jVarsSlope), match(resD$j2AlphaSlope[i],jVarsSlope),] 
+		} # for iVar
+		oiAlpha <- order(resD$dAlphaSlope, decreasing=TRUE)
+		imax <- oiAlpha[1]
+		if( resD$dAlphaSlope[imax] > rAlphaSlopeCrit ){
+			varName=cNames[ iVars[imax] ]
+			dAlphaSlopeMax <- dAlphaSlopes[imax, match(resD$j1AlphaSlope[imax],jVarsSlope), match(resD$j2AlphaSlope[imax],jVarsSlope),] 
+			res <- list( 
+				split=structure( dAlphaSlopeMax["varVal"], names=varName)
+				, varName=varName
+				, perc=as.numeric(dAlphaSlopeMax["perc"]) 
+				#, iVars=resD$iVar[oi] 
+				#, jVarsVar=resD$jPVar[oi]
+				, resD=resD
+			)
+			return(res)
+		}
+	}
+	
+	##value<< list with components  
+	return( list(
+			split=NA_real_	##<< named scalar: splitting value with the name of the parameter dimension that is to split
+			,varName=NA_character_ ##<< name of the splitting variable
+			,perc=NA_real_	##<< scalar: percentile of the splitting point
+			#, iVars=resD$iVar[oi] ##<< integer vector: argument \code{iVars} ordered by maximum proportion of variances or difference in slopes 
+			#, jVarsVar=resD$jPVar[oi]##<< integer vector: argument \code{jVarsVar} ordered by proportion of varainces or difference in slopes for iVars[1]
+			, resD=resD		##<< dataframe of result details giving for each split variable the indices of variable with maximum proportion of variances and and the variable with maximum angle in correlation  
+		))
+	##end<< 
+}
+attr(findSplit,"ex") <- function(){
+	#twUtestF(findSplit) # there are unit tests for this function
+	data(den2dCorTwDEMC)
+	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
+	#mtrace(findSplit)
+	(res <- res0 <- findSplit(ss1))	# returns before checking slope angles
+	(res <- res1 <- findSplit(ss1, rVarCrit=Inf))	# find slope angles
+	
+	# successively find splits in subsets
+	ss2 <- ss <- ss1[ ss1[,res$varName] > res$split,]
+	res2 <- findSplit(ss2)
+	ss3 <- ss <- ss2[ ss2[,res2$varName] > res2$split,]
+	res3 <- findSplit(ss3)
+	
+	# try different orders of the variables
+	(res <- findSplit(ss1, iVars=c("b") )) # NA indicates: no further split found
+	
+	#visualize the split
+	plot( ss1[,"a"], ss1[,"b"], col=c("blue","red")[as.integer(ss1[,res0$varName] >= res0$split)+1])
+}
+
+
+.fPVarI <- function(
+	### remote part of calculating proportion of variance between two subsamples
+	iVar,qp,ssiSubLeft,ssiSubRight, jVarsVar, nSplit, cNames, percentiles
+){
 	# variance of the left subset and variance of the right subset (splitVar, varVar, split)
 	parVarLeft <- parVarRight <- array( NA_real_, dim=c(length(jVarsVar),nSplit)
 		, dimnames=list(jVar=cNames[jVarsVar], iSplit=NULL ))
@@ -49,7 +281,10 @@
 	abline(lmRight)
 }
 
-.fCheckAlphaSlopeSplit <- function(j1,j2,qp, ssiSubLeft, ssiSubRight, pariVarLeft, pariVarRight, jVarsSlope, nSplit, cNames, pSlopeMax, percentiles){
+.fCheckAlphaSlopeSplit <- function(
+	### calculating angle of slopes between two subsamples for one variable combination
+	j1,j2,qp, ssiSubLeft, ssiSubRight, pariVarLeft, pariVarRight, jVarsSlope, nSplit, cNames, pSlopeMax, percentiles
+){
 	#iSplit=4
 	jVar1 <- jVarsSlope[j1]
 	jVar2 <- jVarsSlope[j2]
@@ -73,7 +308,10 @@
 	c( varVal=qp[[iSplit]], val=dAlphaSlope[[iSplit]], perc=percentiles[[iSplit]] )	# store split value and differenc ein slope angles					
 }
 
-.fDAlphaSlopeI <- function(qp, ssiSubLeft, ssiSubRight, pariVarLeft, pariVarRight, jVarsSlope, nSplit, cNames, pSlopeMax, percentiles, fCheckAlphaSlopeSplit=.fCheckAlphaSlopeSplit){
+.fDAlphaSlopeI <- function(
+	### remote part of calculating angle of slopes between two subsamples for all variable combinations 
+	qp, ssiSubLeft, ssiSubRight, pariVarLeft, pariVarRight, jVarsSlope, nSplit, cNames, pSlopeMax, percentiles, fCheckAlphaSlopeSplit=.fCheckAlphaSlopeSplit
+){
 	diAlphaSlopes <- array( NA_real_, dim=c(length(jVarsSlope),length(jVarsSlope),3), dimnames=list(jVar1=cNames[jVarsSlope],jVar2=cNames[jVarsSlope],c("varVal","perc","val")) )
 	for( j1 in seq_along(jVarsSlope)){
 		for( j2 in j1:length(jVarsSlope) ){	# do not repeat regressions so start from j1
@@ -89,239 +327,8 @@
 
 
 
-findSplit <- function(
-	### determine the parameter and its value, where to split the parameter space
-	aSample	##<< the sample (stacked chains)
-	,nSplit = 4 ##<< how many points per parameter dimension to check for split
-	,rVarCrit = 3^2	##<< minimal ratio of variances of a variable between right and left side of a splitting point
-	,rAlphaSlopeCrit = base:::pi/4	##<< minimal ratio of angle between scaled slopes, defaults to a third of a half cirle
-	,pSlopeMax=0.05					##<< confidence level for the slope, above which no difference in slopes is calculated 
-	,iVars = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for split		
-	,jVarsVar = 1:ncol(aSample)		##<< integer vector: index or parameter dimensions, i.e. variables, to check for different scales of variance
-	,jVarsSlope = 1:ncol(aSample)	##<< integer vector: index or parameter dimensions, i.e. variables, to check for differences in angle of normalized slopes
-	,isBreakEarly = TRUE			##<< if TRUE and argument \code{checkSlopesFirst} is given, then check slope angles for variables given in checkSlopesFirst first and if break is found, do not evaluate all the other slope angles
-	,checkSlopesFirst = data.frame(ivar=1,j1AlphaSlope=1,jAlphaSlope=2)[FALSE,]	##<< data.frame with entries ivar, j1AlphaSlope and j2AlphaSlope as returned in entry resD in result of ressplit
-	,maxNSample=128					##<< if given a value, then aSample is thinned before to given number of records (for efficiently calculating variances)
-	,calcVarParallel=FALSE			##<< having less than 30 parameters it is often faster not to parallelize variance calculation 
-	,debugSequential=FALSE			##<< by default calcualation is distributed to sup-processes for parralel execution, set to TRUE for non-distributed execution
-){
-	##details<< 
-	## First it checks for different scales of variance in other variables.
-	# i and j are indexes within iVars and jVarsVar which are indexes in colnames(aSample)
-	cNames <- colnames(aSample)
-	if( is.character(iVars) ) iVars <- as.numeric(sapply(iVars, match, cNames))
-	if( is.character(jVarsVar) ) jVarsVar <- as.numeric(sapply(jVarsVar, match, cNames))
-	if( is.character(jVarsSlope) ) jVarsSlope <- as.numeric(sapply(jVarsSlope, match, cNames))
-	jVarsVar <- union(jVarsSlope, jVarsVar)	# make sure to check variances for all slope variables, jVarsSlope must be first so that indexing j works in parVarRight and parVarLeft
-	if( is.finite(maxNSample) && (maxNSample < nrow(aSample)) ) aSample <- aSample[ round(seq(1,nrow(aSample),length.out=maxNSample)),]
-	foundSplit <- FALSE
-	percentiles <- 1:(nSplit)/(nSplit+1)
-	# value of the variable (var x split)
-	quantVar <- iVarLeft <- iVarRight <- matrix( NA_real_, nrow=length(iVars), ncol=nSplit )
-	# variance of the left subset and variance of the right subset (splitVar, varVar, split)
-	parVarLeft <- parVarRight <- array( NA_real_, dim=c(length(iVars),length(jVarsVar),nSplit)
-	, dimnames=list(iVar=cNames[iVars], jVar=cNames[jVarsVar], iSplit=NULL ))
-	# slope of the left subset and variance of the right subset (splitVar, aVar1, aVar2, split)
-	# results of pVar and slope for best split per variable combination (varj x varj x (val,pVar,perc))
-	pVars <- array( NA_real_, dim=c(length(iVars),length(jVarsVar),3), dimnames=list(iVar=cNames[iVars],jVar=cNames[jVarsVar],c("varVal","perc","val")) )
-	dAlphaSlopes <- array( NA_real_, dim=c(length(iVars),length(jVarsSlope),length(jVarsSlope),3), dimnames=list(iVar=cNames[iVars],jVar1=cNames[jVarsSlope],jVar2=cNames[jVarsSlope],c("varVal","perc","val")) )
-	# left and right samples var -> split -> sample
-	ssSubLeft <- ssSubRight <- vector(mode="list",length=length(iVars) )
-	# result details
-	resD <- data.frame(iVar=iVars				##<< index of the splitting variable
-		, jPVar=NA_integer_						##<< index of the variable with maxium difference of variance when splitting on variable iVar 
-		, pVar=NA_real_							##<< max( abs(proportion of the variances))
-		, j1AlphaSlope=NA_integer_				##<< index of the first variable with maxium difference in slopes
-		, j2AlphaSlope=NA_integer_				##<< index of the second variable with maxium difference in slopes
-		, dAlphaSlope=NA_real_					##<< maximum diffrence in slope angle
-	)
 
-	# calculate all quantiles and subsamples
-	#i <- 1
-	for( i in seq_along(iVars)){
-		iVar <- iVars[i]
-		p <- aSample[,iVar] 
-		qp <- quantVar[i, ] <- quantile( p, percentiles )
-		#iSub <- 1
-		#iSub <- nSub
-		ssSubLeft[[i]] <- ssiSubLeft <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- aSample[ (p <= qp[iSplit]),]
-			})
-		ssSubRight[[i]] <- ssiSubRight <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- aSample[ (p >= qp[iSplit]),]
-			})
-	}
-	
-	# invoke calculating variances in parallel manner
-	# ?sfFArgsApplyLB
-	F_ARGS <- function(i){ list(
-			iVar=iVars[i]
-			,qp=quantVar[i,]
-			,ssiSubLeft=ssSubLeft[[i]]
-			,ssiSubRight=ssSubRight[[i]]
-		)}
-	resVarIL <- sfFArgsApplyLB( length(iVars), F_ARGS, .fPVarI		,jVarsVar=jVarsVar, nSplit=nSplit, cNames=cNames, percentiles=percentiles		,debugSequential=(!calcVarParallel || debugSequential)	)
-	#resVarI <- .fPVarI(iVar=iVar,p=p,qp=qp,ssiSubLeft=ssiSubLeft,ssiSubRight=ssiSubRight, jVarsVar=jVarsVar, nSplit=nSplit, cNames=cNames, percentiles=percentiles)
 
-	# reformat the results
-	# i=2
-	for( i in seq_along(iVars)){
-		resVarI <- resVarIL[[i]]
-		parVarLeft[i,,] <- resVarI$parVarLeft
-		parVarRight[i,,] <- resVarI$parVarRight
-		pVars[i,,] <- resVarI$pVars
-		#pVars[i,(colnames(pVars) == cNames[i]),"val"] <- NA  # variance ratio for splitting variable does not make sense and confuses selection of highest pVar	
-
-		jmax <- which.max( pVars[i,,"val"])		
-		resD[i,"jPVar"] <- jVarsVar[jmax]
-		resD[i,"pVar"] <- pVars[i,jmax,"val"]
-	} # for iVar
-	
-	#maxPVar <- suppressWarnings( apply(pVars[,,"val"],1, max , na.rm=TRUE ) )
-	#sortI <- order(maxPVar, decreasing = TRUE)		
-	#sortJ <- order(pVars[sortI[1],,"val"], decreasing = TRUE)
-	oi <- order(resD$pVar, decreasing=TRUE)
-	imax <- oi[1]
-	if( resD$pVar[imax] > rVarCrit ){
-		varName=cNames[ iVars[imax] ]
-		pVarsMax <- pVars[imax, match( resD$jPVar[imax],jVarsVar),]
-		res <- list( 
-			split=structure( pVarsMax["varVal"], names=varName)
-			, varName=varName
-			, perc=as.numeric(pVarsMax["perc"]) 
-			#, iVars=resD$iVar[oi] 
-			#, jVarsVar=resD$jPVar[oi]
-			, resD=resD
-		)
-		return(res)
-	}	
-	
-	##details<< 
-	## Next it checks for different angles of the normalized slopes in relation of the parameters
-	F_ARGS <- function(i){ list(
-			qp=quantVar[i,]
-			,ssiSubLeft=ssSubLeft[[i]]
-			,ssiSubRight=ssSubRight[[i]]
-			,pariVarLeft=adrop(parVarLeft[i,,,drop=FALSE],1)	# only drop the i dimension, avoid dropping only one jVar or only one iSplit
-			,pariVarRight=adrop(parVarRight[i,,,drop=FALSE],1)
-		)}
-	
-	checkSlopesFirst <- checkSlopesFirst[ checkSlopesFirst$iVar %in% iVars,]	# do not check the ones that are not in iVars
-	if( isBreakEarly && is.data.frame(checkSlopesFirst) && (nrow(checkSlopesFirst)>0) ){
-		# first check the correlations given in checkSlopesFirst
-		# mtrace(.fCheckAlphaSlopeSplit)
-		#iResD=3
-		resCheckL <- lapply( 1:nrow(checkSlopesFirst), function(iResD){
-				iVar <- checkSlopesFirst$iVar[iResD]
-				i <- match(iVar, iVars)
-				if( is.finite(jVar1<-checkSlopesFirst$j1AlphaSlope[iResD]) && is.finite(jVar2 <- checkSlopesFirst$j2AlphaSlope[iResD])){
-					tmp <- do.call( .fCheckAlphaSlopeSplit,	c( 
-						list( j1=match( jVar1, jVarsSlope), j2=match(jVar2, jVarsSlope) )
-						,F_ARGS(i)
-						, list(	jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles )
-					))	# do.call( c(	
-				} # is.finite(jVar)
-			}) #lapply
-		resCheck <- do.call(rbind, resCheckL)
-		resD[ match(checkSlopesFirst$iVar, resD$iVar), c("j1AlphaSlope","j2AlphaSlope","dAlphaSlope")] <- 
-			cbind(checkSlopesFirst[,c("j1AlphaSlope","j2AlphaSlope")], resCheck[,"val"] )
-		# search the maximum and if found critical slope, return early
-		oiAlpha <- order(resD$dAlphaSlope, decreasing=TRUE)
-		imax <- oiAlpha[1]
-		if( resD$dAlphaSlope[imax] > rAlphaSlopeCrit ){
-			varName=cNames[ iVars[imax] ]
-			resCheckMax <- resCheck[imax, ] 
-			res <- list( 
-				split=structure( resCheckMax["varVal"], names=varName)
-				, varName=varName
-				, perc=as.numeric(resCheckMax["perc"]) 
-				#, iVars=resD$iVar[oi] 
-				#, jVarsVar=resD$jPVar[oi]
-				, resD=resD
-			)
-			return(res)
-		}
-	} # if breakearly
-	#i<-1
-	if( length(jVarsSlope) >= 2 ){
-		resDAlphaSlopesIL <- sfFArgsApplyLB( length(iVars), F_ARGS, .fDAlphaSlopeI
-				, jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles
-				, fCheckAlphaSlopeSplit=.fCheckAlphaSlopeSplit	# must be transported to foreign process
-				,debugSequential=debugSequential
-			)
-		#dAlphaSlopes[i,,,] <- .fDAlphaSlopeI(qp=qp, ssiSubLeft=ssiSubLeft, ssiSubRight=ssiSubRight, pariVarLeft=pariVarLeft, pariVarRight=pariVarRight, jVarsSlope=jVarsSlope, nSplit=nSplit, cNames=cNames, pSlopeMax=pSlopeMax, percentiles=percentiles)
-
-		for( i in seq_along(iVars)){
-			dAlphaSlopes[i,,,] <- resDAlphaSlopesIL[[i]]
-			x <- dAlphaSlopes[i,,,"val"]
-			j12max <- arrayInd( which.max(x), dim(x) )
-			resD[i,c("j1AlphaSlope","j2AlphaSlope")] <- jVarsSlope[ j12max ]  
-			resD[i,"dAlphaSlope"] <- x[j12max[1],j12max[2] ]
-			dAlphaSlopesMax <- 	dAlphaSlopes[i, match(resD$j1AlphaSlope[i],jVarsSlope), match(resD$j2AlphaSlope[i],jVarsSlope),] 
-			if( isBreakEarly && (resD[i,"dAlphaSlope"] > rAlphaSlopeCrit)){
-				res <- list( 
-					split=structure( dAlphaSlopesMax["varVal"], names=cNames[iVar])	#quantVar[i,iSplit]
-					, varName=cNames[iVar]
-					, perc=as.numeric(dAlphaSlopesMax["perc"]) 
-					#, iVars=iVars
-					#, jVarsVar=jVarsVar
-					, resD=resD
-				)
-				return(res)
-			}
-		} # for iVar
-		oiAlpha <- order(resD$dAlphaSlope, decreasing=TRUE)
-		imax <- oiAlpha[1]
-		if( resD$dAlphaSlope[imax] > rAlphaSlopeCrit ){
-			varName=cNames[ iVars[imax] ]
-			dAlphaSlopeMax <- dAlphaSlopes[imax, match(resD$j1AlphaSlope[imax],jVarsSlope), match(resD$j2AlphaSlope[imax],jVarsSlope),] 
-			res <- list( 
-				split=structure( dAlphaSlopeMax["varVal"], names=varName)
-				, varName=varName
-				, perc=as.numeric(dAlphaSlopeMax["perc"]) 
-				#, iVars=resD$iVar[oi] 
-				#, jVarsVar=resD$jPVar[oi]
-				, resD=resD
-			)
-			return(res)
-		}
-	}
-	
-	##value<< list with components  
-	return( list(
-		split=NA_real_	##<< named scalar: splitting value with the name of the parameter dimension that is to split
-		,varName=NA_character_ ##<< name of the splitting variable
-		,perc=NA_real_	##<< scalar: percentile of the splitting point
-		#, iVars=resD$iVar[oi] ##<< integer vector: argument \code{iVars} ordered by maximum proportion of variances or difference in slopes 
-		#, jVarsVar=resD$jPVar[oi]##<< integer vector: argument \code{jVarsVar} ordered by proportion of varainces or difference in slopes for iVars[1]
-		, resD=resD		##<< dataframe of result details giving for each split variable the indices of variable with maximum proportion of variances and and the variable with maximum angle in correlation  
-	))
-	##end<< 
-}
-attr(findSplit,"ex") <- function(){
-	data(den2dCorTwDEMC)
-	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
-	#mtrace(findSplit)
-	(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE, debugSequential=TRUE))	# check all variable and return ordering
-	(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE))	# check all variable and return ordering
-	(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE, rVarCrit=Inf, debugSequential=TRUE))	# check all variable and return ordering
-	(res <- res0 <- findSplit(ss1, isBreakEarly=FALSE, rVarCrit=Inf))	# check all variable and return ordering
-	(res <- res1 <- findSplit(ss1))
-	
-	# successively find splits in subsets
-	ss2 <- ss <- ss1[ ss1[,res$varName] > res$split,]
-	res2 <- findSplit(ss2)
-	ss3 <- ss <- ss2[ ss2[,res2$varName] > res2$split,]
-	res3 <- findSplit(ss3)
-	# NA indicates: no further split found
-	
-	# try different orders of the variables
-	#mtrace(findSplit)
-	(res <- findSplit(ss1, iVars=c(2,1) ))
-	(res <- findSplit(ss1, iVars=c("b") ))
-	plot( ss1[,1], ss1[,2], col=c("blue","red")[as.integer(ss1[,res1$varName] >= res1$split)+1])
-}
-#twUtestF(findSplit)
 
 
 
@@ -335,6 +342,7 @@ getSubSpaces <- function(
 	,argsFSplit=list()	##<< further arguments to \code{\link{findSplit}}
 	,pSub=1				##<< the fraction that a subSample comprises within a bigger sample (used in recursive calls) 
 	,minPSub=0.05		##<< minimum fraction a subSample, below which the sample is not split further
+	,splitHist=NA_real_[FALSE]	##<< named numeric numeric vector: history of splitting points
 ){
 	# search for a single splitting point
 	nSplitMin <- min( nSplit, floor(pSub/minPSub)-1 )		# each subPopulation must comprise at least part minPSub, hence do not split in too many parts
@@ -345,6 +353,7 @@ getSubSpaces <- function(
 	if( !boMinPSub) 
 		resSplit <- do.call( findSplit, c(list(aSample=aSample, isBreakEarly=isBreakEarly, checkSlopesFirst=checkSlopesFirst), argsFSplitMod ))
 	if( boMinPSub || is.na(resSplit$split) ){
+		print(paste("getSubSpaces: pSub=",pSub,"splits=",paste(names(splitHist),signif(splitHist,2),sep=":",collapse=", ")))
 		# when no splitting point was found, return the sample without parameter bounds
 		##value<< a list with entries
 		list( 
@@ -369,11 +378,12 @@ getSubSpaces <- function(
 		sampleRight <- aSample[!boLeft,]
 		pSubLeft <- pSub*resSplit$perc
 		pSubRight <- pSub*(1-resSplit$perc)
+		splitHistNew <- c(splitHist, resSplit$split)
 		#spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub)$spaces
 		#spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
 		#even when provided iVars for first level, need to check on subspaces for different variables agin
-		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub)$spaces
-		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
+		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splitHist=splitHistNew)$spaces
+		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splitHist=splitHistNew)$spaces
 		# add the splitting point as a new border to the results
 		# XXadd return iVars and jVarsVar
 		resLeft <- lapply( spacesLeft, function(spEntry){
@@ -392,7 +402,7 @@ getSubSpaces <- function(
 						spEntry$lowerParBounds <- c(resSplit$split, spEntry$lowerParBounds)
 				spEntry
 			})
-		list(
+		res <- list(
 			spaces = c( resLeft, resRight)	
 			#, iVars=resSplit$iVars	 
 			#, jVarsVar=resSplit$jVarsVar
@@ -404,10 +414,16 @@ attr(getSubSpaces,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	aSample <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(getSubSpaces)
-	subSpaces <- getSubSpaces(aSample, minPSub=0.4, isBreakEarly=FALSE )
+	subSpaces <- getSubSpaces(aSample, minPSub=0.4 )
 	str(subSpaces)
+	subSpaces <- getSubSpaces(aSample, minPSub=0.05, argsFSplit=list(debugSequential=TRUE))
 	subSpaces <- getSubSpaces(aSample, minPSub=0.05)
-	(tmp <- sapply( subSpaces, function(subSpace){nrow(subSpace$sample)})/nrow(aSample))
+	(tmp <- sapply( subSpaces$spaces, function(subSpace){nrow(subSpace$sample)})/nrow(aSample)) # percentiles
+	(tmp <- sapply( subSpaces$spaces, "[[", "upperParBounds" )) # bounds
+	#visualize the splits
+	ss1 <- do.call(rbind, lapply( seq_along(subSpaces$spaces), function(i){cbind(iSpace=i, subSpaces$spaces[[i]]$sample)}))
+	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[iSpace] )
+	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[iSpace], ylim=c(-5000,+5000) )
 	#twUtestF(getSubSpaces)	# there are unit tests for this function
 }
 
