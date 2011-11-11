@@ -8,6 +8,9 @@
 \alias{.detrendMatrix}
 \alias{.doDEMCStep}
 \alias{.doDEMCSteps}
+\alias{.fCheckAlphaSlopeSplit}
+\alias{.fDAlphaSlopeI}
+\alias{.fPVarI}
 \alias{.generateXPropThin}
 \alias{.getResFLogDenNames}
 \alias{.ofLnormMLE}

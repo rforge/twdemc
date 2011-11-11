@@ -357,7 +357,7 @@ getSubSpaces <- function(
 		# when no splitting point was found, return the sample without parameter bounds
 		##value<< a list with entries
 		list( 
-			spaces=list(list(	##<< a list with an entry for each subspace. Each Entry is a list with entries
+			spaces=list(list(	##<< a list with an entry for each subspace. Each Entry is a list with entries \itemize{
 				##describe<< 
 				sample = aSample		##<< numeric matrix: a subsample constrained to the subspace with col parameters
 				, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds

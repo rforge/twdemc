@@ -3,7 +3,7 @@
 \title{divideTwDEMCBatch default}
 \description{iteratively run batches using divideTwDEMCBatch}
 \usage{
-\method{divideTwDEMCBatch}{default}(x, ..., nGen = 2 * 512, nGenBatch = 512, thinPastFac = 0.2, subPercChangeCrit = 1.6, iCheckAllSplitVars = 5, argsFSplitPop = vector("list", dim(aSample)[3]))
+\method{divideTwDEMCBatch}{default}(x, ..., nGen = 2 * 512, nGenBatch = 512, thinPastFac = 0.2, subPercChangeCrit = 1.6, argsFSplitPop = vector("list", dim(x)[3]))
 }
 \arguments{
   \item{x}{numeric array: rows:steps, col:parameters including logLik, 3: independent populations}
@@ -12,8 +12,7 @@
   \item{nGenBatch}{number of generations within one batch}
   \item{thinPastFac}{thinning the past between batches to speed up localization between 0 (no past) and 1 (keep entire past)}
   \item{subPercChangeCrit}{if all subPercChange of all sub-populations are belwo this value in two last batches, may assume convergence and skip further batches}
-  \item{iCheckAllSplitVars}{every i batches, findSplit is called with breakEarly=FALSE to update the order of searching for splits}
-  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}}
+  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}}
 }
 
 \value{A list with components 

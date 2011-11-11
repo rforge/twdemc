@@ -1,10 +1,11 @@
      \name{twLinreg1}
      \docType{data}
      \title{Artificial data and parameters for DEMC-Example}
+     \alias{twLinreg1}
      \description{
 Artificial data and parameters for DEMC-Example.     
      }
-     \usage{HamerKinRespPars}
+     \usage{twLinreg1}
      \format{A list components \describe{
 		\item{fModel}{\code{\link{dummyTwDEMCModel}} }
 		\item{xval}{random numbers \code{runif(30,min=5,max=10)} }

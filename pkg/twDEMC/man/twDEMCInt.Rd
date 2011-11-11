@@ -4,7 +4,7 @@
 \title{twDEMCInt}
 \description{Differential Evolution Markov Chain}
 \usage{
-twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logDenX = NULL, fLogDen, argsFLogDen = list(), resFLogDenX = NULL, intResCompNames = character(0), fLogDenScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE, upperParBounds = vector("list", nPops), lowerParBounds = vector("list", nPops))
+twDEMCInt(Zinit, nGen = 10, ..., controlTwDEMC = list(), X = NULL, logDenX = NULL, fLogDen, argsFLogDen = list(), logDenCompX = NULL, intResCompNames = character(0), fLogDenScale = 1, debugSequential = FALSE, remoteDumpfileBasename = NULL, nPops = 1, fDiscrProp = NULL, argsFDiscrProp = list(), doRecordProposals = FALSE, upperParBounds = vector("list", nPops), lowerParBounds = vector("list", nPops))
 }
 \arguments{
   \item{Zinit}{initial population: a matrix of number of parameters by number of individuals (d x m0 x nChains) see details and \code{\link{initZtwDEMCNormal}}.}
@@ -16,11 +16,11 @@ if null, it will be initialized to the last row of Zinit}
   \item{logDenX}{logDensity of initial values, may save time if already calculated}
   \item{fLogDen}{\code{function(theta, ...)} calculates a vector of logDensities 
 corresponding to different data streams of parameter vector theta 
-\cr or \code{function(theta, resFLogDenX, metropolisStepTemp, ...)} 
+\cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)} 
 to handle first steps in Multi-step Metropolis decision internally. 
 See details.  }
   \item{argsFLogDen}{further arguments passed to fLogDen}
-  \item{resFLogDenX}{numeric matrix: logDen components x chains, see details}
+  \item{logDenCompX}{numeric matrix: logDen components x chains, see details}
   \item{intResCompNames}{character vector: names of results components of fLogDen that are used for internal Metropolis decisions }
   \item{fLogDenScale}{scalar multiplied to the result of fLogDen 
 allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity}
@@ -72,7 +72,8 @@ the given bounds.
 \item{epsMult}{>0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update}
 \item{epsAdd}{>0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update.}
 \item{thin}{thinning interval}
-\item{T0}{initial and end Temperature to flatten the density surface, for each population}
+\item{T0}{initial Temperature to flatten the density surface, for each population}
+\item{Tend}{end Temperature to flatten the density surface, for each population}
 \item{useMultiT}{if TRUE Temperature for different data streams are scaled by logDen of accepted state}
 \item{TFix}{named numeric vector of Temperatures of fLogDen components, whose Temperature is fixed}
 \item{pAcceptWindowWidth}{number of generations back over which the acceptance rate is calculated}
@@ -91,8 +92,8 @@ before evaluating the model in order to save the possibly costly model evaluatio
 \cr
 Argument \code{intResCompNames} specifies a character vector of return components that are handled internally in the objective function.
 The first currently accepted value provided to next 
-evaluation of the objective function is taken from \code{resFLogDenX}. If this 
-argument is NULL, then a proper matrix of \code{resFLogDenX} will be initialized to -Inf, i.e. accepting the next step
+evaluation of the objective function is taken from \code{logDenCompX}. If this 
+argument is NULL, then a proper matrix of \code{logDenCompX} will be initialized to -Inf, i.e. accepting the next step
 \cr 
 See the code of \code{\link{logDenGaussian}} for an example multistep version of fLogDen
 }}
@@ -109,16 +110,7 @@ If acceptance rates drops to low values, this might be because of bad localizati
 ,i.e the requirement to use states from more distant past.
 In order to improve localization, less parameters or more chains per population are required.
 }}}
-\value{list of class \code{twDEMC} (with \code{nStep = M0+nGen\%/\%thin}) \describe{
-\item{parms}{ array (d x nStep x nChain) the initial parameters (last row of M0) and the accepted parameter combinations}
-\item{rLogDen}{ array (nStep x nChain) the logDen of the accepted parameter combinations}
-\item{pAccept}{ array (nStep x nChain) the acceptance probability over previous ctrl$pAcceptWindowWidth steps }
-\item{temp}{ vector (nStep) the Temperature used at the step }
-\item{resFLogDenX}{ array (nInternalResult x nChain) of fLogDen results of currently accepted step}
-\item{thin}{ numeric: thinning interval }
-\item{Y}{ numeric matrix: record of all proposals together with results components and columns "rLogDen" and boolean "accepted".
-The length is the thinning intervals of the last 128steps or (if doRecordProposals) all the steps +1 for the first line of the initial state.}
-}}
+
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
 

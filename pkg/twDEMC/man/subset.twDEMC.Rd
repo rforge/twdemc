@@ -11,10 +11,7 @@
   \item{\dots}{
 }
 }
-\details{If last row is dropped then all components of resFLogDenX are set to -Inf
-This ensures that it LogDen for last state is recalculated if object is used again in twDEMC
-
-components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.}
+\details{components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.}
 \value{list of class twDEMC with subset of cases in parsm, rLogDen, pAccept, and temp}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}

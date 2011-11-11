@@ -1,6 +1,7 @@
      \name{twdemcEx1}
      \docType{data}
      \title{Example DEMC result}
+     \alias{twdemcEx1}
      \description{
 Result of running DEMC-Example of \code{\link{twLinreg1}}.     
      }

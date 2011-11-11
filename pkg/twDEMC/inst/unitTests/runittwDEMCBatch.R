@@ -69,7 +69,7 @@ test.goodStart <- function(){
 }
 
 #twUtestF(twDEMCBatch,"test.saveAndRestart")
-test.saveAndRestart <- function(){
+test.saveAndRestartTemp <- function(){
 	# testing save and restarting from that file
 	.nPops=2
 	argsFLogDen <- list(
@@ -126,15 +126,15 @@ test.saveAndRestart <- function(){
 	res4 <- twDEMCBatch(resRestart.twDEMC, nGen=40)	
 	checkEquals(50/.thin+1, nrow(res4$rLogDen) )	# was already 50
 	#mtrace(calcDEMCTempGlobal2)
-	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=1800)	#exeeding burnin	
-	checkEquals(1800/.thin+1, nrow(res5$rLogDen) )
+	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=2000)	#exeeding burnin	
+	checkEquals(2000/.thin+1, nrow(res5$rLogDen) )
 	
 	matplot(res5$temp, type="l")
 	plot(res5$temp[,1])
 	
 	rescoda <- as.mcmc.list(res5) 
 	plot(rescoda)
-	rescoda <- as.mcmc.list(res5,start=max(res5$nGenBurnin)) 
+	rescoda <- as.mcmc.list(res5,start=min(getNGen(res5)-200, max(,res5$nGenBurnin))) 
 	plot(rescoda)
 
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))

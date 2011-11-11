@@ -3,16 +3,16 @@
 \title{divideTwDEMC}
 \description{run twDEMC on subspaces}
 \usage{
-divideTwDEMC(aSample, nGen = 512, controlTwDEMC = list(), ..., minPSub = 0.05, isBreakEarly = TRUE, argsFSplitPop = vector("list", dim(aSample)[3]), nChainsPop = 4, m0 = calcM0twDEMC(ncol(aSample), nChains = nChainsPop), nrow0 = 4000, attachDetails = FALSE, nChainPar = 16, minNSamplesSub = 32, fCheckProblems = checkProblemsSpectral, argsFCheckProblems = list(), dumpfileBasename = "recover")
+divideTwDEMC(aSample, nGen = 512, controlTwDEMC = list(), ..., minPSub = 0.05, isBreakEarly = FALSE, argsFSplitPop = vector("list", dim(aSample)[3]), nChainsPop = 4, m0 = calcM0twDEMC(ncol(aSample), nChains = nChainsPop), nrow0 = 4000, attachDetails = FALSE, nChainPar = 16, minNSamplesSub = 32, fCheckProblems = checkProblemsSpectral, argsFCheckProblems = list(), dumpfileBasename = "recover", subSpacesPop = list())
 }
 \arguments{
-  \item{aSample}{numeric array: rows:steps, col:parameters without logLik, 3: independent populations}
+  \item{aSample}{numeric array: rows:steps, col:parameters including rLogLik in first column, 3: independent populations}
   \item{nGen}{the number of generations for twDEMC}
   \item{controlTwDEMC}{list argument to \code{\link{twDEMC}} containing entry thin}
   \item{\dots}{further arguments to \code{\link{twDEMC}}}
   \item{minPSub}{passed to \code{\link{getSubSpaces}}}
   \item{isBreakEarly}{passed to \code{\link{getSubSpaces}}}
-  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVars}}
+  \item{argsFSplitPop}{for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}}
   \item{nChainsPop}{number of chains in subPopulations}
   \item{m0}{number of samples per chain to initialize subPopulations}
   \item{nrow0}{number of rows in initial overall sample}
@@ -23,6 +23,7 @@ divideTwDEMC(aSample, nGen = 512, controlTwDEMC = list(), ..., minPSub = 0.05, i
   \item{argsFCheckProblems}{further arguments to argsFCheckProblems}
   \item{dumpfileBasename}{
 }
+  \item{subSpacesPop}{may provide previous results of \code{\link{getSubSpaces}} per population to save computing time}
 }
 \details{the first column of aSample records the logDensity of the sample for consitency. 
 It is not used and may be initialized to any value. 
@@ -39,7 +40,7 @@ estimate proportional to the volume: the initial quantiles.}
 \item{upperParBounds}{list of named numeric vectors: the upper parameter bounds for the subspaces}
 \item{lowerParBounds}{dito upperParBounds}
 \item{iVars}{reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}}
-\item{jVars}{reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}}}
+\item{jVarsVar}{reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}}}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}
 

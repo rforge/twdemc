@@ -6,7 +6,7 @@
 calcDEMCTempDiffLogDen3Init(resLogDen, ..., doConstrainNeg = TRUE)
 }
 \arguments{
-  \item{resLogDen}{result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen}
+  \item{resLogDen}{result of \code{\link{twCalcLogDenPar}}: list with components  logDen and logDenComp}
   \item{\dots}{further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}}
   \item{doConstrainNeg}{different default value}
 }

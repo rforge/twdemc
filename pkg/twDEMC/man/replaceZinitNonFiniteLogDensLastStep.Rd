@@ -17,7 +17,7 @@ replaceZinitNonFiniteLogDensLastStep(Zinit, fLogDen, nPops = 1, iStep = dim(Zini
 
 \value{list with components \describe{
 \item{Zinit}{initial states see InitDEMCzsp}
-\item{rLogDen, rLogDenComp, resFLogDen}{numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains}
+\item{rLogDen, rLogDenComp, logDenComp}{numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains}
 }}
 
 \author{Thomas Wutzler <twutz@bgc-jena.mpg.de>}

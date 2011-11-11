@@ -10,7 +10,7 @@ updateLegacyTwDEMC(aTwDEMC)
 }
 }
 \details{The function of the log of unnormalized density has been renamed from fLogLik to fLogDen
-components "rLogLik","resFLogLikX" are renamed to "rLogDen","resFLogDenX"
+components "rLogLik","resFLogLikX" are renamed to "rLogDen","logDenCompX"
 
 A twDEMC stores its call. Because argument names have been changed,
 they are also changed within the \code{batchCall} entry: see \code{\link{updateLegacyTwDEMCArgs}}}

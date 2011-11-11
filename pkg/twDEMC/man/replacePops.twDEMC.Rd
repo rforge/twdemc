@@ -1,7 +1,7 @@
 \name{replacePops.twDEMC}
 \alias{replacePops.twDEMC}
 \title{replacePops twDEMC}
-\description{replaces several populations by toher ones}
+\description{replaces several populations by other ones}
 \usage{
 \method{replacePops}{twDEMC}(x, xNew, iPops, ...)
 }

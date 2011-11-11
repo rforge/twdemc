@@ -30,7 +30,7 @@ initZtwDEMCNormal <- function(
 	## \item{ selecting the N closes points from a sequence of points in parameter space \code{\link{constrainNStack}}  } 
 	## \item{ selecting the points inside a confindenc ellipsis in parameter \code{\link{constrainCfStack}}  } 
 	## \item{ replacing cases with in initial proposals that yield non-finite density \code{\link{replaceZinitNonFiniteLogDens}}  } 
-	## \item{ general method for replacing cases in initial proposals \code{\link{replaceZinitCases }}  } 
+	## \item{ general method for replacing cases in initial proposals \code{\link{replaceZinitCases}}  } 
 	##}
 	
 	#?rmvnorm #in package mvtnorm
