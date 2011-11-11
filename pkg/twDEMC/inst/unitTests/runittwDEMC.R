@@ -1009,3 +1009,68 @@ test.goodStartSeqMultiTemp <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
+test.fLogDenScale <- function(){
+	# same as goodStart sequence but with logDens function returning cost instead of logDensity
+	.nPops=2
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,			### vector of data to compare with
+		invCovar=invCovar/1e10,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+		,scale=1	##<< override the -1/2
+	)
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	#dim(Zinit)
+	
+	.nGen=100
+	#mtrace(sfRemoteWrapper)
+	#mtrace(.doDEMCStep)
+	#mtrace(.doDEMCSteps )
+	#mtrace(logDenGaussian)
+	#mtrace(twCalcLogDenPar)
+	#mtrace(twDEMCInt)
+	res <-  twDEMC( Zinit, nGen=.nGen, 
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		nPops=.nPops,
+		controlTwDEMC=list(thin=1),
+		fLogDenScale=-1/2,		# here apply the scale in twDEMC
+		debugSequential=TRUE
+	)
+	#str(res)
+	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	
+	#windows(record=TRUE)
+	rescoda <- as.mcmc.list(res)
+	plot(rescoda)
+	#gelman.diag(rescoda)
+	#summary(rescoda)
+	
+	#str(summary(rescoda))
+	suppressWarnings({	#glm fit in summary
+			summary(rescoda)$statistics[,"Mean"]
+			summary(rescoda)$statistics[,"SD"]
+			thetaTrue
+			sdTheta
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
+	
+	# 1/2 orders of magnitude around prescribed sd for theta
+	.pop=1
+	for( .pop in seq(along.with=.popsd) ){
+		checkMagnitude( sdTheta, .popsd[[.pop]] )
+	}
+	
+	# check that thetaTrue is in 95% interval 
+	.pthetaTrue <- sapply(1:2, function(.pop){
+			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+		})
+	checkInterval( .pthetaTrue ) 
+}
+
+
+

@@ -161,14 +161,6 @@ twDEMCInt <- function(
 	if( any(""==names(.dots)) || length(names(.dots))!=length(.dots) )
 		stop("twCalcLogDenInt: encountered unnamed argument in ... Check for <- and ,, in list()")
 	
-	tmp.f <- function(){	#XX TODO: for backward compatibitiy  set rseFLogDenX and internalNames
-		if( 0 < length(logDenCompX)){
-			if( is.character(logDenCompX))
-				logDenCompX <- matrix(-Inf*fLogDenScale, nrow=length(logDenCompX), ncol=dim(Zinit)[3], dimnames=list(logDenCompX,NULL))
-			if( !is.numeric(logDenCompX) || !is.matrix(logDenCompX) || ncol(logDenCompX)!=dim(Zinit)[3] )
-				stop("logDenCompX must be a numeric matrix with one column for each chain and row names correponding to a subst of names of result vector of fLogDen")
-		}
-	}
 	if( !hasArg(controlTwDEMC) ) controlTwDEMC <- list()	#??? why does =list() in declaration ot work
 	if( !all(names(controlTwDEMC) %in% names(ctrl)) ){
 		warning(paste("unknonw entries",paste(names(controlTwDEMC)[which(!(names(controlTwDEMC) %in% names(ctrl)))],collapse=","),"in controlTwDEMC"))
@@ -413,7 +405,7 @@ twDEMCInt <- function(
 	### list of class \code{twDEMC} (with \code{nStep = M0+nGen%/%thin}) \describe{
 	### \item{parms}{ array (d x nStep x nChain) the initial parameters (last row of M0) and the accepted parameter combinations}
 	### \item{rLogDen}{ array (nStep x nChain) the logDen of the accepted parameter combinations}
-	### \item{logDenComp}{ numeric array (dres x nStep x nChain): logDensity (results of fLogDen*fLogDenScale) for recorded states }
+	### \item{logDenComp}{ numeric array (dres x nStep x nChain): logDensity of components (results of fLogDen*fLogDenScale) for recorded states }
 	### \item{thin}{ numeric: thinning interval }
 	### \item{pAccept}{ array (nStep x nChain) the acceptance probability over previous ctrl$pAcceptWindowWidth steps }
 	### \item{temp}{ vector (nStep) the Temperature used at the step }
@@ -823,7 +815,7 @@ calcComponentTemp <- function(
 	with( argsDEMCStep, {
 		boResFLogDenX <- (length(posLogDenInt) > 0)
 		# LogDensity of accepted state
-		La <- logDenCompAcc*fLogDenScale	#logDensity	components of accepted state
+		La <- logDenCompAcc	#logDensity	components of accepted state
 		#assume that all is.finite(logDenCompAcc), make sure in twDEMCInt
 		LaExt <- La
 		logDenAcc <- sum(La)
@@ -851,13 +843,12 @@ calcComponentTemp <- function(
 		if( boOutside ){
 			# if it is still outside (maybe opposite border) reject step and give -Inf as logDenResult
 			logDenProp=logAlpha10=-Inf		#logAlpha10 is log of the initial acceptance ratio for DR step (-Inf no chance of acceptance)
-			res <- logDenCompAcc	#results for the proposal
-			res[] <- -Inf
-			Lp <- res
+			Lp <- logDenCompAcc	#results for the proposal
+			Lp[] <- -Inf
 		}else{
 			# discrtize proposal
 			if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
-			res <- if(boResFLogDenX){
+			Lp <- fLogDenScale * if(boResFLogDenX){
 					logDenCompInt <- logDenCompAcc[posLogDenInt]
 					TiInt <- Ti[posLogDenInt]
 					do.call( fLogDen, c(list(xProp, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
@@ -869,9 +860,8 @@ calcComponentTemp <- function(
 			#if( !identical(names(logDenCompAcc),names(res)))
 			#	stop("encountered result with different names")
 			#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
-			attributes(res) <- list(names=names(res))
+			attributes(Lp) <- list(names=names(Lp))
 			logDenProp=-Inf
-			Lp <- res*fLogDenScale	# LogDensity of proposal
 			#make sure Lp, La have the same order and legnth
 			#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: logDenCompAcc must contain the same components and the order of result of fLogDen." )
 			if( all(is.finite(Lp))){
@@ -896,7 +886,7 @@ calcComponentTemp <- function(
 				if(accepted){
 					x <- xProp
 					logDenAcc <- logDenProp
-					logDenCompAcc <- res
+					logDenCompAcc <- Lp
 				}				
 			}else logAlpha10 <- -Inf
 		} # end check outside parBounds
@@ -916,7 +906,7 @@ calcComponentTemp <- function(
 				any( sapply( names(lowerParBounds), function(pname){ xProp[pname] < lowerParBounds[pname] }))
 			if( !boOutside ){
 				if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
-				res <- if(boResFLogDenX){
+				Lp <- fLogDenScale * if(boResFLogDenX){
 						logDenCompInt <- logDenCompAcc[posLogDenInt]
 						TiInt <- Ti[posLogDenInt]
 						do.call( fLogDen, c(list(xProp, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
@@ -928,9 +918,8 @@ calcComponentTemp <- function(
 				#if( !identical(names(logDenCompAcc),names(res)))
 				#	stop("encountered result with different names")
 				#strip attributes other than names, else twDynamicClusterApplyDep fails with big data chunks
-				attributes(res) <- list(names=names(res))
+				attributes(Lp) <- list(names=names(Lp))
 				logDenProp=-Inf
-				Lp <- res*fLogDenScale	# LogDensity of proposal
 				#make sure Lp, La have the same order and legnth
 				#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: logDenCompAcc must contain the same components and the order of result of fLogDen." )
 				if( all(is.finite(Lp))){
@@ -958,7 +947,7 @@ calcComponentTemp <- function(
 					if(accepted){
 						x <- xProp
 						logDenAcc <- logDenProp
-						logDenCompAcc <- res
+						logDenCompAcc <- Lp
 					}				
 				}
 			} # end !boOutside in DR step 
@@ -970,7 +959,7 @@ calcComponentTemp <- function(
 
 		list(accepted=accepted
 			,x=x,logDenCompAcc=logDenCompAcc, logDenAcc =logDenAcc		# input to repeated call
-			,xProp=xProp,logDenCompProp=res, logDenProp=logDenProp
+			,xProp=xProp,logDenCompProp=Lp, logDenProp=logDenProp
 		)
 	})
 	#detach( argsDEMCStep ); list(accepted=accepted,x=x,logDenCompAcc=logDenCompAcc, logDenAcc =logDenAcc,xProp=xProp,logDenCompProp=res, logDenProp=logDenProp	) 
@@ -1010,7 +999,7 @@ twCalcLogDenPar <- function(
 	fLogDen,				##<< the objective function
 	xProp,					##<< numeric matrix of proposals, columns: parameter vector components rows: cases 
 	logDenCompX=NULL	
-		### numeric matrix of result of fLogDen
+		### all components of logDensity of xProp (result of fLogDen * fLogDenScale) 
 		### colnames must contain intResCompNames 
 		### rows: number of cases in xProp	
 	,intResCompNames=character(0)	
@@ -1027,30 +1016,28 @@ twCalcLogDenPar <- function(
 	if( {tmp<-list(...); any(""==names(tmp)) || length(names(tmp))!=length(tmp)} )
 		("twCalcLogDenPar: encountered unnamed argument in ... Check for <- and ,, in list()")
 	boProvideX2Argument <- (0 < length(intResCompNames))
-	if(boProvideX2Argument ){
+	Lp <- fLogDenScale * if(boProvideX2Argument){
+		#call fLogDen with second argument: the internal components
 		if( 0 == length(logDenCompX) )
-			logDenCompX <- matrix(-Inf*fLogDenScale, ncol=length(intResCompNames), nrow=nrow(xProp), dimnames=list(NULL,parms=intResCompNames))
+			logDenCompX <- matrix(-Inf, ncol=length(intResCompNames), nrow=nrow(xProp), dimnames=list(NULL,parms=intResCompNames))
 		if( !is.numeric(logDenCompX) || !is.matrix(logDenCompX) || nrow(logDenCompX)!=nrow(xProp) )
 			stop("logDenCompX must be a numeric matrix with one row for each chain and column names correponding to a subst of names of result vector of fLogDen")
 		iNames <- match( intResCompNames, colnames(logDenCompX) )
 		if( any(is.na(iNames)) )
 			stop("if logDenCompX is given, it must contain named columns for each entry of intResCompNames")
-		logDenCompXInt <- logDenCompX[,iNames,drop=FALSE]		
-	}
-	res <- if(boProvideX2Argument){
-		#call fLogDen with second argument
-		F_ARGS <- function(i){c(list(xProp[i,]),list(logDenCompXInt[i,]))}
+		logDenCompXIntUnscaled <- logDenCompX[,iNames,drop=FALSE]/fLogDenScale	# maybe internally uses cost function -1/2*logDen instead of logDen	
+		F_ARGS <- function(i){c(list(xProp[i,]),list(logDenCompXIntUnscaled[i,]))}
 		#F_ARGS(1)
 		resl <- sfFArgsApplyLB( nrow(xProp), F_ARGS, F_APPLY=sfRemoteWrapper, remoteFun=fLogDen	, debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, SFFARGSAPPLY_ADDARGS=argsFLogDen, ...) 
 		sfSimplifyLBResult(resl)
 	}else{
 		do.call( sfApplyMatrixLB, c(list( X=xProp, MARGIN=1, FUN=sfRemoteWrapper, remoteFun=fLogDen		, debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename), argsFLogDen, list(...)) )	#use doCall in order to use argsFLogDen
 	}
-	.logDen <- if( is.matrix(res) )
-			colSums(res)*fLogDenScale	
+	.logDen <- if( is.matrix(Lp) )
+			colSums(Lp)
 		else
-			res*fLogDenScale
-	.logDenComp <- if( is.matrix(res) )	t(res)	else matrix(res,ncol=1,dimnames=list(NULL,rownames(res)))
+			Lp
+	.logDenComp <- if( is.matrix(Lp) )	t(Lp)	else matrix(Lp,ncol=1,dimnames=list(NULL,rownames(Lp)))
 	list( logDen=.logDen, logDenComp=.logDenComp)
 	### List with the following items \describe{
 	### \item{logDen}{numeric vector: for each state: the sum of logDens over all components, multiplied by fLogDenScale}
