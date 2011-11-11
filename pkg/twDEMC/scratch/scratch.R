@@ -154,7 +154,7 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 .doDEMCSteps <- function( iGenT0, ctrl, 
 	X, xStep, 
 	fDiscrProp, argsFDiscrProp, 
-	resFLogDenX, argsFLogDen, fLogDenScale, debugSequential, ...
+	logDenCompX, argsFLogDen, fLogDenScale, debugSequential, ...
 ){
 	for( iGenT in (1:ctrl$thin) ){
 		iGen = iGenT0+iGenT
@@ -166,9 +166,9 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 		##details<< 
 		## in order to support a two-level Metropolis desition
 		#twCalcLogDenPar expects parameters in columns, need transpose
-		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(xProp), resFLogDenX=resFLogDenX, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale, debugSequential=debugSequential, ...)
+		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(xProp), logDenCompX=logDenCompX, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale, debugSequential=debugSequential, ...)
 		logfitness_x_prop <- .resLogDenPar$logDen
-		resFLogDenProp <- .resLogDenPar$resFLogDen
+		logDenCompProp <- .resLogDenPar$logDenComp
 		
 		TcurStep = TstepFixed[iGen,]
 		#logr =  (logfitness_x_prop+rExtra - logfitness_X)/Tstep[iGen]
@@ -181,18 +181,18 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 				acceptN[i] = acceptN[i]+1
 				X[,i] = xProp[,i]
 				logfitness_X[i] = logfitness_x_prop[i]
-				if( 0<length(resFLogDenX) ) 
-					resFLogDenX[i,] = resFLogDenProp[i,]	#here chains are rows
+				if( 0<length(logDenCompX) ) 
+					logDenCompX[i,] = logDenCompProp[i,]	#here chains are rows
 				acceptWindow[ acceptPos, i ] <- TRUE
 			}
 		} #Metropolis step for each chain
 	}# iGenT within thinning interval
-	resDo <- list(	acceptN=acceptN, X, logfitness_X, resFLogDenX, acceptWindow )
+	resDo <- list(	acceptN=acceptN, X, logfitness_X, logDenCompX, acceptWindow )
 	### list with components \describe{
 	### \item{acceptN}{vector number of accepted steps per chain in thinning interval}
 	### \item{X}{matrix current position for each chain (column?)}
 	### \item{logfitness_X}{vector current logDen of chains}
-	### \item{resFLogDenX}{matrix: result of fLogDen for last accepted state per chain}
+	### \item{logDenCompX}{matrix: result of fLogDen for last accepted state per chain}
 	### \item{acceptWindow}{}
 }
 

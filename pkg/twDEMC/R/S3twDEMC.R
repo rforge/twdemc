@@ -59,7 +59,7 @@ setMethodS3("subChains","twDEMC", function(
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
-		res$resFLogDen <- x$resFLogDen[,,iChains, drop=FALSE]
+		res$logDenComp <- x$logDenComp[,,iChains, drop=FALSE]
 		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
 		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
 		res$thin <- x$thin
@@ -269,7 +269,7 @@ setMethodS3("replacePops","twDEMC", function(
 		iChains <- matrix(1:nChains, nrow=nChainsPop)[,iPops]
 		res$temp[,iPops] <- xN$temp
 		res$parms[,,iChains] <- xN$parms
-		res$resFLogDen[,,iChains] <- xN$resFLogDen
+		res$logDenComp[,,iChains] <- xN$logDenComp
 		res$rLogDen[,iChains] <- xN$rLogDen 
 		res$pAccept[,iChains] <- xN$pAccept
 		if( 0 < length(x$Y))
@@ -324,7 +324,7 @@ setMethodS3("subset","twDEMC", function(
 		boKeep <- rep(boKeep,length.out=nrow(x$rLogDen) )
 	x$parms <- x$parms[,boKeep,, drop=FALSE] 
 	x$rLogDen <- x$rLogDen[boKeep,, drop=FALSE] 
-	x$resFLogDen <- x$resFLogDen[,boKeep,, drop=FALSE] 
+	x$logDenComp <- x$logDenComp[,boKeep,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,, drop=FALSE]
 	if( !is.null(x$temp))
 		if( is.null(ncol(x$temp)) )
@@ -425,12 +425,12 @@ setMethodS3("combinePops","twDEMC", function(
 		dimnames(res$Y) <- dimnames(x$Y)
 	}
 	res$rLogDen <- abind( lapply(.pops, function(psr){psr$rLogDen}) )
-	res$resFLogDen <- abind( lapply(.pops, function(psr){psr$resFLogDen}) )
+	res$logDenComp <- abind( lapply(.pops, function(psr){psr$logDenComp}) )
 	res$nGenBurnin <- sapply(.pops, "[[", "nGenBurnin") 
 	res$pAccept <- abind( lapply(.pops, function(psr){psr$pAccept}) )
 	res$thin <- x$thin
 	res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
-	for( i in c("parms","rLogDen","resFLogDen","pAccept","temp") )
+	for( i in c("parms","rLogDen","logDenComp","pAccept","temp") )
 		dimnames(res[[i]]) <- dimnames(x[[i]])
 	if( !doKeepBatchCall ) attr(res,"batchCall") <- NULL	#keep the 
 	res

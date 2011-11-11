@@ -17,10 +17,10 @@ twDEMCInt <- function(
 	### logDensity of initial values, may save time if already calculated
 	, fLogDen
 	###	\code{function(theta, ...)} calculates a vector of logDensitys corresponding to different data streams of parameter vector theta 
-	### or \code{function(theta, resFLogDenX, metropolisStepTemp, ...)} to handle first steps in Multi-step Metropolis decision internally. See details.  
+	### or \code{function(theta, logDenCompX, metropolisStepTemp, ...)} to handle first steps in Multi-step Metropolis decision internally. See details.  
 	, argsFLogDen=list()
 	### further arguments passed to fLogDen
-	, resFLogDenX=NULL #numeric(0)  #Zinit[FALSE,1,]
+	, logDenCompX=NULL #numeric(0)  #Zinit[FALSE,1,]
 	### numeric matrix: number of internal logDen components x chains, see details
 	, fLogDenScale=1
 	### scalar multiplied to the result of fLogDen 
@@ -101,10 +101,10 @@ twDEMCInt <- function(
 	## }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
 	
-	##details<< \describe{ \item{Multistep Metropolis decisions: \code{resFLogDenX} }{
+	##details<< \describe{ \item{Multistep Metropolis decisions: \code{logDenCompX} }{
 	## For performance reasons one may decide to do a first Metropolis decision on parameters
 	## so that the possibly costly evaluation of the model functions is not needed.
-	## Argument resFLogDenX holds the current logDens for those components of return of fLogDen that are handled internally in fLogDen.
+	## Argument logDenCompX holds the current logDens for those components of return of fLogDen that are handled internally in fLogDen.
 	## These will not be regarded in the sum over components Metropolis step in twDEMC.
 	## Rather the components of the last accepted step are passed to fLogDen as second argument togheter with the current temperature as third argument.
 	## \cr 
@@ -112,18 +112,18 @@ twDEMCInt <- function(
 	## The number of columns must correspond to the number of chains
 	## \cr 
 	## Alternatively one can just specify a character vector of return components that are handled internally in the objective function.
-	## Then a proper matrix of resFLogDenX will be initialized to -Inf, i.e. accepting the next step
+	## Then a proper matrix of logDenCompX will be initialized to -Inf, i.e. accepting the next step
 	## \cr 
-	## A proper initial value for resFLogDenX that handels component parms and assures that the step is not rejected
+	## A proper initial value for logDenCompX that handels component parms and assures that the step is not rejected
 	## because of the initial parameters is:
-	## \code{resFLogDenX=matrix(-Inf, nrow=1, ncol=.nChains, dimnames=list("parms",NULL))}
+	## \code{logDenCompX=matrix(-Inf, nrow=1, ncol=.nChains, dimnames=list("parms",NULL))}
 	## See the code of \code{\link{logDenGaussian}} for an example multistep version of fLogDen
 	## }}
-	if( 0 < length(resFLogDenX)){
-		if( is.character(resFLogDenX))
-			resFLogDenX <- matrix(-Inf*fLogDenScale, nrow=length(resFLogDenX), ncol=dim(Zinit)[3], dimnames=list(resFLogDenX,NULL))
-		if( !is.numeric(resFLogDenX) || !is.matrix(resFLogDenX) || ncol(resFLogDenX)!=dim(Zinit)[3] )
-			stop("resFLogDenX must be a numeric matrix with one column for each chain and row names correponding to a subst of names of result vector of fLogDen")
+	if( 0 < length(logDenCompX)){
+		if( is.character(logDenCompX))
+			logDenCompX <- matrix(-Inf*fLogDenScale, nrow=length(logDenCompX), ncol=dim(Zinit)[3], dimnames=list(logDenCompX,NULL))
+		if( !is.numeric(logDenCompX) || !is.matrix(logDenCompX) || ncol(logDenCompX)!=dim(Zinit)[3] )
+			stop("logDenCompX must be a numeric matrix with one column for each chain and row names correponding to a subst of names of result vector of fLogDen")
 	}
 	if( !hasArg(controlTwDEMC) ) controlTwDEMC <- list()	#??? why does =list() in declaration ot work
 	if( !all(names(controlTwDEMC) %in% names(ctrl)) ){
@@ -157,11 +157,11 @@ twDEMCInt <- function(
 	}
 	if( !is.numeric(logDenX)){
 		#twCalcLogDenPar expects parameters in columns, need transpose
-		.resFLogDenXPar <- if( (0 == length(resFLogDenX))) NULL else t(resFLogDenX) #transpose will fail on NULL
-		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), resFLogDenX=.resFLogDenXPar, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale
+		.logDenCompXPar <- if( (0 == length(logDenCompX))) NULL else t(logDenCompX) #transpose will fail on NULL
+		.resLogDenPar <- twCalcLogDenPar(fLogDen=fLogDen, xProp=t(X), logDenCompX=.logDenCompXPar, argsFLogDen=argsFLogDen, fLogDenScale=fLogDenScale
 			,debugSequential=debugSequential, remoteDumpfileBasename=remoteDumpfileBasename, ...)
 		logDenX <- .resLogDenPar$logDen
-		resFLogDenX <- if( is.null(.resLogDenPar$resFLogDen)) NULL else t(.resLogDenPar$resFLogDen)
+		logDenCompX <- if( is.null(.resLogDenPar$logDenComp)) NULL else t(.resLogDenPar$logDenComp)
 	}
 	rLogDen[d$gen,] <- logfitness_X <-	logDenX	#initial logDensity
 	tmp2 <- !is.finite(logfitness_X)
@@ -222,13 +222,13 @@ twDEMCInt <- function(
 	#else( assign("argsDEMCStepWrapper", argsDEMCStepWrapper, pos=1))	#export to current 
 	
 	# arguments to to demc that change between thinning intervals
-	# substract logDen components of resFLogDenX from logDenXExt
+	# substract logDen components of logDenCompX from logDenXExt
 	chainState <- list(
 		X = X
-		,resFLogDenX = resFLogDenX
+		,logDenCompX = logDenCompX
 		,logDenX = logDenX
-		,logDenXExt = logDenX -  {if( 0<length(resFLogDenX) && all(is.finite(resFLogDenX)) ) 
-				max(0,sum(resFLogDenX)*fLogDenScale) else 0} 	
+		,logDenXExt = logDenX -  {if( 0<length(logDenCompX) && all(is.finite(logDenCompX)) ) 
+				max(0,sum(logDenCompX)*fLogDenScale) else 0} 	
 	)
 	
 	for( iThin0 in (0:(nThinnedGen-1)) ){
@@ -238,14 +238,14 @@ twDEMCInt <- function(
 		iGen = iThin0*ctrl$thin+(1:ctrl$thin)
 		tempThin = t(TstepFixed[iGen,rep(1:nPops,each=nChainsPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
 		#tmp.argsDEMCStep <- if( !debugSequential ) as.name("argsDEMCStep") else argsDEMCStep 
-		#resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogDenX", "logDenX")], genPropRes, list(temp=tempThin, argsDEMCStep=tmp.argsDEMCStep, debugSequential=debugSequential)), quote=TRUE )
+		#resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "logDenCompX", "logDenX")], genPropRes, list(temp=tempThin, argsDEMCStep=tmp.argsDEMCStep, debugSequential=debugSequential)), quote=TRUE )
 		#--- debugging
 		#debugSequential=TRUE
 		#.doDEMCSteps <- twDEMC:::.doDEMCSteps
 		#mtrace(.doDEMCSteps)
 		# tmpf <- argsDEMCStepWrapper$remoteFun; mtrace(tmpf); argsDEMCStepWrapper$remoteFun<-tmpf
 		tmp.remoteFunArgs <- if( !debugSequential & sfParallel() ) as.name("argsDEMCStepWrapper") else argsDEMCStepWrapper 	# eval.parent fails for argsDEMCStepWrapper within sequential function
-		resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "resFLogDenX", "logDenX", "logDenXExt")], genPropRes, list(temp=tempThin, remoteFunArgs=tmp.remoteFunArgs, debugSequential=debugSequential, doRecordProposals=doRecordProposals)), quote=TRUE )
+		resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "logDenCompX", "logDenX", "logDenXExt")], genPropRes, list(temp=tempThin, remoteFunArgs=tmp.remoteFunArgs, debugSequential=debugSequential, doRecordProposals=doRecordProposals)), quote=TRUE )
 		chainState <- resDo[ names(chainState) ]
 		if( doRecordProposals ){
 			if(is.null(Y)){
@@ -284,7 +284,7 @@ twDEMCInt <- function(
 		
 	} # iThin0 in 0:(nThinnedGen-1)
 	#res <- list(parms=Z, rLogDen=rLogDen, thin=ctrl$thin, pAccept=pAccept, call=ccl )
-	res <- list(parms=Z, rLogDen=rLogDen, thin=ctrl$thin, pAccept=pAccept, temp=temp, resFLogDenX = chainState$resFLogDenX, Y=Y )
+	res <- list(parms=Z, rLogDen=rLogDen, thin=ctrl$thin, pAccept=pAccept, temp=temp, logDenCompX = chainState$logDenCompX, Y=Y )
 	class(res) <- c( class(res), "twDEMC" )	#monte carlo proposal list
 	res
 	### list of class \code{twDEMC} (with \code{nStep = M0+nGen%/%thin}) \describe{
@@ -292,7 +292,7 @@ twDEMCInt <- function(
 	### \item{rLogDen}{ array (nStep x nChain) the logDen of the accepted parameter combinations}
 	### \item{pAccept}{ array (nStep x nChain) the acceptance probability over previous ctrl$pAcceptWindowWidth steps }
 	### \item{temp}{ vector (nStep) the Temperature used at the step }
-	### \item{resFLogDenX}{ array (nInternalResult x nChain) the subset of fLogDen results that are handled internally }
+	### \item{logDenCompX}{ array (nInternalResult x nChain) the subset of fLogDen results that are handled internally }
 	### \item{thin}{ numeric: thinning interval }
 	### \item{Y}{ numeric matrix: if(doRecordProposals) record of all proposals together with results components }
 	### }
@@ -301,7 +301,7 @@ twDEMCInt <- function(
 .doDEMCSteps <- function(
 	### Perform Metropolis steps within next thinning interval.
 	X,				##<< numeric matrix: current location of chains rows: parameters, columns: chains
-	resFLogDenX,	##<< numeric array: result of fLogDen for current location, rows: result components, columns chains  
+	logDenCompX,	##<< numeric array: result of fLogDen for current location, rows: result components, columns chains  
 	logDenX, 		##<< numeric vector of logDen of current position of chains
 	logDenXExt,		##<< numeric vector of logDen exluding components handled internally in fLogDen
 	xStep, 			##<< array rows: difference vectors in parameter space, cols: chains, zdim: steps
@@ -336,7 +336,7 @@ twDEMCInt <- function(
 	F_APPLY <- sfRemoteWrapper	#the function executed on the nodes: one metropolis step
 	#fArgsSame <- list( remoteFunArgs=as.name("argsDEMCStepWrapper") )	#exported, includes remoteFun=.doDEMCStep, remoteDumpfileBasename and argsDEMCStep
 	F_ARGS <- function(i,prevRes){ args<-c(	
-			prevRes[c("x", "resFLogDenX", "logDenX","logDenXExt")],
+			prevRes[c("x", "logDenCompX", "logDenX","logDenXExt")],
 			list( step=xStepStacked[i,,drop=TRUE], rExtra=rExtra[i], temp=temp[i]),
 			#list( argsDEMCStep=argsDEMCStep )
 			list( remoteFunArgs=remoteFunArgs )
@@ -344,7 +344,7 @@ twDEMCInt <- function(
 	#.res0 <- lapply(1:nrow(X),function(row){X[row,]})
 	res0 <- lapply(1:d$chains,function(iChain){list(
 				x=X[,iChain,drop=TRUE],
-				resFLogDenX=if(0<length(resFLogDenX)) resFLogDenX[,iChain,drop=TRUE] else resFLogDenX
+				logDenCompX=if(0<length(logDenCompX)) logDenCompX[,iChain,drop=TRUE] else logDenCompX
 				,logDenX=logDenX[iChain]
 				,logDenXExt=logDenXExt[iChain]
 			)})
@@ -353,20 +353,20 @@ twDEMCInt <- function(
 	#iChains <- (d$steps-1)*d$chains+(1:d$chains)	#index of the chains of the last step
 	#modify in place, so that dimnames etc are preserved
 	endChain0 <- (d$steps-1)*d$chains	#index before last step of all chains
-	#s0 <- list(X=X, resFLogDenX=resFLogDenX, logDenX=logDenX)#save former state
-	boResFLogDenX <- { .nc <- ncol(resFLogDenX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
-	#resFLogDenComp
+	#s0 <- list(X=X, logDenCompX=logDenCompX, logDenX=logDenX)#save former state
+	boResFLogDenX <- { .nc <- ncol(logDenCompX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
+	#logDenCompComp
 	for( iChain in 1:d$chains ){
 		resChain = res[[endChain0+iChain]]
 		X[,iChain] <- resChain$x
-		if(	boResFLogDenX ) resFLogDenX[,iChain] <- resChain$resFLogDenX
+		if(	boResFLogDenX ) logDenCompX[,iChain] <- resChain$logDenCompX
 		logDenX[iChain] <- resChain$logDenX
 		logDenXExt[iChain] <- resChain$logDenXExt
 	}
 	Y <- NULL
 	if( doRecordProposals){ 
 		parNames <- rownames(X)
-		resCompNames <- names(res[[1]]$resFLogDenComp)
+		resCompNames <- names(res[[1]]$logDenCompComp)
 		tmp <- c("rLogDen",parNames,"accepted",resCompNames) 
 		Y <- array( double(length(tmp)*d$steps*d$chains), dim=c(d=length(tmp),nStep=d$steps,nChain=d$chains),	dimnames=list(comp=tmp,steps=NULL,chains=NULL) )			
 		for(iStep in 1:d$steps){
@@ -375,7 +375,7 @@ twDEMCInt <- function(
 				i <- chain0+iChain
 				Y["accepted",iStep,iChain] <- res[[i]]$accepted
 				Y[parNames,iStep,iChain] <- res[[i]]$xProp
-				Y[resCompNames,iStep,iChain] <- resComp <- res[[i]]$resFLogDenComp
+				Y[resCompNames,iStep,iChain] <- resComp <- res[[i]]$logDenCompComp
 				Y["rLogDen",iStep,iChain] <- sum(resComp)
 			}
 		}
@@ -383,10 +383,10 @@ twDEMCInt <- function(
 	acceptedM <- matrix( sapply(res,function(resChain){ resChain$accepted}), byrow=TRUE, ncol=d$chains )	#rows: steps, cols: chains
 	accepted <- colSums(acceptedM)
 	
-	resDo <- list(	X=X, resFLogDenX=resFLogDenX, logDenX=logDenX, logDenXExt=logDenXExt, accepted=accepted, Y=Y )
+	resDo <- list(	X=X, logDenCompX=logDenCompX, logDenX=logDenX, logDenXExt=logDenXExt, accepted=accepted, Y=Y )
 	### list with components \describe{
 	### \item{X}{matrix current position, column for each chain}
-	### \item{resFLogDenX}{matrix: internal result components of fLogDen current position, column for each chain}
+	### \item{logDenCompX}{matrix: internal result components of fLogDen current position, column for each chain}
 	### \item{logDenX}{vector current logDen of chains}
 	### \item{logDenX}{vector current logDen of chains, excluding components of logDen that are handled within fLogDen}
 	### \item{accepted}{numerical vector, number of accepted steps for each chain}
@@ -397,7 +397,7 @@ twDEMCInt <- function(
 .doDEMCStep <- function( 
 	### Perfrom one DEMC step, function to be  alled in remote process.
 	x				##<< numeric vector: current state
-	, resFLogDenX	##<< numeric vector: currnet states compoenents of fLogDen results
+	, logDenCompX	##<< numeric vector: currnet states compoenents of fLogDen results
 	, logDenX		##<< numeric scalar
 	, logDenXExt	##<< numeric scalar
 	,step			##<< numeric vector of step in X space
@@ -414,23 +414,23 @@ twDEMCInt <- function(
 	##seealso<< 
 	## \code{\link{twDEMCInt}}
 	## \code{\link{.doDEMCSteps}}
-	boResFLogDenX <- (length(resFLogDenX) > 0)
+	boResFLogDenX <- (length(logDenCompX) > 0)
 	with( argsDEMCStep, {
 			#attach( argsDEMCStep )
 			accepted<-FALSE
 			xProp = x + step
 			if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
 			res <- if(boResFLogDenX)
-					do.call( fLogDen, c(list(xProp, resFLogDenX, temp), argsFLogDen) )	# evaluate logDen
+					do.call( fLogDen, c(list(xProp, logDenCompX, temp), argsFLogDen) )	# evaluate logDen
 				else
 					do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
 			##details<< 
-			## if resFLogDenX is given, then these components of result of fLogDen are handled
+			## if logDenCompX is given, then these components of result of fLogDen are handled
 			## internally. Hence, for Metropolis step, constrain res to remaining components
 			resOut <- if(boResFLogDenX){
-					posLogDenInt <- match(names(resFLogDenX), names(res) )	#side effect: used below
+					posLogDenInt <- match(names(logDenCompX), names(res) )	#side effect: used below
 					if( any(is.na(posLogDenInt)))
-						stop(paste("not all names of resFLogDenX in return of fLogDen: ",paste(names(res),collapse=",")))
+						stop(paste("not all names of logDenCompX in return of fLogDen: ",paste(names(res),collapse=",")))
 					res[-posLogDenInt]
 				}else
 					res
@@ -442,20 +442,20 @@ twDEMCInt <- function(
 				if ( is.finite(logr) & (logr) > log(runif(1)) ){
 					accepted <- TRUE
 					x <- xProp
-					if(boResFLogDenX) resFLogDenX <- res[posLogDenInt]
+					if(boResFLogDenX) logDenCompX <- res[posLogDenInt]
 					logDenX <- logDenProp
 					logDenXExt <- logDenPropExt
 				}
 			}
-			list(accepted=accepted,x=x,resFLogDenX=resFLogDenX,logDenX=logDenX, logDenXExt=logDenXExt,resFLogDenComp=res,xProp=xProp)
+			list(accepted=accepted,x=x,logDenCompX=logDenCompX,logDenX=logDenX, logDenXExt=logDenXExt,logDenCompComp=res,xProp=xProp)
 		})
-	#detach( argsDEMCStep ); list(accepted=accepted,x=x,resFLogDenX=resFLogDenX,logDenX=logDenX)
+	#detach( argsDEMCStep ); list(accepted=accepted,x=x,logDenCompX=logDenCompX,logDenX=logDenX)
 	### list with components \describe{
 	### \item{accepted}{boolean scalar: if step was accepted}
 	### \item{x}{numeric vector: current position in parameter space}
-	### \item{resFLogDenX}{numeric vector: result components of fLogDen for current position that are handeled inside fLogDen}
+	### \item{logDenCompX}{numeric vector: result components of fLogDen for current position that are handeled inside fLogDen}
 	### \item{logDenX}{numeric scalar: logDen of current position}}
 	### \item{logDenXExt}{numeric scalar: logDen of current position, exlcuding the components that are handled inside fLogDen.}}
 	### \item{xProp}{numeric vector: proposal}
-	### \item{resFLogDenComp}{numeric vector: result components of fLogDen for current position}
+	### \item{logDenCompComp}{numeric vector: result components of fLogDen for current position}
 }

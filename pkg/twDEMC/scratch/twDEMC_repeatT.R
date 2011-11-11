@@ -74,7 +74,7 @@ twDEMCBatchInt <- function(
 		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
 		#calculate optimal end temperature
-		resCols <- match( rownames(res$resFLogDen), rownames(res$Y))
+		resCols <- match( rownames(res$logDenComp), rownames(res$Y))
 		#nPops <- ncol(res$temp)
 		nChains <- dim(res$parms)[3]
 		nChainsPop <- nChains %/% nPops
@@ -141,7 +141,7 @@ twDEMCBatchInt <- function(
 	nChains <- dim(res$parms)[3]
 	nChainsPop <- nChains %/% nPops
 	chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
-	resCols <- match( rownames(res$resFLogDen), rownames(res$Y))	#index of columns of results components in Y
+	resCols <- match( rownames(res$logDenComp), rownames(res$Y))	#index of columns of results components in Y
 	while( !boConverged & (iRun < nGen) ){
 		cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 		##details<<
@@ -215,7 +215,7 @@ twDEMCBatchInt <- function(
 		}
 		nRun <- min(nBatch, (if(iRun<nGenBurnin) min(nGenBurnin,nGen) else nGen) -iRun)		#iRun: Generation after batch run
 		.dots <- list(...)
-		.dots[c("logDenX","resFLogDenX")] <- NULL;	#those will be inferred from res
+		.dots[c("logDenX","logDenCompX")] <- NULL;	#those will be inferred from res
 		clArgs <- c(list(Zinit=res), .dots)	#Zinit must be first argument 
 		clArgs$nGen<-nRun
 		clArgs$nPops<-nPops

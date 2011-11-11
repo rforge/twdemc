@@ -52,8 +52,8 @@ test.updatedInvocation <- function(){
 	res <- NULL; res <-do.call( twRunDEMC, list(argsTwDEMCBatch=argsTwDEMCBatch0,intResCompNames ="parms") )
 	expNSteps <- 60/.thin+1
 	checkEquals(expNSteps, nrow(res$rLogDen) )
-	#checkEquals(c(1,4*.nPops), dim(res$resFLogDenX) )
-	checkEquals(c(2,expNSteps,4*.nPops), dim(res$resFLogDen) )
+	#checkEquals(c(1,4*.nPops), dim(res$logDenCompX) )
+	checkEquals(c(2,expNSteps,4*.nPops), dim(res$logDenComp) )
 	#matplot((res$Y["a",,,drop=TRUE]),type="l")
 	
 	#mtrace(twRunDEMC)
@@ -64,8 +64,8 @@ test.updatedInvocation <- function(){
 	res2 <- NULL; res2 <-do.call( twRunDEMC, list(argsTwDEMCBatch=argsTwDEMCBatch0,Zinit=res,nGen=60+30, intResCompNames=character(0)) )
 	expNSteps <- (60+30)/.thin+1
 	checkEquals(expNSteps, nrow(res2$rLogDen) )
-	#checkEquals(0, length(res2$resFLogDenX) )	# not influencee by intResCompNames any more
-	checkEquals(c(2,expNSteps,4*.nPops), dim(res2$resFLogDen) )
+	#checkEquals(0, length(res2$logDenCompX) )	# not influencee by intResCompNames any more
+	checkEquals(c(2,expNSteps,4*.nPops), dim(res2$logDenComp) )
 	#matplot((res2$Y["a",,,drop=TRUE]),type="l")
 	
 	#mtrace(twRunDEMC)

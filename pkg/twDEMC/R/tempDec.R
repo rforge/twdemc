@@ -109,28 +109,28 @@ calcDEMCTempDiffLogDen3 <- function(
 
 calcDEMCTempDiffLogDen3Init <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and logDenComp
 	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 	,doConstrainNeg=TRUE	##<< different default value
 ){
 	# replace NA components by sample of non-NA
 	# replace non-finite logDens case of smallest finite logDen per component
-	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
-		boNA <- is.na(resLogDen$resFLogDen[,iComp])
+	for( iComp in 1:ncol(resLogDen$logDenComp) ){
+		boNA <- is.na(resLogDen$logDenComp[,iComp])
 		nNA <- sum(boNA)
 		if(0<nNA ){
-			resCompNonNA <- resLogDen$resFLogDen[!boNA,iComp]
-			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
+			resCompNonNA <- resLogDen$logDenComp[!boNA,iComp]
+			resLogDen$logDenComp[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
 		}
-		boNonFinite <- !is.finite(resLogDen$resFLogDen[,iComp])
+		boNonFinite <- !is.finite(resLogDen$logDenComp[,iComp])
 		if( 0<sum(boNonFinite)){
-			resLogDen$resFLogDen[boNonFinite,iComp] <- min(resLogDen$resFLogDen[!boNonFinite,iComp])
+			resLogDen$logDenComp[boNonFinite,iComp] <- min(resLogDen$logDenComp[!boNonFinite,iComp])
 		}
 	}
 	
-	L <- Lp <- resLogDen$resFLogDen 
+	L <- Lp <- resLogDen$logDenComp 
 	#recalculate logDens from replaced components
-	rL <- rLQ <- rowSums(resLogDen$resFLogDen)
+	rL <- rLQ <- rowSums(resLogDen$logDenComp)
 	
 	
 	# get the 200 best cases, but at least 5% of the cases
@@ -258,28 +258,28 @@ calcDEMCTempDiffLogDen2 <- function(
 
 calcDEMCTempDiffLogDen2Init <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and logDenComp
 	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 	,doConstrainNeg=TRUE	##<< different default value
 ){
 	# replace NA components by sample of non-NA
 	# replace non-finite logDens case of smallest finite logDen per component
-	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
-		boNA <- is.na(resLogDen$resFLogDen[,iComp])
+	for( iComp in 1:ncol(resLogDen$logDenComp) ){
+		boNA <- is.na(resLogDen$logDenComp[,iComp])
 		nNA <- sum(boNA)
 		if(0<nNA ){
-			resCompNonNA <- resLogDen$resFLogDen[!boNA,iComp]
-			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
+			resCompNonNA <- resLogDen$logDenComp[!boNA,iComp]
+			resLogDen$logDenComp[boNA,iComp] <- sample( resCompNonNA, nNA, replace=TRUE)
 		}
-		boNonFinite <- !is.finite(resLogDen$resFLogDen[,iComp])
+		boNonFinite <- !is.finite(resLogDen$logDenComp[,iComp])
 		if( 0<sum(boNonFinite)){
-			resLogDen$resFLogDen[boNonFinite,iComp] <- min(resLogDen$resFLogDen[!boNonFinite,iComp])
+			resLogDen$logDenComp[boNonFinite,iComp] <- min(resLogDen$logDenComp[!boNonFinite,iComp])
 		}
 	}
 	
-	L <- Lp <- resLogDen$resFLogDen 
+	L <- Lp <- resLogDen$logDenComp 
 	#recalculate logDens
-	rL <- rLQ <- rowSums(resLogDen$resFLogDen)
+	rL <- rLQ <- rowSums(resLogDen$logDenComp)
 	
 	
 	# get the 200 best cases, but at least 5% of the cases
@@ -361,35 +361,35 @@ calcDEMCTempDiffLogDenConst <- function(
 
 calcDEMCTempDiffLogDenConstInit <- function(
 	### Estimate scalar temperatures to obtain acceptance rate 
-	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and logDenComp
 	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDenConst}}
 ){
 	# replace non-finite logDens case of smallest finite logDen per component
 	boFin <- is.finite(resLogDen$logDen)
 	# replace NA components by sample of non-NA
-	for( iComp in 1:ncol(resLogDen$resFLogDen) ){
-		resComp <- resLogDen$resFLogDen[,iComp]
+	for( iComp in 1:ncol(resLogDen$logDenComp) ){
+		resComp <- resLogDen$logDenComp[,iComp]
 		boNA <- is.na(resComp)
 		resCompNonNA <- resComp[!boNA]
 		nNA <- sum(boNA)
 		if(0<length(nNA) )
-			resLogDen$resFLogDen[boNA,iComp] <- sample( resCompNonNA, nNA)
+			resLogDen$logDenComp[boNA,iComp] <- sample( resCompNonNA, nNA)
 	}
 	
 	boNA <- is.na(resLogDen$l)
 	minFiniteLogDen <- min(resLogDen$logDen[boFin])
-	minFiniteResFLogDen <- apply( resLogDen$resFLogDen[boFin,], 2, min)
+	minFiniteResFLogDen <- apply( resLogDen$logDenComp[boFin,], 2, min)
 	rLFin <- resLogDen
 	rLFin$logDen[!boFin] <- minFiniteLogDen
-	for( j in 1:ncol(rLFin$resFLogDen) )
-		rLFin$resFLogDen[!boFin,j] <- minFiniteResFLogDen[j]
+	for( j in 1:ncol(rLFin$logDenComp) )
+		rLFin$logDenComp[!boFin,j] <- minFiniteResFLogDen[j]
 	
 	# get the 200 best cases, but least 30% of the cases
 	rL <- rLFin$logDen
 	p <- min(max(0.3,200/length(rL)),length(rL))
 	q <- quantile(rL, probs=1-p)
 	bo <- sapply(q, function(qi) rL > qi)
-	Lp <- rLFin$resFLogDen[bo,]
+	Lp <- rLFin$logDenComp[bo,]
 	rLQ <- rLFin$logDen[bo]
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1
@@ -463,24 +463,24 @@ calcDEMCTempDiffLogDen <- function(
 
 calcDEMCTempDiffLogDenInit <- function(
 	### Estimate Temperatures for different data streams to obtain acceptance rate 
-	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and resFLogDen
+	resLogDen			##<< result of \code{\link{twCalcLogDenPar}}: list with components  logDen and logDenComp
 	,...				##<< further arguments to \code{\link{calcDEMCTempDiffLogDen}}
 ){
 	# replace non-finite logDens by very small logDens
 	boFin <- is.finite(resLogDen$logDen)
 	minFiniteLogDen <- min(resLogDen$logDen[boFin])
-	minFiniteResFLogDen <- apply( resLogDen$resFLogDen[boFin,], 2, min)
+	minFiniteResFLogDen <- apply( resLogDen$logDenComp[boFin,], 2, min)
 	rLFin <- resLogDen
 	rLFin$logDen[!boFin] <- minFiniteLogDen
-	for( j in 1:ncol(rLFin$resFLogDen) )
-		rLFin$resFLogDen[!boFin,j] <- minFiniteResFLogDen[j]
+	for( j in 1:ncol(rLFin$logDenComp) )
+		rLFin$logDenComp[!boFin,j] <- minFiniteResFLogDen[j]
 	
 	# get the 100 best cases, but minium 5% of the cases
 	rL <- rLFin$logDen
 	p <- min(0.5,100/length(rL),length(rL))
 	q <- quantile(rL, probs=1-p)
 	bo <- sapply(q, function(qi) rL > qi)
-	Lp <- rLFin$resFLogDen[bo,]
+	Lp <- rLFin$logDenComp[bo,]
 	rLQ <- rLFin$logDen[bo]
 	#p1 <- qplot( X2, value, geom="boxplot", data=melt(Lp))+opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	#p1

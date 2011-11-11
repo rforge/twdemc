@@ -120,15 +120,15 @@
 	i=4
 	resLogDenQ <- resLogDen
 	resLogDenQ$logDen <- resLogDen$logDen[ boFin ][bo[,i]]
-	resLogDenQ$resFLogDen <- resLogDen$resFLogDen[ boFin, ][bo[,i],]
-	tmp <- melt(resLogDenQ$resFLogDen)
+	resLogDenQ$logDenComp <- resLogDen$logDenComp[ boFin, ][bo[,i],]
+	tmp <- melt(resLogDenQ$logDenComp)
 	p1 <- qplot( X2, value, geom="boxplot", data=tmp)+
 		opts(axis.text.x=theme_text(angle=30, hjust=1, size=8))
 	p1
 
-	#apply( resLogDenQ$resFLogDen, 2, range )
+	#apply( resLogDenQ$logDenComp, 2, range )
 	#sample from the 5% best as accepted LogDen
-	Lp <- resLogDenQ$resFLogDen
+	Lp <- resLogDenQ$logDenComp
 	ord <- order(resLogDenQ$logDen, decreasing = TRUE)
 	#resLogDenQ$logDen[ord]
 	La <- Lp[sample( ord[1:round(length(ord)*0.05)], nrow(Lp), replace=TRUE ), ]
@@ -289,7 +289,7 @@
 				nGenBurnin<-nGen*1000	
 				nPops<-ncol(res$temp)
 			})
-		runClusterParms$argsFRun$resFLogDenX<-character(0)
+		runClusterParms$argsFRun$logDenCompX<-character(0)
 		runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
 		runClusterParms$argsFRun$fLogDen <- ofb.hamer
 		iproc=2; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
@@ -347,7 +347,7 @@
 			nGenBurnin<-nRun1+16*1024	
 			nPops<-ncol(res$temp)
 	})
-	runClusterParms$argsFRun$resFLogDenX<-character(0)
+	runClusterParms$argsFRun$logDenCompX<-character(0)
 	runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
 	runClusterParms$argsFRun$fLogDen <- ofb.hamer
 	iproc=2; outFilename2 <- twResultFilename(paramFilename,iproc=iproc)
@@ -415,7 +415,7 @@
 			nGenBurnin<-.burnin
 			nPops <- ncol(res$temp)
 		})
-	runClusterParms$argsFRun$resFLogDenX<-character(0)
+	runClusterParms$argsFRun$logDenCompX<-character(0)
 	runClusterParms$fRun <- twRunDEMC		# update functions to represent current dev state 
 	#runClusterParms$argsFRun$fLogDen <- ofb.hamer
 	iproc=3; outFilename3 <- twResultFilename(paramFilename,iproc=iproc)

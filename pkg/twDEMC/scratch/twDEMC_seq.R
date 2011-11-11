@@ -173,7 +173,7 @@
 
 .doDEMCStep <- function( 
 	### version before sfRemoteWrapper, Perfrom one DEMC step, function to be  alled in remote process
-	x, resFLogDenX, logDenX, 
+	x, logDenCompX, logDenX, 
 	step, rExtra, 
 	temp,			##<< temperature of the current step and population
 	argsDEMCStep	
@@ -187,33 +187,33 @@
 	## If argsDEMCStep is.name, it is evaluated in remote process. This allows to distribute parameters only once
 	## per \code{sfExport("argsDEMCStep")} and calling this function with \code{argsDEMCStep=as.name("argsDEMCStep")}
 	if( is.name(argsDEMCStep)) argsDEMCStep=eval.parent(argsDEMCStep)	#do not need to be passed each time
-	boResFLogDenX <- { .nc <- ncol(resFLogDenX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
+	boResFLogDenX <- { .nc <- ncol(logDenCompX); ( !is.null(.nc) && (.nc > 0) ) }	#if number of columns > 0
 	body <- expression( with( argsDEMCStep, {
 				accepted<-FALSE
 				xProp = x + step
 				if( is.function(fDiscrProp)) # possiblity to discretize proposal
 					xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
 				res <- if(boResFLogDenX)
-						do.call( fLogDen, c(list(xProp), list(resFLogDenX), argsFLogDen) )	# evaluate logDen
+						do.call( fLogDen, c(list(xProp), list(logDenCompX), argsFLogDen) )	# evaluate logDen
 					else
 						do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
 				logDenProp <- sum(res)*fLogDenScale		# maybe a vector, reduce to scalar
 				if( is.finite(logDenProp) ){
-					resFLogDenProp <- if( 0 < length(resFLogDenX) )	#extract the components of res that are handled internally
-						if( !all( names(resFLogDenX) %in% names(res) )){ 
-							stop(paste("not all names of resFLogDenX in return of fLogDen: ",paste(names(res),collapse=",")))
-							res[names(resFLogDenX)]
+					logDenCompProp <- if( 0 < length(logDenCompX) )	#extract the components of res that are handled internally
+						if( !all( names(logDenCompX) %in% names(res) )){ 
+							stop(paste("not all names of logDenCompX in return of fLogDen: ",paste(names(res),collapse=",")))
+							res[names(logDenCompX)]
 						}else FLogDenX
 					logr = (logDenProp+rExtra - logDenX) / temp
 					#Metropolis step
 					if ( is.finite(logr) & (logr) > log(runif(1)) ){
 						accepted <- TRUE
 						x <- xProp
-						resFLogDenX <- resFLogDenProp
+						logDenCompX <- logDenCompProp
 						logDenX <- logDenProp
 					}
 				}
-				list(accepted=accepted,x=x,resFLogDenX=resFLogDenX,logDenX=logDenX)
+				list(accepted=accepted,x=x,logDenCompX=logDenCompX,logDenX=logDenX)
 			})) 
 	##details<<  
 	## if argsDEMCStep entry remoteDumpfileBasename is characters
@@ -231,7 +231,7 @@
 	### list with components \describe{
 	### \item{accepted}{boolean scalar: if step was accepted}
 	### \item{x}{numeric vector: current position in parameter space}
-	### \item{resFLogDenX}{numeric vector: result of fLogDen for current position}
+	### \item{logDenCompX}{numeric vector: result of fLogDen for current position}
 	### \item{logDenX}{numeric scalar: logDen of current position}}
 }
 

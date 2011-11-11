@@ -23,8 +23,8 @@ updateLegacyTwDEMC <- function(
 ){
 	##details<<
 	## The function of the log of unnormalized density has been renamed from fLogLik to fLogDen
-	## components "rLogLik","resFLogLikX" are renamed to "rLogDen","resFLogDenX"
-	names(aTwDEMC)[ names(aTwDEMC) %in% c("rLogLik","resFLogLikX")] <- c("rLogDen","resFLogDenX")
+	## components "rLogLik","resFLogLikX" are renamed to "rLogDen","logDenCompX"
+	names(aTwDEMC)[ names(aTwDEMC) %in% c("rLogLik","resFLogLikX")] <- c("rLogDen","logDenCompX")
 	
 	##details<<
 	## A twDEMC stores its call. Because argument names have been changed,

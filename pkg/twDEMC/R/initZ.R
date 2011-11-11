@@ -353,7 +353,7 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 	res <- twCalcLogDenPar( fLogDen, t(adrop(Zinit[,iStep,,drop=FALSE],2)), ... )
 	rLogDen <- res$logDen
 	rLogDenComp <- res$logDenComp
-	resFLogDen <- res$resFLogDen
+	logDenComp <- res$logDenComp
 	iNonfinite <- which( !is.finite(rLogDen) )
 	nReplace <- length(iNonfinite)
 	if( nReplace>0 ){ 
@@ -378,8 +378,8 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 			res <- twCalcLogDenPar( fLogDen, t(adrop(Zinit[,iStep,iNonfinite,drop=FALSE],2)), ... ) 
 			rLogDen[iNonfinite] <- res$logDen
 			rLogDenComp[iNonfinite,] <- res$logDenComp
-			if( 0 < length(resFLogDen))
-				resFLogDen[iNonfinite,] <- res$resFLogDen
+			if( 0 < length(logDenComp))
+				logDenComp[iNonfinite,] <- res$logDenComp
 			iNonfinite <- which( !is.finite(rLogDen) )
 			nReplace <- length(iNonfinite)
 			i=i+1
@@ -387,10 +387,10 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 		if( nReplace > 0 )
 			warning("could not replace all non-finite states in row.")
 	}
-	list(Zinit=Zinit, rLogDen=rLogDen, rLogDenComp=rLogDenComp, resFLogDen=resFLogDen)
+	list(Zinit=Zinit, rLogDen=rLogDen, rLogDenComp=rLogDenComp, logDenComp=logDenComp)
 	### list with components \describe{
 	### \item{Zinit}{given Zinit with some states in last row replaced by other states from Zinit.}
-	### \item{rLogDen, rLogDenComp, resFLogDen}{numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains}
+	### \item{rLogDen, rLogDenComp, logDenComp}{numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains}
 	### }
 }
 #twUtestF(replaceZinitNonFiniteLogDens)

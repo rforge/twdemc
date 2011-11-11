@@ -53,18 +53,18 @@
 test.twCalcLogDenPar <- function(){
 	xProp <- stackChains(twdemcEx1$parms)
 	#mtrace(twCalcLogDenPar)
-	#resFLogDenXStacked <- stackChains(resFLogDenX)
+	#logDenCompXStacked <- stackChains(logDenCompX)
 	str(res <- twCalcLogDenPar(function(x){2*x},xProp,debugSequential=TRUE))
 	
-	# with resFLogDenX, vector result, providing only truncated set of parameters
-	.resFLogDenX0 <- matrix(1:nrow(xProp), nrow=nrow(xProp), dimnames=list(steps=NULL,"a"))
-	.resFLogDenX0[1:5,,drop=FALSE]
+	# with logDenCompX, vector result, providing only truncated set of parameters
+	.logDenCompX0 <- matrix(1:nrow(xProp), nrow=nrow(xProp), dimnames=list(steps=NULL,"a"))
+	.logDenCompX0[1:5,,drop=FALSE]
 	#function must take two arguments
 	#mtrace(twCalcLogDenPar)
-	str(res <- twCalcLogDenPar(function(y1,resFLogDenAcc){y1["a"]=y1["a"]*resFLogDenAcc["a"]; y1},xProp,resFLogDenX=.resFLogDenX0, intResCompNames=colnames(.resFLogDenX0), debugSequential=TRUE))
+	str(res <- twCalcLogDenPar(function(y1,logDenCompAcc){y1["a"]=y1["a"]*logDenCompAcc["a"]; y1},xProp,logDenCompX=.logDenCompX0, intResCompNames=colnames(.logDenCompX0), debugSequential=TRUE))
 	checkEquals( nrow(xProp), length(res$logDen) )
-	.exp <- xProp; .exp[,"a"] = xProp[,"a"]*.resFLogDenX0[,"a"]
-	checkEquals(.exp, res$resFLogDen)
+	.exp <- xProp; .exp[,"a"] = xProp[,"a"]*.logDenCompX0[,"a"]
+	checkEquals(.exp, res$logDenComp)
 }
 
 test.goodStartSeqData <- function(){
@@ -767,7 +767,7 @@ test.dump <- function(){
 				debugSequential=TRUE
 				,X = matrix(1,nrow=1,ncol=.nChains)
 				,logDenX = 5
-				,resFLogDenX = character(0)
+				,logDenCompX = character(0)
 			)
 		)
 		checkException( eval(body))
@@ -819,7 +819,7 @@ test.twoStepMetropolis <- function(){
 	X <- adrop(Zinit[,dim(Zinit)[2],,drop=FALSE],2)	#last row of Zinit
 	#mtrace(twCalcLogDenPar)
 	#mtrace(logDenGaussian)
-	XLogDen <- twCalcLogDenPar(fLogDen=logDenGaussian, xProp=t(X), resFLogDenX=numeric(0), intResCompNames="parms", argsFLogDen=argsFLogDen
+	XLogDen <- twCalcLogDenPar(fLogDen=logDenGaussian, xProp=t(X), logDenCompX=numeric(0), intResCompNames="parms", argsFLogDen=argsFLogDen
 		,debugSequential=TRUE)
 		
 	.nGen=200
@@ -832,7 +832,7 @@ test.twoStepMetropolis <- function(){
 	resa <-  twDEMC( Zinit, nGen=.nGen
 		,fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
 		,nPops=.nPops
-		,X = X, logDenX=XLogDen$logDen, resFLogDenX=t(XLogDen$resFLogDen) 
+		,X = X, logDenX=XLogDen$logDen, logDenCompX=t(XLogDen$logDenComp) 
 		,intResCompNames="parms"
 		,controlTwDEMC = list(thin=.thin)
 		,debugSequential=TRUE
@@ -892,7 +892,7 @@ test.twoStepMetropolisTemp <- function(){
 	X <- adrop(Zinit[,dim(Zinit)[2],,drop=FALSE],2)	#last row of Zinit
 	#mtrace(twCalcLogDenPar)
 	#mtrace(logDenGaussian)
-	XLogDen <- twCalcLogDenPar(fLogDen=logDenGaussian, xProp=t(X), resFLogDenX=numeric(0), intResCompNames="parms", argsFLogDen=argsFLogDen
+	XLogDen <- twCalcLogDenPar(fLogDen=logDenGaussian, xProp=t(X), logDenCompX=numeric(0), intResCompNames="parms", argsFLogDen=argsFLogDen
 		,debugSequential=TRUE)
 	
 	
@@ -906,7 +906,7 @@ test.twoStepMetropolisTemp <- function(){
 	resa <-  twDEMC( Zinit, nGen=.nGen
 		,fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
 		,nPops=.nPops
-		,X = X, logDenX=XLogDen$logDen, resFLogDenX=t(XLogDen$resFLogDen) 
+		,X = X, logDenX=XLogDen$logDen, logDenCompX=t(XLogDen$logDenComp) 
 		,debugSequential=TRUE
 		,controlTwDEMC = list(thin=.thin, T0=10, Tend=1/10)
 		,intResCompNames="parms"
