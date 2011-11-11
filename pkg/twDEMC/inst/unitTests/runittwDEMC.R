@@ -322,7 +322,8 @@ test.goodStartSeq <- function(){
 	#str(res)
 	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
 	
-	rescoda <- as.mcmc.list(res) 
+	#windows(record=TRUE)
+	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
@@ -622,7 +623,7 @@ test.ofMulti <- function(){
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
 		#fLogDenScale=-1/2
-	#debugSequential=TRUE
+		#debugSequential=TRUE
 	)
 	str(res)
 	
@@ -921,6 +922,67 @@ test.twoStepMetropolisTemp <- function(){
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
 	
+	#gelman.diag(rescoda)
+	#summary(rescoda)
+	
+	#str(summary(rescoda))
+	suppressWarnings({	#glm fit in summary
+			summary(rescoda)$statistics[,"Mean"]
+			summary(rescoda)$statistics[,"SD"]
+			thetaTrue
+			sdTheta
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
+	
+	# 1/2 orders of magnitude around prescribed sd for theta
+	.pop=1
+	for( .pop in seq(along.with=.popsd) ){
+		checkMagnitude( sdTheta, .popsd[[.pop]] )
+	}
+	
+	# check that thetaTrue is in 95% interval 
+	.pthetaTrue <- sapply(1:2, function(.pop){
+			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+		})
+	checkInterval( .pthetaTrue ) 
+}
+
+test.goodStartSeqMultiTemp <- function(){
+	# same as goodStartSeq but with decreasing temperature and multiTemp
+	.nPops=2
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,			### vector of data to compare with
+		invCovar=invCovar/1e10,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	#dim(Zinit)
+	
+	.nGen=100
+	#mtrace(sfRemoteWrapper)
+	#mtrace(.doDEMCStep)
+	#mtrace(.doDEMCSteps )
+	#mtrace(logDenGaussian)
+	#mtrace(twCalcLogDenPar)
+	#mtrace(twDEMCInt)
+	res <-  twDEMC( Zinit, nGen=.nGen, 
+		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		nPops=.nPops,
+		#controlTwDEMC=list(thin=1, T0=20, Tend=20, useMultiT=TRUE, TFix=c(parms=1)),
+		controlTwDEMC=list(thin=1, T0=20, Tend=20, useMultiT=TRUE, Tprop=c(obs=0.5,parms=1), TFix=c(parms=1)),
+		debugSequential=TRUE
+	)
+	#str(res)
+	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
 	

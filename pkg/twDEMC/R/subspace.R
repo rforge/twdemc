@@ -353,7 +353,7 @@ getSubSpaces <- function(
 	if( !boMinPSub) 
 		resSplit <- do.call( findSplit, c(list(aSample=aSample, isBreakEarly=isBreakEarly, checkSlopesFirst=checkSlopesFirst), argsFSplitMod ))
 	if( boMinPSub || is.na(resSplit$split) ){
-		print(paste("getSubSpaces: pSub=",pSub,"splits=",paste(names(splitHist),signif(splitHist,2),sep=":",collapse=", ")))
+		print(paste("getSubSpaces: pSub=",signif(pSub,2),"splits=",paste(names(splitHist),signif(splitHist,2),sep=":",collapse=", ")))
 		# when no splitting point was found, return the sample without parameter bounds
 		##value<< a list with entries
 		list( 
@@ -363,6 +363,7 @@ getSubSpaces <- function(
 				, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
 				, lowerParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
 				, pSub = pSub			##<< the proportion of the subSample to the overall Sample
+				, splits=splitHist		##<< named numeric vector of splitting points
 				##end<< 
 			))
 			#, iVars=NA	##<< integer vector: the indices of variables to check for splits. If \code{isBreakEarly=FALSE} its has been updated. NA if no split was found. 
@@ -482,6 +483,7 @@ divideTwDEMC <- function(
 	, fCheckProblems=checkProblemsSpectral	##<< function applied to twDEMC results of each subspace	
 	, argsFCheckProblems=list() ##<< further arguments to argsFCheckProblems
 	, dumpfileBasename="recover"
+	, subSpacesPop=list()	##<< may provide previous results of \code{\link{getSubSpaces}} per population to save computing time
 ){
 	##details<< 
 	## the first column of aSample records the logDensity of the sample for consitency. 
@@ -502,11 +504,11 @@ divideTwDEMC <- function(
 	minPSub <- max( minPSub, nInit/nrow(thinnedSample) )
 	#mtrace(getSubSpaces)
 	#iPop=1
-	resSubSpaces <- lapply( 1:dim(thinnedSample)[3], function(iPop){
+	resSubSpaces <- if( 0==length(subSpacesPop) ) lapply( 1:dim(thinnedSample)[3], function(iPop){
 			samplePop <- thinnedSample[,,iPop]
 			#mtrace(getSubSpaces)
 			getSubSpaces(samplePop[,-1], minPSub=minPSub, isBreakEarly=isBreakEarly, argsFSplit=argsFSplitPop[[iPop]])	# here omit the logDensity column
-		})
+		}) else subSpacesPop
 	subSpaces <- lapply( resSubSpaces, "[[" ,"spaces" )
 	nSubPops <- sapply(subSpaces, length)	# number of subs per populations
 	subSpacesFlat <- do.call( c, subSpaces )	# put all subPopulations of all populations on same level

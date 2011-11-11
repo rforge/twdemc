@@ -126,8 +126,8 @@ test.saveAndRestart <- function(){
 	res4 <- twDEMCBatch(resRestart.twDEMC, nGen=40)	
 	checkEquals(50/.thin+1, nrow(res4$rLogDen) )	# was already 50
 	#mtrace(calcDEMCTempGlobal2)
-	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=1500)	#exeeding burnin	
-	checkEquals(1500/.thin+1, nrow(res5$rLogDen) )
+	res5 <- twDEMCBatch(resRestart.twDEMC, nGen=1800)	#exeeding burnin	
+	checkEquals(1800/.thin+1, nrow(res5$rLogDen) )
 	
 	matplot(res5$temp, type="l")
 	plot(res5$temp[,1])

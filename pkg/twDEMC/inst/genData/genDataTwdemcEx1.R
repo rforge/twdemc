@@ -23,6 +23,8 @@ Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nP
 dim(Zinit)
 
 .nGen=100
+#mtrace(twDEMC.array)
+#mtrace(twDEMCBatchInt)
 twdemcEx1 <-  twDEMCBatch( Zinit, nGen=.nGen, 
 	fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 	nPops=.nPops,
@@ -35,7 +37,7 @@ str(twdemcEx1)
 
 .tmp.f <- function(){
 	rescoda <- as.mcmc.list(twdemcEx1)
-	plot(rescoda)
+	plot(rescoda, smooth=FALSE)
 }
 save(twdemcEx1,file="data/twdemcEx1.RData")
 

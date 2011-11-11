@@ -53,7 +53,7 @@ test.updatedInvocation <- function(){
 	expNSteps <- 60/.thin+1
 	checkEquals(expNSteps, nrow(res$rLogDen) )
 	#checkEquals(c(1,4*.nPops), dim(res$resFLogDenX) )
-	checkEquals(c(2,4*.nPops), dim(res$resFLogDenX) )
+	checkEquals(c(2,expNSteps,4*.nPops), dim(res$resFLogDen) )
 	#matplot((res$Y["a",,,drop=TRUE]),type="l")
 	
 	#mtrace(twRunDEMC)
@@ -65,7 +65,7 @@ test.updatedInvocation <- function(){
 	expNSteps <- (60+30)/.thin+1
 	checkEquals(expNSteps, nrow(res2$rLogDen) )
 	#checkEquals(0, length(res2$resFLogDenX) )	# not influencee by intResCompNames any more
-	checkEquals(c(2,4*.nPops), dim(res$resFLogDenX) )
+	checkEquals(c(2,expNSteps,4*.nPops), dim(res2$resFLogDen) )
 	#matplot((res2$Y["a",,,drop=TRUE]),type="l")
 	
 	#mtrace(twRunDEMC)

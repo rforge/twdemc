@@ -16,12 +16,6 @@ test.getSubSpaces04 <- function(){
 	subSpaces <- getSubSpaces(aSample, minPSub=0.4 )
 	str(subSpaces)
 	checkEquals( length(subSpaces$spaces),2,"expected two subspaces with minPSub=0.4")
-	checkEquals( subSpaces$jVars, c(1,2),"without breakEarly=FALSE jVars should not have been reordered")
-	
-	subSpaces <- getSubSpaces(aSample, minPSub=0.4, isBreakEarly=FALSE )
-	str(subSpaces)
-	checkEquals( length(subSpaces$spaces),2,"expected two subspaces with minPSub=0.4")
-	checkEquals( subSpaces$jVars, c(2,1),"with breakEarly=FALSE jVars should have been reordered")
 }
 
 test.getSubSpaces005 <- function(){

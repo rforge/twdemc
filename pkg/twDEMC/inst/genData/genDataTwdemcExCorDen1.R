@@ -9,8 +9,8 @@ Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nP
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))
 
-den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
-den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=1000, fLogDen=den2dCor, nPops=.nPops )
+den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
 den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
 str(den2dCorTwDEMC)
 
@@ -18,9 +18,11 @@ str(den2dCorTwDEMC)
 	rescoda <- as.mcmc.list(den2dCorTwDEMC)
 	rescoda <- as.mcmc.list(den2dCorTwDEMC3)
 	plot(rescoda, smooth=FALSE)
+	ss <- stackChains(den2dCorTwDEMC)
 	ss <- stackChains(den2dCorTwDEMC3)
 	plot(density(ss[,"a"]))
-	plot( b ~ a, as.data.frame(ss0), xlim=c(-0.5,2), ylim=c(-20,40) ); 
+	plot( b ~ a, as.data.frame(ss) ); 
+	plot( b ~ a, as.data.frame(ss), xlim=c(-0.5,2), ylim=c(-20,40) ); 
 	points(0.8, 0, col="red" )	# theoretical maximum
 }
 

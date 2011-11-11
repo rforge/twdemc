@@ -36,6 +36,10 @@
 	twUtestF(constrainNStack)
 	twUtestF("initZ")
 	twUtestF("S3twDEMC")
+	
+	twUtestF(findSplit)
+	twUtestF(getSubSpaces)
+	twUtestF(findSplit)
 }
 
 .tmp.inlinedocs <- function(){

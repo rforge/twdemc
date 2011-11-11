@@ -59,11 +59,10 @@ setMethodS3("subChains","twDEMC", function(
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
+		res$resFLogDen <- x$resFLogDen[,,iChains, drop=FALSE]
 		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
 		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
 		res$thin <- x$thin
-		if( 0 < length(x$resFLogDenX))
-			res$resFLogDenX <- x$resFLogDenX[,iChains, drop=FALSE]
 		if( 0 < length(x$Y))
 			res$Y <- x$Y[,,iChains, drop=FALSE]
 		res$thin <- x$thin
@@ -246,7 +245,7 @@ setMethodS3("getNSamples","twDEMC", function(
 
 
 setMethodS3("replacePops","twDEMC", function( 
-		### replaces several populations by toher ones
+		### replaces several populations by other ones
 		x
 		,xNew
 		,iPops 
@@ -270,10 +269,9 @@ setMethodS3("replacePops","twDEMC", function(
 		iChains <- matrix(1:nChains, nrow=nChainsPop)[,iPops]
 		res$temp[,iPops] <- xN$temp
 		res$parms[,,iChains] <- xN$parms
+		res$resFLogDen[,,iChains] <- xN$resFLogDen
 		res$rLogDen[,iChains] <- xN$rLogDen 
 		res$pAccept[,iChains] <- xN$pAccept
-		if( 0 < length(x$resFLogDenX))
-			res$resFLogDenX[,iChains] <- xN$resFLogDenX
 		if( 0 < length(x$Y))
 			res$Y[,,iChains] <- xN$Y
 		res
@@ -324,16 +322,9 @@ setMethodS3("subset","twDEMC", function(
 	## \code{\link{subChains.twDEMC}}
 	if( is.logical(boKeep) )
 		boKeep <- rep(boKeep,length.out=nrow(x$rLogDen) )
-	if( 0 < length(x$resFLogDenX)){
-		##details<< 
-		## If last row is dropped then all components of resFLogDenX are set to -Inf
-		## This ensures that it LogDen for last state is recalculated if object is used again in twDEMC
-		# heed negative numeric indices, hence first construct positive indices
-		if( !(nrow(x$rLogDen) %in% (1:nrow(x$rLogDen))[boKeep]) )
-			x$resFLogDenX[] <- -Inf
-	}
 	x$parms <- x$parms[,boKeep,, drop=FALSE] 
 	x$rLogDen <- x$rLogDen[boKeep,, drop=FALSE] 
+	x$resFLogDen <- x$resFLogDen[,boKeep,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,, drop=FALSE]
 	if( !is.null(x$temp))
 		if( is.null(ncol(x$temp)) )
@@ -434,13 +425,12 @@ setMethodS3("combinePops","twDEMC", function(
 		dimnames(res$Y) <- dimnames(x$Y)
 	}
 	res$rLogDen <- abind( lapply(.pops, function(psr){psr$rLogDen}) )
-	if( 0 < length(x$resFLogDenX))
-	res$resFLogDenX <- abind( lapply(.pops, function(psr){psr$resFLogDenX}) )
-	names(dimnames(res$resFLogDenX)) <- names(dimnames(.pops[[1]]$resFLogDenX))
+	res$resFLogDen <- abind( lapply(.pops, function(psr){psr$resFLogDen}) )
+	res$nGenBurnin <- sapply(.pops, "[[", "nGenBurnin") 
 	res$pAccept <- abind( lapply(.pops, function(psr){psr$pAccept}) )
 	res$thin <- x$thin
 	res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
-	for( i in c("parms","rLogDen","pAccept","temp") )
+	for( i in c("parms","rLogDen","resFLogDen","pAccept","temp") )
 		dimnames(res[[i]]) <- dimnames(x[[i]])
 	if( !doKeepBatchCall ) attr(res,"batchCall") <- NULL	#keep the 
 	res
