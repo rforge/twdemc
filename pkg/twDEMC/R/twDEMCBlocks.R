@@ -205,12 +205,16 @@ twDEMCBlockInt <- function(
 			res
 	})
 
-	res <- lapply( iPops, function(iPop){ list(
-			Z = ZPops[[iPop]]
-			,temp = temp[[iPop]]
-			,resLogDen = resLogDen[[iPop]]
-			,logDen = logDen[[iPop]]
-		)})
+
+	#-- return
+	##value<< a list of populations, each entry is a list
+	res <- lapply( iPops, function(iPop){ list( 
+			##describe<<
+			Z = ZPops[[iPop]]			##<< numeric array (steps x parms x chains): collected states, including the initial states
+			,temp = temp[[iPop]]		##<< numeric vector: global temperature, i.e. cost reduction factor 
+			,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
+			,logDen = logDen[[iPop]]	##<< numberic array (steps x block x chains): results summed over blocks
+		)}) ##end<<
 }
 attr(twDEMCBlockInt,"ex") <- function(){
 	data(twLinreg1); attach( twLinreg1 ) 
