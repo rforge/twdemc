@@ -161,7 +161,7 @@ twDEMCInt <- function(
 	if( any(""==names(.dots)) || length(names(.dots))!=length(.dots) )
 		stop("twCalcLogDenInt: encountered unnamed argument in ... Check for <- and ,, in list()")
 	
-	if( !hasArg(controlTwDEMC) ) controlTwDEMC <- list()	#??? why does =list() in declaration ot work
+	#if( !hasArg(controlTwDEMC) ) controlTwDEMC <- list()	#??? why does =list() in declaration not work
 	if( !all(names(controlTwDEMC) %in% names(ctrl)) ){
 		warning(paste("unknonw entries",paste(names(controlTwDEMC)[which(!(names(controlTwDEMC) %in% names(ctrl)))],collapse=","),"in controlTwDEMC"))
 	}
@@ -173,7 +173,7 @@ twDEMCInt <- function(
 	nGen = max(nThinnedGen * ctrl$thin,1)  #number of generations in this batch (do not need to move behind last thinning interval)
 	Nz <- d$gen+(nThinnedGen)			   #number of rows in Z after batch
 	Z <- array(NA, dim=c(d=d$parms,nStep=Nz,nChain=d$chains), dimnames=dimnames(Zinit) )
-	Zres <- array(NA, dim=c(d=d$parms,nStep=Nz,nChain=d$chains), dimnames=dimnames(Zinit) )
+	#Zres <- array(NA, dim=c(d=d$parms,nStep=Nz,nChain=d$chains), dimnames=dimnames(Zinit) )
 	if( is.null(dimnames(Z))) dimnames(Z) = list( parms=paste("p",1:d$parms,sep="_"), steps=NULL, chains=NULL )
 	rLogDen = pAccept = matrix(NA,nrow=Nz, ncol=d$chains)
 	temp =  matrix(NA, nrow=Nz, ncol=nPops)
