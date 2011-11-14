@@ -81,6 +81,6 @@
 	file.copy( Sys.glob(file.path("inst","genData","*.Rd")), "man" )	# copy descriptions of data
 }
 
-#R CMD check --no-vignettes --no-latex --no-install twDEMC
-#R CMD check --no-vignettes --no-latex --no-codoc twDEMC
+#R CMD check --no-vignettes --no-manual --no-install twDEMC
+#R CMD check --no-vignettes --no-manual --no-codoc twDEMC
 #R CMD INSTALL --html twDEMC

@@ -31,7 +31,6 @@ attr(den2dCor,"ex") <- function(){
 
 	image( gridx, gridy,  mLuden, col = rev(heat.colors(100)), xlab="a", ylab="b" )
 	xyMax <- c(x=gridx[ imax[1] ], y=gridy[ imax[2] ])
-	points(   )
 	
 	image( gridx, gridy,  matrix(exp(luden),nrow=length(gridx)), col = rev(heat.colors(100)), xlab="a", ylab="b" )
 	points( gridx[ imax[1] ], gridy[ imax[2] ]  )

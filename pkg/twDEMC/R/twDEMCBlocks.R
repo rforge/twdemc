@@ -2,11 +2,12 @@ twDEMCBlockInt <- function(
 	### Differential Evolution Markov Chain with blocked parameter update
 	pops = list( list( ## list of population infos for each population, each info is list with components
 		##describe<<
-		Zinit		##<< list of matrices (nParm x nState x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
+		Zinit		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
 		, nGen = 10	##<< number of generations, i.e. steps to proceed
 		, T0=1		##<< initial temperature
 		, Tend=1	##<< end temperature
-		, X=Zinit[,ncol(Zinit),] ##<< numeric matrix (nParm x nChain) initial state
+		, Tprop=NULL	##<< temperature proportions of result components
+		, X=NULL		##<< numeric matrix (nParm x nChain) initial state
 		, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 	)) ##end<<
 	, blocks = list( list( ##<< list of parameter blocks, each block is list with entries
@@ -31,10 +32,10 @@ twDEMCBlockInt <- function(
 				### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
 			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
 		)) ##end<<
+	, nGen = 10			##<< number of generations, default, if not given in pops[[i]] description
 	, controlTwDEMC = list()	##<< DEMCzsControl parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
 	, remoteDumpfileBasename=NULL	##<< the basename of a dumpfile that is created on error on remote process 
-	, nPops = 1						##<< the number of populations that do not mix: must be a factor of dimension nChains of Zinit
 	, fDiscrProp=NULL				##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
 	, argsFDiscrProp=list()			##<< further arguments to fDiscrProp
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
@@ -49,12 +50,13 @@ twDEMCBlockInt <- function(
 	if( sort(sapply(blocks,"compPos")) != 1:d$parms ) stop("union of all blocks must equal rows of Zinit")
 	
 	ctrl = list( 
-		F = 2.38, 		##<< related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult 
-		pSnooker= 0.1,	##<< probability of a snooker update (others parallel updates)
+		thin = 4 	   	##<< thinning interval	 
+		,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change		
+		,F = 2.38 		##<< related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult 
+		,pSnooker= 0.1,	##<< probability of a snooker update (others parallel updates)
 		pGamma1 = 0.1,	##<< probability of jumping to state of another chain (different modes)
 		epsMult =0.2,	##<< >0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update 
 		epsAdd = 0,	   	##<< >0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update. 
-		thin = 4, 	   	##<< thinning interval	 
 		pAcceptWindowWidth = 256, ##<< number of generations back over which the acceptance rate is calculated
 		probUpDir=0.5 	##<< probability of direction between two states of increasing Density (increase during burin may accelerate convergence)
 		,initialAcceptanceRate=rep(0.25,nChains)	##<< numeric vector (nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from
@@ -110,18 +112,64 @@ twDEMCBlockInt <- function(
 	# one temperature per populations 
 	temp =  matrix(NA_real_, nrow=Nz, ncol=nPops)
 	# one rLogDen per chain and per block
-	rLogDen = pAccept = array(NA_real_, dim=c(Nz, nChains, nBlock)
-		, dimnames=list(steps=NULL, chains=NULL, block=NULL) )
+	rLogDen = pAccept = array(NA_real_, dim=c(Nz, nBlock, nChains)
+		, dimnames=list(steps=NULL, block=NULL, chains=NULL) )
 	# several resLogDen per chain (blocks are concatenated)
-	resLogDen = array( NA_real_, dim=c(nResComp, Nz, nChains)
-		,dimnames=list(resComp=resCompNamesFlat, steps=NULL, chains=NULL)) 
+	resLogDen = array( NA_real_, dim=c(Nz, nResComp, nChains)
+		,dimnames=list(steps=NULL, resComp=resCompNamesFlat, chains=NULL)) 
 	
 	
 	
 	
-	
+	NULL
 }
 attr(twDEMCBlockInt,"ex") <- function(){
+	data(twLinreg1); attach( twLinreg1 ) 
+	
+	# run with saving a restart file each 50 generations
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,				### vector of data to compare with
+		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		xval=xval
+	)
+	argsFLogDenA <- c( argsFLogDen, list(
+		thetaPrior= thetaTrue["a"],	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
+	))
+	argsFLogDenB <- c( argsFLogDen, list(
+			thetaPrior= thetaTrue["b"],	### the prior estimate of the parameters
+			invCovarTheta = invCovarTheta[2,2,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
+		))
+	
+	.nPops=2
+	Zinit <- ZinitPops <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=4*.nPops, nPops=.nPops)
+	pops <- list(
+		pop1 <- list(
+			Zinit = ZinitPops[,1:3,1:4,drop=FALSE]	# the first population with less initial conditions
+			,nGen=10
+			),
+		pop2 <- list(
+			Zinit = ZinitPops[,1:4,5:8,drop=FALSE]	# the first population with less initial conditions
+			,nGen=15
+		)
+		)
+	tmp <- .checkPop(pops[[1]])
+	
+	res <-  twDEMCBlockInt( Zinit=Zinit, nGen=60,	nPops=.nPops
+		, fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
+		, nBatch=50	# save each 50 generations
+	)
+	
+	# load the restart file and continue
+	load( file=restartFilename )	# variable resRestart.twDEMC
+	getNGen(resRestart.twDEMC)		# 48, last thinnging interval (each thin=4) before 50
+	res2 <- twDEMCBatch(resRestart.twDEMC)	# continue without needing to respecify parameters
+	getNGen(res2)					# 60 as nGen
+	res3 <- twDEMCBatch(res2, nGen=100)	    # continue even further without needing to respecify parameters
+	getNGen(res3)					# 100 as nGen
+	
+	detach()
 	
 }
 
@@ -131,6 +179,23 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	,iBlock
 ){
 	paste(resCompNames,iBlock,sep="_")
+}
+
+.checkPop <- function(
+	### filling default values in pop description
+	pop
+	,nGenDefault=10
+){
+	##details<<
+	## If several entries are null, they are set to default values
+	if( is.null(pop$Zinit) || !is.numeric(pop$Zinit) || length(dim(pop$Zinit)) != 3 )
+		stop(".checkPop: entry Zinit must be a numeric 3D array")
+	if( is.null(pop$nGen) ) pop$nGen <- nGenDefault
+	if( is.null(pop$T0) ) pop$T0 <- 1
+	if( is.null(pop$Tend) ) pop$Tend <- 1
+	if( is.null(pop$X) ) pop$X <- pop$Zinit[,ncol(pop$Zinit),]
+	### pop with entries nGen, T0, Tend and X defined 
+	pop	
 }
 
 updateBlockDEMC <- function(
