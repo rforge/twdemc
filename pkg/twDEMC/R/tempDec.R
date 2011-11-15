@@ -17,6 +17,24 @@ attr(calcDEMCTemp,"ex") <- function(){
 	plot( 1:100, calcDEMCTemp(T0=100,Tend=5,nGen=100) )	
 }
 
+calcComponentTemp <- function(
+	### calculating the temperature of result components of logDensity
+	temp	##<< numeric scalar >= 1: global temperature
+	,TFix	##<< named vector: temperature for the components that does not change but is held fixed
+	,Tprop	##<< named numeric vector [0,1]: temperature proportions of result components determines names and lenght of result
+	,useMultiT=TRUE	##<< if set to FALSE only only global temperatue and TFix are applied
+	,posTFix=match(names(TFix),names(Tprop)) ##<< position index of TFix in vector of temperatures, specifiy for performance
+){
+	Ti <- if( useMultiT){
+			structure( pmax(1, temp*Tprop), names=names(Tprop))
+		}else{
+			structure(rep(temp,length(Tprop)),names=names(Tprop))
+		}
+	if( 0 < length(posTFix)){ Ti[posTFix] <- TFix	}
+	Ti
+}
+
+
 
 
 
