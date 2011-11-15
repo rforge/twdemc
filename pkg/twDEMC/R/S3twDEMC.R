@@ -505,7 +505,7 @@ mcmcListApply <- function(
 
 
 popMeansTwDEMC <- function( 
-	### Calculating population means across chains, and smooth time series.
+	### Calculating population means across chains within each population, and smooth time series.
 	x				##<< a matrix with columns chains
 	,nPops			##<< number of populations 
 	,kSmooth=NULL	##<< weights to the filter function, or just number of points
@@ -528,8 +528,8 @@ popMeansTwDEMC <- function(
 		if( length(kSmooth)==1) kSmooth=rep(1/kSmooth,kSmooth)
 		xPop <- filter(xPop,kSmooth)
 	}
+	### matrix of dim( nrow(x) x nPops ) with rowMeans across chains of one population.
 	if( boMat) xPop else as.vector(xPop)
-	###
 }
 attr(popMeansTwDEMC,"ex") <- function(){
 	data(twdemcEx1)

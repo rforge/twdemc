@@ -76,6 +76,7 @@ twDEMCBlockInt <- function(
 	nGenPops <- sapply( pops, "[[", "nGen")
 	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 1 )	#number of thinning intervals 
 	nGenPops = nThinnedGenPops * ctrl$thin  #number of generations in this batch (do not need to move behind last thinning interval)
+	Nz <- M0Pops +(nThinnedGenPops)			   #number of rows in Z after batch
 	XPops <- lapply( pops, "[[", "X" )
 	XChains <- do.call(cbind,XPops)
 	logDenCompXPops <- lapply( pops, "[[", "logDenCompX" ) # see initial states for initializing missing entries
@@ -88,6 +89,16 @@ twDEMCBlockInt <- function(
 	compPosBlock <- lapply( blocks, "[[", "compPos" ) # already transformed to positions in .checkBlock
 	if( (length(compPosBlock) != nParm) || !all.equal( sort(do.call(c,compPosBlock)), 1:nParm, check.attributes = FALSE) ) 
 		stop("union of all blocks must equal parameters (columns of Zinit)")
+	
+	#-- initialize further parameters to parallel and snooker steps
+	ctrl$Npar12  =(nParm - 1)/2  # factor for Metropolis ratio DE Snooker update
+	ctrl$F2 = ctrl$F/sqrt(2*nParm)
+	ctrl$F1 = 1
+	ctrl$gInd <- ctrl$nPastGen*nParm/nChainPop	#number of independent generations to sample from, similarly to M0 (usually ctrl$nPastGen=10)
+	# terBraak report that may not sample the distribution, if not using the full past
+	# but together with decreasing temperature acceptance rate drops very low
+	# hence constrain to the past during burnin
+	
 
 	#-- evaluate logDen of initial states and get names of the result components
 	##details<< \describe{ \item{Initial state: \code{X}}{
@@ -163,7 +174,7 @@ twDEMCBlockInt <- function(
 		}
 	} #iBlock
 
-	#-- make unique resCompNames
+	#-- make unique resCompNames and calculate positions in resCompNames of results of different blocks
 	resCompNamesOrig <- lapply( blocks, "[[", "resCompNames" )
 	resCompNamesUnique <- lapply( iBlocks, function(iBlock){ 
 			.getRescompNameBlock(resCompNamesOrig[[iBlock]], iBlock)
@@ -177,43 +188,94 @@ twDEMCBlockInt <- function(
 	}
 		
 	
+	#-- calculate temperature steps: exponentially decreasing from T0 to Tend
+	# temperature for T0 and then for each (unthinned) generation
+	temp <- lapply( iPops, function(iPop){
+			c( pops[[iPop]]$T0, pmax(1,calcDEMCTemp( pops[[iPop]]$T0, pops[[iPop]]$Tend, nGenPops[iPop] )) )			
+		})
+	
+	#-- setup acceptance rate recording
+	# number of requried independent generations to choose from (10*d independent states: TerBraak06 TerBraak08) devided by number of chains
+	if( length(ctrl$initialAcceptanceRate) == 1)
+		ctrl$initialAcceptanceRate <- matrix(ctrl$initialAcceptanceRate, nrow=nBlock, ncol=nChain, dimnames=list(blocks=NULL, chains=NULL) )
+	if( !is.matrix(ctrl$initialAcceptanceRate) || dim(ctrl$initialAcceptanceRate) != c(nBlock,nChain))
+		stop("ctrl$initialAcceptanceRate must be matrix of dim nBlock x nChain")
+	arPops <- apply(popMeansTwDEMC(ctrl$initialAcceptanceRate, nPop),1,pmax, 1/ctrl$thin) # current acceptance rate of population
+	#nGenBack <- pmin(mZ,ceiling(ctrl$rIndToAcc * ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one
+	arMinPops <- apply(arPops,2,min)	# minimum of acceptance rate across blocks for each population
+	nGenBackPops <- pmin(M0Pops,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(arMinPops * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
+	##details<< \describe{ \item{Acceptance rate}{
+	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth generations. \cr
+	## If acceptance rates drops to low values, this might be because of bad localization
+	## ,i.e the requirement to use states from more distant past.
+	## In order to improve localization, less parameters or more chains per population are required.
+	## }}
+	# acceptWindow holds the number of accepted steps for each thinning interval for each chain
+	# if its boundaries are filled up, the last nGenBack states are copied to the first interval
+	aThinWinW <- ctrl$pAcceptWindowWidth %/% ctrl$thin	# number of thinning intervals over which to calculate average acceptance rate
+	ctrl$pAcceptWindowWidth <- aThinWinW * ctrl$thin
+	# acceptWindow records number of accepted steps in thinnging interval
+	#acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainsPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
+	acceptWindow <- array( rep(ctrl$thin*ctrl$initialAcceptanceRate, each=2*aThinWinW)
+	, dim=c(2*aThinWinW, dim(ctrl$initialAcceptanceRate) ) 
+	, dimnames=c(list(steps=NULL),dimnames(ctrl$initialAcceptanceRate)) )	#record number of accepted steps in thinning interval
+	
 	#-- preallocate output of parameters, calculated LogDen, indices of accepted steps, and next proposal
-	Nz <- M0Pops +(nThinnedGenPops)			   #number of rows in Z after batch
+	# need lists for populations because Nz (number of samples including intial population ) and nGen (samlples without initial) and nThinnedGen is differ across populations in general	
 	ZPops <- lapply( iPops, function(iPop){
-			dNames <- if( !is.null(dimnames(ZinitPops[[iPop]])) ) dimnames(ZinitPops[[iPop]]) else list( steps=NULL, parms=paste("p",1:nParm,sep="_"), chains=NULL )
+			dNames <- if( !is.null(dimnames(ZinitPops[[iPop]])) ) dimnames(ZinitPops[[iPop]]) else list( samples=NULL, parms=paste("p",1:nParm,sep="_"), chains=NULL )
 			Z <- array(NA_real_, dim=c(Nz[iPop],nParm,nChainPop), dimnames=dNames)
 			Z[1:M0Pops[iPop],,] <- ZinitPops[[iPop]]
 			Z
 		})
-	# need lists for populations because Nz (number of samples) is different in general	
-	# one temperature per populations 
-	temp <- lapply(iPops, function(iPop){ vector("numeric", Nz[iPop]) })
 	# several resLogDen per chain (blocks are concatenated)
 	resLogDen = lapply(iPops,function(iPop){ res <- array( NA_real_
-				, dim=c(Nz[iPop], nResComp, nChainPop)
-				, dimnames=list(steps=NULL, resComp=resCompNamesFlat, chains=NULL))
-				res[M0Pops[iPop],,] <- logDenCompXPops[[iPop]]
-				res
+				, dim=c(1+nThinnedGenPops[iPop], nResComp, nChainPop)
+				, dimnames=list(stepsThin=NULL, resComp=resCompNamesFlat, chains=NULL))
+			res[1,,] <- logDenCompXPops[[iPop]]
+			res
 		}) 
 	# one rLogDen per chain and per block
-	logDen <- pAccept <- lapply(iPops, function(iPop){	res <- array(NA_real_
-			, dim=c(Nz[iPop], nBlock, nChainPop) 
-			, dimnames=list(steps=NULL, block=NULL, chains=NULL) )
+	logDen <- lapply(iPops, function(iPop){	res <- array(NA_real_
+				, dim=c(1+nThinnedGenPops[iPop], nBlock, nChainPop) 
+				, dimnames=list(stepsThin=NULL, block=NULL, chains=NULL) )
 			for( iChainPop in 1:nChainPop)
 				for( iBlock in 1:nBlock )
-					res[ M0Pops[iPop],iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompNamesPos[[iBlock]],iChainPop ])
+					res[ 1,iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompNamesPos[[iBlock]],iChainPop ])
 			res
-	})
-
-
+		})
+	pAccept <- logDen
+	for( iPop in iPops ){
+		pAccept[[iPop]][1,,] <- ctrl$initialAcceptanceRate[,chainsPop[[iPop]] ]
+	}
+	#pAccept[1,,] <- NA_real_ 	# TODO: initialize acceptance rate
+	# record of proposals and fLogDen results, rows c(accepted, parNames, resCompNames, rLogDen)
+	# if doRecordProposals is FALSE record only the thinning intervals for the last 128 generations
+	# +1 for the initial state
+	nThinLastPops <- if(doRecordProposals) nThinnedGenPops else pmin(nThinnedGenPops, ceiling(128/ctrl$thin))
+	nThinOmitRecordPops = nThinnedGenPops-nThinLastPops	#the Thinning intervals with no recording of outputs
+	nGenOmitRecordPops = nThinOmitRecordPops*ctrl$thin
+	nGenYPops <- nThinLastPops*ctrl$thin #+1?
+	YPops <- lapply(iPops, function(iPop){ res <- array( NA_real_ 
+				, dim=c( nGenYPops[iPop], nParm+nBlock+nResComp, nChainPop)
+				, dimnames=list(steps=NULL, vars=c(rownames(XPops[[iPop]]),paste("accepted",iBlocks,sep=""),colnames(resLogDen[[iPop]])), chains=NULL ) )
+			if( nGenYPops[iPop] == nGenPops[iPop] ) # record first state as accepted
+				res[1,,] <- rbind( XPops[[iPop]], matrix(TRUE, nrow=nBlock, ncol=nChainPop), logDenCompXPops[[iPop]] )
+			res
+		})
+	
+	
+	
 	#-- return
 	##value<< a list of populations, each entry is a list
 	res <- lapply( iPops, function(iPop){ list( 
 			##describe<<
 			Z = ZPops[[iPop]]			##<< numeric array (steps x parms x chains): collected states, including the initial states
-			,temp = temp[[iPop]]		##<< numeric vector: global temperature, i.e. cost reduction factor 
+			,temp = temp[[iPop]]		##<< numeric vector: global temperature, i.e. cost reduction factor
+			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains
 			,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
 			,logDen = logDen[[iPop]]	##<< numberic array (steps x block x chains): results summed over blocks
+			,Y = YPops[[iPop]]
 		)}) ##end<<
 }
 attr(twDEMCBlockInt,"ex") <- function(){
@@ -229,6 +291,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		pop2 <- list(
 			Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 			,nGen=15
+			,T0=10
 		)
 	)
 	#tmp <- .checkPop(pops[[1]])
@@ -274,7 +337,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	
 	#mtrace(twDEMCBlockInt)
 	res <- twDEMCBlockInt( pops=pops, blocks=blocks, nGen=60)
-	str(res[[1]])
+	str(res[[2]])
+	#plot(res[[2]]$temp)
 	
 	# load the restart file and continue
 	load( file=restartFilename )	# variable resRestart.twDEMC
