@@ -10,26 +10,31 @@ twDEMCBlockInt <- function(
 		, X=NULL		##<< numeric matrix (nParm x nChain) initial state
 		, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 	)) ##end<<
+	, fLogDenInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
+			##describe<<
+			fLogDen=NULL
+			###	\code{function(theta, ...)} calculates a vector of logDensities 
+			### corresponding to different data streams of parameter vector theta 
+			### \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)} 
+			### to handle first steps in Multi-step Metropolis decision internally. 
+			### See details.
+			, compPosDen=1:nrow(pops[[1]]$Zinit)	##<< index or names of the parameter components that are used in this density function 
+			, argsFLogDen=list()	##<< further arguments passed to fLogDen
+			, intResComp=vector("integer",0) 
+			### integer or character vector: indices or names of results components of fLogDen 
+			### that are used for internal Metropolis decisions
+			, fLogDenScale=1 
+			### scalar multiplied to the result of fLogDen 
+			### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
+			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
+		)) ##end<<
 	, blocks = list( list( ##<< list of parameter blocks, each block is list with entries
 			##describe<<
-			, compPos=1:nrow(pops[[1]]$Zinit)	##<< index or names of the parameter components to be updated
-			, fLogDen=NULL
-				###	\code{function(theta, ...)} calculates a vector of logDensities 
-				### corresponding to different data streams of parameter vector theta 
-				### \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)} 
-				### to handle first steps in Multi-step Metropolis decision internally. 
-				### See details.  
+			compPos=1:nrow(pops[[1]]$Zinit)	##<< index or names of the parameter components to be updated
+			, fLogDenInfoPos=1		##<< name or position to \argument{fLogDenInfo}. Several blocks may share the same density but update different parameters
 			, fUpdateBlock=.updateBlockTwDEMC	##<< function to update the parameters
-			, argsFLogDen=list()	##<< further arguments passed to fLogDen
 			, argsFUpdate=list()	##<< further arguments passed to fUpdate
-			, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
-			, intResComp=vector("integer",0) 
-				### integer or character vector: indices or names of results components of fLogDen 
-				### that are used for internal Metropolis decisions
-			, fLogDenScale=1 
-				### scalar multiplied to the result of fLogDen 
-				### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
-			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
+			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
 		)) ##end<<
 	, nGen = 10			##<< number of generations, default, if not given in pops[[i]] description
 	, controlTwDEMC = list()	##<< DEMCzsControl parameters influencing the update and the convergens of the chains (see details)	
@@ -57,7 +62,8 @@ twDEMCBlockInt <- function(
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step
 		,minPCompAcceptTempDecr=0.15  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
-		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population 
+		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population
+		,useMultiT = FALSE	##<< wheter to downscale Temperature of result components during burnin 
 	)  ##end<< 
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
 
@@ -81,6 +87,9 @@ twDEMCBlockInt <- function(
 	XChains <- do.call(cbind,XPops)
 	logDenCompXPops <- lapply( pops, "[[", "logDenCompX" ) # see initial states for initializing missing entries
 	
+	#-- dimensions of fLogDenInfo
+	fLogDenInfos <- lapply(fLogDenInfos, .checkFLogDenInfo, parNames=parNames)
+	
 	#-- dimensions of blocks
 	blocks <- lapply( blocks, .checkBlock, parNames=parNames)
 	nBlock <- length(blocks)
@@ -90,34 +99,8 @@ twDEMCBlockInt <- function(
 	if( (length(compPosBlock) != nParm) || !all.equal( sort(do.call(c,compPosBlock)), 1:nParm, check.attributes = FALSE) ) 
 		stop("union of all blocks must equal parameters (columns of Zinit)")
 	
-	#-- get indices of internal components
-	intResCompBlock <- vector("list",nBlock)
-	for( iBlock in iBlocks ){
-		block = blocks[[iBlock]]
-		intResCompBlockI <- block$intResComp
-		if( is.character(intResCompBlockI) ){
-			resI <- blocks[[iBlock]]$intResComp <- match(intResCompBlockI, block$resCompNames )
-			if( any(is.na(resI)))
-				stop(paste("not all names of intResCompNames (",paste(intResCompBlockI,collapse=","),") in return of fLogDen: ",paste(block$resCompNames,collapse=",")))
-		}
-		intResCompBlock[[iBlock]] <- blocks[[iBlock]]$intResComp
-	} #iBlock
-	
-	#-- proportions of temperature numeric matrix (comp x populations) for temperature varying across data streams
-	# XXTODO
-	tmp.f <- function(){
-		Tprop=matrix(1, nrow=nrow(logDenCompX), ncol=nPop, dimnames=dimnames(logDenCompX))
-		if( length(ctrl$Tprop) > 1){
-			if( !is.matrix(ctrl$Tprop) )
-				ctrl$Tprop <- matrix( ctrl$Tprop, nrow=nrow(logDenCompX), ncol=nPop, dimnames=dimnames(logDenCompX) )
-			Tprop <- ctrl$Tprop[ .getResFLogDenNames(logDenCompX[,1]), ,drop=FALSE]
-			if( nrow(Tprop) != nrow(logDenCompX))
-				stop("ctrl$Tprop must have a named entry for each component of fLogDen")
-			Tprop[] = apply(Tprop,2,function(Tprop){Tprop / max(Tprop)}) #scale to maximum 1 per population
-		}
-	}
-	
 	#-- initialize further parameters to parallel and snooker steps
+	# that depend on pops (nParm, nChainPop)
 	ctrl$Npar12  =(nParm - 1)/2  # factor for Metropolis ratio DE Snooker update
 	ctrl$F2 = ctrl$F/sqrt(2*nParm)
 	ctrl$F1 = 1
@@ -126,7 +109,7 @@ twDEMCBlockInt <- function(
 	# but together with decreasing temperature acceptance rate drops very low
 	# hence constrain to the past during burnin
 	
-
+	
 	#-- evaluate logDen of initial states and get names of the result components
 	##details<< \describe{ \item{Initial state: \code{X}}{
 	## If initial state X is not specified, the last column (generation) of Z is utilized.
@@ -141,9 +124,9 @@ twDEMCBlockInt <- function(
 				cbind(iPop=iPop,iChainInPop=1:nChainPop)
 			} ))
 	missingPopInfo <- rbind( missingPopInfo, do.call( rbind, lapply( iNonMissingPops, function(iPop){
-				chainIsAllFinite <- apply( logDenCompXPops[[iPop]], 2, all, is.finite )
-				cbind(iPop=iPop,iChainInPop=which(chainIsAllFinite))
-			})))
+					chainIsAllFinite <- apply( logDenCompXPops[[iPop]], 2, all, is.finite )
+					cbind(iPop=iPop,iChainInPop=which(chainIsAllFinite))
+				})))
 	if( 0 < nrow(missingPopInfo) ){
 		# evaluate logDen for those
 		missingPopInfo <- cbind(missingPopInfo, iChain=(missingPopInfo[,"iPop"]-1)*nChainPop + missingPopInfo[,"iChainInPop"])
@@ -204,7 +187,37 @@ twDEMCBlockInt <- function(
 		tmp.start <- cumsum(tmp.length)-tmp.length[1]
 		tmp.i <- lapply(iBlocks,function(iBlock){ tmp.start[iBlock]+1:tmp.length[iBlock] })
 	}
-		
+	
+	#-- get indices of internal components and TFix (intResCompPos and posTFix) 
+	# depends on proper resCompNames (inferred from invoking fLogDen with initial states)
+	intResCompBlock <- vector("list",nBlock)
+	for( iBlock in iBlocks ){
+		block = blocks[[iBlock]]
+		blocks[[iBlock]]$posTFix <- match( names(block$TFix), block$resCompNames )
+		intResCompBlockI <- block$intResComp
+		if( is.character(intResCompBlockI) ){
+			resI <- blocks[[iBlock]]$intResCompPos <- match(intResCompBlockI, block$resCompNames )
+			if( any(is.na(resI)))
+				stop(paste("not all names of intResCompNames (",paste(intResCompBlockI,collapse=","),") in return of fLogDen: ",paste(block$resCompNames,collapse=",")))
+		} else if( is.integer(intResCompBlockI)){
+			blocks[[iBlock]]$intResCompPos <- intResCompBlockI		
+		}
+		intResCompBlock[[iBlock]] <- blocks[[iBlock]]$intResCompPos
+	} #iBlock
+	
+	#-- proportions of temperature numeric matrix (comp x populations) for temperature varying across data streams
+	# XXTODO
+	tmp.f <- function(){
+		Tprop=matrix(1, nrow=nrow(logDenCompX), ncol=nPop, dimnames=dimnames(logDenCompX))
+		if( length(ctrl$Tprop) > 1){
+			if( !is.matrix(ctrl$Tprop) )
+				ctrl$Tprop <- matrix( ctrl$Tprop, nrow=nrow(logDenCompX), ncol=nPop, dimnames=dimnames(logDenCompX) )
+			Tprop <- ctrl$Tprop[ .getResFLogDenNames(logDenCompX[,1]), ,drop=FALSE]
+			if( nrow(Tprop) != nrow(logDenCompX))
+				stop("ctrl$Tprop must have a named entry for each component of fLogDen")
+			Tprop[] = apply(Tprop,2,function(Tprop){Tprop / max(Tprop)}) #scale to maximum 1 per population
+		}
+	}
 	
 	#-- calculate temperature steps: exponentially decreasing from T0 to Tend
 	# deprecated: temperature for T0 and then 
@@ -291,7 +304,7 @@ twDEMCBlockInt <- function(
 		,fDiscrProp=fDiscrProp
 		,argsFDiscrProp=argsFDiscrProp
 	)
-	# construct an list for each block that includes compPos, TFix and intResComp
+	# construct an list for each block that includes compPos, TFix and intResCompPos
 	argsFUpdateBlocks <- lapply( blocks, function(block){ 
 			c( argsFUpdateDefault, block )
 		})
@@ -362,8 +375,20 @@ twDEMCBlockInt <- function(
 					, lowerParBounds=lowerParBoundsPop[[iPop]]
 			))
 			argsFUpdate <- c( list(Xc, argsFUpdateBlock=argsFUpdateBlock) )
-			Xc <- do.call( block$fUpdateBlock, argsFUpdate )
+			resUpdate <- do.call( block$fUpdateBlock, argsFUpdate )
+			Xc <- resUpdate$x
+			
+			
 		} #iBlock
+		
+		.tmp.f <- function(){
+		for( iPop in which(boRecordProposalsIThinPop) ){
+			# record the initial state of the proposals record
+			YPops[[iPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[iPop]] ]
+			YPops[[iPop]][1,nParm+iBlocks,] <- 1	#TRUE
+			YPops[[iPop]][1,nParm+nBlock+seq_along(resCompNamesFlat),] <- chainState$logDenCompX[ ,chainsPop[[iPop]] ]
+		}
+		}
 		
 	}# for iThin0
 	
@@ -486,26 +511,54 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	pop	
 }
 
-.checkBlock <- function(
-	### filling default values in block description
-	block
+.checkFLogDenInfo <- function(
+	### filling default values in logDenInfos description
+	fLogDenInfo	##<< list to be checked for entries
 	,parNames	##<< variable names
 ){
-	if( 0 == length(block$compPos) ) stop(".checkBlock: entry compPos must be specified, either as index or as variable names")
-	if( 0 == length(block$fLogDen) || !is.function(block$fLogDen)) stop(".checkBlock: entry fLogDen (function of log of unnomalized density) must be specified")
-	cpOrig <- block$compPos
-	if( is.character(cpOrig) ) block$compPos <- match(cpOrig,parNames)
-	if( any(is.na(block$compPos)) ){
-		stop(".checkBlock: some of compPos specified in block are not in varNames of initial values.")
+	if( 0 == length(fLogDenInfo$fLogDen) || !is.function(fLogDenInfo$fLogDen)) stop(".checkLogDenInfo: entry fLogDen (function of log of unnomalized density) must be specified")
+	##details<< if compPosDen is not given, then assume all parameter dimensions are required	
+	if( 0 == length(fLogDenInfo$compPosDen) ) fLogDenInfo$compPosDen <- seq_along(parNames)
+	cpOrig <- fLogDenInfo$compPosDen
+	if( is.character(cpOrig) ) fLogDenInfo$compPosDen <- match(cpOrig,parNames)
+	if( any(is.na(fLogDenInfo$compPosDen)) ){
+		stop(".checkLogDenInfo: some of compPosDen specified in block are not in varNames of initial values.")
 	}
-	if( 0==length(block$fUpdateBlock) ) block$fUpdateBlock <- .updateBlockTwDEMC
-	if( 0==length(block$useMetropolis) ) block$useMetropolis <- TRUE
-	if( 0==length(block$intResCompNames) ) block$intResCompNames <- vector("character",0)
-	if( 0==length(block$fLogDenScale) ) block$fLogDenScale <- 1
-	if( 0==length(block$TFix) ) block$TFix <- vector("numeric",0)
-	block$posTFix <- match( names(block$TFix), block$resCompNames )
+	if( 0==length(fLogDenInfo$intResComp) ) fLogDenInfo$intResComp <- vector("character",0)
+	if( 0==length(fLogDenInfo$fLogDenScale) ) fLogDenInfo$fLogDenScale <- 1
+	if( 0==length(fLogDenInfo$TFix) ) fLogDenInfo$TFix <- vector("numeric",0)
 	
-	### block with entries useMetropolis, intResCompNames, fLogDenScale, TFix, posTFix defined
+	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale, TFix defined
+	fLogDenInfo
+}
+
+
+.checkBlock <- function(
+	### filling default values in block description
+	block				##<< list to be checked for entries
+	,fLogDenInfos		##<< checked list of fLogDeninfo. See the argument in \code{\link{twDEMCBlockInt}}.
+){
+	##details<< if fLogDenInfoId is not specified, assume that it uses the entry in fLogDenInfos	
+	if( 0 == length(block$fLogDenInfoPos) ) block$fLogDenInfoPos=1
+	if( 1 != length(block$fLogDenInfoPos) ) stop(".checkBlock: fLogDenInfoPos must be of length 1.")
+	lpOrig <- block$fLogDenInfoPos
+	if( is.character(lpOrig) ) block$fLogDenInfoPos <- match(lpOrig,names(fLogDenInfoNames))
+	if( any(is.na(block$fLogDenInfoPos)) ){
+		stop(".checkBlock: some of fLogDenInfoPos specified in block are not in names of fLogDenInfo.")
+	}
+	dInfo <- fLogDenInfos[[block$fLogDenInfoPos]]
+	
+	if( 0 == length(block$compPos) ) stop(".checkBlock: entry compPos must be specified, either as index or as variable names")
+	cpOrig <- block$compPos
+	if( is.character(cpOrig) ) block$compPos <- match(cpOrig,parNames[dInfo$compPosDen])
+	if( any(is.na(block$compPos)) ){
+		stop(".checkBlock: some of compPos specified in block are not in compPosDen of fLogDenInfo.")
+	}
+	
+	if( 0==length(block$fUpdateBlock) ) block$fUpdateBlock <- .updateBlockTwDEMC
+	if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdteBlock must be a single function.")
+	
+	### block with entries compPos, fLogDenInfoPos, fUpdateBlock definded
 	block
 }
 
@@ -827,11 +880,12 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	### arguments that do not change between steps: list with components \describe{
 	### \item{step}{proposed jump}
 	### \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
+	### \item{logDenCompAcc}{numeric vector: former result of call to same fLogDen. of length 0 when should be recalculated.}
 	### \item{temp}{global temperature}
 	### \item{TFix}{named numeric vector (comp): components with fixed Temperature}
 	### \item{posTFix}{integer vector (comp): =match(TFix, compNames): positions of TFix within comp provided for performance reasons}
 	### \item{ctrl$useMultiT}{boolean wheter to scale temperature for different data streams}
-	### \item{Tprop}{numeric matrix (comp x pops): proportions of temperature for different data streams}
+	### \item{TProp}{numeric matrix (comp x pops): proportions of temperature for different data streams}
 	### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
 	### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
 	### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
@@ -848,17 +902,18 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	#attach( argsDEMCStep )
 	#stop(".doDEMCStep: stop to trace error in remote R invocation.")
 	with( argsFUpdateBlock, {
-			boResFLogDenX <- (length(posLogDenInt) > 0)
+			boResFLogDenX <- (length(intResCompPos) > 0)
 			# LogDensity of accepted state
 			#La <- logDenCompAcc	#logDensity	components of accepted state
-			La <- fLogDenScale * if(boResFLogDenX){
-					logDenCompInt <- logDenCompAcc[posLogDenInt]
-					TiInt <- Ti[posLogDenInt]
-					do.call( fLogDen, c(list(x, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
-				}else
-					do.call( fLogDen, c(list(x), argsFLogDen) )	# evaluate logDen
+			if( 0 == length(logDenCompAcc)) 			
+				logDenCompAcc <- fLogDenScale * if(boResFLogDenX){
+						logDenCompInt <- logDenCompAcc[intResCompPos]
+						TiInt <- Ti[intResCompPos]
+						do.call( fLogDen, c(list(x, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
+					}else
+						do.call( fLogDen, c(list(x), argsFLogDen) )	# evaluate logDen
 			#assume that all is.finite(logDenCompAcc), make sure in twDEMCInt
-			LaExt <- La
+			LaExt <- La <- logDenCompAcc
 			logDenAcc <- sum(La)
 			##details<< \describe{\item{Temperature proportions}{
 			## If ctrl$useMultiT=TRUE then at high Temperatures, all datastreams are weighted so that 
@@ -872,10 +927,11 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			## Useful for priors: \code{TFix = c(parms=1)}
 			## }}
 			
-			Ti <- fCalcComponentTemp( temp=temp, TFix=TFix, Tprop=Tprop, useMultiT=ctrl$useMultiT,posTFix=posTFix)
+			Ti <- fCalcComponentTemp( temp=temp, TFix=TFix, TProp=TProp, useMultiT=ctrl$useMultiT,posTFix=posTFix)
 			
 			accepted<-FALSE
-			xProp = x + step
+			xProp <- x
+			xProp[compPos] <- xProp[compPos] + step[compPos]  
 			
 			boOutside <- 
 				any( sapply( names(upperParBounds), function(pname){ xProp[pname] > upperParBounds[pname] })) ||
@@ -890,8 +946,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				# discrtize proposal
 				if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
 				Lp <- fLogDenScale * if(boResFLogDenX){
-						logDenCompInt <- logDenCompAcc[posLogDenInt]
-						TiInt <- Ti[posLogDenInt]
+						logDenCompInt <- logDenCompAcc[intResCompPos]
+						TiInt <- Ti[intResCompPos]
 						do.call( fLogDen, c(list(xProp, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
 					}else
 						do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
@@ -911,7 +967,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 					## if posLogDenInt is given, then these components of result of fLogDen are handled
 					## internally. Hence, for Metropolis step here operates only on other remaining components.
 					## }}
-					posTExt <- setdiff( seq_along(Ti), posLogDenInt )		#externally handled components
+					posTExt <- setdiff( seq_along(Ti), intResCompPos )		#externally handled components
 					nExt <- length(posTExt)
 					#posTFixExt <- setdiff(posTFix,posLogDenInt)		#externally handled components with fixed temperature
 					#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogDenInt))	#externally handled componetns with variable temperature
@@ -939,8 +995,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				# only if across parBoundEdge or acceptance rate drops below 1.2*minAcceptrate
 				# repeat all above with delayed rejection (DR) step, only adjust DRfac after calculating Lp
 				Lp1 <- Lp
-				xProp1 <- xProp
-				xProp <- x + ctrl$DRgamma*step
+				xProp1 <- xProp	# former proposal
+				xProp <- x
+				xProp[compPos] <- xProp[compPos] + ctrl$DRgamma*step[compPos]				
 				
 				boOutside <- 
 					any( sapply( names(upperParBounds), function(pname){ xProp[pname] > upperParBounds[pname] })) ||
@@ -948,8 +1005,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				if( !boOutside ){
 					if( is.function(fDiscrProp)) xProp = do.call(fDiscrProp,xProp,argsFDiscrProp, quote=TRUE)
 					Lp <- fLogDenScale * if(boResFLogDenX){
-							logDenCompInt <- logDenCompAcc[posLogDenInt]
-							TiInt <- Ti[posLogDenInt]
+							logDenCompInt <- logDenCompAcc[intResCompPos]
+							TiInt <- Ti[intResCompPos]
 							do.call( fLogDen, c(list(xProp, logDenCompInt, TiInt), argsFLogDen) )	# evaluate logDen
 						}else
 							do.call( fLogDen, c(list(xProp), argsFLogDen) )	# evaluate logDen
@@ -969,7 +1026,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 						## if posLogDenInt is given, then these components of result of fLogDen are handled
 						## internally. Hence, for Metropolis step here operates only on other remaining components.
 						## }}
-						posTExt <- setdiff( seq_along(Ti), posLogDenInt )		#externally handled components
+						posTExt <- setdiff( seq_along(Ti), intResCompPos )		#externally handled components
 						nExt <- length(posTExt)
 						#posTFixExt <- setdiff(posTFix,posLogDenInt)		#externally handled components with fixed temperature
 						#posTVarExt <- setdiff(seq_along(Lp), c(posTFix,posLogDenInt))	#externally handled componetns with variable temperature
