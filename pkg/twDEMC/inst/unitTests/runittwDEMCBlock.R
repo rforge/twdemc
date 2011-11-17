@@ -4,6 +4,19 @@
 # twUtestF(twDEMC, "test_int.goodStartSeqData.plot2d")
 # twUtestF(twDEMC, "dump")
 
+.setUp <- function(){
+	data(twLinreg1)
+	#data(twdemcEx1)
+	attach(twLinreg1)
+	#attach(twdemcEx1)
+}
+
+.tearDown <- function(){
+	detach( twdemcEx1 )
+	detach( twLinreg1 )
+}
+
+
 .tmp.f <- function(){
 	mtrace(logDenGaussian)
 	mtrace(twCalcLogDenPar)
@@ -57,7 +70,7 @@ test.distinctLogDen <- function(){
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.nPops=2
-	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
+	ZinitPops <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
 	#dim(Zinit)
 	#head(Zinit[,,1])
 	pops <- list(
@@ -107,6 +120,8 @@ test.distinctLogDen <- function(){
 	
 	#mtrace(.updateBlockTwDEMC)
 	#mtrace(twDEMCBlockInt)
+	#mtrace(.updateBlocksTwDEMC)
+	#mtrace(.updateIntervalTwDEMCPar)
 	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=60)
 	str(res[[2]])
 	#plot(res[[2]]$temp)
