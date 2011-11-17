@@ -10,7 +10,7 @@ twDEMCBlockInt <- function(
 		, X=NULL		##<< numeric matrix (nParm x nChain) initial state
 		, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 	)) ##end<<
-	, fLogDenInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
+	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
 			##describe<<
 			fLogDen=NULL
 			###	\code{function(theta, ...)} calculates a vector of logDensities 
@@ -28,10 +28,13 @@ twDEMCBlockInt <- function(
 			### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
 			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
 		)) ##end<<
+		### further elements that are calculated are \itemize{
+		###  \item resCompPos: position of the result components in the concatenation across all density functions  
+		### }
 	, blocks = list( list( ##<< list of parameter blocks, each block is list with entries
 			##describe<<
-			compPos=1:nrow(pops[[1]]$Zinit)	##<< index or names of the parameter components to be updated
-			, fLogDenInfoPos=1		##<< name or position to \argument{fLogDenInfo}. Several blocks may share the same density but update different parameters
+			, dInfoPos=1		##<< name or position to \argument{fLogDenInfo}. Several blocks may share the same density but update different parameters
+			, compPos=dInfos[[1]]$compPosDen	##<< names or index of the parameter components to be updated
 			, fUpdateBlock=.updateBlockTwDEMC	##<< function to update the parameters
 			, argsFUpdate=list()	##<< further arguments passed to fUpdate
 			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
@@ -88,16 +91,24 @@ twDEMCBlockInt <- function(
 	logDenCompXPops <- lapply( pops, "[[", "logDenCompX" ) # see initial states for initializing missing entries
 	
 	#-- dimensions of fLogDenInfo
-	fLogDenInfos <- lapply(fLogDenInfos, .checkFLogDenInfo, parNames=parNames)
+	dInfos <- lapply(dInfos, .checkDInfo, parNames=parNames)
+	nDen <- length(dInfos)
+	iDens <- 1:nDen
+	compPosDens <- lapply(dInfos, "[[", "compPosDen") 
 	
 	#-- dimensions of blocks
-	blocks <- lapply( blocks, .checkBlock, parNames=parNames)
+	blocks <- lapply( blocks, .checkBlock, dInfos=dInfos, parNames=parNames)
 	nBlock <- length(blocks)
 	iBlocks <- 1:length(blocks)
 	#block <- blocks[[1]]
+	dInfoPosBlock <- sapply(blocks, "[[", "dInfoPos") 
+	# following refers to position in parNames
 	compPosBlock <- lapply( blocks, "[[", "compPos" ) # already transformed to positions in .checkBlock
-	if( (length(compPosBlock) != nParm) || !all.equal( sort(do.call(c,compPosBlock)), 1:nParm, check.attributes = FALSE) ) 
-		stop("union of all blocks must equal parameters (columns of Zinit)")
+	# following refers to position in dInfo$compPosDen
+	compPosInDenBlock <- lapply( blocks, "[[", "compPosInDen" )
+	# make sure that all parameters are updated at least once
+	if( !all.equal( sort(unique(do.call(c, compPosBlock))), 1:nParm, check.attributes = FALSE) ) 
+		stop("each parameter (columns of Zinit) must be updated in at least one block.")
 	
 	#-- initialize further parameters to parallel and snooker steps
 	# that depend on pops (nParm, nChainPop)
@@ -110,7 +121,8 @@ twDEMCBlockInt <- function(
 	# hence constrain to the past during burnin
 	
 	
-	#-- evaluate logDen of initial states and get names of the result components
+	#-- evaluate logDen of initial states and get names of the result components (dInfo$resCompNames)
+	#XXTODO cycle across dInfo instead of blocks
 	##details<< \describe{ \item{Initial state: \code{X}}{
 	## If initial state X is not specified, the last column (generation) of Z is utilized.
 	## If in addition to X, logDenX is specified as a numeric vector, the fLogDen will not be avaluated for the initial state of the chains.
@@ -131,28 +143,29 @@ twDEMCBlockInt <- function(
 		# evaluate logDen for those
 		missingPopInfo <- cbind(missingPopInfo, iChain=(missingPopInfo[,"iPop"]-1)*nChainPop + missingPopInfo[,"iChainInPop"])
 		XChainsMissing <- XChains[,missingPopInfo[,"iChain"] ]	# initial states of the missings
-		logDenCompBlock <- vector("list", nBlock )		
-		for( iBlock in iBlocks ){
-			block = blocks[[iBlock]]
-			#tmp <- block$fLogDen
-			#tmp2 <- do.call( tmp, c(list(XChainsMissing[,1]),block$argsFLogDen))
+		logDenCompDen <- vector("list", nDen )		
+		for( iDen in iDens ){
+			dInfo = dInfos[[iDen]]
+			#tmp <- dInfo$fLogDen
+			#tmp2 <- do.call( tmp, c(list(XChainsMissing[,1]),dInfo$argsFLogDen))
 			#mtrace(twCalcLogDenPar)
 			.resLogDenPar <- twCalcLogDenPar(
-				fLogDen=block$fLogDen
+				fLogDen=dInfo$fLogDen
 				, xProp=t(XChainsMissing[,,drop=FALSE])
 				, logDenCompX=numeric(0)
-				, argsFLogDen=block$argsFLogDen
-				, fLogDenScale=block$fLogDenScale	
-				, intResCompNames=block$intResCompNames	
+				, argsFLogDen=dInfo$argsFLogDen
+				, fLogDenScale=dInfo$fLogDenScale	
+				#no internal decisions, intResCompNames=dInfo$intResCompNames	
 				, debugSequential=debugSequential
 				, remoteDumpfileBasename=remoteDumpfileBasename 
 			)
 			if( any(!is.finite(.resLogDenPar$logDen)) )
 				stop(paste("twDEMCBlockInt: non-finite logDensity of starting value ",sep=""))
-			blocks[[iBlock]]$resCompNames <- .getResFLogDenNames( t(.resLogDenPar$logDenComp) ) 
-			logDenCompBlock[[iBlock]] <- .resLogDenPar$logDenComp
-		} #iBlock
-		logDenCompXMiss <- do.call( cbind, logDenCompBlock )
+			dInfos[[ iDen ]]$resCompNames <- rcNames <- .getResFLogDenNames( t(.resLogDenPar$logDenComp) ) 
+			dInfos[[ iDen ]]$resCompNamesUnique <- paste(rcNames,iDen,sep="_")  
+			logDenCompDen[[iDen]] <- .resLogDenPar$logDenComp
+		} #iDen
+		logDenCompXMiss <- do.call( cbind, logDenCompDen )
 		for( jPop in seq_along(iMissingPops) ){
 			iPop <- iMissingPops[jPop]
 			iInfo <- which(  missingPopInfo[,"iPop"] == iPop )
@@ -167,43 +180,47 @@ twDEMCBlockInt <- function(
 		}
 	}else{ # any isMissing
 		# no Missings, evaluate fLogDen to obtain result component names
-		for( iBlock in iBlocks ){
-			block = blocks[[iBlock]]
-			.resFLogDen <- do.call( block$resFLogDen, c(list(XChains[,1]),block$argsFLogDen))
-			blocks[[iBlock]]$resCompNames <- .getResFLogDenNames( .resFLogDen ) 
-		} #iBlock
+		for( iDen in iDen ){
+			dInfo = dInfos[[iDen]]
+			.resFLogDen <- do.call( dInfo$resFLogDen, c(list(XChains[,1]),dInfo$argsFLogDen))
+			dInfos[[iDen]]$resCompNames <- rcNames <- .getResFLogDenNames( .resFLogDen ) 
+			dInfos[[ iDen ]]$resCompNamesUnique <- paste(rcNames,iDen,sep="_")  
+		} #iDen
 	}
 	logDenCompXChains <- do.call( cbind, logDenCompXPops )
 	
 	#-- make unique resCompNames and calculate positions in resCompNames of results of different blocks
-	resCompNamesOrig <- lapply( blocks, "[[", "resCompNames" )
-	resCompNamesUnique <- lapply( iBlocks, function(iBlock){ 
-			.getRescompNameBlock(resCompNamesOrig[[iBlock]], iBlock)
-		})
-	resCompNamesFlat <- do.call(c, resCompNamesUnique)	# concatenate names
-	nResComp <- length(resCompNamesFlat)
-	resCompNamesPos <- { # list: for each block: position of resCompNames in resCompNamesFlat
-		tmp.length <- sapply(resCompNamesUnique, length)
+	resCompNamesOrig <- lapply( dInfos, "[[", "resCompNames" )
+	resCompNamesU <- lapply( dInfos, "[[", "resCompNamesUnique" )
+	resCompNamesUFlat <- do.call(c, resCompNamesU)	# concatenate names
+	nResComp <- length(resCompNamesUFlat)
+	resCompNamesPos <- { # list: for each dInfo: position of resCompNames in resCompNamesUFlat
+		tmp.length <- sapply(resCompNamesU, length)
 		tmp.start <- cumsum(tmp.length)-tmp.length[1]
-		tmp.i <- lapply(iBlocks,function(iBlock){ tmp.start[iBlock]+1:tmp.length[iBlock] })
+		tmp.i <- lapply(iDens,function(iDen){ tmp.start[iDen]+1:tmp.length[iDen] })
 	}
+	# store positions in dInfo
+	for( iDen in iDens ){ dInfos[[iDen]]$resCompPos <- resCompNamesPos[[iDen]]	}
+	# update the names in intial conditons to hold unique names
+	rownames(logDenCompXChains) <- resCompNamesUFlat
+
 	
 	#-- get indices of internal components and TFix (intResCompPos and posTFix) 
 	# depends on proper resCompNames (inferred from invoking fLogDen with initial states)
-	intResCompBlock <- vector("list",nBlock)
-	for( iBlock in iBlocks ){
-		block = blocks[[iBlock]]
-		blocks[[iBlock]]$posTFix <- match( names(block$TFix), block$resCompNames )
-		intResCompBlockI <- block$intResComp
+	intResCompDen <- vector("list",nDen)
+	for( iDen in iDens ){
+		dInfo = dInfos[[iDen]]
+		dInfos[[iDen]]$posTFix <- match( names(dInfo$TFix), dInfo$resCompNames )
+		intResCompBlockI <- dInfo$intResComp
 		if( is.character(intResCompBlockI) ){
-			resI <- blocks[[iBlock]]$intResCompPos <- match(intResCompBlockI, block$resCompNames )
+			resI <- dInfos[[iDen]]$intResCompPos <- match(intResCompBlockI, dInfo$resCompNames )
 			if( any(is.na(resI)))
-				stop(paste("not all names of intResCompNames (",paste(intResCompBlockI,collapse=","),") in return of fLogDen: ",paste(block$resCompNames,collapse=",")))
+				stop(paste("not all names of intResCompNames (",paste(intResCompBlockI,collapse=","),") in return of fLogDen: ",paste(dInfo$resCompNames,collapse=",")))
 		} else if( is.integer(intResCompBlockI)){
-			blocks[[iBlock]]$intResCompPos <- intResCompBlockI		
+			dInfos[[iDen]]$intResCompPos <- intResCompBlockI		
 		}
-		intResCompBlock[[iBlock]] <- blocks[[iBlock]]$intResCompPos
-	} #iBlock
+		intResCompDen[[iDen]] <- dInfos[[iDen]]$intResCompPos
+	} #iDen
 	
 	#-- proportions of temperature numeric matrix (comp x populations) for temperature varying across data streams
 	# XXTODO
@@ -248,6 +265,7 @@ twDEMCBlockInt <- function(
 	aThinWinW <- ctrl$pAcceptWindowWidth %/% ctrl$thin	# number of thinning intervals over which to calculate average acceptance rate
 	ctrl$pAcceptWindowWidth <- aThinWinW * ctrl$thin
 	# acceptWindow records number of accepted steps in thinnging interval
+	# (stepslots x blocks x chains)
 	#acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainsPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
 	acceptWindow <- array( rep(ctrl$thin*ctrl$initialAcceptanceRate, each=2*aThinWinW)
 	, dim=c(2*aThinWinW, dim(ctrl$initialAcceptanceRate) ) 
@@ -261,15 +279,24 @@ twDEMCBlockInt <- function(
 			Z[1:M0Pops[iPop],,] <- ZinitPops[[iPop]]
 			Z
 		})
-	# several resLogDen per chain (blocks are concatenated)
+	# several resLogDen per chain (dInfos are concatenated)
 	resLogDen = lapply(iPops,function(iPop){ res <- array( NA_real_
 				, dim=c(1+nThinnedGenPops[iPop], nResComp, nChainPop)
-				, dimnames=list(stepsThin=NULL, resComp=resCompNamesFlat, chains=NULL))
+				, dimnames=list(stepsThin=NULL, resComp=resCompNamesUFlat, chains=NULL))
 			res[1,,] <- logDenCompXPops[[iPop]]
 			res
 		}) 
-	# one rLogDen per chain and per block
+	# one rLogDen per chain and per dInfo
 	logDen <- lapply(iPops, function(iPop){	res <- array(NA_real_
+				, dim=c(1+nThinnedGenPops[iPop], nDen, nChainPop) 
+				, dimnames=list(stepsThin=NULL, den=NULL, chains=NULL) )
+			for( iChainPop in 1:nChainPop)
+				for( iBlock in 1:nDen )
+					res[ 1,iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompNamesPos[[iBlock]],iChainPop ])
+			res
+		})
+	# one pAcceptance indication per chain and per block
+	pAccept <- lapply(iPops, function(iPop){	res <- array(NA_real_
 				, dim=c(1+nThinnedGenPops[iPop], nBlock, nChainPop) 
 				, dimnames=list(stepsThin=NULL, block=NULL, chains=NULL) )
 			for( iChainPop in 1:nChainPop)
@@ -277,11 +304,9 @@ twDEMCBlockInt <- function(
 					res[ 1,iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompNamesPos[[iBlock]],iChainPop ])
 			res
 		})
-	pAccept <- logDen
 	for( iPop in iPops ){
 		pAccept[[iPop]][1,,] <- ctrl$initialAcceptanceRate[,chainsPop[[iPop]] ]
 	}
-	#pAccept[1,,] <- NA_real_ 	# TODO: initialize acceptance rate
 	# record of proposals and fLogDen results, rows c(accepted, parNames, resCompNames, rLogDen)
 	# if doRecordProposals is FALSE record only the thinning intervals for the last 128 generations
 	# +1 for the initial state
@@ -292,10 +317,12 @@ twDEMCBlockInt <- function(
 	YPops <- lapply(iPops, function(iPop){ res <- array( NA_real_ 
 				, dim=c( nGenYPops[iPop], nParm+nBlock+nResComp, nChainPop)
 				, dimnames=list(steps=NULL, vars=c(rownames(XPops[[iPop]]),paste("accepted",iBlocks,sep=""),colnames(resLogDen[[iPop]])), chains=NULL ) )
-			if( nGenYPops[iPop] == nGenPops[iPop] ) # record first state as accepted
-				res[1,,] <- rbind( XPops[[iPop]], matrix(TRUE, nrow=nBlock, ncol=nChainPop), logDenCompXPops[[iPop]] )
+			# already initialized first row in nGen cycle
+			#if( nGenYPops[iPop] == nGenPops[iPop] ) # record first state as accepted
+			#	res[1,,] <- rbind( XPops[[iPop]], matrix(TRUE, nrow=nBlock, ncol=nChainPop), logDenCompXPops[[iPop]] )
 			res
-		})
+		})	# records proposals, indication of acceptance per Block for each Chain
+	# here accepted is 0: not accepted, 1: full step accepted, between DR step accepted at DRGamma		 
 	
 	#-- arguments to fUpdate argument argsFUpdate that do not change within thinning interval
 	argsFUpdateDefault = list(
@@ -306,12 +333,12 @@ twDEMCBlockInt <- function(
 	)
 	# construct an list for each block that includes compPos, TFix and intResCompPos
 	argsFUpdateBlocks <- lapply( blocks, function(block){ 
-			c( argsFUpdateDefault, block )
+			c( argsFUpdateDefault, dInfos[[block$dInfoPos]], block )
 		})
 	argsUpdateBlocksTwDEMC <- list( 
-		remoteFun=.updateBlocksTwDEMC,
+		remoteFun=.updateBlocksTwDEMC,	# this function is called remotely and invokes the update function for each block 
 		argsUpdateBlocksTwDEMC=list(
-			argsFUpdateBlocks = argsFUpdateBlocks	# doDEMCStep
+			argsFUpdateBlocks = argsFUpdateBlocks	
 			,upperParBoundsPop=upperParBoundsPop
 			,lowerParBoundsPop=lowerParBoundsPop
 			,temp=temp
@@ -328,71 +355,108 @@ twDEMCBlockInt <- function(
 	chainState <- list(
 		X = XChains
 		,logDenCompX = logDenCompXChains
-		#,logDenX = logDenX
+		,parUpdateDen = array(TRUE, dim=c(nDen,nParm,nChain), dimnames=list(dens=NULL,parms=parNames,chains=NULL))  ##<< for each parameter/density combination: is the density up to date
+	#,logDenX = logDenX
 	)
 	
 	for( iThin0 in (0:(min(nThinnedGenPops)-1)) ){
+		iGen = iThin0*ctrl$thin+(1:ctrl$thin)	# the generations within this thinning step
 		mZPops <- M0Pops + iThin0
-		# sample random vectors (note here parameters in rows)
+		
+		# sample random vectors (note here parameters in rows) 
+		# calculate proposed steps (differences not destinations) within next thinning interval
 		zxl <- lapply( iPops, function(iPop){
 				.sampleStates(Z=ZPops[[iPop]],mZ=mZPops[iPop],nGenBack=nGenBackPops[[iPop]], nSample=ctrl$thin )				
 			})	
-		zx <- abind( zxl, along= 2 )
-		# calculate proposed steps (differences not destinations) within next thinning interval
+		zx <- abind( zxl, along= 2 )	# combine steps and chains of all populations
 		genPropRes <- .generateXPropThin(zx,ctrl=ctrl, nChain=nChain)
-		iGen = iThin0*ctrl$thin+(1:ctrl$thin)
-		.tmp.f <- function(){
-			tempThinStepsL <- lapply( iPops, function(iPop){
-					matrix( temp[[iPop]][ iGen ], nrow=length(iGen), ncol=nChainPop )
-				}) 
-			tempThinSteps <- t(do.call( cbind, tempThinStepsL))	# steps need to be in last dimension (so chains in first)
-			#tempThinSteps = lapply( temp, "[", t(temp[iGen,rep(1:nPop,each=nChainsPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
-		}
+		
+		# check if proposals should be recorded				
 		iPopsRecord <- which(iThin0 == nThinOmitRecordPops)
 		for( iPop in iPopsRecord ){
 			# record the initial state of the proposals record
 			YPops[[iPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[iPop]] ]
 			YPops[[iPop]][1,nParm+iBlocks,] <- 1	#TRUE
-			YPops[[iPop]][1,nParm+nBlock+seq_along(resCompNamesFlat),] <- chainState$logDenCompX[ ,chainsPop[[iPop]] ]
+			YPops[[iPop]][1,nParm+nBlock+seq_along(resCompNamesUFlat),] <- chainState$logDenCompX[ ,chainsPop[[iPop]] ]
 		}
 		boRecordProposalsIThinPop = (iThin0 >= nThinOmitRecordPops)	# only record the last proposals after nThinOmitRecord
 		
+		
+		# test one step for one chain
 		iStep <- 1
 		iChain <- 1
 		iPop <- popChain[iChain]
-		Xc <- chainState$X[,1]
 		step <- genPropRes$xStep[,iChain,iStep]
 		rExtra <- genPropRes$rExtra[iChain,iStep]
+		Xc <- chainState$X[,iChain]
+		logDenCompC <- chainState$logDenCompX[,iChain]
+		parUpdateDenC <- chainState$parUpdateDen[,,iChain] 
+		
+		
+		acceptedBlock <- numeric(nBlock) 
+		Xp <- Xc		# place for recording proposal
+		logDenP <- logDenCompC # place for recording density results for proposal
+		
 		for( iBlock in iBlocks){
 			block <- blocks[[iBlock]]
+			dInfo <- dInfos[[block$dInfoPos]]
+			cd <- dInfo$compPosDen # components used by the current density function
+			cu <- block$compPos	   # components to be updated in this block
+			cuInD <- block$compPosInD 
+			##details<< \describe{}{\item{Recalculating logDensity of accepted state.}{
+			## If one of the components used by the current density function has been
+			## updated against another density function, then the current density of  
+			## of the accepted state is out of date, and needs to be recalculated.
+			##}}
+			if( !all( parUpdateDenC[block$dInfoPos,cd] ) ){	
+				# here do not allow for internal rejection 
+				logDenCompC[dInfo$resCompPos] <- dInfo$fLogDenScale * do.call( dInfo$fLogDen, c(list(Xc[cd]), dInfo$argsFLogDen) )	# evaluate logDen
+				parUpdateDenC[block$dInfoPos,cd] <- TRUE								
+			}	
+			logDenCompCi <- logDenCompC[ dInfo$resCompPos  ]
 			argsFUpdateBlock <- c( argsFUpdateBlocks[[iBlock]], list(
 					step=step
 					, rExtra=rExtra
+					, logDenCompAcc=logDenCompCi
 					, temp=temp[[iPop]][iStep]
 					, TProp=1 	# XXTODO
 					, pAccept=0.25 # XXTODO
 					, upperParBounds=upperParBoundsPop[[iPop]]
 					, lowerParBounds=lowerParBoundsPop[[iPop]]
-			))
-			argsFUpdate <- c( list(Xc, argsFUpdateBlock=argsFUpdateBlock) )
+				))
+			argsFUpdate <- c( list(Xc[cd], argsFUpdateBlock=argsFUpdateBlock) )
 			resUpdate <- do.call( block$fUpdateBlock, argsFUpdate )
-			Xc <- resUpdate$x
+			if( resUpdate$accepted != 0){
+				Xc[cu] <- resUpdate$x		# update the components of current state
+				logDenCompC[ dInfo$resCompPos  ] <- resUpdate$logDenCompAcc # update the result of the used density function
+				parUpdateDenC[,cu] <- FALSE		# indicate all density results out of date for the update parameters
+				parUpdateDenC[block$dInfoPos,cu] <- TRUE	# except the current one has been also updated
+			}
 			
-			
-		} #iBlock
+			acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
+			Xp[ cu  ] <- resUpdate$xProp 				# proposal 		
+			Xp[ dInfo$resCompPos  ] <- resUpdate$logDenCompProp # density results for proposal 		
+			} #iBlock
+		resUpdate <- list(
+			x=Xc						##<< numeric vecotr: current accepted state
+			,logDenCompC=logDenCompC	##<< numeric vector: result components of fLogDen for current position
+			,parDenC=parUpdateDenC			##<< integer vector: logDensity that recently updated parameter at given index
+			,accepted=acceptedBlock		##<< numeric vector: acceptance of each block (0: not, 1: did, (0..1): DRstep)
+			,xProp=Xp					##<< numeric vector: result components of fLogDen for proposal
+			)
 		
 		.tmp.f <- function(){
-		for( iPop in which(boRecordProposalsIThinPop) ){
-			# record the initial state of the proposals record
-			YPops[[iPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[iPop]] ]
-			YPops[[iPop]][1,nParm+iBlocks,] <- 1	#TRUE
-			YPops[[iPop]][1,nParm+nBlock+seq_along(resCompNamesFlat),] <- chainState$logDenCompX[ ,chainsPop[[iPop]] ]
-		}
+			for( iPop in which(boRecordProposalsIThinPop) ){
+				# record the initial state of the proposals record
+				YPops[[iPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[iPop]] ]
+				YPops[[iPop]][1,nParm+iBlocks,] <- 1	#TRUE
+				YPops[[iPop]][1,nParm+nBlock+seq_along(resCompNamesUFlat),] <- chainState$logDenCompX[ ,chainsPop[[iPop]] ]
+			}
 		}
 		
 	}# for iThin0
-	
-	
+
+
 	
 	#-- return
 	##value<< a list of populations, each entry is a list
@@ -511,54 +575,59 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	pop	
 }
 
-.checkFLogDenInfo <- function(
+.checkDInfo <- function(
 	### filling default values in logDenInfos description
-	fLogDenInfo	##<< list to be checked for entries
+	dInfo	##<< list to be checked for entries
 	,parNames	##<< variable names
 ){
-	if( 0 == length(fLogDenInfo$fLogDen) || !is.function(fLogDenInfo$fLogDen)) stop(".checkLogDenInfo: entry fLogDen (function of log of unnomalized density) must be specified")
+	if( 0 == length(dInfo$fLogDen) || !is.function(dInfo$fLogDen)) stop(".checkLogDenInfo: entry fLogDen (function of log of unnomalized density) must be specified")
 	##details<< if compPosDen is not given, then assume all parameter dimensions are required	
-	if( 0 == length(fLogDenInfo$compPosDen) ) fLogDenInfo$compPosDen <- seq_along(parNames)
-	cpOrig <- fLogDenInfo$compPosDen
-	if( is.character(cpOrig) ) fLogDenInfo$compPosDen <- match(cpOrig,parNames)
-	if( any(is.na(fLogDenInfo$compPosDen)) ){
-		stop(".checkLogDenInfo: some of compPosDen specified in block are not in varNames of initial values.")
+	if( 0 == length(dInfo$compPosDen) ) dInfo$compPosDen <- seq_along(parNames)
+	cpOrig <- dInfo$compPosDen
+	if( is.character(cpOrig) ) dInfo$compPosDen <- match(cpOrig,parNames)
+	if( any(is.na(dInfo$compPosDen)) ){
+		stop(".checkLogDenInfo: some of compPosDen specified in fLogDenInfos are not in varNames of initial values.")
 	}
-	if( 0==length(fLogDenInfo$intResComp) ) fLogDenInfo$intResComp <- vector("character",0)
-	if( 0==length(fLogDenInfo$fLogDenScale) ) fLogDenInfo$fLogDenScale <- 1
-	if( 0==length(fLogDenInfo$TFix) ) fLogDenInfo$TFix <- vector("numeric",0)
+	if( 0==length(dInfo$intResComp) ) dInfo$intResComp <- vector("character",0)
+	if( 0==length(dInfo$fLogDenScale) ) dInfo$fLogDenScale <- 1
+	if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
 	
 	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale, TFix defined
-	fLogDenInfo
+	dInfo
 }
 
 
 .checkBlock <- function(
 	### filling default values in block description
 	block				##<< list to be checked for entries
-	,fLogDenInfos		##<< checked list of fLogDeninfo. See the argument in \code{\link{twDEMCBlockInt}}.
+	,dInfos				##<< checked list of dInfo. See the argument in \code{\link{twDEMCBlockInt}}.
+	,parNames			##<< parameter dimension names
 ){
 	##details<< if fLogDenInfoId is not specified, assume that it uses the entry in fLogDenInfos	
-	if( 0 == length(block$fLogDenInfoPos) ) block$fLogDenInfoPos=1
-	if( 1 != length(block$fLogDenInfoPos) ) stop(".checkBlock: fLogDenInfoPos must be of length 1.")
-	lpOrig <- block$fLogDenInfoPos
-	if( is.character(lpOrig) ) block$fLogDenInfoPos <- match(lpOrig,names(fLogDenInfoNames))
-	if( any(is.na(block$fLogDenInfoPos)) ){
-		stop(".checkBlock: some of fLogDenInfoPos specified in block are not in names of fLogDenInfo.")
+	if( 0 == length(block$dInfoPos) ) block$dInfoPos=1
+	if( 1 != length(block$dInfoPos) ) stop(".checkBlock: dInfoPos must be of length 1.")
+	lpOrig <- block$dInfoPos
+	if( is.character(lpOrig) ) block$dInfoPos <- match(lpOrig,names(dInfos))
+	if( is.na(block$dInfoPos) ){
+		stop(".checkBlock: dInfoPos specified in block are not in names of dInfos.")
 	}
-	dInfo <- fLogDenInfos[[block$fLogDenInfoPos]]
+	dInfo <- dInfos[[block$dInfoPos]]
 	
 	if( 0 == length(block$compPos) ) stop(".checkBlock: entry compPos must be specified, either as index or as variable names")
 	cpOrig <- block$compPos
-	if( is.character(cpOrig) ) block$compPos <- match(cpOrig,parNames[dInfo$compPosDen])
-	if( any(is.na(block$compPos)) ){
+	if( is.character(cpOrig) ){
+		parNamesLogDen <- parNames[ dInfo$compPosDen ]
+		block$compPosInDen <- match(cpOrig,parNamesLogDen ) 
+		block$compPos <- dInfo$compPosDen[block$compPosInDen]
+	} 
+	if( any(is.na(block$compPosInDen)) ){
 		stop(".checkBlock: some of compPos specified in block are not in compPosDen of fLogDenInfo.")
 	}
 	
 	if( 0==length(block$fUpdateBlock) ) block$fUpdateBlock <- .updateBlockTwDEMC
-	if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdteBlock must be a single function.")
+	if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdateBlock must be a single function.")
 	
-	### block with entries compPos, fLogDenInfoPos, fUpdateBlock definded
+	### block with entries compPos, dInfoPos, fUpdateBlock definded
 	block
 }
 
@@ -979,8 +1048,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 					#logr = (logDenPropExt+rExtra - logDenXExt) / temp
 					logrDS10 <- (Lp[posTExt]-La[posTExt])/Ti[posTExt]
 					logAlpha10 <- rExtra + sum(logrDS10) 
-					accepted <-  is.finite(logAlpha10) && (logAlpha10  > log(runif(1)) )
-					if(accepted){
+					accepted <-  if( is.finite(logAlpha10) && (logAlpha10  > log(runif(1)) ) ) 1 else 0
+					if(accepted != 0){
 						x <- xProp
 						logDenAcc <- logDenProp
 						logDenCompAcc <- Lp
@@ -1041,8 +1110,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 						logrDS21 <- (Lp1[posTExt]-Lp[posTExt])/Ti[posTExt]
 						logAlpha21 <- sum(logrDS21)
 						logAlpha2 <- suppressWarnings( logAlpha20  +log(1-exp(logAlpha21)) -log(1-exp(logAlpha10)) )	# log and exp may produce NaNs 
-						accepted <-  is.finite(logAlpha2) && ( logAlpha2 > log(runif(1)) ) 
-						if(accepted){
+						accepted <-  if( is.finite(logAlpha2) && ( logAlpha2 > log(runif(1)) ) ) ctrl$DRgamma else 0  
+						if(accepted != 0){
 							x <- xProp
 							logDenAcc <- logDenProp
 							logDenCompAcc <- Lp
@@ -1056,17 +1125,17 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				stop(".doDEMCStep: x, logDenAcc and logDenCompAcc must be numeric")
 			
 			list(accepted=accepted
-				,x=x,logDenCompAcc=La, logDenAcc =logDenAcc		# input to repeated call
-				,xProp=xProp,logDenCompProp=Lp, logDenProp=logDenProp
+				,x=x[compPos],logDenCompAcc=logDenCompAcc, logDenAcc =logDenAcc		# input to repeated call
+				,xProp=xProp[compPos],logDenCompProp=Lp, logDenProp=logDenProp
 			)
 		})
 	#detach( argsDEMCStep ); list(accepted=accepted,x=x,logDenCompAcc=logDenCompAcc, logDenAcc =logDenAcc,xProp=xProp,logDenCompProp=res, logDenProp=logDenProp	) 
 	### list with components \describe{
 	### \item{accepted}{boolean scalar: if step was accepted}
-	### \item{x}{numeric vector: current position in parameter space}
+	### \item{x}{numeric vector: components of position in parameter space that are being updated}
 	### \item{logDenCompAcc}{numeric vector: result components of fLogDen for current position }
 	### \item{logDenAcc}{numeric vector: summed fLogDen for current accepted position}
-	### \item{xProp}{numeric vector: proposal}
+	### \item{xProp}{numeric vector: components of proposal that are being updated}
 	### \item{logDenCompProp}{numeric vector: result components of fLogDen for proposal }
 	### \item{logDenProp}{numeric vector: summed fLogDen for proposal}
 	### }

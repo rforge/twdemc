@@ -73,7 +73,7 @@ test.distinctLogDen <- function(){
 	)
 	#tmp <- .checkPop(pops[[1]])
 	# both fLogDen compare the same model against the same observations but use different priors
-	fLogDenInfoDefault <- list(
+	dInfoDefault <- list(
 		fLogDen=logDenGaussian
 		,resCompNames=c("obs","parms")
 		,TFix=c(parms=1)
@@ -84,17 +84,15 @@ test.distinctLogDen <- function(){
 			xval=xval
 		)
 	)
-	fLogDenInfos <- list(
-		logDenA = within(fLogDenInfoDefault,{
-				compPosDen="a"
+	dInfos <- list(
+		logDenA = within(dInfoDefault,{
 				argsFLogDen <- c( argsFLogDen, list(
 						thetaPrior= thetaTrue["a"]	### the prior estimate of the parameters
 						,invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
 						,blockIndices=1
 					)) 
 			})
-		,logDenB = within(fLogDenInfoDefault,{
-				compPosDen="b"
+		,logDenB = within(dInfoDefault,{
 				argsFLogDen <- c( argsFLogDen, list(
 						thetaPrior= thetaTrue["b"]	### the prior estimate of the parameters
 						,invCovarTheta = invCovarTheta[2,2,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
@@ -103,13 +101,13 @@ test.distinctLogDen <- function(){
 			})
 		)
 	blocks <- list(
-		blockA <- list(compPos="a", fLogDenInfoPos="logDenA")
-		,blockB <- list(compPos="b", fLogDenInfoPos="logDenB")
+		blockA <- list(compPos="a", dInfoPos="logDenA")
+		,blockB <- list(compPos="b", dInfoPos="logDenB")
 	)
 	
-	#mtrace(twDEMCBlockInt)
 	#mtrace(.updateBlockTwDEMC)
-	res <- twDEMCBlockInt( pops=pops, blocks=blocks, nGen=60)
+	#mtrace(twDEMCBlockInt)
+	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=60)
 	str(res[[2]])
 	#plot(res[[2]]$temp)
 	
