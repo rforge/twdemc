@@ -37,9 +37,9 @@
 	twUtestF(twDEMC)
 	
 	twUtestF(twDEMCBatch)
-
+	
 	twUtestF()
-
+	
 	prevWd <- setwd(file.path("tests"))
 	dumpFileBasename="doRUnitError"
 	#options(error=quote(dump.frames(dumpFileBasename, TRUE)))
@@ -113,7 +113,7 @@ test.distinctLogDen <- function(){
 						,blockIndices=2
 					)) 
 			})
-		)
+	)
 	blocks <- list(
 		blockA <- list(compPos="a", dInfoPos="logDenA")
 		,blockB <- list(compPos="b", dInfoPos="logDenB")
@@ -128,7 +128,7 @@ test.distinctLogDen <- function(){
 	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
 	str(res$pops[[2]])
 	#plot(res[[2]]$temp)
-
+	
 	#iPop=2
 	.nGenThinned=rep(.nGen,.nPops)%/%.thin+1
 	for( iPop in seq_along(res$pops) ){
@@ -155,7 +155,7 @@ test.distinctLogDen <- function(){
 		plot( density(pop$parms[,"a",]) )		
 		plot( density(pop$parms[,"b",]) )
 		#windows(record=TRUE)
-		plot( as.mcmc.list(res), smooth=FALSE )
+		plot( as.mcmc.list(res, minPopLength=10), smooth=FALSE )
 	}
 	
 	# here no nGen argument to use different nGen of pops
@@ -197,7 +197,7 @@ test.distinctLogDen <- function(){
 	#str(res)
 	checkEquals( 8, res$thin )
 	checkEquals( (.nGen%/%res$thin)+1,nrow(res$rLogDen))
-
+	
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
 	#gelman.diag(rescoda)
@@ -347,7 +347,7 @@ test.badStartSeqData1D <- function(){
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops,
 		controlTwDEMC=list(thin=1)
-		#,debugSequential=TRUE
+	#,debugSequential=TRUE
 	)
 	#str(res)
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$rLogDen))
@@ -418,13 +418,13 @@ test.goodStartSeq <- function(){
 	
 	#str(summary(rescoda))
 	suppressWarnings({	#glm fit in summary
-		summary(rescoda)$statistics[,"Mean"]
-		summary(rescoda)$statistics[,"SD"]
-		thetaTrue
-		sdTheta
-		(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-		(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})
+			summary(rescoda)$statistics[,"Mean"]
+			summary(rescoda)$statistics[,"SD"]
+			thetaTrue
+			sdTheta
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
 	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
@@ -458,16 +458,16 @@ test.goodStartPar <- function(){
 	res <-  twDEMC( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
-		#fLogDenScale=-1/2
-		#debugSequential=TRUE
+	#fLogDenScale=-1/2
+	#debugSequential=TRUE
 	)
 	str(res)
 	
 	rescoda <- as.mcmc.list(res) 
 	suppressWarnings({	#glm fit in summary
-		(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-		(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
 	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
@@ -508,16 +508,16 @@ test.upperParBounds <- function(){
 	res <-  res0 <- twDEMC( Zinit0, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
-		#,upperParBounds=c(a=asplit)
-		#,debugSequential=TRUE
-		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
+	#,upperParBounds=c(a=asplit)
+	#,debugSequential=TRUE
+	#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	)
 	res <-  res1 <- twDEMC( Zinit1, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
 		,upperParBounds=rep( list(c(a=asplit)), .nPops)
 		,debugSequential=TRUE
-		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
+	#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	)
 	res <-  res2 <- twDEMC( Zinit2, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
@@ -544,7 +544,7 @@ test.upperParBounds <- function(){
 		
 		rescoda <- as.mcmc.list(res)
 		plot(rescoda, smooth=FALSE)
-	
+		
 		plot( density(ssc[,"a"]))	
 		lines(density(ss0[,"a"]), col="blue")
 		lines(density(ss1[,"a"]), col="green")
@@ -625,9 +625,9 @@ inner.ZinittwDEMC <- function(){
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
 	suppressWarnings({	#glm fit in summary
-		(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-		(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
 	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
@@ -647,7 +647,7 @@ test.probUpDir <- function(){
 	innertest.probUpDir()
 	#twUtestF(twDEMC,"test.probUpDir")
 }
-	
+
 innertest.probUpDir <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
 	.nPops=2
@@ -674,9 +674,9 @@ innertest.probUpDir <- function(){
 	
 	rescoda <- as.mcmc.list(res) 
 	suppressWarnings({	#glm fit in summary
-	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
 	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
@@ -710,17 +710,17 @@ test.ofMulti <- function(){
 	res <-  twDEMC( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops
-		#fLogDenScale=-1/2
-		#debugSequential=TRUE
+	#fLogDenScale=-1/2
+	#debugSequential=TRUE
 	)
 	str(res)
 	
 	rescoda <- as.mcmc.list(res) 
 	
 	suppressWarnings({	#glm fit in summary
-	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})	
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
 	for( .pop in seq(along.with=.popsd) ){
@@ -750,7 +750,7 @@ test.doAppendPrevLogDen <- function(){
 	
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
 	dim(Zinit)
-
+	
 	res <-  twDEMC( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPops=.nPops,
@@ -761,9 +761,9 @@ test.doAppendPrevLogDen <- function(){
 	
 	rescoda <- as.mcmc.list(res) 
 	suppressWarnings({	#glm fit in summary
-	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})	
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
 	for( .pop in seq(along.with=.popsd) ){
@@ -786,7 +786,7 @@ test.dump <- function(){
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
 		thetaPrior = thetaTrue,	### the prior estimate of the parameters
 		invCovarTheta = invCovarTheta	### the inverse of the Covariance of the prior parameter estimates
-		#xval=xval
+	#xval=xval
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
@@ -795,17 +795,17 @@ test.dump <- function(){
 	dim(Zinit)
 	
 	body <- expression( res <-  twDEMC( Zinit, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
-		#fLogDenScale=-1/2,
-		debugSequential=TRUE
-	))
+			fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			nPops=.nPops,
+			#fLogDenScale=-1/2,
+			debugSequential=TRUE
+		))
 	checkException( eval(body))
-
+	
 	suppressWarnings(dir.create("tmp"))
 	.remoteDumpfileBasename=file.path("tmp","testDump")
 	.remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
-
+	
 	# dump on initial parallel calculation
 	unlink(.remoteDumpfile)
 	checkTrue( !file.exists(.remoteDumpfile))
@@ -822,7 +822,7 @@ test.dump <- function(){
 	)
 	checkException( eval(body))
 	checkTrue( file.exists(.remoteDumpfile))
-
+	
 	#same in parallel mode
 	unlink(.remoteDumpfile)
 	checkTrue( !file.exists(.remoteDumpfile))
@@ -833,8 +833,8 @@ test.dump <- function(){
 			fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 			nPops=.nPops,
 			remoteDumpfileBasename=.remoteDumpfileBasename
-			#fLogDenScale=-1/2,
-			#debugSequential=TRUE
+		#fLogDenScale=-1/2,
+		#debugSequential=TRUE
 		)
 	)
 	checkException( eval(body))
@@ -909,7 +909,7 @@ test.twoStepMetropolis <- function(){
 	#mtrace(logDenGaussian)
 	XLogDen <- twCalcLogDenPar(fLogDen=logDenGaussian, xProp=t(X), logDenCompX=numeric(0), intResCompNames="parms", argsFLogDen=argsFLogDen
 		,debugSequential=TRUE)
-		
+	
 	.nGen=200
 	.thin=5
 	#mtrace(sfRemoteWrapper)

@@ -46,7 +46,7 @@ setMethodS3("subChains","twDEMC", function(
 		## Alternatively to specification of iChains, one can specify a vector of populations and the total number of populations.
 		if( is.null(nPop) ) nPop=ncol(x$temp)
 		if( is.null(nPop) ) nPop=1		#for backware compatibility of temp
-		nChainsPop = ncol(x$rLogDen) %/% nPop
+		nChainsPop = ncol(x$logDen) %/% nPop
 		res <- x
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
@@ -55,12 +55,12 @@ setMethodS3("subChains","twDEMC", function(
 		}else{
 			# no populatios given: reduce to one population
 			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
-			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogDen), ncol=1) #for backware compatibility of temp
+			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$logDen), ncol=1) #for backware compatibility of temp
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
 		res$logDenComp <- x$logDenComp[,,iChains, drop=FALSE]
-		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
+		res$logDen <- x$logDen[,iChains, drop=FALSE] 
 		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
 		res$thin <- x$thin
 		if( 0 < length(x$Y))
@@ -157,7 +157,7 @@ setMethodS3("getNGen","twDEMC", function(
 		## \code{\link{getNParms.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		(nrow(res$rLogDen)-1)*res$thin
+		(nrow(res$logDen)-1)*res$thin
 		### integer, number of completed generations
 	})
 attr( getNGen.twDEMC, "ex") <- function(){
@@ -195,7 +195,7 @@ setMethodS3("getNChains","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$rLogDen)
+		dim(res$parms)[3]
 		### integer, number of chains in twDEMC
 	})
 
@@ -209,7 +209,7 @@ setMethodS3("getNChainsPop","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$rLogDen)/ncol(res$temp)
+		dim(res$parms)[3]/ncol(res$temp)
 		### integer, number of chains per population in twDEMC
 	})
 
@@ -223,7 +223,7 @@ setMethodS3("getNParms","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		nrow(res$parms)
+		ncol(res$parms)
 		### integer, number of parameters in twDEMC
 	})
 
@@ -238,7 +238,7 @@ setMethodS3("getNSamples","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$parms)
+		nrow(res$parms)
 		### integer, number of samples in twDEMC
 	})
 
@@ -257,10 +257,10 @@ setMethodS3("replacePops","twDEMC", function(
 		
 		nPop=ncol(x$temp)
 		nPopNew = ncol(xNew$temp)
-		nChains = ncol(x$rLogDen)
+		nChains = ncol(x$logDen)
 		nChainsPop = nChains %/% nPop
 		if( length(iPops) != nPopNew) stop("replacePops.twDEMC: replacing population has number of populations that differs from length of iPop.")
-		nChainsPopNew = ncol(xNew$rLogDen) %/% nPopNew
+		nChainsPopNew = ncol(xNew$logDen) %/% nPopNew
 		if( nChainsPop != nChainsPopNew) stop("replacePops.twDEMC: both populations must have the same number of chains per populations.")
 		xN <- if( x$thin != xNew$thin ) thin(xNew,newThin=x$thin) else xNew
 		if( !identical( dim(x)[1:2], dim(xN)[1:2]) ) stop("replacePops.twDEMC: both populations must have the same dimensions of variables and cases.")
@@ -270,7 +270,7 @@ setMethodS3("replacePops","twDEMC", function(
 		res$temp[,iPops] <- xN$temp
 		res$parms[,,iChains] <- xN$parms
 		res$logDenComp[,,iChains] <- xN$logDenComp
-		res$rLogDen[,iChains] <- xN$rLogDen 
+		res$logDen[,iChains] <- xN$logDen 
 		res$pAccept[,iChains] <- xN$pAccept
 		if( 0 < length(x$Y))
 			res$Y[,,iChains] <- xN$Y
@@ -321,9 +321,9 @@ setMethodS3("subset","twDEMC", function(
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
 	if( is.logical(boKeep) )
-		boKeep <- rep(boKeep,length.out=nrow(x$rLogDen) )
+		boKeep <- rep(boKeep,length.out=nrow(x$logDen) )
 	x$parms <- x$parms[,boKeep,, drop=FALSE] 
-	x$rLogDen <- x$rLogDen[boKeep,, drop=FALSE] 
+	x$logDen <- x$logDen[boKeep,, drop=FALSE] 
 	x$logDenComp <- x$logDenComp[,boKeep,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,, drop=FALSE]
 	if( !is.null(x$temp))
@@ -334,7 +334,7 @@ setMethodS3("subset","twDEMC", function(
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
-	### list of class twDEMC with subset of cases in parsm, rLogDen, pAccept, and temp
+	### list of class twDEMC with subset of cases in parsm, logDen, pAccept, and temp
 })
 #mtrace(subset.twDEMC)
 
@@ -424,13 +424,13 @@ setMethodS3("combinePops","twDEMC", function(
 		res$Y <- abind( lapply(.pops, function(psr){psr$Y}) )
 		dimnames(res$Y) <- dimnames(x$Y)
 	}
-	res$rLogDen <- abind( lapply(.pops, function(psr){psr$rLogDen}) )
+	res$logDen <- abind( lapply(.pops, function(psr){psr$logDen}) )
 	res$logDenComp <- abind( lapply(.pops, function(psr){psr$logDenComp}) )
 	res$nGenBurnin <- sapply(.pops, "[[", "nGenBurnin") 
 	res$pAccept <- abind( lapply(.pops, function(psr){psr$pAccept}) )
 	res$thin <- x$thin
 	res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
-	for( i in c("parms","rLogDen","logDenComp","pAccept","temp") )
+	for( i in c("parms","logDen","logDenComp","pAccept","temp") )
 		dimnames(res[[i]]) <- dimnames(x[[i]])
 	if( !doKeepBatchCall ) attr(res,"batchCall") <- NULL	#keep the 
 	res
@@ -468,11 +468,11 @@ setMethodS3("stackChains","twDEMC", function(
 	if( length(start) != nPop) stop("stackChains.twDEMC: burnin must be of length of number of populations.")
 	startChain <- rep(start, each=getNChainsPop(x) )
 	nChain <- getNChains(x)
-	cbind( rLogDen = abind( lapply( 1:nChain, function(i){ 	if( startChain[i] == 0) x$rLogDen[,i] else x$rLogDen[-(1:(startChain[i]%/%x$thin)),i]		}), along=1 )
+	cbind( logDen = abind( lapply( 1:nChain, function(i){ 	if( startChain[i] == 0) x$logDen[,i] else x$logDen[-(1:(startChain[i]%/%x$thin)),i]		}), along=1 )
 		#,parms = stackChains.array(x$parms)
 		,parms = t(adrop(abind( lapply( 1:nChain, function(i){	if( startChain[i] == 0) x$parms[,,i,drop=FALSE] else x$parms[,-(1:(startChain[i]%/%x$thin)),i,drop=FALSE]	}), along=2 ),3))
 	)
-	### Matrix with first column the logDensity rLogDen and the remaining columns the variables.
+	### Matrix with first column the logDensity logDen and the remaining columns the variables.
 })
 
 setMethodS3("stackChains","mcmc.list", function( 
@@ -533,11 +533,11 @@ popMeansTwDEMC <- function(
 }
 attr(popMeansTwDEMC,"ex") <- function(){
 	data(twdemcEx1)
-	# mean rLogDen for each case, i.e. step, by population
-	res1 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp) )
+	# mean logDen for each case, i.e. step, by population
+	res1 <- popMeansTwDEMC( twdemcEx1$logDen, nPops=ncol(twdemcEx1$temp) )
 	matplot(res1)
 	# shifting mean across 4 cases
-	res2 <- popMeansTwDEMC( twdemcEx1$rLogDen, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
+	res2 <- popMeansTwDEMC( twdemcEx1$logDen, nPops=ncol(twdemcEx1$temp), kSmooth=5 )
 	matplot(res2, type="l", add=TRUE)
 }
 
@@ -572,11 +572,11 @@ popApplyTwDEMC <- function(
 }
 attr(popApplyTwDEMC,"ex") <- function(){
 	data(twdemcEx1)
-	# mean rLogDen for each case, i.e. step, by population
+	# mean logDen for each case, i.e. step, by population
 	nPops=getNPops(twdemcEx1)
-	popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, apply, 1, mean )	
-	# stack rLogDen for each population
-	popApplyTwDEMC( twdemcEx1$rLogDen, nPops=nPops, as.vector )
+	popApplyTwDEMC( twdemcEx1$logDen, nPops=nPops, apply, 1, mean )	
+	# stack logDen for each population
+	popApplyTwDEMC( twdemcEx1$logDen, nPops=nPops, as.vector )
 	#stack param columns by population
 	(tmp <- popApplyTwDEMC( twdemcEx1$parms, nPops=nPops, function(x){ abind(twListArrDim(x),along=2) }))	
 }
@@ -591,21 +591,21 @@ setMethodS3("stackChainsPop","twDEMC", function(
 		##seealso<<   
 		## \code{\link{stackChains.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		# stack rLogDen for each population
+		# stack logDen for each population
 		nPops = getNPops(x)
-		rLogDen <- popApplyTwDEMC( x$rLogDen, nPops=nPops, as.vector )
+		logDen <- popApplyTwDEMC( x$logDen, nPops=nPops, as.vector )
 		#stack param columns by population
 		if( varInRows ){
-			rLogDen3 <- array( rLogDen, dim=c(1, nrow(rLogDen), ncol(rLogDen) ))
+			rLogDen3 <- array( logDen, dim=c(1, nrow(logDen), ncol(logDen) ))
 			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ abind(twListArrDim(xp),along=2) })	
-			res <- structure( abind(rLogDen3,parms,along=1), dimnames=list(parms=c("rLogDen",rownames(x$parms)),step=NULL,pops=NULL))
+			res <- structure( abind(rLogDen3,parms,along=1), dimnames=list(parms=c("logDen",rownames(x$parms)),step=NULL,pops=NULL))
 		}else{
-			rLogDen3 <- array( rLogDen, dim=c(nrow(rLogDen),1,ncol(rLogDen)))
+			rLogDen3 <- array( logDen, dim=c(nrow(logDen),1,ncol(logDen)))
 			parms <- popApplyTwDEMC( x$parms, nPops=nPops, function(xp){ t(abind(twListArrDim(xp),along=2)) })	
-			res <- structure( abind(rLogDen,parms,along=2), dimnames=list(step=NULL,parms=c("rLogDen",rownames(x$parms)),pops=NULL))
+			res <- structure( abind(logDen,parms,along=2), dimnames=list(step=NULL,parms=c("logDen",rownames(x$parms)),pops=NULL))
 		}
 		res
-		### Array with first column the logDensity rLogDen and the remaining columns the variables
+		### Array with first column the logDensity logDen and the remaining columns the variables
 		### , rows are steps, third dimension is the population 
 		### (but see argument \code{varInRows}
 	})

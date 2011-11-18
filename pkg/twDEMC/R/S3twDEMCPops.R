@@ -110,17 +110,23 @@ setMethodS3("getNSamples","twDEMCPops", function(
 
 
 
-setMethodS3("stackPops","twDEMCPops", function( 
+setMethodS3("concatPops","twDEMCPops", function( 
 	### concatenates all the chains of all subpopulations to one matrix.
 	x
 	,... 
-	, useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population	
+	, useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population
+	, minPopLength=NULL	##<< integer scalar: if specified, populations with less samples than length.out are dropped
 ){
-	#stackPops.twDEMCPops
+	#concatPops.twDEMCPops
 	##seealso<<   
 	## \code{\link{subChains.twDEMCPops}}
 	## ,\code{\link{twDEMCInt}}
 	nStepsPop <- getNSamples(x)
+	if( 1 == length(minPopLength) ){
+		iKeep <- which( nStepsPop >= minPopLength )
+		x <- subPops(x, iPops=iKeep )
+		nStepsPop <- nStepsPop[iKeep]
+	}
 	nSteps <- min(nStepsPop)
 	if( !all(nStepsPop == nSteps) ){
 		if( useThinning)
@@ -132,28 +138,37 @@ setMethodS3("stackPops","twDEMCPops", function(
 	p1 <- pops[[1]]
 	x$pops <- NULL
 	x$parms <- structure( abind( lapply(pops,"[[","parms"), along=3), dimnames=dimnames(p1$parms))
-	x$temp <- structure( abind( lapply(pops,"[[","temp"), rev.along=0), dimnames=list(steps=NULL,pops=NULL) )
+	x$temp <- structure( abind( lapply(pops,"[[","temp"), along=2), dimnames=list(steps=NULL,pops=NULL) )
 	x$pAccept <- structure( abind( lapply(pops,"[[","pAccept"), along=3), dimnames=dimnames(p1$pAccept))
 	x$resLogDen <- structure( abind( lapply(pops,"[[","resLogDen"), along=3), dimnames=dimnames(p1$resLogDen))
 	x$logDen <- structure( abind( lapply(pops,"[[","logDen"), along=3), dimnames=dimnames(p1$logDen))
-	x$Y <- structure( abind( lapply(pops,"[[","Y"), along=3), dimnames=dimnames(p1$Y))
+	YL <-  lapply(pops,"[[","Y")
+	nY <- min(sapply(YL,nrow))
+	YLs <- lapply(YL, function(Y){ Y[nrow(Y)-((nY-1):0),,,drop=FALSE] })
+	x$Y <- structure( abind(YLs, along=3), dimnames=dimnames(p1$Y))
 	class(x) <- c("list","twDEMC")
 	x
 })
-attr(stackPops,"ex") <- function(){
+attr(concatPops,"ex") <- function(){
 	if( FALSE ){
-		#mtrace(stackPops.twDEMCPops)
-		str(stackPops(res))
+		getNSamples(tmp <- concatPops(res))
+		getNChains(tmp)
+		getNPops(tmp)
+		#mtrace(concatPops.twDEMCPops)
+		getNSamples(tmp <- concatPops(res,minPopLength=10))
+		getNChains(tmp)
+		getNPops(tmp)
 	}
 }
 
-#mtrace(stackPops.twDEMCPops)
+#mtrace(concatPops.twDEMCPops)
 
 setMethodS3("subset","twDEMCPops", function( 
 	### Condenses an twDEMCPops result object to the cases boKeep.
 	x 			##<< twDEMCPops object
 	,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
 	,...
+	,dropShortPops=FALSE				##<< if set to TRUE, pops with less samples than length.out are dropped
 ){
 	# subset.twDEMCPops 
 	##seealso<<   
@@ -161,11 +176,14 @@ setMethodS3("subset","twDEMCPops", function(
 	
 	nSamplesPop <- getNSamples(x)
 	iKeep <- if( is.numeric(boKeep)) boKeep else which(boKeep)
-	if( max(iKeep) > min(nSamplesPop)) stop(
-			"subset.twDEMCPops: provided indices outside the steps of the smalles population.")
+	maxStep <- max(iKeep)
+	if( dropShortPops ){
+		x <- subPops( x, which(nSamplesPop >= maxStep))
+	}else if( maxStep > min(nSamplesPop)) stop(
+			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use \code{dropShortPops} to drop shorter populations before.")
 	for( iPop in seq_along(x$pops) ){
 		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$rLogDen <- x$pops[[iPop]]$rLogDen[iKeep,,, drop=FALSE] 
+		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$pAccept <- x$pops[[iPop]]$pAccept[iKeep,,, drop=FALSE]
 		x$pops[[iPop]]$temp <- x$pops[[iPop]]$temp[iKeep, drop=FALSE]
@@ -173,14 +191,16 @@ setMethodS3("subset","twDEMCPops", function(
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
-	### list of class twDEMCPops with subset of cases in parsm, rLogDen, pAccept, and temp
+	### list of class twDEMCPops with subset of cases in parsm, logDen, pAccept, and temp
 })
 #mtrace(subset.twDEMCPops)
 attr(subset.twDEMCPops,"ex") <- function(){
 	if( FALSE){
 		tmp <- subset(res,1:3)
 		str(tmp)
-		tmp <- subset(res,1:4)  # should produce an error
+		tmp <- subset(res,1:10)  # should produce an error
+		#mtrace(subset.twDEMCPops)
+		tmp <- subset(res,1:10,dropShortPops=TRUE)  
 	} 
 }
 
@@ -188,18 +208,21 @@ setMethodS3("squeeze","twDEMCPops", function(
 	### Reduces the rows of os that all chains have the same number of samples. 
 	x, ##<< the twDEMCPops list to thin 
 	...,
-	length.out=min(getNSamples(x))	##<< number of steps in each population
+	length.out=min(getNSamples(x)),	##<< number of steps in each population
+	dropShortPops=FALSE				##<< if set to TRUE, pops with less samples than length.out are dropped
 ){
 	# squeeze.twDEMCPops
 	nSamplesPop <- getNSamples(x)
-	if( length.out > min(nSamplesPop)) stop(
-			"squeeze.twDEMCPops: specified a length that is longer than the shortest population")
+	if( dropShortPops ){
+		x <- subPops( x, iPops=which(nSamplesPop < length.out))
+	}else if( length.out > min(nSamplesPop)) stop(
+			"squeeze.twDEMCPops: specified a length that is longer than the shortest population. Use \code{dropShortPops=TRUE} to drop shorter populations.")
 	##details<< 
 	## all populations with 
 	for( iPop in seq_along(x$pops) ){
 		iKeep <- seq(1,nSamplesPop[iPop],length.out=length.out) 
 		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$rLogDen <- x$pops[[iPop]]$rLogDen[iKeep,,, drop=FALSE] 
+		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$pAccept <- x$pops[[iPop]]$pAccept[iKeep,,, drop=FALSE]
 		x$pops[[iPop]]$temp <- x$pops[[iPop]]$temp[iKeep, drop=FALSE]
@@ -215,6 +238,8 @@ attr(squeeze.twDEMCPops,"ex") <- function(){
 		tmp2 <- subPops(res,2)
 		#mtrace(squeeze.twDEMCPops)
 		getNSamples( squeeze(tmp2,length.out=10) )
+		getNSamples( squeeze(tmp,length.out=10) )	# should produce error
+		getNSamples( squeeze(tmp,length.out=10, dropShortPops=TRUE) )	# should produce error
 	} 
 }
 
@@ -283,9 +308,10 @@ as.mcmc.list.twDEMCPops <- function(
 	### Converts list of type twDEMCPops (result of \code{\link{twDEMCPops}}) to coda's \code{mcmc.list}. 
 	x				##<< the output of \code{\link{twDEMCBlockInt}}) run
 	,...
-	,useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population	
+	,useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population
+	,minPopLength=NULL	##<< integer: if given, shorter populations are dropped 
 ){
-	xStack <- stackPops.twDEMCPops(x, useThinning=useThinning)
+	xStack <- concatPops.twDEMCPops(x, useThinning=useThinning, minPopLength=minPopLength)
 	as.mcmc.list.twDEMC(xStack)
 }
 
@@ -353,7 +379,7 @@ setMethodS3("subChains","twDEMCPops", function(
 		}
 		if( is.null(nPop) ) nPop=ncol(x$temp)
 		if( is.null(nPop) ) nPop=1		#for backware compatibility of temp
-		nChainsPop = ncol(x$rLogDen) %/% nPop
+		nChainsPop = ncol(x$logDen) %/% nPop
 		res <- x
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
@@ -362,12 +388,12 @@ setMethodS3("subChains","twDEMCPops", function(
 		}else{
 			# no populatios given: reduce to one population
 			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
-			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$rLogDen), ncol=1) #for backware compatibility of temp
+			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$logDen), ncol=1) #for backware compatibility of temp
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
 		res$logDenComp <- x$logDenComp[,,iChains, drop=FALSE]
-		res$rLogDen <- x$rLogDen[,iChains, drop=FALSE] 
+		res$logDen <- x$logDen[,iChains, drop=FALSE] 
 		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
 		res$thin <- x$thin
 		if( 0 < length(x$Y))

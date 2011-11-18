@@ -460,8 +460,8 @@ twDEMCBlockInt <- function(
 		##describe
 		pops = lapply( iPops, function(iPop){ list(  ##<< info on each population. A list with entries:  
 			##describe<<
-			parms = ZPops[[iPop]][-(1:(M0Pops[iPop]-1)),,]	##<< numeric array (steps x parms x chains): collected states, including the initial states
-			,temp = temp[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin)] ##<< numeric vector: global temperature, i.e. cost reduction factor
+			parms = ZPops[[iPop]][-(1:(M0Pops[iPop]-1)),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
+			,temp = temp[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector: global temperature, i.e. cost reduction factor
 			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains
 			,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
 			,logDen = logDen[[iPop]]	##<< numberic array (steps x block x chains): results summed over blocks
