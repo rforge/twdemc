@@ -70,17 +70,18 @@ test.distinctLogDen <- function(){
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.nPops=2
-	ZinitPops <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
-	#dim(Zinit)
-	#head(Zinit[,,1])
-	pops <- list(
+	.nChainsPop=4
+	ZinitPops <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPops=.nPops)
+	#dim(ZinitPops)
+	#head(ZinitPops[,,1])
+	pops <- pops0 <- list(
 		pop1 <- list(
 			Zinit = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
-			,nGen=10
+			,nGen=8
 		),
 		pop2 <- list(
 			Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
-			,nGen=15
+			,nGen=100
 			,T0=10
 		)
 	)
@@ -118,15 +119,69 @@ test.distinctLogDen <- function(){
 		,blockB <- list(compPos="b", dInfoPos="logDenB")
 	)
 	
+	.nGen=100
+	.thin=4
 	#mtrace(.updateBlockTwDEMC)
-	#mtrace(twDEMCBlockInt)
 	#mtrace(.updateBlocksTwDEMC)
 	#mtrace(.updateIntervalTwDEMCPar)
-	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=60)
-	str(res[[2]])
+	#mtrace(twDEMCBlockInt)
+	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
+	str(res$pops[[2]])
 	#plot(res[[2]]$temp)
+
+	#iPop=2
+	.nGenThinned=rep(.nGen,.nPops)%/%.thin+1
+	for( iPop in seq_along(res$pops) ){
+		resPop <- res$pops[[iPop]]
+		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
+		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
+		ZinitI <- pops[[iPop]]$Zinit
+		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of Zinit" )		
+		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
+	}
+	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
+	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
-	.nGen=100
+	.tmp.f <- function(){
+		pop <- res$pops[[2]]
+		matplot( pop$pAccept[,1,], type="l" )	# acceptance rates of first block
+		matplot( pop$resLogDen[,1,], type="l" )	# logLik obs
+		matplot( pop$resLogDen[,2,], type="l" )	# logLik obs
+		#require(twMiscRgl)
+		plot( pop$parms[,"a",], pop$parms[,"b",], col=rainbow(.nGenThinned)  )
+		plot( density(pop$parms[,"a",]) )		
+		plot( density(pop$parms[,"b",]) )
+		#windows(record=TRUE)
+		plot( as.mcmc.list(res), smooth=FALSE )
+	}
+	
+	# here no nGen argument to use different nGen of pops
+	#mtrace(twDEMCBlockInt)
+	res <- twDEMCBlockInt( pops=pops0, dInfos=dInfos, blocks=blocks, controlTwDEMC=list(thin=.thin) )
+	str(res$pops[[2]])
+	.nGenThinned=sapply(pops0, "[[", "nGen")%/%.thin+1
+	for( iPop in seq_along(res$pops) ){
+		resPop <- res$pops[[iPop]]
+		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
+		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
+		ZinitI <- pops[[iPop]]$Zinit
+		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of Zinit" )		
+		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
+		checkTrue( all(is.finite(resPop$parms)), msg="found non-finite values in parameters")	
+		checkTrue( all(is.finite(resPop$temp)), msg="found non-finite values in temp")	
+		checkTrue( all(is.finite(resPop$pAccept)), msg="found non-finite values in pAccept")	
+		checkTrue( all(is.finite(resPop$resLogDen)), msg="found non-finite values in resLogDen")	
+	}
+	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
+	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
+	
+	
 	#mtrace(sfRemoteWrapper)
 	#mtrace(.doDEMCStep)
 	#mtrace(logDenGaussian)

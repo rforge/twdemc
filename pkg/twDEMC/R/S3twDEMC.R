@@ -302,7 +302,7 @@ as.mcmc.list.twDEMC <- function(
 	thin = max( origThin, thin, mlThin )
 	nChain = dim(x$parms)[3]
 	tmp.l <- lapply( 1:nChain, function(i){
-			window(	mcmc( t(adrop(x$parms[,,i,drop=FALSE],3)), thin=origThin ), start=start, thin=thin )
+			window(	mcmc( (adrop(x$parms[,,i,drop=FALSE],3)), thin=origThin ), start=start, thin=thin )
 		})	
 	mcmc.list( tmp.l )
 	### a \code{\link[coda]{mcmc.list}}
