@@ -8,8 +8,10 @@ logDenGaussian <- function(
 	theta0=theta,	##<< parameter vector, first argument to fModel. Before invocation components theta overwrite theta0 
 	obs,			##<< vector of data to compare with
 	invCovar,		##<< the inverse of the Covariance of obs (its uncertainty)
+		##<< alternatively a vector of variances (diagonal covariance matrix) can be supplied and calculation is much more efficient
 	thetaPrior = NULL,	##<< the prior estimate of the parameters
 	invCovarTheta = NULL,	##<< the inverse of the Covariance of the prior parameter estimates
+		##<< alternatively a vector of variances (diagonal covariance matrix) can be supplied and calculation is much more efficient
 	namesTheta=NULL, ##<< names assigned to theta (if not NULL), before invoking mofModel
 	blockIndices=NULL,	##<< integer vector: index of the components in theta and theta0 that should be regarded in this block 
 	scale=-1/2 	 		##<< factor to mulitply the misfit (e.g. -1/2 to obtain the unnormalized logDensity)
@@ -29,7 +31,10 @@ logDenGaussian <- function(
 	## If thetaPrior is not specified (NULL) then no penalty is assigned to parameters.
 	logDenPropParms <- if( !is.null(thetaPrior) ){
 			tmp.diffParms <- thetaBlock - thetaPrior
-			as.numeric(t(tmp.diffParms) %*% invCovarTheta %*% tmp.diffParms) 
+			if( is.matrix(invCovarTheta) )
+				t(tmp.diffParms) %*% invCovarTheta %*% tmp.diffParms
+			else
+				sum(tmp.diffParms^2 / invCovarTheta)	# assume invCovar to be independent variances
 		} else 0
 	##details<<
 	## Supports a two-step Metropolis descision. If \code{logDenAccept["parms"]} is provided, 
@@ -46,7 +51,12 @@ logDenGaussian <- function(
 	# evaluate the model at parameters theta0 
 	tmp.pred <- fModel(theta0, ...)
 	tmp.diffObs <- tmp.pred - obs
-	tmp.misfit <-  c(obs=as.numeric(t(tmp.diffObs) %*% invCovar %*% tmp.diffObs), parms=logDenPropParms)
+	logDenObs <- if( is.matrix(invCovar) ){
+		t(tmp.diffObs) %*% invCovar %*% tmp.diffObs
+	}else{
+		sum(tmp.diffObs^2 / invCovar) # assuming invCovar specifies independent variances
+	}
+	tmp.misfit <-  c(obs=as.numeric(logDenObs), parms=as.numeric(logDenPropParms) )
 	scale * tmp.misfit
 	### the misfit: scale *( t(tmp.diffObs) %*% invCovar %*% tmp.diffObs + t(tmp.diffParms) %*% invCovarTheta %*% tmp.diffParms )
 }

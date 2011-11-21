@@ -20,7 +20,7 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{getNChains.twDEMCPops}}
 		## \code{\link{getNChainsPop.twDEMCPops}}
 		## \code{\link{getNParms.twDEMCPops}}
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		#mtrace(getNSamples.twDEMCPops)
 		(getNSamples(res)-1)*res$thin
@@ -45,7 +45,7 @@ setMethodS3("getNPops","twDEMCPops", function(
 		# getNPops.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
-		## ,\code{\link{subChains.twDEMCPops}}
+		## ,\code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		length(res$pops)
 		### integer, number of populations in twDEMCPops
@@ -59,7 +59,7 @@ setMethodS3("getNChains","twDEMCPops", function(
 		# getNChains.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		length(res$pops) * dim(res$pops[[1]]$parms)[3]
 		### integer, number of chains in twDEMCPops
@@ -73,7 +73,7 @@ setMethodS3("getNChainsPop","twDEMCPops", function(
 		# getNChainsPop.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		dim(res$pops[[1]]$parms)[3]
 		### integer, number of chains per population in twDEMCPops
@@ -87,7 +87,7 @@ setMethodS3("getNParms","twDEMCPops", function(
 		# getNParms.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		ncol(res$pops[[1]]$parms)
 		### integer, number of parameters in twDEMCPops
@@ -101,7 +101,7 @@ setMethodS3("getNSamples","twDEMCPops", function(
 		# getNSamples.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		##details<< There is only one sample per thinning interval of length \code{res$thin}.
 		sapply( res$pops, function(pop){ nrow(pop$parms) })
@@ -109,9 +109,9 @@ setMethodS3("getNSamples","twDEMCPops", function(
 	})
 
 
-
+#------------------------ concatPops -------------------------------------
 setMethodS3("concatPops","twDEMCPops", function( 
-	### concatenates all the chains of all subpopulations to one matrix.
+	### Concatenates all the chains of all subpopulations to one matrix of call \code{twDEMC}.
 	x
 	,... 
 	, useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population
@@ -119,7 +119,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 ){
 	#concatPops.twDEMCPops
 	##seealso<<   
-	## \code{\link{subChains.twDEMCPops}}
+	## \code{\link{subset.twDEMCPops}}
 	## ,\code{\link{twDEMCInt}}
 	nStepsPop <- getNSamples(x)
 	if( 1 == length(minPopLength) ){
@@ -163,25 +163,59 @@ attr(concatPops,"ex") <- function(){
 
 #mtrace(concatPops.twDEMCPops)
 
+#----------------------------------- subset ---------------
 setMethodS3("subset","twDEMCPops", function( 
 	### Condenses an twDEMCPops result object to the cases boKeep.
 	x 			##<< twDEMCPops object
 	,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
 	,...
-	,dropShortPops=FALSE				##<< if set to TRUE, pops with less samples than length.out are dropped
+	,iPops=seq_along(x$pops)	##<< integer vector: only these populations are subset, others are kept
+	,dropShortPops=FALSE		##<< if set to TRUE, pops in iPops with less samples than to what \code{boKeep} refers to are dropped
 ){
 	# subset.twDEMCPops 
+		
 	##seealso<<   
-	## \code{\link{subChains.twDEMCPops}}
+	## \code{\link{twDEMCInt}}
+	
+	##details<< 
+	## There are several methods access properties a result of an \code{\link{twDEMCInt}}, i.e.
+	## an object of class \code{twDEMCPops} \itemize{
+	## \item{ number of generations: \code{\link{getNGen.twDEMCPops}}  } 
+	## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMCPops}}  } 
+	## \item{ number of chains: \code{\link{getNChains.twDEMCPops}}  } 
+	## \item{ number of populations: \code{\link{getNPops.twDEMCPops}}  } 
+	## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
+	## \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
+	## \item{ thinning interval: \code{res$thin}  } 
+	##}
+	##
+	## There are several methods to transform or subset the results of an \code{\link{twDEMCInt}} run. \itemize{
+	## \item{ select chains or sub-populations: this method  } 
+	## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
+	## \item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
+	## \item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combinePops.twDEMCPops}}  }
+	## \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
+	##}
+	##
+	## There are several methods utilize the functions of the coda package. \itemize{
+	## \item{ convert an twDEMCPops to a coda mcmc.list \code{\link{as.mcmc.list.twDEMCPops}}  } 
+	## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
+	## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
+	## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
+	## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
+	##}
+	
+	# To help re-initializing the arguments to fLogDen \itemize{
+	# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
 	
 	nSamplesPop <- getNSamples(x)
 	iKeep <- if( is.numeric(boKeep)) boKeep else which(boKeep)
 	maxStep <- max(iKeep)
 	if( dropShortPops ){
-		x <- subPops( x, which(nSamplesPop >= maxStep))
-	}else if( maxStep > min(nSamplesPop)) stop(
-			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use \code{dropShortPops} to drop shorter populations before.")
-	for( iPop in seq_along(x$pops) ){
+		x <- subPops( x, which( (1:seq_along(x$pops) == iPops) && (nSamplesPop >= maxStep)) )
+	}else if( maxStep > min(nSamplesPop[iPops])) stop(
+			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use dropShortPops=TRUE to drop shorter populations before.")
+	for( iPop in iPops ){
 		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,,, drop=FALSE] 
 		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,,, drop=FALSE] 
@@ -204,8 +238,25 @@ attr(subset.twDEMCPops,"ex") <- function(){
 	} 
 }
 
+setMethodS3("subPops","twDEMCPops", function( 
+		### Condenses an twDEMCPops List to the chains iChains e.g \code{1:4}.
+		x
+		, iPops 		##<< populations to keep	 
+		,... 
+	#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
+	){
+		##seealso<<   
+		## \code{\link{twDEMCInt}}
+		## \code{\link{subset.twDEMCPops}}
+		x$pops <- x$pops[iPops]
+		x
+	})
+#mtrace(subPops.twDEMCPops)
+
+
+
 setMethodS3("squeeze","twDEMCPops", function(
-	### Reduces the rows of os that all chains have the same number of samples. 
+	### Reduces the rows of populations so that all populations have the same number of samples. 
 	x, ##<< the twDEMCPops list to thin 
 	...,
 	length.out=min(getNSamples(x)),	##<< number of steps in each population
@@ -216,7 +267,7 @@ setMethodS3("squeeze","twDEMCPops", function(
 	if( dropShortPops ){
 		x <- subPops( x, iPops=which(nSamplesPop < length.out))
 	}else if( length.out > min(nSamplesPop)) stop(
-			"squeeze.twDEMCPops: specified a length that is longer than the shortest population. Use \code{dropShortPops=TRUE} to drop shorter populations.")
+			"squeeze.twDEMCPops: specified a length that is longer than the shortest population. Use dropShortPops=TRUE to drop shorter populations.")
 	##details<< 
 	## all populations with 
 	for( iPop in seq_along(x$pops) ){
@@ -252,16 +303,16 @@ setMethodS3("thin","twDEMCPops", function(
 		### Note that time starts from zero.
 		### If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used
 		end=NA,   
-		### numeric scalar: the maximum end time of the chains. 
+		### numeric vector the maximum end time of the populations. 
 		### Note that time starts from zero.
-		### If a vector or matrix is supplied (e.g. nGenBurnin) then the maximum is used
+		### If a scalar is supplied, then it is repeateed NPop times 
 		...
 		, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 	
 	){
 		# thin.twDEMCPops
 		##seealso<<   
-		## \code{\link{subChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		
 		# with the thinned list having mZ rows, this corresponds to (mZ-1)*thin Metropolis steps + 1 row for the initial state
 		if( (newThin < x$thin) | (newThin %% x$thin) )
@@ -269,28 +320,36 @@ setMethodS3("thin","twDEMCPops", function(
 		start <- max(start)	#
 		if( start < 0)
 			stop(paste("thin.twDEMCPops: argument start must be at least 0 but was ",start))
-		nS <- getNSamples(x)
-		maxSampleTime <- iSample2time(nS, thin=x$thin)
-		suppressWarnings( end<-min(end) )
-		if( is.null(end) || !is.finite(end) || end>maxSampleTime) end=maxSampleTime 	
-		if( end < 1)
-			stop(paste("thin.twDEMCPops: argument end must be at least 1 (one generation from 0 to 1) but was",end))
-		#thin own past: keep first line and every occurenc of multiple thin
-		nGen <- getNGen(x)
+		nSPops <- getNSamples(x)
 		thinFac <- newThin %/% x$thin
-		startT <- ceiling( start / newThin ) * newThin		# adjust start time so that it coincides with next start of next thinning interval
-		endT <- floor( end / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
-		iStartEnd <- time2iSample( c(startT,endT), thin=x$thin, match="none" )
-		iKeep <- seq(iStartEnd[1],iStartEnd[2],by=thinFac)
-		res <- subset.twDEMCPops( x, iKeep )
-		res$thin <- newThin
+		startT <- ceiling( start / x$thin ) * x$thin		# adjust start time so that it coincides with next start of next thinning interval
+		if( 1 == length(end) ) end <- rep(end, length(x$pops) )
+		#nGenPops <- getNGen(x)
+		for( iPop in seq_along(x$pops)){
+			maxSampleTime <- iSample2time(nSPops[iPop], thin=x$thin)
+			endi <- end[[iPop]]
+			if( is.null(endi) || !is.finite(endi) || endi>maxSampleTime) endi=maxSampleTime 	
+			if( endi < 1)
+				stop(paste("thin.twDEMCPops: argument end must be at least 1 (one generation from 0 to 1) but was",endi))
+			#thin own past: keep first line and every occurenc of multiple thin
+			endT <- startT + floor( (endi-startT) / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
+			iStartEnd <- time2iSample( c(startT,endT), thin=x$thin, match="none" )
+			iKeep <- seq(iStartEnd[1],iStartEnd[2],by=thinFac)
+			x <- subset.twDEMCPops( x, iKeep, iPops=iPop )
+		}
+		x$thin <- newThin
 		#time2iSample(70,5)
-		if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- pmax(0,x$nGenBurnin-startT) 
-		if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
-		res
+		#if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- pmax(0,x$nGenBurnin-startT) 
+		#if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
+		x
 	})
 #mtrace(thin.twDEMCPops)
 attr(thin.twDEMCPops,"ex") <- function(){
+	if( FALSE ){
+		#mtrace(thin.twDEMCPops)
+		tmp <- thin(res, start=4, newThin=8 )
+		all.equals( c(1, 11), getNSamples(tmp))
+	}
 	data(twdemcEx1)
 	x <- twdemcEx1
 	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1), nGenBurnin=twdemcEx1$nGenBurnin )
@@ -314,95 +373,4 @@ as.mcmc.list.twDEMCPops <- function(
 	xStack <- concatPops.twDEMCPops(x, useThinning=useThinning, minPopLength=minPopLength)
 	as.mcmc.list.twDEMC(xStack)
 }
-
-setMethodS3("subPops","twDEMCPops", function( 
-		### Condenses an twDEMCPops List to the chains iChains e.g \code{1:4}.
-		x
-		, iPops 		##<< populations to keep	 
-		,... 
-		#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
-	){
-		##seealso<<   
-		## \code{\link{twDEMCInt}}
-		x$pops <- x$pops[iPops]
-		x
-	})
-#mtrace(subChains.twDEMCPops)
-
-setMethodS3("subChains","twDEMCPops", function( 
-		### Condenses an twDEMCPops List to the chains iChains e.g \code{1:4}.
-		x
-		, iChains 	##<< chains to keep	 
-		,... 
-	#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
-	){
-		stop("subChains.twDEMCPops not implemented yet.")
-		##seealso<<   
-		## \code{\link{twDEMCInt}}
-		
-		##details<< 
-		## There are several methods access properties a result of an \code{\link{twDEMCInt}}, i.e.
-		## an object of class \code{twDEMCPops} \itemize{
-		## \item{ number of generations: \code{\link{getNGen.twDEMCPops}}  } 
-		## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMCPops}}  } 
-		## \item{ number of chains: \code{\link{getNChains.twDEMCPops}}  } 
-		## \item{ number of populations: \code{\link{getNPops.twDEMCPops}}  } 
-		## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
-		## \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
-		## \item{ thinning interval: \code{res$thin}  } 
-		##}
-		##
-		## There are several methods to transform or subset the results of an \code{\link{twDEMCInt}} run. \itemize{
-		## \item{ select chains or sub-populations: this method  } 
-		## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
-		## \item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
-		## \item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combinePops.twDEMCPops}}  }
-		## \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
-		##}
-		##
-		## There are several methods utilize the functions of the coda package. \itemize{
-		## \item{ convert an twDEMCPops to a coda mcmc.list \code{\link{as.mcmc.list.twDEMCPops}}  } 
-		## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
-		## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
-		## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
-		## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
-		##}
-		
-		# To help re-initializing the arguments to fLogDen \itemize{
-		# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
-		#
-		
-		##details<< 
-		## Alternatively to specification of iChains, one can specify a vector of populations and the total number of populations.
-		if( 0!=length(iPops) ){
-			
-		}
-		if( is.null(nPop) ) nPop=ncol(x$temp)
-		if( is.null(nPop) ) nPop=1		#for backware compatibility of temp
-		nChainsPop = ncol(x$logDen) %/% nPop
-		res <- x
-		if( !is.null(iPops)){
-			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
-			res$temp <- x$temp[,iPops, drop=FALSE]	#by nPops
-			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- x$nGenBurnin[iPops]
-		}else{
-			# no populatios given: reduce to one population
-			res$temp <- try( matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1 ),silent=TRUE)
-			if( inherits(res$temp,"try-error")) res$temp=matrix( 1, nrow=nrow(x$logDen), ncol=1) #for backware compatibility of temp
-			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
-		}
-		res$parms <- x$parms[,,iChains, drop=FALSE]
-		res$logDenComp <- x$logDenComp[,,iChains, drop=FALSE]
-		res$logDen <- x$logDen[,iChains, drop=FALSE] 
-		res$pAccept <- x$pAccept[,iChains, drop=FALSE]
-		res$thin <- x$thin
-		if( 0 < length(x$Y))
-			res$Y <- x$Y[,,iChains, drop=FALSE]
-		res$thin <- x$thin
-		if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
-		res
-		### a list of class twDEMCPops (see \code{\link{twDEMCInt}})
-	})
-#mtrace(subChains.twDEMCPops)
-
 

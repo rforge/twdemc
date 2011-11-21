@@ -1,44 +1,8 @@
 twDEMCBlockInt <- function(
 	### Differential Evolution Markov Chain with blocked parameter update
-	pops = list( list( ## list of population infos for each population, each info is list with components
-		##describe<<
-		Zinit		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
-		, nGen = 10	##<< number of generations, i.e. steps to proceed
-		, T0=1		##<< initial temperature
-		, Tend=1	##<< end temperature
-		, Tprop=NULL	##<< temperature proportions of result components
-		, X=NULL		##<< numeric matrix (nParm x nChain) initial state
-		, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
-	)) ##end<<
-	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
-			##describe<<
-			fLogDen=NULL
-			###	\code{function(theta, ...)} calculates a vector of logDensities 
-			### corresponding to different data streams of parameter vector theta 
-			### \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)} 
-			### to handle first steps in Multi-step Metropolis decision internally. 
-			### See details.
-			, compPosDen=1:nrow(pops[[1]]$Zinit)	##<< index or names of the parameter components that are used in this density function 
-			, argsFLogDen=list()	##<< further arguments passed to fLogDen
-			, intResComp=vector("integer",0) 
-			### integer or character vector: indices or names of results components of fLogDen 
-			### that are used for internal Metropolis decisions
-			, fLogDenScale=1 
-			### scalar multiplied to the result of fLogDen 
-			### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
-			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
-		)) ##end<<
-		### further elements that are calculated are \itemize{
-		###  \item resCompPos: position of the result components in the concatenation across all density functions  
-		### }
-	, blocks = list( list( ##<< list of parameter blocks, each block is list with entries
-			##describe<<
-			, dInfoPos=1		##<< name or position to \argument{fLogDenInfo}. Several blocks may share the same density but update different parameters
-			, compPos=dInfos[[1]]$compPosDen	##<< names or index of the parameter components to be updated
-			, fUpdateBlock=.updateBlockTwDEMC	##<< function to update the parameters
-			, argsFUpdate=list()	##<< further arguments passed to fUpdate
-			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
-		)) ##end<<
+	pops=NULL
+	, dInfos=NULL
+	, theBlocks = 1
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
 	, controlTwDEMC = list()	##<< DEMCzsControl parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
@@ -46,11 +10,9 @@ twDEMCBlockInt <- function(
 	, fDiscrProp=NULL				##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
 	, argsFDiscrProp=list()			##<< further arguments to fDiscrProp
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
-	, upperParBoundsPop = vector("list",length(pops))
-	### list of named numeric vectors: giving upper parameter bounds for each population 
-	### for exploring subspaces of the limiting distribution, see details
-	, lowerParBoundsPop = vector("list",length(pops))  ##<< similar to upperParBounds
 ){
+	str(theBlocks)
+	is.null(dInfos)
 	ctrl = list( 
 		thin = 4 	   	##<< thinning interval	 
 		#moved to block,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change		
@@ -89,23 +51,28 @@ twDEMCBlockInt <- function(
 	XPops <- lapply( pops, "[[", "X" )
 	XChains <- do.call(cbind,XPops)
 	logDenCompXPops <- lapply( pops, "[[", "logDenCompX" ) # see initial states for initializing missing entries
+	upperParBoundsPop = lapply( pops, "[[", "upperParBounds" )
+	lowerParBoundsPop = lapply( pops, "[[", "lowerParBounds" )
 	
 	#-- dimensions of fLogDenInfo
 	dInfos <- lapply(dInfos, .checkDInfo, parNames=parNames)
 	nDen <- length(dInfos)
 	iDens <- 1:nDen
+	if( is.null(names(dInfos))) names(dInfos) <- paste("dInfo",iDens)
+	tmp <- which(names(dInfos) == "")
+	names(dInfos)[tmp] <- paste("dInfo",iDens[tmp])
 	compPosDens <- lapply(dInfos, "[[", "compPosDen") 
 	
 	#-- dimensions of blocks
-	blocks <- lapply( blocks, .checkBlock, dInfos=dInfos, parNames=parNames)
-	nBlock <- length(blocks)
-	iBlocks <- 1:length(blocks)
+	theBlocks <- lapply( theBlocks, .checkBlock, dInfos=dInfos, parNames=parNames)
+	nBlock <- length(theBlocks)
+	iBlocks <- 1:length(theBlocks)
 	#block <- blocks[[1]]
-	dInfoPosBlock <- sapply(blocks, "[[", "dInfoPos") 
+	dInfoPosBlock <- sapply(theBlocks, "[[", "dInfoPos") 
 	# following refers to position in parNames
-	compPosBlock <- lapply( blocks, "[[", "compPos" ) # already transformed to positions in .checkBlock
+	compPosBlock <- lapply( theBlocks, "[[", "compPos" ) # already transformed to positions in .checkBlock
 	# following refers to position in dInfo$compPosDen
-	compPosInDenBlock <- lapply( blocks, "[[", "compPosInDen" )
+	compPosInDenBlock <- lapply( theBlocks, "[[", "compPosInDen" )
 	# make sure that all parameters are updated at least once
 	if( !all.equal( sort(unique(do.call(c, compPosBlock))), 1:nParm, check.attributes = FALSE) ) 
 		stop("each parameter (columns of Zinit) must be updated in at least one block.")
@@ -333,7 +300,7 @@ twDEMCBlockInt <- function(
 		,argsFDiscrProp=argsFDiscrProp
 	)
 	# construct an list for each block that includes compPos, TFix and intResCompPos
-	argsFUpdateBlocks <- lapply( blocks, function(block){ 
+	argsFUpdateBlocks <- lapply( theBlocks, function(block){ 
 			c( argsFUpdateDefault, dInfos[[block$dInfoPos]], block )
 		})
 	remoteArgsFUpdateBlocksTwDEMC <- list( 
@@ -1247,16 +1214,49 @@ attr(twDEMCBlockInt,"ex") <- function(){
 
 setMethodS3("twDEMCBlock","array", function( 
 		### Initialize \code{\link{twDEMCInt}} by array of initial population and remove those generations from results afterwards
-		Zinit, ##<< initial population: a numeric array (d x M0 x Npop) see details in \code{\link{twDEMCInt}}  
-		...	##<< further arguments to \code{\link{twDEMCInt}}
+		Zinit ##<< initial population: a numeric array (M0 x d x NChain) see details in \code{\link{twDEMCInt}}  
+		,...	##<< further arguments to \code{\link{twDEMCBlockInt}}
+		,nPop = 1	##<< number of populations in Zinit
 	){
 		#twDEMC.array
-		M0 <- dim(Zinit)[2]
-		res <- twDEMCInt(Zinit,...)
-		#remove the initial M0-1 rows of Zinit
-		res2 <- subset(res, -(1:(M0-1)) )
-		### result of \code{\link{twDEMCInt}} with initial M0-1 cases removed
+		nChains <- dim(Zinit)[3]
+		nChainsPop <- nChains %/% nPop
+		popChains <- lapply(1:nPop, function(iPop){ (iPop-1)*nChainsPop + 1:nChainsPop })  
+		pops <- lapply( popChains, function(chainsPopI){list(Zinit=Zinit[,,chainsPopI])})
+		#res <- twDEMCBlockInt(pops)
+		res <- twDEMCBlockInt(pops=pops,...)
+		resc <- concatPops.twDEMCPops(res)	# all have the same length, so allow concatenate population results
 	})
+attr(twDEMCBlock.array,"ex") <- function(){
+	data(twLinreg1)
+	attach( twLinreg1 )
+	
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,			### vector of data to compare with
+		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	
+	.nPop = 2
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	dim(Zinit)
+	
+	.nGen=100
+	#mtrace(twDEMC.array)
+	#mtrace(twDEMCBlockInt)
+	tmp <-  twDEMCBlock( Zinit, nPop=.nPop
+		#,dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+		#,theBlocks=2
+		,nGen=.nGen, 
+	)
+	str(tmp)
+	
+	
+}
 
 setMethodS3("twDEMCBlock","twDEMC", function( 
 		### initialize \code{\link{twDEMCInt}} by former run and append results to former run

@@ -123,7 +123,7 @@ time2iSample <- function(
 	)
 	### index of the neares sample
 }
-attr(iSample2time,"ex") <- function(){
+attr(time2iSample,"ex") <- function(){
 	time = 0:20
 	structure( time2iSample(time), names=time)
 	structure( iSample2time(1:6, thin=4) , names=1:6 )	# to show the times corresponding to sample
@@ -373,8 +373,8 @@ setMethodS3("thin","twDEMC", function(
 	#thin own past: keep first line and every occurenc of multiple thin
 	nGen <- getNGen(x)
 	thinFac <- newThin %/% x$thin
-	startT <- ceiling( start / newThin ) * newThin		# adjust start time so that it coincides with next start of next thinning interval
-	endT <- floor( end / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
+	startT <- ceiling( start / x$thin ) * x$thin		# adjust start time so that it coincides with next start of next thinning interval
+	endT <- startT + floor( (end-startT) / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
 	iStartEnd <- time2iSample( c(startT,endT), thin=x$thin, match="none" )
 	iKeep <- seq(iStartEnd[1],iStartEnd[2],by=thinFac)
 	res <- subset.twDEMC( x, iKeep )
