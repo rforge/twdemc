@@ -2,7 +2,7 @@
 
 setMethodS3("getNGen","twDEMCPops", function( 
 		### Extract the number of completed generations in res
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		##details<< 
@@ -23,7 +23,7 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
 		#mtrace(getNSamples.twDEMCPops)
-		(getNSamples(res)-1)*res$thin
+		(getNSamples(x)-1)*x$thin
 		### integer vector, number of completed generations
 	})
 attr( getNGen.twDEMCPops, "ex") <- function(){
@@ -39,7 +39,7 @@ attr( getNGen.twDEMCPops, "ex") <- function(){
 
 setMethodS3("getNPops","twDEMCPops", function( 
 		### Extracts the number of populations
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		# getNPops.twDEMCPops
@@ -47,13 +47,13 @@ setMethodS3("getNPops","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## ,\code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
-		length(res$pops)
+		length(x$pops)
 		### integer, number of populations in twDEMCPops
 	})
 
 setMethodS3("getNChains","twDEMCPops", function( 
 		### Extracts the number of chains
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		# getNChains.twDEMCPops
@@ -61,13 +61,13 @@ setMethodS3("getNChains","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
-		length(res$pops) * dim(res$pops[[1]]$parms)[3]
+		length(x$pops) * dim(x$pops[[1]]$parms)[3]
 		### integer, number of chains in twDEMCPops
 	})
 
 setMethodS3("getNChainsPop","twDEMCPops", function( 
 		### Extracts the number of chains per population
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		# getNChainsPop.twDEMCPops
@@ -75,13 +75,13 @@ setMethodS3("getNChainsPop","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
-		dim(res$pops[[1]]$parms)[3]
+		dim(x$pops[[1]]$parms)[3]
 		### integer, number of chains per population in twDEMCPops
 	})
 
 setMethodS3("getNParms","twDEMCPops", function( 
 		### Extracts the number of parameters, i.e. the dimension of the parameter vector
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		# getNParms.twDEMCPops
@@ -89,13 +89,13 @@ setMethodS3("getNParms","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
-		ncol(res$pops[[1]]$parms)
+		ncol(x$pops[[1]]$parms)
 		### integer, number of parameters in twDEMCPops
 	})
 
 setMethodS3("getNSamples","twDEMCPops", function( 
 		### Extracts the number of samples
-		res	##<< object of class twDEMCPops
+		x	##<< object of class twDEMCPops
 		,... 
 	){
 		# getNSamples.twDEMCPops
@@ -103,8 +103,8 @@ setMethodS3("getNSamples","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCInt}}
-		##details<< There is only one sample per thinning interval of length \code{res$thin}.
-		sapply( res$pops, function(pop){ nrow(pop$parms) })
+		##details<< There is only one sample per thinning interval of length \code{x$thin}.
+		sapply( x$pops, function(pop){ nrow(pop$parms) })
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
@@ -146,6 +146,8 @@ setMethodS3("concatPops","twDEMCPops", function(
 	nY <- min(sapply(YL,nrow))
 	YLs <- lapply(YL, function(Y){ Y[nrow(Y)-((nY-1):0),,,drop=FALSE] })
 	x$Y <- structure( abind(YLs, along=3), dimnames=dimnames(p1$Y))
+	x$upperParBoundsPop = lapply( pops, "[[", "upperParBounds" )
+	x$lowerParBoundsPop = lapply( pops, "[[", "lowerParBounds" )
 	class(x) <- c("list","twDEMC")
 	x
 })

@@ -56,6 +56,9 @@ test.distinctLogDen <- function(){
 	(.expTheta <- coef(lmDummy))
 	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
+	#plot( obs ~ xval )
+	#abline(lmDummy)
+	#abline(thetaTrue, col="red")
 	
 	# nice starting values
 	argsFLogDen <- list(
@@ -76,11 +79,11 @@ test.distinctLogDen <- function(){
 	#head(ZinitPops[,,1])
 	pops <- pops0 <- list(
 		pop1 <- list(
-			Zinit = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
+			parms = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
 			,nGen=8
 		),
 		pop2 <- list(
-			Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
+			parms = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 			,nGen=100
 			,T0=10
 		)
@@ -101,16 +104,17 @@ test.distinctLogDen <- function(){
 	dInfos <- list(
 		logDenA = within(dInfoDefault,{
 				argsFLogDen <- c( argsFLogDen, list(
-						thetaPrior= thetaTrue["a"]	### the prior estimate of the parameters
-						,invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
-						,blockIndices=1
-					)) 
+						blockIndices=1
+						,thetaPrior= thetaTrue["a"]	### the prior estimate of the parameters
+						# underestimates variances ,invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
+						,invCovarTheta = diag(1/sdTheta^2)
+				)) 
 			})
 		,logDenB = within(dInfoDefault,{
 				argsFLogDen <- c( argsFLogDen, list(
-						thetaPrior= thetaTrue["b"]	### the prior estimate of the parameters
-						,invCovarTheta = invCovarTheta[2,2,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
-						,blockIndices=2
+						blockIndices=2
+						#,thetaPrior= thetaTrue["b"]	### the prior estimate of the parameters
+						#,invCovarTheta = invCovarTheta[2,2,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
 					)) 
 			})
 	)
@@ -118,45 +122,6 @@ test.distinctLogDen <- function(){
 		blockA <- list(compPos="a", dInfoPos="logDenA")
 		,blockB <- list(compPos="b", dInfoPos="logDenB")
 	)
-	
-	.nGen=100
-	.thin=4
-	#mtrace(.updateBlockTwDEMC)
-	#mtrace(.updateBlocksTwDEMC)
-	#mtrace(.updateIntervalTwDEMCPar)
-	#mtrace(twDEMCBlockInt)
-	res <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
-	str(res$pops[[2]])
-	#plot(res[[2]]$temp)
-	
-	#iPop=2
-	.nGenThinned=rep(.nGen,.nPops)%/%.thin+1
-	for( iPop in seq_along(res$pops) ){
-		resPop <- res$pops[[iPop]]
-		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
-		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
-		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
-		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
-		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
-		ZinitI <- pops[[iPop]]$Zinit
-		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of Zinit" )		
-		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
-	}
-	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
-	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
-	
-	.tmp.f <- function(){
-		pop <- res$pops[[2]]
-		matplot( pop$pAccept[,1,], type="l" )	# acceptance rates of first block
-		matplot( pop$resLogDen[,1,], type="l" )	# logLik obs
-		matplot( pop$resLogDen[,2,], type="l" )	# logLik obs
-		#require(twMiscRgl)
-		plot( pop$parms[,"a",], pop$parms[,"b",], col=rainbow(.nGenThinned)  )
-		plot( density(pop$parms[,"a",]) )		
-		plot( density(pop$parms[,"b",]) )
-		#windows(record=TRUE)
-		plot( as.mcmc.list(res, minPopLength=10), smooth=FALSE )
-	}
 	
 	# here no nGen argument to use different nGen of pops
 	#mtrace(twDEMCBlockInt)
@@ -170,8 +135,8 @@ test.distinctLogDen <- function(){
 		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
-		ZinitI <- pops[[iPop]]$Zinit
-		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of Zinit" )		
+		ZinitI <- pops[[iPop]]$parms
+		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of parms" )		
 		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
 		checkTrue( all(is.finite(resPop$parms)), msg="found non-finite values in parameters")	
 		checkTrue( all(is.finite(resPop$temp)), msg="found non-finite values in temp")	
@@ -180,6 +145,51 @@ test.distinctLogDen <- function(){
 	}
 	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
 	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
+	
+	
+	
+	.nGen=100
+	#.thin=4
+	#.nGen=3
+	#mtrace(.checkBlock)
+	#mtrace(.updateBlockTwDEMC)
+	#mtrace(.updateBlocksTwDEMC)
+	#mtrace(.updateIntervalTwDEMCPar)
+	#mtrace(twDEMCBlockInt)
+	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
+	str(res$pops[[2]])
+	#windows(record=TRUE)
+	plot( as.mcmc.list(res, minPopLength=10), smooth=FALSE )
+	resB <- thin(res,start=20)	
+	#plot(res[[2]]$temp)
+	
+	#iPop=2
+	.nGenThinned=rep(.nGen,.nPops)%/%.thin+1
+	for( iPop in seq_along(res$pops) ){
+		resPop <- res$pops[[iPop]]
+		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
+		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
+		ZinitI <- pops[[iPop]]$parms
+		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of parms" )		
+		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
+	}
+	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
+	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
+	
+	.tmp.f <- function(){
+		pop <- resB$pops[[2]]
+		matplot( pop$logDen[,1,], type="l" )	# acceptance rates of first block
+		matplot( pop$pAccept[,1,], type="l" )	# acceptance rates of first block
+		matplot( pop$resLogDen[,1,], type="l" )	# logLik obs
+		matplot( pop$resLogDen[,2,], type="l" )	# logLik parms
+		#require(twMiscRgl)
+		plot( pop$parms[,"a",], pop$parms[,"b",], col=rainbow(.nGenThinned)  )
+		plot( density(pop$parms[,"a",]) )		
+		plot( density(pop$parms[,"b",]) )
+	}
 	
 	
 	#mtrace(sfRemoteWrapper)
@@ -197,9 +207,10 @@ test.distinctLogDen <- function(){
 	#str(res)
 	checkEquals( 8, res$thin )
 	checkEquals( (.nGen%/%res$thin)+1,nrow(res$rLogDen))
-	
-	rescoda <- as.mcmc.list(res) 
-	plot(rescoda)
+
+	#windows(record=TRUE)
+	rescoda <- as.mcmc.list(resB) 
+	plot(rescoda, smooth=FALSE)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
 	
