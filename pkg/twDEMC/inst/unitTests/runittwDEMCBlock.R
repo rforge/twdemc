@@ -147,15 +147,14 @@ test.distinctLogDen <- function(){
 	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
 	
-	
 	.nGen=100
 	#.thin=4
 	#.nGen=3
 	#mtrace(.checkBlock)
 	#mtrace(.updateBlockTwDEMC)
 	#mtrace(.updateBlocksTwDEMC)
-	#mtrace(.updateIntervalTwDEMCPar)
 	#mtrace(twDEMCBlockInt)
+	#mtrace(.updateIntervalTwDEMCPar)
 	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
 	str(res$pops[[2]])
 	#windows(record=TRUE)
@@ -245,6 +244,42 @@ test.distinctLogDen <- function(){
 			pnorm(.expTheta, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
 	checkInterval( .pthetaTrue ) 
+}
+
+profile.f <- function(){
+	#same setup as test.distinctLogDen
+	.nGen=100
+	#.thin=4
+	#.nGen=3
+	#mtrace(.checkBlock)
+	#mtrace(.updateBlockTwDEMC)
+	#mtrace(.updateBlocksTwDEMC)
+	#mtrace(twDEMCBlockInt)
+	#mtrace(.updateIntervalTwDEMCPar)
+	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
+	prof <- profr(
+		res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=1, controlTwDEMC=list(thin=1), debugSequential=TRUE )
+		,interval=0.001	)
+	#plot(prof)
+	prof2 <- subset(prof, start >= 0.01)
+	plot(prof2, minlabel=0.05, angle=10)
+	prof <- profr(
+		res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=1, controlTwDEMC=list(thin=1), debugSequential=FALSE )
+		,interval=0.001	)
+	plot(prof)
+	
+	Rprof(interval=0.001)
+	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=1)
+	, debugSequential=TRUE )	
+	Rprof(NULL)
+	head(summaryRprof()$by.self)
+	
+	Rprof(interval=0.001)
+	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=1)
+	, debugSequential=FALSE )	
+	Rprof(NULL)
+	head(summaryRprof()$by.self)
+	
 }
 
 test.badStartSeqData <- function(){
