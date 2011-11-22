@@ -849,9 +849,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	
 	#second dimension is Nsteps*nChains (we can set nChains as last dimension 
 	#array(chainsZ,dim=c(nSample,d$chains))
-	resArraySteps <- array(res, dim=c(nParm+1,nSample,nChain), dimnames=list(parms=rownames(res),steps=NULL,chains=NULL) )
-	#expected steps as last dimension
-	xStepAndExtra <- aperm(resArraySteps,c(1,3,2))
+	xStepAndExtra <- resArraySteps <- array(res, dim=c(nParm+1,nSample,nChain), dimnames=list(parms=rownames(res),steps=NULL,chains=NULL) )
+	#deprecated expected steps as last dimension
+	#xStepAndExtra <- aperm(resArraySteps,c(1,3,2))
 	# numeric array (Npar+1,Nchains,Nsteps): difference vectors in parameter space for steps and chains
 	# last row is the extra LogDen associated with snooker update
 	
@@ -859,8 +859,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	rExtra <- adrop(xStepAndExtra[nrow(xStepAndExtra),,,drop=FALSE],1)			#second dim (columns step within Thinning interval)
 	list(xStep=xStep, rExtra=rExtra)
 	### List with components \describe{
-	### \item{xStep}{numeric array (Npar x Nchain x Nsteps): difference vectors in parameter space}
-	### \item{rExtra}{numeric matrix (NChain x Nsteps): some extra LogDensity from snooker update}}
+	### \item{xStep}{numeric array (Npar x NSteps x Nchain): difference vectors in parameter space}
+	### \item{rExtra}{numeric matrix (Nsteps x NChain): some extra LogDensity from snooker update}}
 	### Nsteps=ctrl$thin
 }
 
@@ -930,8 +930,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	X				##<< numeric matrix: current location of chains rows: parameters, columns: chains
 	,logDenCompX	##<< numeric matrix: result of calls to density functions from previous step
 	,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
-	,xStep 			##<< array rows: difference vectors in parameter space, cols: chains, zdim: steps
-	,rExtra			##<< numeric matrix: row: chain, col: step within thinning interval
+	,xStep 			##<< array rows: difference vectors in parameter space, cols: steps, zdim: chains
+	,rExtra			##<< numeric matrix: row: step within thinning interval, col: chain
 	,tempSteps		##<< numeric matrix: row: population, col: step within thinning interval
 	,nPop			##<< the number of populations
 	,pAcceptPar		##<< numeric matrix: current acceptance rate for each (block x population)
@@ -959,14 +959,14 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	
 	#if(!is.numeric(X) | !is.numeric(logDenCompX) | !is.numeric(logDenX) )
 	#	stop(".doDEMCSteps: first three arguments must be numeric")
-	.tmpf <- function(iStep){t(adrop(xStep[,,iStep,drop=FALSE],3))} 
-	xStepStacked <- do.call( rbind, lapply(1:(dim(xStep)[3]),.tmpf) )
-	#xStepStacked <- abind( lapply(1:(dim(xStep)[3]),.tmpf), along=1 )
+	#.tmpf <- function(iStep){adrop(xStep[,iStep, ,drop=FALSE],2)}	# all chains of current step 
+	#xStepStacked <- do.call( rbind, lapply(1:(dim(xStep)[3]),.tmpf) )
+	#xStepStacked <- abind( lapply(1:(dim(xStep)[2]),.tmpf), along=2 )
 	#all chains of first step, all chains of second step, ...
 	
 	dimXStep <- dim(xStep)
-	nChain <- dimXStep[2]
-	nStep <- dimXStep[3]
+	nChain <- dimXStep[3]
+	nStep <- dimXStep[2]
 	#d <- as.list(structure(dimXStep,names=c("parms","chains","steps"))) 
 	iGenT <- (1:nStep)
 	nCases = nChain * nStep
@@ -978,12 +978,15 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	F_APPLY <- sfRemoteWrapper		# reuse the exported arguments in remoteFunArgs, which is a name	
 	#fArgsSame <- list( remoteFunArgs=as.name("argsDEMCStepWrapper") )	#exported, includes remoteFun=.doDEMCStep, remoteDumpfileBasename and argsDEMCStep
 	F_ARGS <- function(i,prevRes){ 
-		iChain0 <-((i-1) %% nChain)	# i is the state processed, c( iChains_1Step, iChains_2Step ... ) 
+		iStep0 <- ((i-1) %/% nChain) # i is the state processed, c( iChains_1Step, iChains_2Step ... )
+		iChain0 <- (i-1) - iStep0*nChain   #((i-1) %% nChain)	 
 		iPop <-(iChain0 %/% nChainsPop)+1
 		#args <-c( prevRes[c("xC", "logDenCompC", "parUpdateDenC")],
-		args <-c( prevRes[1:3]
-			 ,list( step=xStepStacked[i,,drop=TRUE], rExtra=rExtra[i], tempC=tempSteps[iPop], pAccept=pAcceptPar, iPop=iPop
-			 	,remoteFunArgs=remoteFunArgs )
+		args <-c( prevRes[1:3] 
+			 ,list( step=xStep[,1+iStep0,1+iChain0 ,drop=TRUE]
+		 			, rExtra=rExtra[1+iStep0,1+iChain0 ,drop=TRUE]
+					, tempC=tempSteps[iPop], pAccept=pAcceptPar, iPop=iPop
+			 		, remoteFunArgs=remoteFunArgs )
 		)}	
 	#mtrace(F_ARGS)
 	#.res0 <- lapply(1:nrow(X),function(row){X[row,]})

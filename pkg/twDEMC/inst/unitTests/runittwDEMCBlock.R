@@ -85,7 +85,8 @@ test.distinctLogDen <- function(){
 		pop2 <- list(
 			parms = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 			,nGen=100
-			,T0=10
+			,T0=20
+			,Tend=5
 		)
 	)
 	#tmp <- .checkPop(pops[[1]])
@@ -107,7 +108,7 @@ test.distinctLogDen <- function(){
 						blockIndices=1
 						,thetaPrior= thetaTrue["a"]	### the prior estimate of the parameters
 						# underestimates variances ,invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
-						,invCovarTheta = diag(1/sdTheta^2)
+						#,invCovarTheta = sdTheta^2
 				)) 
 			})
 		,logDenB = within(dInfoDefault,{
@@ -155,10 +156,13 @@ test.distinctLogDen <- function(){
 	#mtrace(.updateBlocksTwDEMC)
 	#mtrace(twDEMCBlockInt)
 	#mtrace(.updateIntervalTwDEMCPar)
-	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
+	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin, DRgamma=0.15)
+		,debugSequential=TRUE
+	)
 	str(res$pops[[2]])
 	#windows(record=TRUE)
 	plot( as.mcmc.list(res, minPopLength=10), smooth=FALSE )
+	plot( as.mcmc.list(subPops(res,2), minPopLength=10), smooth=FALSE )
 	resB <- thin(res,start=20)	
 	#plot(res[[2]]$temp)
 	
@@ -179,13 +183,16 @@ test.distinctLogDen <- function(){
 	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
 	.tmp.f <- function(){
-		pop <- resB$pops[[2]]
+		pop <- resB$pops[[1]]
+		pop <- resB$pops[[2]]  # with higher temp
 		matplot( pop$logDen[,1,], type="l" )	# acceptance rates of first block
 		matplot( pop$pAccept[,1,], type="l" )	# acceptance rates of first block
+		matplot( pop$temp, type="l" )	# temperature
 		matplot( pop$resLogDen[,1,], type="l" )	# logLik obs
 		matplot( pop$resLogDen[,2,], type="l" )	# logLik parms
 		#require(twMiscRgl)
 		plot( pop$parms[,"a",], pop$parms[,"b",], col=rainbow(.nGenThinned)  )
+		plot( pop$parms[,"a",], pop$parms[,"b",], col=rainbow(dim(pop$parms)[3])[rep(1:dim(pop$parms)[3], each=dim(pop$parms)[1])]  )
 		plot( density(pop$parms[,"a",]) )		
 		plot( density(pop$parms[,"b",]) )
 	}
