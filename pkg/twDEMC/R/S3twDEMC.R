@@ -322,15 +322,11 @@ setMethodS3("subset","twDEMC", function(
 	## \code{\link{subChains.twDEMC}}
 	if( is.logical(boKeep) )
 		boKeep <- rep(boKeep,length.out=nrow(x$logDen) )
-	x$parms <- x$parms[,boKeep,, drop=FALSE] 
-	x$logDen <- x$logDen[boKeep,, drop=FALSE] 
-	x$logDenComp <- x$logDenComp[,boKeep,, drop=FALSE] 
-	x$pAccept <- x$pAccept[boKeep,, drop=FALSE]
-	if( !is.null(x$temp))
-		if( is.null(ncol(x$temp)) )
-			x$temp <- x$temp[boKeep, drop=FALSE]
-		else
-			x$temp <- x$temp[boKeep,, drop=FALSE]
+	x$parms <- x$parms[boKeep,,, drop=FALSE] 
+	x$logDen <- x$logDen[boKeep,,, drop=FALSE] 
+	x$logDenComp <- x$logDenComp[boKeep,,, drop=FALSE] 
+	x$pAccept <- x$pAccept[boKeep,,, drop=FALSE]
+	x$temp <- x$temp[boKeep, drop=FALSE]
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
@@ -439,15 +435,18 @@ setMethodS3("combinePops","twDEMC", function(
 
 
 setMethodS3("stackChains","array", function( 
-	### Combine MarkovChains of a initializer of twDEMC. 
+	### Combine MarkovChains of result population of twDEMC. 
 	Zinit,
 	...
 ){
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
-	res <- t(adrop(abind( lapply( 1:dim(Zinit)[3], function(i){ Zinit[,,i,drop=FALSE] }), along=2 ),3))
+	nChain <- dim(Zinit)[3]
+	resChains <- lapply( 1:nChain, function(i){ Zinit[,,i,drop=FALSE] }) 
+	res <- adrop(abind( resChains, along=1 ),3)
+	dimnames(res) <- dimnames(Zinit)[1:2]
 	res
-	### Matrix with columns the variables.
+	### Numeric matrix (nStep x nParm). steps=c(steps_chain1, steps_chain2_, ... )
 })
 #mtrace(stackChains.array)
 #stackChains(Zinit)

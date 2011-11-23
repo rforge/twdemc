@@ -8,13 +8,15 @@
 	data(twLinreg1)
 	data(twdemcEx1)
 	attach(twLinreg1)
-	attach(twdemcEx1)
+	ex1c <- concatPops(twdemcEx1)
+	attach(ex1c)
 }
 
 .tearDown <- function(){
 	detach( twdemcEx1 )
 	detach( twLinreg1 )
 }
+
 
 .tmp.f <- function(){
 	mtrace(logDenGaussian)
@@ -51,19 +53,19 @@
 }
 
 test.twCalcLogDenPar <- function(){
-	xProp <- stackChains(twdemcEx1$parms)
+	xProp <- stackChains(ex1c$parms)
 	#mtrace(twCalcLogDenPar)
-	#logDenCompXStacked <- stackChains(logDenCompX)
 	str(res <- twCalcLogDenPar(function(x){2*x},xProp,debugSequential=TRUE))
 	
 	# with logDenCompX, vector result, providing only truncated set of parameters
 	.logDenCompX0 <- matrix(1:nrow(xProp), nrow=nrow(xProp), dimnames=list(steps=NULL,"a"))
-	.logDenCompX0[1:5,,drop=FALSE]
+	.logDenCompX0[1:5, ,drop=FALSE]
 	#function must take two arguments
 	#mtrace(twCalcLogDenPar)
 	str(res <- twCalcLogDenPar(function(y1,logDenCompAcc){y1["a"]=y1["a"]*logDenCompAcc["a"]; y1},xProp,logDenCompX=.logDenCompX0, intResCompNames=colnames(.logDenCompX0), debugSequential=TRUE))
 	checkEquals( nrow(xProp), length(res$logDen) )
 	.exp <- xProp; .exp[,"a"] = xProp[,"a"]*.logDenCompX0[,"a"]
+	names(dimnames(.exp)) <- NULL
 	checkEquals(.exp, res$logDenComp)
 }
 
@@ -79,7 +81,7 @@ test_int.goodStartSeqData.plot2d <- function(){
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
 	
 	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -90,43 +92,40 @@ test_int.goodStartSeqData.plot2d <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
-	#mtrace(sfRemoteWrapper)
-	#mtrace(.doDEMCStep)
 	#mtrace(logDenGaussian)
-	#mtrace(.doDEMCSteps )
-	#mtrace(twDEMCInt)
-	res <-  twDEMC( Zinit, nGen=.nGen, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+	#mtrace(twDEMCBlockInt)
+	res <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
+		nPop=.nPop
 		,controlTwDEMC=list(thin=8)		
 		,debugSequential=TRUE
 		,doRecordProposals=TRUE
-	)
+	))
 	#str(res)
 	checkEquals( 8, res$thin )
-	checkEquals( (.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	checkEquals( (.nGen%/%res$thin)+1,nrow(res$logDen))
 
 	rescoda <- as.mcmc.list(res) 
-	plot(rescoda)
+	plot(rescoda, smooth=FALSE)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
 	
 	.tmp.f <- function(){
-		matplot( res$rLogDen,type="l" )
-		tmp <- data.frame( a=as.numeric(res$Y["a",,]), b=as.numeric(res$Y["b",,]), rLogDen=as.numeric(res$Y["rLogDen",,]) )
+		matplot( res$logDen[,1,],type="l" )
+		tmp <- data.frame( a=as.numeric(res$Y[,"a",]), b=as.numeric(res$Y[,"b",]), logDen=as.numeric(rowSums(res$Y[,res$YPos$resLogDen0+res$dInfos[[1]]$compPosDen,])) )
 		colorFun <- colorRampPalette(c("yellow","red"))
-		levelplot( rLogDen ~ a + b, tmp, col.regions = colorFun(50))
-		tmp2 <- data.frame( a=as.numeric(res$parms["a",,]), b=as.numeric(res$parms["b",,]), rLogDen=as.numeric(res$rLogDen) )
-		levelplot( rLogDen ~ a + b, tmp2, col.regions = colorFun(50))
-		#image( as.numeric(res$Y["a",,]), as.numeric(res$Y["b",,]), as.numeric(res$Y["rLogDen",,]))
+		levelplot( logDen ~ a + b, tmp, col.regions = colorFun(50))
+		tmp2 <- data.frame( a=as.numeric(res$parms[,"a",]), b=as.numeric(res$parms[,"b",]), logDen=as.numeric(res$logDen) )
+		levelplot( logDen ~ a + b, tmp2, col.regions = colorFun(50))
+		#image( as.numeric(res$Y["a",,]), as.numeric(res$Y["b",,]), as.numeric(res$Y["logDen",,]))
 	}
 	
 	#str(summary(rescoda))
-	suppressWarnings({	#glm fit in summary
+	suppressWarnings({	
 			summary(rescoda)$statistics[,"Mean"]
 			summary(rescoda)$statistics[,"SD"]
 			thetaTrue
@@ -154,8 +153,7 @@ test.badStartSeqData <- function(){
 	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
 	
-	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -166,31 +164,26 @@ test.badStartSeqData <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
+	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChainsPop=4, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2,1) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
 	#dim(Zinit)
 	
 	.nGen=500
-	#mtrace(sfRemoteWrapper)
-	#mtrace(.doDEMCStep)
-	#mtrace(.doDEMCSteps )
-	#mtrace(logDenGaussian)
-	resa <-  twDEMC( Zinit, nGen=.nGen, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+	resa <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
+			nPop=.nPop,
 		controlTwDEMC=list(thin=1),
 		debugSequential=TRUE
-	)
-	#str(res)
-	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$rLogDen))
+	))
+	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	rescoda <- as.mcmc.list(resa) 
 	plot(rescoda)
 	
-	
+	#mtrace(thin.twDEMC)
 	res <- thin(resa, start=300)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
@@ -229,8 +222,7 @@ test.badStartSeqData1D <- function(){
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("b")) )
 	
 	
-	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -242,31 +234,30 @@ test.badStartSeqData1D <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta1d),argsFLogDen))
 	
-	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChains=8, nPops=.nPops)
+	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
 	.sdThetaBad <- sdTheta["b"]*c(1/10)
 	.theta0Bad <- theta0["b"]*c(10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChainsPop=4, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(0.5) 
 	#dim(Zinit)
 	
 	.nGen=500
-	#mtrace(sfRemoteWrapper)
-	#mtrace(.doDEMCStep)
-	#mtrace(.doDEMCSteps )
-	#mtrace(logDenGaussian)
-	resa <-  twDEMC( Zinit, nGen=.nGen, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+	#mtrace(twDEMCBlockInt)
+	#mtrace(.sampleStates)
+	#mtrace(twWhichColsEqual)
+	resa <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
+		nPop=.nPop,
 		controlTwDEMC=list(thin=1)
-		#,debugSequential=TRUE
-	)
+		,debugSequential=TRUE
+	))
 	#str(res)
-	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$rLogDen))
-	matplot( resa$parms[1,,],type="l")
+	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
+	matplot( resa$parms[,1,],type="l")
 	
 	res <- thin(resa, start=300)
-	matplot( res$parms[1,,],type="l")
+	matplot( res$parms[,1,],type="l")
 	
 	#gelman.diag(rescoda)
 	#summary(rescoda)
@@ -291,8 +282,8 @@ test.badStartSeqData1D <- function(){
 }
 
 test.goodStartSeq <- function(){
-	# nice starting values
-	.nPops=2
+	# nice starting values and prior constrains estimates
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -303,30 +294,34 @@ test.goodStartSeq <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
-	#mtrace(sfRemoteWrapper)
-	#mtrace(.doDEMCStep)
-	#mtrace(.doDEMCSteps )
-	#mtrace(logDenGaussian)
-	#mtrace(twCalcLogDenPar)
-	#mtrace(twDEMCInt)
-	res <-  twDEMC( Zinit, nGen=.nGen, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+	#mtrace(updateBlockTwDEMC)
+	#mtrace(twDEMCBlockInt)
+	res <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
+		nPop=.nPop,
 		controlTwDEMC=list(thin=1),
 		debugSequential=TRUE
-	)
+	))
 	#str(res)
-	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	checkEquals((.nGen%/%res$thin)+1,nrow(res$logDen))
 	
 	#windows(record=TRUE)
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
+
+	.tmp.f <- function(){
+		colnames(res$resLogDen)
+		matplot(res$resLogDen[,"obs",], type="l")
+		matplot(res$resLogDen[,"parms",], type="l")
+		matplot(res$logDen[,1,], type="l")
+		tail(res$Y[,,1])
+	}
 	
 	#str(summary(rescoda))
 	suppressWarnings({	#glm fit in summary
@@ -353,7 +348,7 @@ test.goodStartSeq <- function(){
 
 test.goodStartPar <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -364,12 +359,12 @@ test.goodStartPar <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	dim(Zinit)
 	
-	res <-  twDEMC( Zinit, nGen=100, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+		nPop=.nPop
 		#fLogDenScale=-1/2
 		#debugSequential=TRUE
 	)
@@ -396,7 +391,7 @@ test.goodStartPar <- function(){
 
 test.upperParBounds <- function(){
 	# same as goodStartPar, but giving an upper parameter bound
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -408,7 +403,7 @@ test.upperParBounds <- function(){
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	asplit <- 10.8
-	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	bo.keep <- as.vector(Zinit0["a",,]) <= asplit
 	#mtrace(replaceZinitCases)
 	Zinit1 <- replaceZinitCases(Zinit0, bo.keep)
@@ -417,24 +412,24 @@ test.upperParBounds <- function(){
 	# replace all the cases with upperParBounds
 	
 	#mtrace(.doDEMCStep)
-	res <-  res0 <- twDEMC( Zinit0, nGen=100, 
+	res <-  res0 <- concatPops(resBlock <- twDEMCBlock( Zinit0, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+		nPop=.nPop
 		#,upperParBounds=c(a=asplit)
 		#,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	)
-	res <-  res1 <- twDEMC( Zinit1, nGen=64*4, 
+	res <-  res1 <- concatPops(resBlock <- twDEMCBlock( Zinit1, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
-		,upperParBounds=rep( list(c(a=asplit)), .nPops)
+		nPop=.nPop
+		,upperParBounds=rep( list(c(a=asplit)), .nPop)
 		,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	)
-	res <-  res2 <- twDEMC( Zinit2, nGen=64*4, 
+	res <-  res2 <- concatPops(resBlock <- twDEMCBlock( Zinit2, nGen=64*4, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
-		,lowerParBounds=rep( list(c(a=asplit)), .nPops )
+		nPop=.nPop
+		,lowerParBounds=rep( list(c(a=asplit)), .nPop )
 		,debugSequential=TRUE
 	)
 	
@@ -501,7 +496,7 @@ test.ZinittwDEMC <- function(){
 
 inner.ZinittwDEMC <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
@@ -512,27 +507,27 @@ inner.ZinittwDEMC <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	dim(Zinit)
 	
 	.thin=5
-	res <- res0 <-  twDEMC( Zinit, nGen=50, 
+	res <- res0 <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=50, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		controlTwDEMC = list(thin=.thin),
 		debugSequential=TRUE
 	)
 	str(res0)
-	checkEquals(50/.thin+1, nrow(res0$rLogDen) )
+	checkEquals(50/.thin+1, nrow(res0$logDen) )
 	#mtrace(twDEMCInt)
 	rm(res)
 	res <- twDEMC( res0, nGen=50,
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		controlTwDEMC = list(thin=.thin)
 	)
 	str(res)
-	checkEquals(100/.thin+1, nrow(res$rLogDen) )
+	checkEquals(100/.thin+1, nrow(res$logDen) )
 	
 	rescoda <- as.mcmc.list(res)
 	plot(rescoda)
@@ -562,7 +557,7 @@ test.probUpDir <- function(){
 	
 innertest.probUpDir <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -573,12 +568,12 @@ innertest.probUpDir <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	dim(Zinit)
 	
-	res <-  twDEMC( Zinit, nGen=100, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		#fLogDenScale=-1/2,
 		controlTwDEMC = list(probUpDir=0.8)
 	)
@@ -605,7 +600,7 @@ innertest.probUpDir <- function(){
 
 test.ofMulti <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -616,12 +611,12 @@ test.ofMulti <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	dim(Zinit)
 	
-	res <-  twDEMC( Zinit, nGen=100, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+		nPop=.nPop
 		#fLogDenScale=-1/2
 		#debugSequential=TRUE
 	)
@@ -649,7 +644,7 @@ test.ofMulti <- function(){
 
 test.doAppendPrevLogDen <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -660,12 +655,12 @@ test.doAppendPrevLogDen <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	dim(Zinit)
 
-	res <-  twDEMC( Zinit, nGen=100, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		#fLogDenScale=-1/2,
 		debugSequential=TRUE
 	)
@@ -691,7 +686,7 @@ test.doAppendPrevLogDen <- function(){
 
 test.dump <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=function(parms){ stop("test throwing an error")},		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -702,16 +697,16 @@ test.dump <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChains=8
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nPops)
+	.nChainsPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPop=.nPop)
 	dim(Zinit)
 	
-	body <- expression( res <-  twDEMC( Zinit, nGen=100, 
+	body <- expression( res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		#fLogDenScale=-1/2,
 		debugSequential=TRUE
-	))
+	)))
 	checkException( eval(body))
 
 	suppressWarnings(dir.create("tmp"))
@@ -724,14 +719,14 @@ test.dump <- function(){
 	#mtrace(.doDEMCStep)
 	#mtrace(twCalcLogDenPar)
 	body <- expression( 
-		res <-  twDEMC( Zinit, nGen=100, 
+		res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 			fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-			nPops=.nPops,
+			nPop=.nPop,
 			remoteDumpfileBasename=.remoteDumpfileBasename,
 			#fLogDenScale=-1/2,
 			debugSequential=TRUE
 		)
-	)
+	))
 	checkException( eval(body))
 	checkTrue( file.exists(.remoteDumpfile))
 
@@ -741,13 +736,13 @@ test.dump <- function(){
 	#mtrace(.doDEMCStep)
 	#mtrace(twCalcLogDenPar)
 	body <- expression( 
-		res <-  twDEMC( Zinit, nGen=100, 
+		res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 			fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-			nPops=.nPops,
+			nPop=.nPop,
 			remoteDumpfileBasename=.remoteDumpfileBasename
 			#fLogDenScale=-1/2,
 			#debugSequential=TRUE
-		)
+		))
 	)
 	checkException( eval(body))
 	checkTrue( file.exists(.remoteDumpfile))
@@ -759,16 +754,16 @@ test.dump <- function(){
 		checkTrue( !file.exists(.remoteDumpfile))
 		#mtrace(.doDEMCStep)
 		body <- expression( 
-			res <-  twDEMC( Zinit, nGen=100, 
+			res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 				fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-				nPops=.nPops,
+				nPop=.nPop,
 				remoteDumpfileBasename=.remoteDumpfileBasename,
 				#fLogDenScale=-1/2,
 				debugSequential=TRUE
 				,X = matrix(1,nrow=1,ncol=.nChains)
 				,logDenX = 5
 				,logDenCompX = character(0)
-			)
+			))
 		)
 		checkException( eval(body))
 		checkTrue( file.exists(.remoteDumpfile))
@@ -780,14 +775,14 @@ test.dump <- function(){
 		#options(error=recover)
 		body <- expression({
 				#mtrace(twCalcLogDenPar);
-				res <-  twDEMC( Zinit, nGen=100 
+				res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100 
 					,fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
-					,nPops=.nPops
+					,nPop=.nPop
 					,remoteDumpfileBasename=.remoteDumpfileBasename
 					#fLogDenScale=-1/2,
 					#debugSequential=TRUE,
 					,X = matrix(1,nrow=1,ncol=.nChains)
-				)
+				))
 			})
 		checkException( eval(body))
 		checkTrue( file.exists(.remoteDumpfile))
@@ -802,7 +797,7 @@ test.dump <- function(){
 
 test.twoStepMetropolis <- function(){
 	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -813,8 +808,8 @@ test.twoStepMetropolis <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChains=8
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nPops)
+	.nChainsPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPop=.nPop)
 	#dim(Zinit)
 	X <- adrop(Zinit[,dim(Zinit)[2],,drop=FALSE],2)	#last row of Zinit
 	#mtrace(twCalcLogDenPar)
@@ -829,15 +824,15 @@ test.twoStepMetropolis <- function(){
 	#mtrace(.doDEMCSteps )
 	#mtrace(logDenGaussian)
 	#mtrace(.doDEMCStep)
-	resa <-  twDEMC( Zinit, nGen=.nGen
+	resa <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen
 		,fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
-		,nPops=.nPops
+		,nPop=.nPop
 		,X = X, logDenX=XLogDen$logDen, logDenCompX=t(XLogDen$logDenComp) 
 		,intResCompNames="parms"
 		,controlTwDEMC = list(thin=.thin)
 		,debugSequential=TRUE
 		,doRecordProposals=TRUE
-	)
+	))
 	#str(resa)
 	
 	rescoda <- as.mcmc.list(resa) 
@@ -875,7 +870,7 @@ test.twoStepMetropolis <- function(){
 
 test.twoStepMetropolisTemp <- function(){
 	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -886,8 +881,8 @@ test.twoStepMetropolisTemp <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChains=8
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nPops)
+	.nChainsPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPop=.nPop)
 	#dim(Zinit)
 	X <- adrop(Zinit[,dim(Zinit)[2],,drop=FALSE],2)	#last row of Zinit
 	#mtrace(twCalcLogDenPar)
@@ -903,14 +898,14 @@ test.twoStepMetropolisTemp <- function(){
 	#mtrace(.doDEMCSteps )
 	#mtrace(logDenGaussian)	#check metropolisStepTemp
 	#mtrace(.doDEMCStep)
-	resa <-  twDEMC( Zinit, nGen=.nGen
+	resa <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen
 		,fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
-		,nPops=.nPops
+		,nPop=.nPop
 		,X = X, logDenX=XLogDen$logDen, logDenCompX=t(XLogDen$logDenComp) 
 		,debugSequential=TRUE
 		,controlTwDEMC = list(thin=.thin, T0=10, Tend=1/10)
 		,intResCompNames="parms"
-	)
+	))
 	#str(resa)
 	plot(resa$temp[,1])
 	checkTrue( all(resa$temp[1:(80%/%.thin),] > 1) )
@@ -950,7 +945,7 @@ test.twoStepMetropolisTemp <- function(){
 
 test.goodStartSeqMultiTemp <- function(){
 	# same as goodStartSeq but with decreasing temperature and multiTemp
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -961,7 +956,7 @@ test.goodStartSeqMultiTemp <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
@@ -971,15 +966,15 @@ test.goodStartSeqMultiTemp <- function(){
 	#mtrace(logDenGaussian)
 	#mtrace(twCalcLogDenPar)
 	#mtrace(twDEMCInt)
-	res <-  twDEMC( Zinit, nGen=.nGen, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		#controlTwDEMC=list(thin=1, T0=20, Tend=20, useMultiT=TRUE, TFix=c(parms=1)),
 		controlTwDEMC=list(thin=1, T0=20, Tend=20, useMultiT=TRUE, Tprop=c(obs=0.5,parms=1), TFix=c(parms=1)),
 		debugSequential=TRUE
-	)
+	))
 	#str(res)
-	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	checkEquals((.nGen%/%res$thin)+1,nrow(res$logDen))
 	
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
@@ -1011,7 +1006,7 @@ test.goodStartSeqMultiTemp <- function(){
 
 test.fLogDenScale <- function(){
 	# same as goodStart sequence but with logDens function returning cost instead of logDensity
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -1023,7 +1018,7 @@ test.fLogDenScale <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
@@ -1033,15 +1028,15 @@ test.fLogDenScale <- function(){
 	#mtrace(logDenGaussian)
 	#mtrace(twCalcLogDenPar)
 	#mtrace(twDEMCInt)
-	res <-  twDEMC( Zinit, nGen=.nGen, 
+	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		controlTwDEMC=list(thin=1),
 		fLogDenScale=-1/2,		# here apply the scale in twDEMC
 		debugSequential=TRUE
-	)
+	))
 	#str(res)
-	checkEquals((.nGen%/%res$thin)+1,nrow(res$rLogDen))
+	checkEquals((.nGen%/%res$thin)+1,nrow(res$logDen))
 	
 	#windows(record=TRUE)
 	rescoda <- as.mcmc.list(res)

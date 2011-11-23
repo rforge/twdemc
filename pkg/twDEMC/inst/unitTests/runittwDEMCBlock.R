@@ -74,10 +74,11 @@ test.distinctLogDen <- function(){
 	
 	.nPops=2
 	.nChainsPop=4
+	.thin=4
 	ZinitPops <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPops=.nPops)
 	#dim(ZinitPops)
 	#head(ZinitPops[,,1])
-	pops <- pops0 <- list(
+	pops0 <- list(
 		pop1 <- list(
 			parms = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
 			,nGen=8
@@ -102,7 +103,7 @@ test.distinctLogDen <- function(){
 			xval=xval
 		)
 	)
-	dInfos <- list(
+	dInfos0 <- list(
 		logDenA = within(dInfoDefault,{
 				argsFLogDen <- c( argsFLogDen, list(
 						blockIndices=1
@@ -119,14 +120,14 @@ test.distinctLogDen <- function(){
 					)) 
 			})
 	)
-	blocks <- list(
+	blocks0 <- list(
 		blockA <- list(compPos="a", dInfoPos="logDenA")
 		,blockB <- list(compPos="b", dInfoPos="logDenB")
 	)
 	
 	# here no nGen argument to use different nGen of pops
 	#mtrace(twDEMCBlockInt)
-	res <- twDEMCBlockInt( pops=pops0, dInfos=dInfos, blocks=blocks, controlTwDEMC=list(thin=.thin) )
+	res <- twDEMCBlockInt( pops=pops0, dInfos=dInfos0, blocks=blocks0, controlTwDEMC=list(thin=.thin) )
 	str(res$pops[[2]])
 	.nGenThinned=sapply(pops0, "[[", "nGen")%/%.thin+1
 	for( iPop in seq_along(res$pops) ){
@@ -136,7 +137,7 @@ test.distinctLogDen <- function(){
 		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
-		ZinitI <- pops[[iPop]]$parms
+		ZinitI <- pops0[[iPop]]$parms
 		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of parms" )		
 		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
 		checkTrue( all(is.finite(resPop$parms)), msg="found non-finite values in parameters")	
@@ -145,7 +146,7 @@ test.distinctLogDen <- function(){
 		checkTrue( all(is.finite(resPop$resLogDen)), msg="found non-finite values in resLogDen")	
 	}
 	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
-	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
+	checkEquals( pops0[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
 	
 	.nGen=100
@@ -154,12 +155,10 @@ test.distinctLogDen <- function(){
 	#mtrace(.checkBlock)
 	#mtrace(.updateBlockTwDEMC)
 	#mtrace(.updateBlocksTwDEMC)
-	#mtrace(twDEMCBlockInt)
 	#mtrace(.updateIntervalTwDEMCPar)
-	res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin, DRgamma=0.15)
-		,debugSequential=TRUE
-	)
-	str(res$pops[[2]])
+	#mtrace(twDEMCBlockInt)
+	res <- resAll <- twDEMCBlockInt( pops=pops0, dInfos=dInfos0, blocks=blocks0, nGen=.nGen, controlTwDEMC=list(thin=.thin, DRgamma=0.15)	,debugSequential=TRUE, doRecordProposals=TRUE	)
+	str(res$pops[[2]]$Y)
 	#windows(record=TRUE)
 	plot( as.mcmc.list(res, minPopLength=10), smooth=FALSE )
 	plot( as.mcmc.list(subPops(res,2), minPopLength=10), smooth=FALSE )
@@ -175,12 +174,12 @@ test.distinctLogDen <- function(){
 		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
-		ZinitI <- pops[[iPop]]$parms
+		ZinitI <- pops0[[iPop]]$parms
 		checkEquals( ZinitI[nrow(ZinitI),,], resPop$parms[1,,], msg="first row of parms should correspond to the last row of parms" )		
 		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
 	}
 	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
-	checkEquals( pops[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
+	checkEquals( pops0[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
 	.tmp.f <- function(){
 		pop <- resB$pops[[1]]
@@ -286,6 +285,12 @@ profile.f <- function(){
 	, debugSequential=FALSE )	
 	Rprof(NULL)
 	head(summaryRprof()$by.self)
+	
+	tmp <- system.time( res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=4)) )
+	# about 4 seconds for 200 runs 
+	tmp2 <- system.time( res <- resAll <- twDEMCBlockInt( pops=pops, dInfos=dInfos, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=4), debugSequential=FALSE) )
+	# about 4 seconds for 200 runs with 4 cpus
+	# overhead for one update is so about 20ms
 	
 }
 

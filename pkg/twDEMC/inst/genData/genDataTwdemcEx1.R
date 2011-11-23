@@ -1,7 +1,7 @@
 #generating a typical twDEMC result
-.nPops=2
-.nChains=8
-.thin=5
+.nPop=2
+.nChainsPop=4
+.thin=4
 .nGenBurnin=30
 .T0=10
 
@@ -19,17 +19,18 @@ argsFLogDen <- list(
 )
 do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 
-Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=.nChains, nPops=.nPops)
+Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPops=.nPop)
 dim(Zinit)
 
 .nGen=100
-#mtrace(twDEMC.array)
-#mtrace(twDEMCBatchInt)
-twdemcEx1 <-  twDEMCBatch( Zinit, nGen=.nGen, 
-	fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-	nPops=.nPops,
-	controlTwDEMC=list(thin=.thin),
-	nGenBurnin=.nGenBurnin, T0=.T0,
+#mtrace(twDEMCBlock.array)
+#mtrace(twDEMCBlockInt)
+twdemcEx1 <-  twDEMCBlock( Zinit, nGen=.nGen
+	,dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+	,nPop=.nPop
+	,controlTwDEMC=list(thin=.thin)
+	#,nGenBurnin=.nGenBurnin
+	, T0=.T0
 	#fLogDenScale=1		#default scale of logDenGaussian is already -1/2
 	,doRecordProposals = TRUE
 )

@@ -1,7 +1,7 @@
 twCalcLogDenPar <- function(
 	### Invokes fLogDen with proposal in a parallel load balanced way.
 	fLogDen,				##<< the objective function
-	xProp,					##<< numeric matrix of proposals, columns: parameter vector components rows: cases 
+	xProp,					##<< numeric matrix (nCases x nParm) of proposals 
 	logDenCompX=NULL	
 	### all components of logDensity of xProp (result of fLogDen * fLogDenScale) 
 	### colnames must contain intResCompNames 
