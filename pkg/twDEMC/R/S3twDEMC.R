@@ -518,7 +518,7 @@ popMeansTwDEMC <- function(
 	if( !boMat) x <- matrix(x,nrow=1)
 	p <- list( nrow=nrow(x), ncol=ncol(x) )
 	nChainsP <- p$ncol %/% nPops
-	xPop <- matrix( double(p$nrow*nPops), ncol=nPops ) 
+	xPop <- matrix( double(p$nrow*nPops), ncol=nPops, dimnames=c( dimnames(x)[1], list(pops=NULL)) )
 	for( iPop0 in (0:(nPops-1)) ){
 		iChains <-  iPop0*nChainsP + (1:nChainsP)
 		xPop[,iPop0+1] <- rowMeans(x[,iChains,drop=FALSE])		

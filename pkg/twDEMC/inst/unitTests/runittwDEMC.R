@@ -281,7 +281,7 @@ test.badStartSeqData1D <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
-test.goodStartSeq <- function(){
+test.goodStartPrior <- function(){
 	# nice starting values and prior constrains estimates
 	.nPop=2
 	argsFLogDen <- list(
@@ -300,11 +300,14 @@ test.goodStartSeq <- function(){
 	.nGen=100
 	#mtrace(updateBlockTwDEMC)
 	#mtrace(twDEMCBlockInt)
-	res <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+	#mtrace(.updateIntervalTwDEMCPar)
+	#mtrace(.updateBlocksTwDEMC)
+	res <- resSeq <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
-		controlTwDEMC=list(thin=1),
-		debugSequential=TRUE
+		controlTwDEMC=list(thin=4, useMultiT=TRUE)
+		,debugSequential=TRUE
+		#,T0=10, TProp=c( obs=0.5, parms=1 )
 	))
 	#str(res)
 	checkEquals((.nGen%/%res$thin)+1,nrow(res$logDen))
@@ -343,38 +346,25 @@ test.goodStartSeq <- function(){
 	.pthetaTrue <- sapply(1:2, function(.pop){
 			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
-	checkInterval( .pthetaTrue ) 
-}
-
-test.goodStartPar <- function(){
-	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPop=2
-	argsFLogDen <- list(
-		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
-		obs=obs,			### vector of data to compare with
-		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
-		thetaPrior = thetaTrue,	### the prior estimate of the parameters
-		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
-		xval=xval
-	)
-	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	checkInterval( .pthetaTrue ) #
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
-	dim(Zinit)
-	
-	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+	#------------  again with parallel runs
+	res <-  resPar <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		#fLogDenScale=-1/2
 		#debugSequential=TRUE
-	)
-	str(res)
-	
-	rescoda <- as.mcmc.list(res) 
+	))
+	rescoda <- as.mcmc.list(res)
+	#str(summary(rescoda))
 	suppressWarnings({	#glm fit in summary
-		(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-		(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})
+			summary(rescoda)$statistics[,"Mean"]
+			summary(rescoda)$statistics[,"SD"]
+			thetaTrue
+			sdTheta
+			(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+			(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+		})
 	
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
@@ -386,7 +376,7 @@ test.goodStartPar <- function(){
 	.pthetaTrue <- sapply(1:2, function(.pop){
 			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
-	checkInterval( .pthetaTrue ) 
+	checkInterval( .pthetaTrue ) #
 }
 
 test.upperParBounds <- function(){
@@ -413,25 +403,25 @@ test.upperParBounds <- function(){
 	
 	#mtrace(.doDEMCStep)
 	res <-  res0 <- concatPops(resBlock <- twDEMCBlock( Zinit0, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		#,upperParBounds=c(a=asplit)
 		#,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
-	)
+	))
 	res <-  res1 <- concatPops(resBlock <- twDEMCBlock( Zinit1, nGen=64*4, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		,upperParBounds=rep( list(c(a=asplit)), .nPop)
 		,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
-	)
+	))
 	res <-  res2 <- concatPops(resBlock <- twDEMCBlock( Zinit2, nGen=64*4, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		,lowerParBounds=rep( list(c(a=asplit)), .nPop )
 		,debugSequential=TRUE
-	)
+	))
 	
 	ss0 <- stackChains(res0)
 	# importance sampling due to integrated probability
@@ -512,20 +502,20 @@ inner.ZinittwDEMC <- function(){
 	
 	.thin=5
 	res <- res0 <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=50, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
 		controlTwDEMC = list(thin=.thin),
 		debugSequential=TRUE
-	)
+	))
 	str(res0)
 	checkEquals(50/.thin+1, nrow(res0$logDen) )
 	#mtrace(twDEMCInt)
 	rm(res)
-	res <- twDEMC( res0, nGen=50,
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+	res <- concatPops(resBlock <- twDEMCBlock( res0, nGen=50,
+		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
 		controlTwDEMC = list(thin=.thin)
-	)
+	))
 	str(res)
 	checkEquals(100/.thin+1, nrow(res$logDen) )
 	
@@ -572,11 +562,11 @@ innertest.probUpDir <- function(){
 	dim(Zinit)
 	
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
 		#fLogDenScale=-1/2,
 		controlTwDEMC = list(probUpDir=0.8)
-	)
+	))
 	str(res)
 	
 	rescoda <- as.mcmc.list(res) 
@@ -615,11 +605,11 @@ test.ofMulti <- function(){
 	dim(Zinit)
 	
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		#fLogDenScale=-1/2
 		#debugSequential=TRUE
-	)
+	))
 	str(res)
 	
 	rescoda <- as.mcmc.list(res) 
@@ -659,11 +649,11 @@ test.doAppendPrevLogDen <- function(){
 	dim(Zinit)
 
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
+			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
 		#fLogDenScale=-1/2,
 		debugSequential=TRUE
-	)
+	))
 	str(res)
 	
 	rescoda <- as.mcmc.list(res) 

@@ -34,6 +34,27 @@ calcComponentTemp <- function(
 	Ti
 }
 
+calcComponentTempMat <- function(
+	### calculating the temperature of result components of logDen
+	temp	##<< numeric vector >= 1: global temperature
+	,TFix	##<< named vector: temperature for the components that does not change but is held fixed
+	,TProp	##<< named numeric vector [0,1]: temperature proportions of result components determines names and lenght of result
+	,useMultiT=TRUE	##<< if set to FALSE only only global temperatue and TFix are applied
+	,posTFix=match(names(TFix),names(TProp)) ##<< position index of TFix in vector of temperatures, specifiy for performance
+){
+	Ti <- if( useMultiT){
+			# pmax: do not decrease below 1
+			matrix( pmax(1, temp %o% TProp), nrow=length(temp), ncol=length(TProp), dimnames=list( nGen=NULL, resComp=names(TProp)) )
+		}else{
+			matrix( temp, nrow=length(temp), ncol=length(TProp),dimnames=list( nGen=NULL, resComp=names(TProp)) )
+		}
+	for( i in seq_along(posTFix) ){
+		Ti[,posTFix[i] ] <- TFix[i]
+	}		
+	Ti
+}
+
+
 
 
 
