@@ -39,7 +39,7 @@ test.initZtwDEMCNormalPar1Chain1 <- function(){
 
 test.initZtwDEMCSub <- function(){
 	data(twdemcEx1)
-	Zinit <- initZtwDEMCSub( twdemcEx1, c("a","b") )
+	Zinit <- initZtwDEMCSub( concatPops(twdemcEx1)$parms, c("a","b") )
 	checkEquals( c(2,4,8), dim(Zinit) )
 }
 

@@ -300,12 +300,10 @@ constrainCfStack <- function(
 	### pss1[ withinConfidenceInterval, ]	
 }
 
-.tmp.f <- function(){
-	### XXXTodo: adapt to changed dimension order: vars in columns
 replaceZinitCases <- function( 
 	### Replaces states of Zinit by sampling the other states that are marked good.
 	Zinit, ##<< initial states of the form required by \code{\link{twDEMCInt}} 
-	boMat ##<< boolean matrix specifying good cases with rows cases and columns chains. If it is a vector, then matrix is constructed number of chains last dimension
+	boMat ##<< boolean matrix specifying good cases with rows cases and columns chains. If it is a vector, then matrix is constructed using last dimension as the number of chains 
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
@@ -317,7 +315,7 @@ replaceZinitCases <- function(
 	## Samples for the first half of chains are sampled from good cases of the second half of chains.
 	## Samples for the second half of chains are sampled from good cases of first half of chains.
 	tmp.nChains <- dim(Zinit)[3]
-	if( !identical(dim(Zinit)[c(2,3)], dim(boMat)) )
+	if( !identical(dim(Zinit)[c(1,3)], dim(boMat)) )
 		stop("dimensions of Zinti and boMat do not match")
 	if( !is.logical(boMat) )
 		stop("boMat is not a logical matrix")
@@ -329,18 +327,19 @@ replaceZinitCases <- function(
 	badCases2 <- badCases[ badCases[,2] > tmp.nChains/2, ,drop=FALSE] #missing values of the second half
 	#replace non-finite yielding states of first halv by sampling the good cases rows of the second half
 	tmp.j = sample( 1:nrow(goodCases2), nrow(badCases1), replace=TRUE )
-	for( i in seq(along.with=badCases1[,1]) )	Zinit[, badCases1[i,1], badCases1[i,2] ] = Zinit[, goodCases2[tmp.j[i],1], goodCases2[tmp.j[i],2]  ]
+	for( i in seq(along.with=badCases1[,1]) )	Zinit[badCases1[i,1], , badCases1[i,2] ] = Zinit[goodCases2[tmp.j[i],1], , goodCases2[tmp.j[i],2]  ]
 	#replace non-finite yielding states of second halv by sampling the good cases rows of the first half
 	tmp.j1 = sample( 1:nrow(goodCases1), nrow(badCases2), replace=TRUE )
-	for( i in seq(along.with=badCases2[,1]) )	Zinit[, badCases2[i,1], badCases2[i,2] ] = Zinit[, goodCases1[tmp.j1[i],1], goodCases1[tmp.j1[i],2]  ]
+	for( i in seq(along.with=badCases2[,1]) )	Zinit[badCases2[i,1], , badCases2[i,2] ] = Zinit[goodCases1[tmp.j1[i],1], , goodCases1[tmp.j1[i],2]  ]
 	Zinit
 	### Zinit, with several cols (parameter vectors) replaced by other cols
 }
 
+	
 replaceZinitNonFiniteLogDens <- function( 
 	### Replaces states of Zinit that yield non-finite rLogDen by sampling other states.
 	Zinit, ##<< initial states see InitDEMCzsp 
-	rLogDen ##<< tmp.rLogDen: calculated logDensitys for all the states in Zinit (rows cases and columns parameters) 
+	logDen ##<< numeric matrix (nCases x nParms): calculated logDensitys for all the states in Zinit. If it is a vector then it is reshaped.  
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
@@ -348,8 +347,8 @@ replaceZinitNonFiniteLogDens <- function(
 	
 	##details<< 
 	## In order for twDEMC to start up effectively, it is important that chains start from values, where the logDensity is finite
-	bo <- is.finite(rLogDen)
-	dim(bo) <- dim(Zinit)[2:3]
+	bo <- is.finite(logDen)
+	dim(bo) <- dim(Zinit)[c(1,3)]		# steps x chains
 	replaceZinitCases( Zinit, bo )
 	### Zinit, with several cols (parameter vectors) replaced by other cols
 }
@@ -359,9 +358,26 @@ attr(replaceZinitNonFiniteLogDens,"ex") <- function(){
 	data(twLinreg1)
 	attach( twLinreg1 )
 	#mtrace(initZtwDEMCNormal)
-	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChains=8, nPops=2)
+	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChainsPop=8, nPops=2)
 	dim(Zinit)
-	res <- twCalcLogDenPar(logDenGaussian, stackChains(Zinit)
+	res <- res0 <- twCalcLogDenPar(logDenGaussian, stackChains(Zinit) # chains stack to calculate in parallel
+		,fModel=dummyTwDEMCModel		### the model function, which predicts the output based on theta 
+		,obs=obs				### vector of data to compare with
+		,invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)$logDen
+	plot(density(res))
+	res[res < -30] <- NA
+	resM <- matrix(res, ncol=dim(Zinit)[3] ) # restacking to chains work because it is the last dimension
+	set.seed(0815)
+	Zinit2 <- replaceZinitNonFiniteLogDens(Zinit, resM)
+	set.seed(0815)
+	Zinit3 <- replaceZinitNonFiniteLogDens(Zinit, res)
+	identical(Zinit2,Zinit3)
+	
+	res2 <- twCalcLogDenPar(logDenGaussian, stackChains(Zinit2) # chains stack to calculate in parallel
 		,fModel=dummyTwDEMCModel		### the model function, which predicts the output based on theta 
 		,obs=obs			### vector of data to compare with
 		,invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
@@ -369,12 +385,11 @@ attr(replaceZinitNonFiniteLogDens,"ex") <- function(){
 		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
 		xval=xval
 	)$logDen
-	plot(density(res))
-	res[res< -30] <- NA
-	resM <- matrix(res, ncol=dim(twdemcEx1$parms)[3])
-	Zinit2 <- replaceZinitNonFiniteLogDens(Zinit, resM)
+	d2 <- density(res2)
+	lines( d2$x, d2$y * max(density(res0)$y)/max(d2$y), col="blue")
 }
 
+	
 replaceZinitNonFiniteLogDensLastStep <- function( 
 	### Replaces states of last step, i.e. column of Zinit that yield non-finite rLogDen by sampling other states.
 	Zinit 			##<< initial states see InitDEMCzsp
@@ -386,36 +401,34 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
-	res <- twCalcLogDenPar( fLogDen, t(adrop(Zinit[,iStep,,drop=FALSE],2)), ... )
+	res <- twCalcLogDenPar( fLogDen, adrop(Zinit[iStep,,,drop=FALSE],2), ... )
 	rLogDen <- res$logDen
-	rLogDenComp <- res$logDenComp
 	logDenComp <- res$logDenComp
 	iNonfinite <- which( !is.finite(rLogDen) )
 	nReplace <- length(iNonfinite)
 	if( nReplace>0 ){ 
 		# matrix finLogDen markes the states which we do not want to sample again by FALSE
 		dimZinit <- dim(Zinit)
-		finLogDen <- matrix( TRUE, nrow=dimZinit[2], ncol=dimZinit[3] )
+		finLogDen <- matrix( TRUE, nrow=dimZinit[1], ncol=dimZinit[3] )
 		finLogDen[iStep,] <- FALSE	#do not choose replacements from this step
-		chainsPops <- matrix( 1:dimZinit[3], ncol=nPops )
+		chainsPops <- matrix( 1:dimZinit[3], ncol=nPops )	# (nChainInPop x nPop)
 		nChainsPop <- nrow(chainsPops)
 		rChain <- integer(nReplace)
 		rStep <- integer(nReplace)
 		i=1
 		while( (nReplace>0) & i<=maxSteps ){
 			for( j in 1:nReplace){
-				chainsPop <- chainsPops[,((iNonfinite[j]-1)%/%nChainsPop)+1]
+				iPop <- ((iNonfinite[j]-1)%/%nChainsPop)+1
+				chainsPop <- chainsPops[,iPop]
 				rChain[j] <- sample(  chainsPop, 1 )
 				stepsPop <- which( finLogDen[,rChain[j] ] )
 				rStep[j] <- sample(stepsPop , 1 )
-				Zinit[,iStep, iNonfinite[j] ] <- Zinit[,rStep[j],rChain[j] ]
+				Zinit[iStep,, iNonfinite[j] ] <- Zinit[rStep[j],,rChain[j] ]
 				finLogDen[rStep[j],rChain[j] ] <- FALSE		#do not sample those states again
 			}
-			res <- twCalcLogDenPar( fLogDen, t(adrop(Zinit[,iStep,iNonfinite,drop=FALSE],2)), ... ) 
+			res <- twCalcLogDenPar( fLogDen, adrop(Zinit[iStep,,iNonfinite,drop=FALSE],2), ... ) 
 			rLogDen[iNonfinite] <- res$logDen
-			rLogDenComp[iNonfinite,] <- res$logDenComp
-			if( 0 < length(logDenComp))
-				logDenComp[iNonfinite,] <- res$logDenComp
+			logDenComp[iNonfinite,] <- res$logDenComp
 			iNonfinite <- which( !is.finite(rLogDen) )
 			nReplace <- length(iNonfinite)
 			i=i+1
@@ -423,13 +436,16 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 		if( nReplace > 0 )
 			warning("could not replace all non-finite states in row.")
 	}
-	list(Zinit=Zinit, rLogDen=rLogDen, rLogDenComp=rLogDenComp, logDenComp=logDenComp)
-	### list with components \describe{
-	### \item{Zinit}{given Zinit with some states in last row replaced by other states from Zinit.}
-	### \item{rLogDen, rLogDenComp, logDenComp}{numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains}
-	### }
+	##value<< list with components
+	list( ##describe<< 
+		Zinit=Zinit					##<< argument \code{Zinit} with some states in last row replaced by other states from Zinit.
+		, rLogDen=rLogDen			##<< numeric vector: results of \code{\link{twCalcLogDenPar}} for last row for all chains
+		, logDenComp=logDenComp		##<< numeric matrix: results of \code{\link{twCalcLogDenPar}} for last row for all chains
+	) ##end<<
 }
 #twUtestF(replaceZinitNonFiniteLogDens)
+.tmp.f <- function(){
+	### XXXTodo: adapt to changed dimension order: vars in columns
 }
 
 
