@@ -6,7 +6,7 @@ initZtwDEMCNormal <- function(
 	### the a prior covariance of parameters 
 	nChainsPop=4, 
 	### number of chains to run
-	nPops=2, 
+	nPop=2, 
 	### number of independent populations among the chains 
 	m0=calcM0twDEMC(length(thetaPrior),nChainsPop)/(m0FiniteFac)
 	### number of initial states for each chain
@@ -40,7 +40,7 @@ initZtwDEMCNormal <- function(
 		warning("initZtwDEMCNormal: no names of parameters provided")
 		names(thetaPrior) <- paste("theta",1:length(thetaPrior),sep="") 
 	}
-	nChains <- nChainsPop*nPops
+	nChains <- nChainsPop*nPop
 	Zinit <- if( length(thetaPrior)==1 ){
 		abind( lapply( 1:nChains, function(i){ matrix(rnorm( m0, mean=thetaPrior, sd=covarTheta), dimnames=list(NULL,names(thetaPrior)) ) }), along=3 )
 	}else{
@@ -50,7 +50,7 @@ initZtwDEMCNormal <- function(
 	if( doIncludePrior )
 		Zinit[m0,,1 ] <- thetaPrior
 	dimnames(Zinit) = list(steps=NULL,parms=names(thetaPrior),chains=NULL)
-	attr(Zinit,"nPops") <- nPops
+	attr(Zinit,"nPop") <- nPop
 	Zinit
 	### a matrix of number of parameters by number of individuals (m0 x d x Npop), with d dimension of theta
 }
@@ -59,11 +59,11 @@ attr(initZtwDEMCNormal,"ex") <- function(){
 	attach( twLinreg1 )
 	
 	.nChainsPop=4
-	.nPops=2
+	.nPop=2
 	.nPar=length(theta0)
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
 	head(Zinit[,,1])
-	all.equal( c(calcM0twDEMC(.nPar,.nChainsPop), .nPar, .nChainsPop*.nPops), dim(Zinit) )
+	all.equal( c(calcM0twDEMC(.nPar,.nChainsPop), .nPar, .nChainsPop*.nPop), dim(Zinit) )
 	
 	detach()
 }
@@ -84,21 +84,21 @@ calcM0twDEMC <- function(
 
 setMethodS3("initZtwDEMCSub","matrix", function(
 	### generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a matrix
-	x,					##<< the mcmc matrix to subsample (column variable, rows cases) 
-	vars=colnames(x),	##<< which variables to keep
-	nChainsPop=4,		##<< number of chains per population
-	nPops=1, 			##<< number of populations
-	m0=calcM0twDEMC(length(unique(vars)),nChainsPop), ##<< number of required cases for initialization
-	... 
+	x					##<< the mcmc matrix to subsample (nCases x nRows) 
+	,... 
+	,vars=colnames(x)	##<< which variables to keep
+	,nChainsPop=4		##<< number of chains per population
+	,nPop=1 			##<< number of populations
+	,m0=calcM0twDEMC(length(unique(vars)),nChainsPop) ##<< number of required cases for initialization
 ){
 	# initZtwDEMCSub.matrix
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
-	nChains <- nChainsPop*nPops
+	nChains <- nChainsPop*nPop
 	rrc <- lapply(1:nChains, function(iChain){ sample.int( nrow(x), m0, replace=TRUE)} )
-	res <- abind( lapply( rrc, function(rr){ x[rr,vars,drop=FALSE] } ),rev.along=0 )
+	res <- abind( lapply( rrc, function(rr){ x[rr,vars ,drop=FALSE] } ),rev.along=0 )
 	dimnames(res) <- list( steps=NULL, parms=vars, chains=NULL )
-	attr(res,"nPops") <- nPops
+	attr(res,"nPop") <- nPop
 	res
 	### an array of dimension suitable for Zinit for twDEMCInt
 })
@@ -106,45 +106,43 @@ attr(initZtwDEMCSub.matrix,"ex") <- function(){
 	data(twLinreg1)
 	attach( twLinreg1 )
 	
-	
 	.nChainsPop=4
-	.nPops=2
+	.nPop=2
 	.nPar=length(theta0)
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
 	ss <- do.call( rbind, twListArrDim( Zinit))	#stack the chains 
-	ZinitSub <- initZtwDEMCSub(ss, nChainsPop=.nChainsPop, nPops=.nPops)
+	ZinitSub <- initZtwDEMCSub(ss, nChainsPop=.nChainsPop, nPop=.nPop)
 	head(Zinit[,,1])
 	all.equal(dim(Zinit),dim(ZinitSub))
 	
 	detach()
 }
 
-.tmp.f <- function(){
 setMethodS3("initZtwDEMCSub","twDEMC", function(
 	### generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a previous result
-	vtwdemc,	##<< the twDEMC list to subsample 
-	vars=rownames(vtwdemc$parms),	##<< which variables to keep
-	nChains=ncol(vtwdemc$rLogDen),	
-	nPops=ncol(vtwdemc$temp),
-	...	## other parameters passed to initZtwDEMCSub.default, e.g. m0 
+	vtwdemc	##<< the twDEMC list to subsample 
+	,...	## other parameters passed to initZtwDEMCSub.default, e.g. m0 
+	,vars=colnames(vtwdemc$parms)	##<< which variables to keep
+	,nChainsPop=getNChainsPop(vtwdemc)	
+	,nPop=getNPops(vtwdemc)
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
-	Zinit1 <- stackChains(vtwdemc)[,-1]	#one big chain
-	initZtwDEMCSub.matrix(Zinit1,vars,nChains,nPops,...)
+	Zinit1 <- stackChains(vtwdemc)[,-(1:getNBlocks(vtwdemc))]	#one big chain
+	initZtwDEMCSub.matrix(Zinit1,...,vars=vars,nChainsPop=nChainsPop,nPop=nPop)
 })
 
 
 setMethodS3("initZtwDEMCExt","matrix", function( 
 	### subsampling and extending twDEMC with new variables
-	Zinit1,	##<< the twDEMC list to subsample 
-	thetaPrior,	##<< numeric vector: mu of multivariate gaussian prior distribtuion 
-	covarTheta,		##<< numeric vector: sigma of multivariate gaussian prior distrbituion 
-	nChains=4,	
-	nPops=1, 
-	m0=calcM0twDEMC(length(thetaPrior),nPops,nChains),
+	Zinit1		##<< the matrix to subsample (nCases x nParms)
+	,...
+	,thetaPrior		##<< numeric vector: mu of multivariate gaussian prior distribtuion 
+	,covarTheta		##<< numeric vector: sigma of multivariate gaussian prior distrbituion 
+	,nChainPop=4	
+	,nPop=1 
+	,m0=calcM0twDEMC(length(thetaPrior), nChainPop)
 		### number of required cases 
-	...
 ){
 	# initZtwDEMCExt
 	##details<< 
@@ -157,16 +155,18 @@ setMethodS3("initZtwDEMCExt","matrix", function(
 	pssInd <- as.numeric(lapply( 1:length(thetaPrior), function(i){ which( names(thetaPrior)[i] == colnames(Zinit1))}))
 	mcPars <- which( !is.na(pssInd) )   
 	extPars <- (1:length(thetaPrior))[ -mcPars ]
-	Zinit <- array(NA, dim=c(length(thetaPrior), m0, nChains) )
+	nChain <- nChainPop*nPop
+	Zinit <- array(NA, dim=c( m0, length(thetaPrior), nChain) )
 	if( length(mcPars) > 0 ){
-		ZinitMc <- abind( lapply( 1:nChains, function(i){ t( Zinit1[sample(1:nrow(Zinit1), m0, replace=TRUE), pssInd[mcPars], drop=FALSE ]) }), along=3 )
-		Zinit[mcPars,,] <-  ZinitMc
+		iSteps <- sample(1:nrow(Zinit1), m0, replace=TRUE)
+		ZinitMc <- abind( lapply( 1:nChain, function(i){ Zinit1[iSteps, pssInd[mcPars], drop=FALSE ] }), along=3 )
+		Zinit[,mcPars,] <-  ZinitMc
 	}		
 	if( length(extPars) > 0){
-		ZinitZtwDEMCExt <- initZtwDEMCNormal( thetaPrior[extPars], covarTheta[extPars,extPars,drop=FALSE], nChains=nChains, nPops=nPops,m0=m0 )
-		Zinit[extPars,,] <- ZinitZtwDEMCExt
+		ZinitZtwDEMCExt <- initZtwDEMCNormal( thetaPrior[extPars], covarTheta[extPars,extPars,drop=FALSE], nChainsPop=nChainPop, nPop=nPop,m0=m0 )
+		Zinit[,extPars,] <- ZinitZtwDEMCExt
 	}
-	dimnames(Zinit) <- list( parms=names(thetaPrior), steps=NULL, chains=NULL ) 
+	dimnames(Zinit) <- list( steps=NULL, parms=names(thetaPrior),  chains=NULL ) 
 	Zinit
 	
 	##seealso<<   
@@ -175,19 +175,18 @@ setMethodS3("initZtwDEMCExt","matrix", function(
 
 setMethodS3("initZtwDEMCExt","twDEMC", function( 
 	 ### subsampling and extending twDEMC with new variables
-	vtwdemc,	##<< the twDEMC list to subsample 
-	thetaPrior,	##<< numeric vector: mu of multivariate gaussian prior distribtuion 
-	covarTheta,		##<< numeric vector: sigma of multivariate gaussian prior distrbituion 
-	nChains=ncol(vtwdemc$rLogDen),	
-	nPops=ncol(vtwdemc$temp),
-	...		##<< e.g. m0
+	vtwdemc	##<< the twDEMC list to subsample 
+	,...		##<< e.g. m0
+	,thetaPrior	##<< numeric vector: mu of multivariate gaussian prior distribtuion 
+	,covarTheta		##<< numeric vector: sigma of multivariate gaussian prior distrbituion 
+	,nChainsPop=getNChainsPop(vtwdemc)	
+	,nPop=getNPops(vtwdemc)
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
-	Zinit1 <- stackChains(vtwdemc)[,-1]	#one big chain
-	initZtwDEMCExt.matrix( Zinit1, thetaPrior, covarTheta, nChains=nChains, nPops=nPops, ... )
+	Zinit1 <- stackChains(vtwdemc)[,-(1:getNBlocks(vtwdemc))]	#one big chain
+	initZtwDEMCExt.matrix( Zinit1, thetaPrior=thetaPrior, covarTheta=covarTheta, nChainsPop=nChainsPop, nPop=nPop, ... )
 })
-}
 
 
 constrainNStack <- function( 
@@ -358,7 +357,7 @@ attr(replaceZinitNonFiniteLogDens,"ex") <- function(){
 	data(twLinreg1)
 	attach( twLinreg1 )
 	#mtrace(initZtwDEMCNormal)
-	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChainsPop=8, nPops=2)
+	Zinit <- initZtwDEMCNormal( theta0, diag(4*sdTheta^2), nChainsPop=8, nPop=2)
 	dim(Zinit)
 	res <- res0 <- twCalcLogDenPar(logDenGaussian, stackChains(Zinit) # chains stack to calculate in parallel
 		,fModel=dummyTwDEMCModel		### the model function, which predicts the output based on theta 
@@ -394,7 +393,7 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 	### Replaces states of last step, i.e. column of Zinit that yield non-finite rLogDen by sampling other states.
 	Zinit 			##<< initial states see InitDEMCzsp
 	,fLogDen 		##<< the logDen Function
-	,nPops=1		##<< number of populations. States are only choosen from same population
+	,nPop=1		##<< number of populations. States are only choosen from same population
 	,iStep=dim(Zinit)[2]	##<< the step for which to replace nonfinite yielding parameters.
 	,maxSteps=16
 	,...			##<< arguments to \code{\link{twCalcLogDenPar}}
@@ -411,7 +410,7 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 		dimZinit <- dim(Zinit)
 		finLogDen <- matrix( TRUE, nrow=dimZinit[1], ncol=dimZinit[3] )
 		finLogDen[iStep,] <- FALSE	#do not choose replacements from this step
-		chainsPops <- matrix( 1:dimZinit[3], ncol=nPops )	# (nChainInPop x nPop)
+		chainsPops <- matrix( 1:dimZinit[3], ncol=nPop )	# (nChainInPop x nPop)
 		nChainsPop <- nrow(chainsPops)
 		rChain <- integer(nReplace)
 		rStep <- integer(nReplace)

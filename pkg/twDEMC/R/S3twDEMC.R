@@ -169,7 +169,23 @@ attr( getNGen.twDEMC, "ex") <- function(){
 	getNChains(twdemcEx1)
 	getNChainsPop(twdemcEx1)
 	getNParms(twdemcEx1)
+	getNBlocks(twdemcEx2)
 }
+
+setMethodS3("getNBlocks","twDEMC", function( 
+		### Extracts the number of blocks 
+		x	##<< object of class twDEMC
+		,... 
+	){
+		# getNPops.twDEMC
+		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
+		## ,\code{\link{subChains.twDEMC}}
+		## ,\code{\link{twDEMCInt}}
+		ncol(x$logDen)
+		### integer, number of blocks in twDEMC
+	})
+
 
 setMethodS3("getNPops","twDEMC", function( 
 		### Extracts the number of populations
@@ -462,16 +478,22 @@ setMethodS3("stackChains","twDEMC", function(
 	##seealso<<   
 	## \code{\link{subChains.twDEMC}}
 	nPop <- getNPops(x)
-	start <- if( omitBurnin & !is.null(x$nGenBurnin) ) ceiling(x$nGenBurnin)  else rep(0,nPop)  
+	start <- if( omitBurnin && !is.null(x$nGenBurnin) ) ceiling(x$nGenBurnin)  else rep(0,nPop)  
 	if( length(start)==1 ) start=rep(start,nPop)
 	if( length(start) != nPop) stop("stackChains.twDEMC: burnin must be of length of number of populations.")
 	startChain <- rep(start, each=getNChainsPop(x) )
 	nChain <- getNChains(x)
-	cbind( logDen = abind( lapply( 1:nChain, function(i){ 	if( startChain[i] == 0) x$logDen[,i] else x$logDen[-(1:(startChain[i]%/%x$thin)),i]		}), along=1 )
+	res <- cbind( logDen = adrop(abind( lapply( 1:nChain, function(i){ 	
+					if( startChain[i] == 0) x$logDen[,,i ,drop=FALSE] else x$logDen[-(1:(startChain[i]%/%x$thin)),,i ,drop=FALSE]		}
+		), along=1),3 )
 		#,parms = stackChains.array(x$parms)
-		,parms = t(adrop(abind( lapply( 1:nChain, function(i){	if( startChain[i] == 0) x$parms[,,i,drop=FALSE] else x$parms[,-(1:(startChain[i]%/%x$thin)),i,drop=FALSE]	}), along=2 ),3))
+		,parms = adrop(abind( lapply( 1:nChain, function(i){	
+							if( startChain[i] == 0) x$parms[,,i ,drop=FALSE] else x$parms[-(1:(startChain[i]%/%x$thin)),,i ,drop=FALSE]	
+						}), along=1 ),3)
 	)
-	### Matrix with first column the logDensity logDen and the remaining columns the variables.
+	attr(res,"nBlock") = getNBlocks(x)
+	res
+	### Matrix with first attributes$nBlock columns the logDensity logDen and the remaining columns the variables.
 })
 
 setMethodS3("stackChains","mcmc.list", function( 
