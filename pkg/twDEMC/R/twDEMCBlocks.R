@@ -102,7 +102,7 @@ twDEMCBlockInt <- function(
 	dInfos <- lapply(dInfos, .checkDInfo, parNames=parNames)
 	nDen <- length(dInfos)
 	iDens <- 1:nDen
-	if( is.null(names(dInfos))) names(dInfos) <- paste("dInfo",iDens)
+	if( is.null(names(dInfos))) names(dInfos) <- paste("dInfo",iDens,sep="")
 	tmp <- which(names(dInfos) == "")
 	names(dInfos)[tmp] <- paste("dInfo",iDens[tmp],sep="")
 	compPosDens <- lapply(dInfos, "[[", "compPosDen") 
@@ -253,8 +253,8 @@ twDEMCBlockInt <- function(
 	for( iPop in iPops){
 		pop <- pops[[iPop]]
 		# TProp
-		if( is.character(TProp) )
-			TProp <- match(TProp, resCompNamesUFlat )	# take care when different logDensities have same names then this goes wrong
+		if( is.character(pop$TProp) )
+			pop$TProp <- match(pop$TProp, resCompNamesUFlat )	# take care when different logDensities have same names then this goes wrong
 		lTp <- length(pop$TProp)
 		if( 0 ==  lTp) pop$TProp <- rep(1, nResComp)
 		else if( 1 == lTp) pop$TProp <- rep(pop$TProp, nResComp)
@@ -552,6 +552,7 @@ twDEMCBlockInt <- function(
 			,Y = YPops[[iPop]]
 		)}) ##end<<
 		) ##end<<
+	#names(res$pops) <- names(pops)
 	class(res) <- c( class(res), "twDEMCPops" )	#monte carlo proposal list
 	res
 }

@@ -19,7 +19,7 @@ argsFLogDen <- list(
 )
 do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 
-Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPops=.nPop)
+Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
 dim(Zinit)
 
 .nGen=100
