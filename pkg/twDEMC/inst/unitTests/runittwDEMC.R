@@ -13,7 +13,7 @@
 }
 
 .tearDown <- function(){
-	detach( twdemcEx1 )
+	detach( ex1c )
 	detach( twLinreg1 )
 }
 
@@ -172,7 +172,7 @@ test.badStartSeqData <- function(){
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
 	#dim(Zinit)
 	
-	.nGen=500
+	.nGen=200
 	resa <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 			nPop=.nPop,
@@ -184,7 +184,7 @@ test.badStartSeqData <- function(){
 	plot(rescoda)
 	
 	#mtrace(thin.twDEMC)
-	res <- thin(resa, start=300)
+	res <- thin(resa, start=120)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda)
 	
@@ -242,7 +242,7 @@ test.badStartSeqData1D <- function(){
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(0.5) 
 	#dim(Zinit)
 	
-	.nGen=500
+	.nGen=200
 	#mtrace(twDEMCBlockInt)
 	#mtrace(.sampleStates)
 	#mtrace(twWhichColsEqual)
@@ -256,7 +256,7 @@ test.badStartSeqData1D <- function(){
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	matplot( resa$parms[,1,],type="l")
 	
-	res <- thin(resa, start=300)
+	res <- thin(resa, start=120)
 	matplot( res$parms[,1,],type="l")
 	
 	#gelman.diag(rescoda)
@@ -302,7 +302,7 @@ test.goodStartPrior <- function(){
 	#mtrace(twDEMCBlockInt)
 	#mtrace(.updateIntervalTwDEMCPar)
 	#mtrace(.updateBlocksTwDEMC)
-	res <- resSeq <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
+	resa <- resSeq <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
 		controlTwDEMC=list(thin=4, useMultiT=TRUE)
@@ -313,11 +313,14 @@ test.goodStartPrior <- function(){
 	checkEquals((.nGen%/%res$thin)+1,nrow(res$logDen))
 	
 	#windows(record=TRUE)
-	rescoda <- as.mcmc.list(res)
-	plot(rescoda)
+	rescoda <- as.mcmc.list(resa)
+	plot(rescoda, smooth=FALSE)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
-
+	res <- thin(resa, start=30)
+	rescoda <- as.mcmc.list(res)
+	plot(rescoda, smooth=FALSE)
+	
 	.tmp.f <- function(){
 		colnames(res$resLogDen)
 		matplot(res$resLogDen[,"obs",], type="l")
@@ -349,13 +352,13 @@ test.goodStartPrior <- function(){
 	checkInterval( .pthetaTrue ) #
 	
 	#------------  again with parallel runs
-	res <-  resPar <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
+	resa <-  resPar <- concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
 		#fLogDenScale=-1/2
 		#debugSequential=TRUE
 	))
-	rescoda <- as.mcmc.list(res)
+	rescoda <- as.mcmc.list(thin(resa,start=30))
 	#str(summary(rescoda))
 	suppressWarnings({	#glm fit in summary
 			summary(rescoda)$statistics[,"Mean"]
@@ -394,12 +397,12 @@ test.upperParBounds <- function(){
 	
 	asplit <- 10.8
 	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
-	bo.keep <- as.vector(Zinit0["a",,]) <= asplit
+	# replace all the cases with upperParBounds
+	bo.keep <- as.vector(Zinit0[,"a",]) <= asplit
 	#mtrace(replaceZinitCases)
 	Zinit1 <- replaceZinitCases(Zinit0, bo.keep)
 	Zinit2 <- replaceZinitCases(Zinit0, !bo.keep)
 	dim(Zinit1)
-	# replace all the cases with upperParBounds
 	
 	#mtrace(.doDEMCStep)
 	res <-  res0 <- concatPops(resBlock <- twDEMCBlock( Zinit0, nGen=100, 
@@ -412,14 +415,14 @@ test.upperParBounds <- function(){
 	res <-  res1 <- concatPops(resBlock <- twDEMCBlock( Zinit1, nGen=64*4, 
 			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
-		,upperParBounds=rep( list(c(a=asplit)), .nPop)
+		,upperParBounds=c(a=asplit)
 		,debugSequential=TRUE
 		#,controlTwDEMC=list( DRgamma=0.1, minPCompAcceptTempDecr=0.16) 
 	))
 	res <-  res2 <- concatPops(resBlock <- twDEMCBlock( Zinit2, nGen=64*4, 
 			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
-		,lowerParBounds=rep( list(c(a=asplit)), .nPop )
+		,lowerParBounds=c(a=asplit)
 		,debugSequential=TRUE
 	))
 	

@@ -430,9 +430,10 @@ twDEMCBlockInt <- function(
 		iPopsRecord <- which(isPops & (iThin0 == nThinOmitRecordPops))
 		for( iiPop in iPopsRecord ){
 			# record the initial state of the proposals record
-			YPops[[iiPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[iiPop]] ]
+			iisPop <- match(iiPop,isPops)	# index in iPop 
+			YPops[[iiPop]][1,seq_along(parNames),] <- chainState$X[ ,chainsPop[[ iisPop ]] ]
 			YPops[[iiPop]][1,nParm+iBlocks,] <- 1	#TRUE
-			YPops[[iiPop]][1,nParm+nBlock+seq_along(resCompNamesUFlat),] <- chainState$logDenCompX[ ,chainsPop[[iiPop]] ]
+			YPops[[iiPop]][1,nParm+nBlock+seq_along(resCompNamesUFlat),] <- chainState$logDenCompX[ ,chainsPop[[ iisPop ]] ]
 		}
 		isRecordProposalsPop = ((iThin0 >= nThinOmitRecordPops))[isPops]	# only record the last proposals after nThinOmitRecord
 
@@ -440,7 +441,7 @@ twDEMCBlockInt <- function(
 		tempGlobalThinStepsL <- lapply( iPops[isPops], function(iPop){ tempGlobalPops[[iPop]][ 1+iGen ] })
 		tempGlobalThinSteps <- structure( do.call( cbind,tempGlobalThinStepsL ), dimnames=list(steps=NULL,pops=NULL) )	
 		# numeric array (nGenThin x nResComp x nPop)		
-		tempDenCompThinStepsL <- lapply( iPops[isPops], function(iPop){ tempResCompPops[[iPop]][1+iGen, ] })
+		tempDenCompThinStepsL <- lapply( iPops[isPops], function(iPop){ tempResCompPops[[iPop]][1+iGen, ,drop=FALSE] })
 		tempDenCompThinSteps <- structure( abind( tempDenCompThinStepsL, along=3 ), dimnames=list(steps=NULL,resComp=resCompNamesUFlat, pops=NULL) )	
 		
 		# here may use code in .tmp.f.testStep
@@ -486,9 +487,11 @@ twDEMCBlockInt <- function(
 		
 		#-- record poprosals
 		iYSteps0 <- (iThin0 - nThinOmitRecordPops)*ctrl$thin 
-		for( iPop in which(isRecordProposalsPop) ){
-			iChains = chainsPop[[iPop]]
-			YPops[[iPop]][iYSteps0[iPop]+(1:ctrl$thin),,] <- resUpdate$Y[,,iChains]
+		for( iiPop in which(isRecordProposalsPop) ){
+			# recordProposals refers to current populations (some may have dropped out already)
+			iPop <- isPops[iiPop]
+			iiChains = chainsPop[[iiPop]]
+			YPops[[iPop]][iYSteps0[iPop]+(1:ctrl$thin),,] <- resUpdate$Y[,,iiChains]
 		}
 	}# for iThin0
 	# recored the last parUpdateDen for dropouts
@@ -1348,10 +1351,18 @@ setMethodS3("twDEMCBlock","array", function(
 		,TEnd = 1	##<< numeric vector: end temperatures for each population. If of length1 then applies to all populations
 		,TProp = NULL	##<< numeric vector (nResComp): proportions of temperature for result components: equal for all populations
 		,logDenCompX = NULL ##<< numeric matrix (nResComp x nChains) initial state
+		, upperParBounds = vector("list",nPop)
+		### list of named numeric vectors: giving upper parameter bounds for each population 
+		### for exploring subspaces of the limiting distribution, see details
+		### \cr Alternatively a single numeric vector can be supplied, which is replicated for each population.
+		, lowerParBounds = vector("list",nPop)
+		### similar to upperParBounds
 	){
 		#twDEMC.array
 		if( 1 == length(T0) ) T0 <- rep(T0,nPop)
 		if( 1 == length(TEnd) ) TEnd <- rep(TEnd,nPop)
+		if( is.numeric(upperParBounds) ) upperParBounds <- lapply(1:nPop, function(iPop) upperParBounds )
+		if( is.numeric(lowerParBounds) ) lowerParBounds <- lapply(1:nPop, function(iPop) lowerParBounds )
 		nChains <- dim(x)[3]
 		nChainsPop <- nChains %/% nPop
 		isLogDenCompX <- (0 != length(logDenCompX))
@@ -1363,6 +1374,8 @@ setMethodS3("twDEMCBlock","array", function(
 					,X=adrop(x[nrow(x),,chainsPopI,drop=FALSE],1)
 					,T0=T0[iPop]
 					,TEnd=TEnd[iPop]
+					,upperParBounds=upperParBounds[[iPop]]
+					,lowerParBounds=lowerParBounds[[iPop]]
 				)
 				if( isLogDenCompX ) pop$logDenCompX <- logDenCompX[,chainsPopI ,drop=FALSE]
 				if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
