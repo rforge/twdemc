@@ -8,7 +8,7 @@ twDEMCBlockInt <- function(
 			, TEnd=1	##<< end temperature
 			, TProp=NULL	##<< numeric vector (nResComp) temperature proportions of result components
 				### can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
-			, X=NULL		##<< numeric matrix (nParm x nChain) initial state
+			, X=NULL		##<< numeric matrix (nParm x nChainPop) initial state
 			, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 			, upperParBounds = numeric(0)
 			### named numeric vectors: giving upper parameter bounds  
@@ -134,7 +134,6 @@ twDEMCBlockInt <- function(
 	
 	
 	#-- evaluate logDen of initial states and get names of the result components (dInfo$resCompNames)
-	#XXTODO cycle across dInfo instead of blocks
 	##details<< \describe{ \item{Initial state: \code{X}}{
 	## If initial state X is not specified, the last column (generation) of Z is utilized.
 	## If in addition to X, logDenX is specified as a numeric vector, the fLogDen will not be avaluated for the initial state of the chains.
@@ -148,8 +147,14 @@ twDEMCBlockInt <- function(
 				cbind(iPop=iPop,iChainInPop=1:nChainPop)
 			} ))
 	missingPopInfo <- rbind( missingPopInfo, do.call( rbind, lapply( iNonMissingPops, function(iPop){
-					chainIsAllFinite <- apply( logDenCompXPops[[iPop]], 2, all, is.finite )
-					cbind(iPop=iPop,iChainInPop=which(chainIsAllFinite))
+					#all( is.finite(logDenCompXPops[[iPop]][,1]))
+					#chainIsAllFinite <- apply( logDenCompXPops[[iPop]], 2, all, is.finite )
+					chainIsAllFinite <- apply( logDenCompXPops[[iPop]], 2, function(cChain){ all(is.finite(cChain))} )
+					iChainInPop=which(!chainIsAllFinite)
+					if( 0 != length(iChainInPop) )
+						cbind(iPop=iPop,iChainInPop=iChainInPop)
+					else
+						cbind(iPop=iPop, iChainInPop=NA_integer_ )[FALSE,]
 				})))
 	if( 0 < nrow(missingPopInfo) ){
 		# evaluate logDen for those
@@ -193,11 +198,11 @@ twDEMCBlockInt <- function(
 		}
 	}else{ # any isMissing
 		# no Missings, evaluate fLogDen to obtain result component names
-		for( iDen in iDen ){
+		for( iDen in iDens ){
 			dInfo = dInfos[[iDen]]
-			.resFLogDen <- do.call( dInfo$resFLogDen, c(list(XChains[,1]),dInfo$argsFLogDen))
-			dInfos[[iDen]]$resCompNames <- rcNames <- .getResFLogDenNames( .resFLogDen ) 
-			dInfos[[ iDen ]]$resCompNamesUnique <- paste(rcNames,iDen,sep="_")  
+			.resFLogDen <- do.call( dInfo$fLogDen, c(list(XChains[,1]),dInfo$argsFLogDen))
+			dInfos[[ iDen ]]$resCompNames <- rcNames <- .getResFLogDenNames( .resFLogDen ) 
+			dInfos[[ iDen ]]$resCompNamesUnique <- rcNames #paste(rcNames,iDen,sep="_")  
 		} #iDen
 	}
 	logDenCompXChains <- do.call( cbind, logDenCompXPops )
@@ -683,7 +688,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	if( 0==length(pop$T0) ) pop$T0 <- 1
 	if( 0==length(pop$TEnd) ) pop$TEnd <- 1
 	if( 0==length(pop$X) ){
-		pop$X <- pop$parms[nrow(pop$parms),,]
+		pop$X <- adrop( pop$parms[nrow(pop$parms),, ,drop=FALSE],1)
 	}else{
 		if( !all.equal( rownames(pop$X), colnames(pop$parms), check.attributes = FALSE) )
 			stop(".checkPop: rownames of X and colnames of parms must match")
@@ -1350,7 +1355,8 @@ setMethodS3("twDEMCBlock","array", function(
 		,T0   = 1	##<< numeric vector: initial temperatures for each population. If of length1 then applies to all populations
 		,TEnd = 1	##<< numeric vector: end temperatures for each population. If of length1 then applies to all populations
 		,TProp = NULL	##<< numeric vector (nResComp): proportions of temperature for result components: equal for all populations
-		,logDenCompX = NULL ##<< numeric matrix (nResComp x nChains) initial state
+		, X=NULL		##<< initial state (nParm x nChain)
+		, logDenCompX = NULL ##<< numeric matrix (nResComp x nChains) initial state
 		, upperParBounds = vector("list",nPop)
 		### list of named numeric vectors: giving upper parameter bounds for each population 
 		### for exploring subspaces of the limiting distribution, see details
@@ -1365,18 +1371,20 @@ setMethodS3("twDEMCBlock","array", function(
 		if( is.numeric(lowerParBounds) ) lowerParBounds <- lapply(1:nPop, function(iPop) lowerParBounds )
 		nChains <- dim(x)[3]
 		nChainsPop <- nChains %/% nPop
+		isX <- (0 != length(X))
 		isLogDenCompX <- (0 != length(logDenCompX))
 		isTProp <- (0 != length(TProp))
 		if( isTProp && !is.matrix(TProp) ) TProp <- matrix( TProp, nrow=length(TProp), ncol=nPop, dimnames=list(resComp=names(TProp),pop=NULL) )
 		pops <- lapply( 1:nPop, function(iPop){
 				chainsPopI <- (iPop-1)*nChainsPop + 1:nChainsPop
-				pop <- list( parms=x[,,chainsPopI, drop=FALSE]
-					,X=adrop(x[nrow(x),,chainsPopI,drop=FALSE],1)
+				pop <- list( 
+					parms=x[,,chainsPopI, drop=FALSE]
 					,T0=T0[iPop]
 					,TEnd=TEnd[iPop]
 					,upperParBounds=upperParBounds[[iPop]]
 					,lowerParBounds=lowerParBounds[[iPop]]
 				)
+				if( isX ) pop$X <- X[,chainsPopI , drop=FALSE]
 				if( isLogDenCompX ) pop$logDenCompX <- logDenCompX[,chainsPopI ,drop=FALSE]
 				if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
 				pop

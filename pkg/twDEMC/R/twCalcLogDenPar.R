@@ -6,7 +6,7 @@ twCalcLogDenPar <- function(
 	### all components of logDensity of xProp (result of fLogDen * fLogDenScale) 
 	### colnames must contain intResCompNames 
 	### rows: number of cases in xProp	
-	,intResCompNames=character(0)	
+	,intResComp=character(0)	
 	### character vector: names of results components of fLogDen that are used for internal Metropolis decisions 
 	,argsFLogDen=list()		##<< arguments passed to fLogDen
 	,fLogDenScale=1			##<< factor multiplied to the result of fLogDen
@@ -19,14 +19,14 @@ twCalcLogDenPar <- function(
 	#if( (0 == length(logDenCompX)) ) logDenCompX=xProp[,FALSE,drop=FALSE]
 	if( {tmp<-list(...); any(""==names(tmp)) || length(names(tmp))!=length(tmp)} )
 		("twCalcLogDenPar: encountered unnamed argument in ... Check for <- and ,, in list()")
-	boProvideX2Argument <- (0 < length(intResCompNames))
+	boProvideX2Argument <- (0 < length(intResComp))
 	Lp <- fLogDenScale * if(boProvideX2Argument){
 			#call fLogDen with second argument: the internal components
 			if( 0 == length(logDenCompX) )
-				logDenCompX <- matrix(-Inf, ncol=length(intResCompNames), nrow=nrow(xProp), dimnames=list(NULL,parms=intResCompNames))
+				logDenCompX <- matrix(-Inf, ncol=length(intResComp), nrow=nrow(xProp), dimnames=list(NULL,parms=intResComp))
 			if( !is.numeric(logDenCompX) || !is.matrix(logDenCompX) || nrow(logDenCompX)!=nrow(xProp) )
 				stop("logDenCompX must be a numeric matrix with one row for each chain and column names correponding to a subst of names of result vector of fLogDen")
-			iNames <- match( intResCompNames, colnames(logDenCompX) )
+			iNames <- match( intResComp, colnames(logDenCompX) )
 			if( any(is.na(iNames)) )
 				stop("if logDenCompX is given, it must contain named columns for each entry of intResCompNames")
 			logDenCompXIntUnscaled <- logDenCompX[,iNames,drop=FALSE]/fLogDenScale	# maybe internally uses cost function -1/2*logDen instead of logDen	
