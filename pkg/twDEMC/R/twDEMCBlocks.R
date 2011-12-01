@@ -47,6 +47,7 @@ twDEMCBlockInt <- function(
 				### \cr It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
 				### as described in \code{\link{updateBlockTwDEMC}}
 			, argsFUpdate=list()	##<< further arguments passed to fUpdate
+			, requiresUpdatedDen=TRUE	##<< if fUpdateBlock does not depend on current density result, then set this to FALSE and save some caluclation time 
 		#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
 		)) ##end<<
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
@@ -330,13 +331,9 @@ twDEMCBlockInt <- function(
 	pAccept <- lapply(iPops, function(iPop){	res <- array(NA_real_
 				, dim=c(1+nThinnedGenPops[iPop], nBlock, nChainPop) 
 				, dimnames=list(steps=NULL, block=names(blocks), chains=NULL) )
-			for( iChainPop in 1:nChainPop)
-				for( iBlock in 1:nBlock )
-					res[ 1,iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompPosPops[[iBlock]],iChainPop ])
-			res
 		})
-	for( iiPop in iPops ){
-		pAccept[[iiPop]][1,,] <- ctrl$initialAcceptanceRate[,chainsPop[[iiPop]] ]
+	for( iPop in iPops ){
+		pAccept[[iPop]][1,,] <- ctrl$initialAcceptanceRate[,chainsPop[[iPop]] ]
 	}
 	# record of proposals and fLogDen results, rows c(accepted, parNames, resCompNames, rLogDen)
 	# if doRecordProposals is FALSE record only the thinning intervals for the last 128 generations
@@ -752,7 +749,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	if( 0==length(block$fUpdateBlock) ) block$fUpdateBlock <- updateBlockTwDEMC
 	if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdateBlock must be a single function.")
 	
-	### block with entries compPos, dInfoPos, fUpdateBlock definded
+	if( 0==length(block$requiresUpdatedDen) ) block$requiresUpdatedDen <- TRUE
+	
+	### block with entries compPos, dInfoPos, fUpdateBlock, requiresUpdatedDen definded
 	block
 }
 
@@ -1117,7 +1116,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			## updated against another density function, then the current density of  
 			## of the accepted state is out of date, and needs to be recalculated.
 			##}}
-			if( !all( parUpdateDenC[block$dInfoPos,cd] ) ){	
+			if( block$requiresUpdatedDen && !all( parUpdateDenC[block$dInfoPos,cd] ) ){	
 				# here do not allow for internal rejection 
 				logDenCompC[dInfo$resCompPos] <- dInfo$fLogDenScale * do.call( dInfo$fLogDen, c(list(xC[cd]), dInfo$argsFLogDen) )	# evaluate logDen
 				parUpdateDenC[block$dInfoPos,cd] <- TRUE								
@@ -1136,16 +1135,18 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				))
 			#resUpdate <- updateBlockTwDEMC( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
 			resUpdate <- block$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
-			if( resUpdate$accepted != 0){
-				xC[cu] <- resUpdate$xC		# update the components of current state
-				logDenCompC[ dInfo$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
-				parUpdateDenC[,cu] <- FALSE		# indicate all density results out of date for the update parameters
-				parUpdateDenC[block$dInfoPos,cu] <- TRUE	# except the current one has been also updated
-			}
-			
 			acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
-			xP[ cu  ] <- resUpdate$xP 				# proposal 		
-			logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal 		
+			if( resUpdate$accepted != 0){
+				xC[cu] <- xP[cu] <- resUpdate$xC		# update the components of current state
+				parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the update parameters
+				if( 0 != length(resUpdate$logDenCompC) ){				
+					logDenCompC[ dInfo$resCompPos  ] <- logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
+					parUpdateDenC[block$dInfoPos,cu] <- TRUE	# if density has been calculated, indicate that it is up to date 
+				}
+			}else{ # not accepted
+				if( 0 != length(resUpdate$xP) ) xP[ cu  ] <- resUpdate$xP 				# proposal 		
+				if( 0 != length(resUpdate$logDenCompP) ) logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal 		
+			}
 		} #iBlock
 		
 		##value<< list with components

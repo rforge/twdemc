@@ -118,10 +118,10 @@ do.call( denSigmaEx1Sigma, c(list(theta=theta0)) )
 .nGen=128
 #.nGen=16
 #mtrace(twDEMCBlockInt)
-resa <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
 		dInfos=list(
-			dObs=list(fLogDen=denSigmaEx1Obs, argsFLogDen=argsFLogDen1)
-			,dSigma=list(fLogDen=denSigmaEx1Sigma, argsFLogDen=argsFLogDen2)
+			dObs=list(fLogDen=denSigmaEx1Obs)
+			,dSigma=list(fLogDen=denSigmaEx1Sigma)
 		)
 		,blocks=list(
 			bObs=list(dInfoPos="dObs", compPos=c("a","b"))
@@ -169,6 +169,63 @@ checkInterval( .pthetaTrue )
 
 
 #---------- now replace metropolis sampling of sigma by direct parameter sampling
+
+updateSigma2 <- function( 
+	### update Sigma by sampling from a scaled inverse Chi-square distribution 
+	theta				##<< numeric vector: current state that is used in density function of the block
+	,argsFUpdateBlock
+	,twLinreg=twLinreg1
+### further argument provided for generating the update  \describe{
+### \item{compPosInDen}{ positions of the dimensions in x that are updated in this block}
+### \item{step}{proposed jump}
+### \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
+### \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
+### \item{tempC}{global temperature}
+### \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
+### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
+### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
+### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
+### \item{ctrl$DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
+### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
+### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
+### \item{fCalcComponentTemp}{ functiont to calculate temperature of result components, (way of transporting calcComponentTemp to remote process) }
+### }
+){
+	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
+	resid <- pred - twLinreg$obs
+	n <- length(pred)
+	v <- sum( resid^2 ) / n
+	sigma2 <- rinvchisq( 1, n, v )
+	##value<< list with components
+	list(	##describe<<
+		accepted=1			##<< boolean scalar: if step was accepted
+		, xC=log(sigma2)	##<< numeric vector: components of position in parameter space that are being updated
+	)	##end<<
+	#})
+}
+
+.nGen=128
+#.nGen=16
+#mtrace(twDEMCBlockInt)
+#mtrace(.updateBlocksTwDEMC)
+resa2 <-  resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+		dInfos=list(
+			dObs=list(fLogDen=denSigmaEx1Obs, compPosDen=c("a","b","logSigma2"))
+		)
+		,blocks=list(
+			bObs=list(dInfoPos="dObs", compPos=c("a","b"))
+			,bSigma=list(dInfoPos="dObs", compPos=c("logSigma2"), fUpdateBlock=updateSigma2, requiresUpdatedDen=FALSE)
+		)
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE )
+res <- thin(resa, start=64)
+plot( rescoda <- as.mcmc.list(res), smooth=FALSE )
+
+
 
 
 
