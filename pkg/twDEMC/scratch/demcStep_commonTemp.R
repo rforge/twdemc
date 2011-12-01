@@ -167,7 +167,7 @@ twDEMCInt <- function(
 	tmp2 <- !is.finite(logfitness_X)
 	if( any(tmp2) ) 
 		stop(paste("non-finite logDensity of starting values for chains ",paste(which(tmp2),collapse=","),sep=""))
-	nChainsPop <- d$chains %/% nPops 
+	nChainPop <- d$chains %/% nPops 
 	
 	#calculate temperature steps: exponentially decreasing from T0 to Tend
 	if( is.null(ctrl$T0)) ctrl$T0=1
@@ -181,9 +181,9 @@ twDEMCInt <- function(
 	ctrl$F2 = ctrl$F/sqrt(2*d$parms)
 	ctrl$F1 = 1
 	ctrl$pIndStep <- 1.5 #independent state about after 1.5 accepted steps
-	ctrl$gInd <- 10*d$parms/nChainsPop	#number of independent generations to sample from
+	ctrl$gInd <- 10*d$parms/nChainPop	#number of independent generations to sample from
 	
-	#d$parms <- 16; nChainsPop=8; nPops=2; ctrl=list(thin=8); nGen=200
+	#d$parms <- 16; nChainPop=8; nPops=2; ctrl=list(thin=8); nGen=200
 	# number of requried independent generations to choose from (10*d independent states: TerBraak06 TerBraak08) devided by number of chains
 	ar <- rep(0.08, nPops)       #assume initial acceptancer ratio of 0.05 for each population
 	nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
@@ -236,7 +236,7 @@ twDEMCInt <- function(
 		genPropRes <- .generateXPropThin(nPops=nPops, Z=Z,rLogDen=rLogDen,mZ=mZ,ctrl=ctrl,nGenBack=nGenBack)
 		
 		iGen = iThin0*ctrl$thin+(1:ctrl$thin)
-		tempThin = t(TstepFixed[iGen,rep(1:nPops,each=nChainsPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
+		tempThin = t(TstepFixed[iGen,rep(1:nPops,each=nChainPop),drop=FALSE])	#chains must be first dimension in order to acces by temp[i]
 		#tmp.argsDEMCStep <- if( !debugSequential ) as.name("argsDEMCStep") else argsDEMCStep 
 		#resDo <- do.call(.doDEMCSteps, c(chainState[c("X", "logDenCompX", "logDenX")], genPropRes, list(temp=tempThin, argsDEMCStep=tmp.argsDEMCStep, debugSequential=debugSequential)), quote=TRUE )
 		#--- debugging
@@ -277,7 +277,7 @@ twDEMCInt <- function(
 		temp[mZ,] <- TstepFixed[iThin0*ctrl$thin+ctrl$thin,]
 		
 		# update the number of generations to choose from, which depends on acceptance rate
-		tmp.chains <- rep(1:nPops, each=nChainsPop)
+		tmp.chains <- rep(1:nPops, each=nChainPop)
 		ar <- pmax(0.05,tapply( pAccept[mZ,], tmp.chains, mean ))	#mean acceptance rate per population, assume minimum 5% to ensure localization (else may go to 0 -> entire history -> no acceptance) 
 		nGenBack <- pmin(mZ,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(ar * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 		#}		

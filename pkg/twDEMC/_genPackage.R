@@ -26,13 +26,14 @@
 	
 	twUtestF()
 	
-	twUtestF(transOrigPopt)
 	twUtestF("initZ")
 	twUtestF("S3twDEMC")
+	twUtestF("twDEMC")
+	
+	twUtestF(transOrigPopt)
 	twUtestF(twDEMCBatch,"test.goodStart")
 	twUtestF(twDEMCBatch,"test.badStart")
 	twUtestF(twDEMCBatch,"test.saveAndRestart")
-	twUtestF(twDEMC)
 	twUtestF(twDEMCBatch)
 	twUtestF("runTwDEMC")
 	twUtestF(constrainNStack)

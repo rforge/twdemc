@@ -34,9 +34,9 @@ ggplotDensity.twDEMC <- function(
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
 ){
 	nPop = 	ncol(res$temp)
-	nChainsPop = ncol(res$rLogDen)%/%nPop
+	nChainPop = ncol(res$rLogDen)%/%nPop
 	#thin result to about 200 cases per constrainted population, to save calculation time
-	resT <- resT0 <- thin(res, newThin=(floor((nrow(res$rLogDen)*res$thin*nChainsPop*(1-pMin))/200.0)%/%res$thin)*res$thin )
+	resT <- resT0 <- thin(res, newThin=(floor((nrow(res$rLogDen)*res$thin*nChainPop*(1-pMin))/200.0)%/%res$thin)*res$thin )
 	if( doTransOrig )
 		resT <- transOrigPopt.twDEMC(resT0) 
 	pLogDen <- popApplyTwDEMC( resT$rLogDen, nPop, as.vector)

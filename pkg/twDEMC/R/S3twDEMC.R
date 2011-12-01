@@ -45,10 +45,10 @@ setMethodS3("subChains","twDEMC", function(
 		##details<< 
 		## Alternatively to specification of iChains, one can specify a vector of populations and the total number of populations.
 		if( is.null(nPop) ) nPop=getNPops(x)
-		nChainsPop = getNChainsPop(x)
+		nChainPop = getNChainsPop(x)
 		res <- x
 		if( !is.null(iPops)){
-			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainsPop + (1:nChainsPop) }))
+			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainPop + (1:nChainPop) }))
 			res$temp <- x$temp[,iPops, drop=FALSE]	#by nPop
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- x$nGenBurnin[iPops]
 		}else{
@@ -581,6 +581,7 @@ attr(popApplyTwDEMC,"ex") <- function(){
 setMethodS3("stackChainsPop","twDEMC", function( 
 		### Combine MarkovChains of each population of a twDEMC. 
 		x
+		,...
 	){
 		#stackChainsPop.twDEMC
 		##seealso<<   
@@ -637,15 +638,15 @@ setMethodS3("thinN","mcmc.list", function(
 			nPop=ncol(x$temp)
 			nPopNew = ncol(xNew$temp)
 			nChains = ncol(x$logDen)
-			nChainsPop = nChains %/% nPop
+			nChainPop = nChains %/% nPop
 			if( length(iPops) != nPopNew) stop("replacePops.twDEMC: replacing population has number of populations that differs from length of iPop.")
-			nChainsPopNew = ncol(xNew$logDen) %/% nPopNew
-			if( nChainsPop != nChainsPopNew) stop("replacePops.twDEMC: both populations must have the same number of chains per populations.")
+			nChainPopNew = ncol(xNew$logDen) %/% nPopNew
+			if( nChainPop != nChainPopNew) stop("replacePops.twDEMC: both populations must have the same number of chains per populations.")
 			xN <- if( x$thin != xNew$thin ) thin(xNew,newThin=x$thin) else xNew
 			if( !identical( dim(x)[1:2], dim(xN)[1:2]) ) stop("replacePops.twDEMC: both populations must have the same dimensions of variables and cases.")
 			
 			res <- x
-			iChains <- matrix(1:nChains, nrow=nChainsPop)[,iPops]
+			iChains <- matrix(1:nChains, nrow=nChainPop)[,iPops]
 			res$temp[,iPops] <- xN$temp
 			res$parms[,,iChains] <- xN$parms
 			res$logDenComp[,,iChains] <- xN$logDenComp

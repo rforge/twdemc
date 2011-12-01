@@ -1,6 +1,6 @@
 #generating a typical twDEMC result
 .nPop=2
-.nChainsPop=4
+.nChainPop=4
 .thin=4
 .nGenBurnin=30
 .T0=10
@@ -19,7 +19,7 @@ argsFLogDen <- list(
 )
 do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 
-Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
+Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 dim(Zinit)
 
 .nGen=100

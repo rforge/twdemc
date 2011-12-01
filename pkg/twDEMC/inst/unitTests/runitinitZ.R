@@ -8,32 +8,32 @@
 }
 
 test.initZtwDEMCNormal <- function(){
-	.nChainsPop=4
+	.nChainPop=4
 	.nPop=2
 	.nPar=length(theta0)
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 	head(Zinit[,,1])
-	checkEquals( c(calcM0twDEMC(.nPar,.nChainsPop), .nPar, .nChainsPop*.nPop), dim(Zinit) )
+	checkEquals( c(calcM0twDEMC(.nPar,.nChainPop), .nPar, .nChainPop*.nPop), dim(Zinit) )
 }
 
 test.initZtwDEMCNormalPar1 <- function(){
 	# test for parameter vector of length 1
-	.nChainsPop=4
+	.nChainPop=4
 	.nPop=2
 	.nPar=1
-	Zinit <- initZtwDEMCNormal( theta0[1], diag(sdTheta^2)[1], nChainsPop=.nChainsPop, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0[1], diag(sdTheta^2)[1], nChainPop=.nChainPop, nPop=.nPop)
 	Zinit[,,1,drop=FALSE]
-	checkEquals( c(calcM0twDEMC(.nPar,.nChainsPop), .nPar, .nChainsPop*.nPop), dim(Zinit) )
+	checkEquals( c(calcM0twDEMC(.nPar,.nChainPop), .nPar, .nChainPop*.nPop), dim(Zinit) )
 }
 
 test.initZtwDEMCNormalPar1Chain1 <- function(){
 	# test for parameter vector of length 1 and only one chain
-	.nChainsPop=1
+	.nChainPop=1
 	.nPop=1
 	.nPar=1
-	Zinit <- initZtwDEMCNormal( theta0[1], diag(sdTheta^2)[1], nChainsPop=.nChainsPop, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0[1], diag(sdTheta^2)[1], nChainPop=.nChainPop, nPop=.nPop)
 	Zinit[,,1,drop=FALSE]
-	checkEquals( c(calcM0twDEMC(.nPar,.nChainsPop), .nPar, .nChainsPop*.nPop), dim(Zinit) )
+	checkEquals( c(calcM0twDEMC(.nPar,.nChainPop), .nPar, .nChainPop*.nPop), dim(Zinit) )
 }
 
 

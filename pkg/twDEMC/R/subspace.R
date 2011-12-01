@@ -474,8 +474,8 @@ divideTwDEMC <- function(
 	, minPSub = 0.05		##<< passed to \code{\link{getSubSpaces}}
 	, isBreakEarly = FALSE	##<< passed to \code{\link{getSubSpaces}}
 	, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}
-	, nChainsPop=4			##<< number of chains in subPopulations
-	, m0 = calcM0twDEMC( ncol(aSample), nChains=nChainsPop )	##<< number of samples per chain to initialize subPopulations
+	, nChainPop=4			##<< number of chains in subPopulations
+	, m0 = calcM0twDEMC( ncol(aSample), nChains=nChainPop )	##<< number of samples per chain to initialize subPopulations
 	, nrow0 = 4000			##<< number of rows in initial overall sample
 	, attachDetails=FALSE	##<< set TRUE to report upperParBounds, lowerParBounds, and pSubs per subPopulation
 	, nChainPar=16			##<< number of chains to run in parallel, good choice is 2*nCpu
@@ -499,7 +499,7 @@ divideTwDEMC <- function(
 	nGenThin <- (nGen %/% thin)*thin		# when dealing with thinned samples use the number of generations of last recorded thinned generation
 	
 	thinnedSample <- if( nrow(aSample) < nrow0 ) aSample else aSample[round(seq(1,nrow(aSample),length.out=nrow0)),,]
-	nInit <- m0*nChainsPop		# number of samples to initialize population
+	nInit <- m0*nChainPop		# number of samples to initialize population
 	if( nInit > nrow(thinnedSample) ) stop(paste("divideTwDEMC: aSample or nGen has too few cases, need at least",nInit))
 	minPSub <- max( minPSub, nInit/nrow(thinnedSample) )
 	#mtrace(getSubSpaces)
@@ -517,20 +517,20 @@ divideTwDEMC <- function(
 	ZinitSubs <- abind( lapply( subSpacesFlat, function(ssEntry){
 						#s0 <- ssEntry$sample[ round(seq(1,nrow(ssEntry$sample),length.out=nInit)), ]
 						s0 <- ssEntry$sample[ sample.int(nrow(ssEntry$sample),nInit), ]	# here use random draws instead thinned interval
-						Zinit <- array( t(s0), dim=c(ncol(s0),m0,nChainsPop), dimnames=list(parms=colnames(s0),steps=NULL,chains=NULL) )
+						Zinit <- array( t(s0), dim=c(ncol(s0),m0,nChainPop), dimnames=list(parms=colnames(s0),steps=NULL,chains=NULL) )
 					}), along=3)
 	upperParBounds <- lapply( subSpacesFlat, function(ssEntry){ ssEntry$upperParBounds})
 	lowerParBounds <- lapply( subSpacesFlat, function(ssEntry){ ssEntry$lowerParBounds})
 	popQSubs <- lapply( subSpaces, sapply, "[[","pSub" ) # initial percentile of subspace of the overall space
 	qSubs <- do.call(c,popQSubs)
-	nGen0 <- pmax(m0*thin, ceiling(minNSamplesSub*thin/nChainsPop), nGen*qSubs)		# at minimum m0*thin generations to keep sufficient samples for extending the run
+	nGen0 <- pmax(m0*thin, ceiling(minNSamplesSub*thin/nChainPop), nGen*qSubs)		# at minimum m0*thin generations to keep sufficient samples for extending the run
 	nGen0Thin <- (ceiling(nGen0/thin)+2)*thin		# +2 to avoid extending runs with little shift 
 	
 	# in one call of twDEMC all chains have the same number of generations
 	# thus, in order to save time, sort the populations by required number of generations and 
 	# start several sequential calls to twDEMC differing by number of generations
 	nSubs <- length(nGen0)
-	nPopPar <- ceiling( nSubs / ceiling(nChainPar/nChainsPop))	# number of populations to run in parallel
+	nPopPar <- ceiling( nSubs / ceiling(nChainPar/nChainPop))	# number of populations to run in parallel
 
 	# in which twDEMCRun does subPopulation of index iis executed: iRunSubs
 	iTwDEMCRun <- rep(1:(nSubs%/%nPopPar), each=nPopPar)
@@ -559,7 +559,7 @@ divideTwDEMC <- function(
 			nGenIRun <- max( nGen0Thin[ iSubsRun ] )
 			#resTwDEMC <- 
 			resITwDEMC[[iRun]] <- resTwDEMC <- twDEMC(
-				ZinitSubs[,,as.vector(sapply( (iSubsRun-1)*nChainsPop, "+", (1:nChainsPop)))]
+				ZinitSubs[,,as.vector(sapply( (iSubsRun-1)*nChainPop, "+", (1:nChainPop)))]
 				, nPops=length(iSubsRun)
 				, upperParBounds=upperParBounds[iSubsRun]
 				, lowerParBounds=lowerParBounds[iSubsRun]
@@ -591,7 +591,7 @@ divideTwDEMC <- function(
 					#ssLogDen <- as.vector(ssSub[[iSub]][1,,])
 					si <- subInfo[iSub, ]
 					# extract the resulting logDensities from respective run from chains of respective population
-					ssLogDen <- ssLogDenNew <- resITwDEMC[[ si["run"] ]]$rLogDen[,(si["rpop"]-1)*nChainsPop+(1:nChainsPop) ]
+					ssLogDen <- ssLogDenNew <- resITwDEMC[[ si["run"] ]]$rLogDen[,(si["rpop"]-1)*nChainPop+(1:nChainPop) ]
 					twLogSumExp(ssLogDen, shiftUpperBound=TRUE)-log(length(ssLogDen)) 
 				})	# average the unnormalized densities
 			# normalization is done below

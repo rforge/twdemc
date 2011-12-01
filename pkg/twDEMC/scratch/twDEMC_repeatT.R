@@ -77,10 +77,10 @@ twDEMCBatchInt <- function(
 		resCols <- match( rownames(res$logDenComp), rownames(res$Y))
 		#nPops <- ncol(res$temp)
 		nChains <- dim(res$parms)[3]
-		nChainsPop <- nChains %/% nPops
-		chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
+		nChainPop <- nChains %/% nPops
+		chain2Pop <- rep(1:nPops, each=nChainPop )	#mapping of chain to population
 		
-		diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
+		diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
 		diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 		
 		pAcceptChains <- res$pAccept[ nrow(res$pAccept), ]
@@ -139,8 +139,8 @@ twDEMCBatchInt <- function(
 	
 	iRun <- iRun + nRun		#current number of runs
 	nChains <- dim(res$parms)[3]
-	nChainsPop <- nChains %/% nPops
-	chain2Pop <- rep(1:nPops, each=nChainsPop )	#mapping of chain to population
+	nChainPop <- nChains %/% nPops
+	chain2Pop <- rep(1:nPops, each=nChainPop )	#mapping of chain to population
 	resCols <- match( rownames(res$logDenComp), rownames(res$Y))	#index of columns of results components in Y
 	while( !boConverged & (iRun < nGen) ){
 		cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
@@ -203,7 +203,7 @@ twDEMCBatchInt <- function(
 			# according to Vrugt09
 			omega <- sapply( 1:nChains, function(iChain){mean(res$rLogDen[iGenOmega,iChain], na.rm=TRUE)}) #mean logDen across last halv of chain
 			for( iPop in 1:nPops ){
-				iChains <- ((iPop-1)*nChainsPop+1):(iPop*nChainsPop)
+				iChains <- ((iPop-1)*nChainPop+1):(iPop*nChainPop)
 				q13 <- quantile( omega[iChains], c(1/4,3/4) )	#lower and upper quartile
 				bo <- omega[iChains] < q13[1] -2*diff(q13)		#outside 2 interquartile ranges, see Vrugt09
 				if( any(bo) ){
@@ -248,8 +248,8 @@ twDEMCBatchInt <- function(
 			tempResPops <- matrix( rep(T0c, length(resCols)), ncol=length(T0c), byrow=TRUE, dimnames=list(rownames(res$Y)[resCols],NULL))
 			tempResPops[names(ctrl$TFix),] <- matrix( rep(TFix, length(T0c)), ncol=length(T0c) )
 			#mtrace(getDiffLogDen.twDEMCProps)
-			#diffLogDenT <- getDiffLogDen.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
-			diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainsPop)) 	#in twDEMC S3twDEMC.R
+			#diffLogDenT <- getDiffLogDen.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
+			diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
 			diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			#diffLogDenPops[!is.finite(diffLogDenPops)] <- NA
 			#XXTODO: think about criterion for too fast cooling

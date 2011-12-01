@@ -53,6 +53,7 @@
 }
 
 test.twCalcLogDenPar <- function(){
+	ex1c <- concatPops(twdemcEx1)
 	xProp <- stackChains(ex1c$parms)
 	#mtrace(twCalcLogDenPar)
 	str(res <- twCalcLogDenPar(function(x){2*x},xProp,debugSequential=TRUE))
@@ -92,7 +93,7 @@ test_int.goodStartSeqData.plot2d <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
@@ -164,10 +165,10 @@ test.badStartSeqData <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
+	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChainPop=4, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2,1) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
 	#dim(Zinit)
@@ -234,15 +235,15 @@ test.badStartSeqData1D <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta1d),argsFLogDen))
 	
-	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainsPop=4, nPop=.nPop)
+	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
 	.sdThetaBad <- sdTheta["b"]*c(1/10)
 	.theta0Bad <- theta0["b"]*c(10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChainPop=4, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(0.5) 
 	#dim(Zinit)
 	
-	.nGen=200
+	.nGen=250
 	#mtrace(twDEMCBlockInt)
 	#mtrace(.sampleStates)
 	#mtrace(twWhichColsEqual)
@@ -256,7 +257,7 @@ test.badStartSeqData1D <- function(){
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	matplot( resa$parms[,1,],type="l")
 	
-	res <- thin(resa, start=120)
+	res <- thin(resa, start=180)
 	matplot( res$parms[,1,],type="l")
 	
 	#gelman.diag(rescoda)
@@ -294,7 +295,7 @@ test.goodStartPrior <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
@@ -396,7 +397,7 @@ test.upperParBounds <- function(){
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	asplit <- 10.8
-	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	# replace all the cases with upperParBounds
 	bo.keep <- as.vector(Zinit0[,"a",]) <= asplit
 	#mtrace(replaceZinitCases)
@@ -492,7 +493,7 @@ i_nnertest.probUpDir <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	dim(Zinit)
 	
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
@@ -535,7 +536,7 @@ t_est.ofMulti <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	dim(Zinit)
 	
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
@@ -583,8 +584,8 @@ test.dump <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChainsPop=4
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
+	.nChainPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 	#dim(Zinit)
 	
 	body <- expression( res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
@@ -697,8 +698,8 @@ test.twoStepMetropolis <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChainsPop=4
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
+	.nChainPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 	#dim(Zinit)
 	X <- adrop(Zinit[ncol(Zinit),, ,drop=FALSE],1)	#last row of Zinit
 	#mtrace(twCalcLogDenPar)
@@ -770,8 +771,8 @@ test.twoStepMetropolisTemp <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	.nChainsPop=4
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=.nChainsPop, nPop=.nPop)
+	.nChainPop=4
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 	#dim(Zinit)
 
 	X <- adrop(Zinit[nrow(Zinit),, ,drop=FALSE],1)	#last row of Zinit
@@ -846,7 +847,7 @@ t_est.goodStartSeqMultiTemp <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100
@@ -908,7 +909,7 @@ test.fLogDenScale <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
 	.nGen=100

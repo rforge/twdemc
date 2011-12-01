@@ -8,15 +8,15 @@
 ){
 	d <- as.list(structure(dim(Z),names=c("parms","steps","chains")))
 	d$steps <- ctrl$thin
-	nChainsPop = d$chains %/% nPops
+	nChainPop = d$chains %/% nPops
 	# integer array (thinSteps*nChain*3) sample of chains, within populations
 	rrcPar <- abind( lapply( 1:nPops, function(i){
-				tmp <- ((i-1)*nChainsPop+1):(i*nChainsPop)
-				rrcPar <- array( sample(tmp, d$steps*nChainsPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainsPop,i=3) )
+				tmp <- ((i-1)*nChainPop+1):(i*nChainPop)
+				rrcPar <- array( sample(tmp, d$steps*nChainPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainPop,i=3) )
 			}), along=2 )
 	xStepAndExtraL <- lapply(1:d$steps, function(iGenThin){ 
-			#.generateXPropChains(Z=Z,nChains=nChains,X=X,rLogDen=rLogDen,mZ=mZ,Npar=Npar,iGen=iGen,ctrl=ctrl,nChainsPop=nChainsPop,g=g,rrcPar=rrcPar) 
-			.generateXPropChains(iGenThin, Z=Z,ctrl=ctrl,rrcPar=rrcPar,nChainsPop=nChainsPop,d=d,...) 
+			#.generateXPropChains(Z=Z,nChains=nChains,X=X,rLogDen=rLogDen,mZ=mZ,Npar=Npar,iGen=iGen,ctrl=ctrl,nChainPop=nChainPop,g=g,rrcPar=rrcPar) 
+			.generateXPropChains(iGenThin, Z=Z,ctrl=ctrl,rrcPar=rrcPar,nChainPop=nChainPop,d=d,...) 
 		}) #rows: difference vectors in parameter space, cols: chains
 	xStepAndExtra <- abind( xStepAndExtraL, rev.along=0)		#third dimension is the step within thinning interval
 	xStep <- xStepAndExtra[-nrow(xStepAndExtra),,,drop=FALSE]			#dito
@@ -100,16 +100,16 @@
 	#iGen,		##<< the current generation
 	ctrl,  		##<< list twDEMC control parameters
 	d,			##<< list of dimensions of step array to create
-	nChainsPop,	##<< the number of populations
+	nChainPop,	##<< the number of populations
 	g,			##<< the number of generations to select past states from
 	rrcPar		##<< integer array (nGen*nChain*3) sample of chains, sampled in one step before for performance reasons
 ){
 	X <- Z[,mZ,]		#replace current state X by state of the beginning of thinning interval
-	iPop0 = (iChain-1)%/%nChainsPop; iPop=iPop0+1 #+1 counting from zero
+	iPop0 = (iChain-1)%/%nChainPop; iPop=iPop0+1 #+1 counting from zero
 	rrGen <- sample( (mZ-g[iPop]+1):mZ, 3, replace=FALSE )	#depends on acceptance ratio of population, so cannot optimize performance by sampling togehter beforehand
 	if ( runif(1)< ctrl$pSnooker ) {  
 		#zChains <- Z[,,rrcSnooker[iGenThin,iChain,] ]	# select the chains
-		rrChains <- (iPop0)*nChainsPop + sample( nChainsPop, 3, replace = TRUE ) #for snooker update all chains of population are equal
+		rrChains <- (iPop0)*nChainPop + sample( nChainPop, 3, replace = TRUE ) #for snooker update all chains of population are equal
 		z <- sapply( 1:3, function(zi){Z[,rrGen[zi],rrChains[zi] ]})
 		#make sure z[,1] and z[,2] are different states (iChain.e chain did not stay at one place), and also that X[,iChain] and z[,3]] are different
 		tmp.i <- 0

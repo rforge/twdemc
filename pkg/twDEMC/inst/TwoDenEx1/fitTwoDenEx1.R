@@ -17,8 +17,8 @@ attach( twTwoDenEx1 )
 
 
 .nPops=2
-.nChainsPop=4
-ZinitPops <- initZtwDEMCNormal( rich$theta0, diag(rich$varTheta), nChainsPop=.nChainsPop, nPops=.nPops)
+.nChainPop=4
+ZinitPops <- initZtwDEMCNormal( rich$theta0, diag(rich$varTheta), nChainPop=.nChainPop, nPops=.nPops)
 #dim(ZinitPops)
 #head(ZinitPops[,,1])
 pops <- pops0 <- list(

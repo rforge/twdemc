@@ -172,7 +172,7 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 		
 		TcurStep = TstepFixed[iGen,]
 		#logr =  (logfitness_x_prop+rExtra - logfitness_X)/Tstep[iGen]
-		logr =  (logfitness_x_prop+rExtra[,iGenT] - logfitness_X) / rep(TcurStep, each=nChainsPop)
+		logr =  (logfitness_x_prop+rExtra[,iGenT] - logfitness_X) / rep(TcurStep, each=nChainPop)
 		# print(c(logfitness_X[i], logfitness_x_prop ,logr,rExtra))
 		
 		#Metropolis step for each chain
@@ -205,7 +205,7 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 	d <- as.list(structure(dim(Z),names=c("parms","gen","chains")))
 	d$gen <- mZ
 	d$steps <- ctrl$thin
-	nChainsPop = d$chains %/% nPops
+	nChainPop = d$chains %/% nPops
 	##details<<  
 	## Random states for chains for difference vector generation are within subsets of populations.
 	## This allows simulating independent population of chains.
@@ -213,13 +213,13 @@ checkConvergenceGelman <- function(res, addArgs=list() ){
 	## randomly select from also differs between poplations.
 	# integer array (thinSteps*nChain*3) sample of chains, within populations
 	rrChains <- abind( lapply( 1:nPops, function(iPop){
-				sChains <- ((iPop-1)*nChainsPop+1):(iPop*nChainsPop)
-				rrChainsPop <- array( sample(sChains, d$steps*nChainsPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainsPop,iPop=3) )
+				sChains <- ((iPop-1)*nChainPop+1):(iPop*nChainPop)
+				rrChainsPop <- array( sample(sChains, d$steps*nChainPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainPop,iPop=3) )
 			}), along=2 )
 	# integer array same dimension of sample of generations
 	rrGen <- abind( lapply( 1:nPops, function(iPop){
 				sGens <- (mZ-g[iPop]+1):mZ 
-				rrGenPop <- array( sample(sGens, d$steps*nChainsPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainsPop,i=3) )
+				rrGenPop <- array( sample(sGens, d$steps*nChainPop*3, replace = TRUE), dim=list(gen=d$steps,chain=nChainPop,i=3) )
 			}), along=2 )
 }
 

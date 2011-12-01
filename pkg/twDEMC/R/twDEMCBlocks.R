@@ -296,7 +296,7 @@ twDEMCBlockInt <- function(
 	ctrl$pAcceptWindowWidth <- aThinWinW * ctrl$thin
 	# acceptWindow records number of accepted steps in thinnging interval
 	# (stepslots x blocks x chains)
-	#acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainsPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
+	#acceptWindow <- matrix( rep(ctrl$thin*ar, each=2*aThinWinW*nChainPop), nrow=2*aThinWinW, ncol=d$chains )	#record number of accepted steps in thinning interval
 	# (width x block x chain )
 	acceptWindow <- array( rep(ctrl$thin*ctrl$initialAcceptanceRate, each=2*aThinWinW)
 	, dim=c(2*aThinWinW, dim(ctrl$initialAcceptanceRate) ) 
@@ -786,7 +786,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	##seealso<< 
 	## \code{\link{twDEMCInt}}
 	## \code{\link{.generateXPropThin}}
-	nChainsPop = dim(Z)[3] 
+	nChainPop = dim(Z)[3] 
 	nParm = dim(Z)[2]
 	##details<<  
 	## Random states for chains for difference vector generation are within subsets of populations.
@@ -795,16 +795,16 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	## randomly select from also differs between poplations.
 	# integer array (thinSteps*nChain*4) sample of chains, within populations
 	X <- adrop(Z[mZ,,,drop=FALSE],1)		# assume current state X as beginning of the interval
-	nStates <- nSample*nChainsPop*3			# need to sample three states for snooker update
-		sChains <- 1:nChainsPop 
+	nStates <- nSample*nChainPop*3			# need to sample three states for snooker update
+		sChains <- 1:nChainPop 
 		sGens <- (mZ-nGenBack+1):mZ 
 		rrGenPop <-  sample(sGens, nStates, replace = TRUE)
 		rrChainsPop <-  sample(sChains, nStates, replace = TRUE)
 		# in order to constrain two dimensions at the same time use the [] subset with an array see ?"["
 		rr <- cbind(rrGenPop,rrChainsPop)
-		#zLogDen <- array(rLogDen[rr], dim=c(1,nSample*nChainsPop,3), dimnames=list(parms="logDen", steps=NULL, zi=NULL) )
+		#zLogDen <- array(rLogDen[rr], dim=c(1,nSample*nChainPop,3), dimnames=list(parms="logDen", steps=NULL, zi=NULL) )
 		rrParms <- cbind( rep(rrGenPop,each=nParm), rep(1:nParm, nStates), rep(rrChainsPop,each=nParm) )
-		zParms <- array(Z[rrParms], dim=c(nParm,nSample*nChainsPop,3), dimnames=list( parms=rownames(Z), steps=NULL, zi=NULL) )
+		zParms <- array(Z[rrParms], dim=c(nParm,nSample*nChainPop,3), dimnames=list( parms=rownames(Z), steps=NULL, zi=NULL) )
 		# note that parameters are the first dimension		
 		#rrParms <- cbind( rep(rrGenPop,nParm), rep(1:nParm, each=nStates), rep(rrChainsPop,nParm) )
 		#zParms <- matrix( Z[rrParms], ncol=nParm)
@@ -813,8 +813,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		# append as forth initial state x vector to z
 		# assume that chains is the last dimension, for each step assume the same initial state x 
 		chainsZ <- rep(sChains,each=nSample)
-		Xs <- array(X[,chainsZ], dim=c(nParm,nSample*nChainsPop,1), dimnames=list(parms=rownames(Z), steps=NULL, zi=NULL) )
-		#XsLogDen <- array( rLogDen[mZ,chainsZ],dim=c(1,nSample*nChainsPop,1), dimnames=list(parms="logDen", steps=NULL, zi=NULL)  ) 
+		Xs <- array(X[,chainsZ], dim=c(nParm,nSample*nChainPop,1), dimnames=list(parms=rownames(Z), steps=NULL, zi=NULL) )
+		#XsLogDen <- array( rLogDen[mZ,chainsZ],dim=c(1,nSample*nChainPop,1), dimnames=list(parms="logDen", steps=NULL, zi=NULL)  ) 
 		#Xs <- abind( Xs, XsLogDen, along=1)	#logDen row never used for X
 		zx <- abind( zParms, Xs, along=3)
 		
@@ -839,7 +839,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			i<-i+1
 		}
 		#(tmp <- which( zx[,,3] == zx[,,4], arr.ind=TRUE))
-		### random states (Nparms+1,(steps*nChainsPop), 4)
+		### random states (Nparms+1,(steps*nChainPop), 4)
 		### first dimension is the state vector
 		### random states for each step and chains (stacked to be vectorized)
 		### chain is last dimensionion in stack (consequtive steps for one chain) in  order to abind across populations
@@ -1009,7 +1009,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	#d <- as.list(structure(dimXStep,names=c("parms","chains","steps"))) 
 	iGenT <- (1:nStep)
 	nCases = nChain * nStep
-	nChainsPop = nChain / nPop
+	nChainPop = nChain / nPop
 	if( !(nCases == length(rExtra)) )
 		stop("number of cases in steps must correspond to length of rExtra")
 	#iPops <- matrix( 1:nChain, ncol=nPops)	
@@ -1019,7 +1019,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	F_ARGS <- function(i,prevRes){ 
 		iStep0 <- ((i-1) %/% nChain) # i is the state processed, c( iChains_1Step, iChains_2Step ... )
 		iChain0 <- (i-1) - iStep0*nChain   #((i-1) %% nChain)	 
-		iPop <-(iChain0 %/% nChainsPop)+1
+		iPop <-(iChain0 %/% nChainPop)+1
 		#args <-c( prevRes[c("xC", "logDenCompC", "parUpdateDenC")],
 		args <-c( prevRes[1:3] 
 			 ,list( step=xStep[,1+iStep0,1+iChain0 ,drop=TRUE]
@@ -1370,13 +1370,13 @@ setMethodS3("twDEMCBlock","array", function(
 		if( is.numeric(upperParBounds) ) upperParBounds <- lapply(1:nPop, function(iPop) upperParBounds )
 		if( is.numeric(lowerParBounds) ) lowerParBounds <- lapply(1:nPop, function(iPop) lowerParBounds )
 		nChains <- dim(x)[3]
-		nChainsPop <- nChains %/% nPop
+		nChainPop <- nChains %/% nPop
 		isX <- (0 != length(X))
 		isLogDenCompX <- (0 != length(logDenCompX))
 		isTProp <- (0 != length(TProp))
 		if( isTProp && !is.matrix(TProp) ) TProp <- matrix( TProp, nrow=length(TProp), ncol=nPop, dimnames=list(resComp=names(TProp),pop=NULL) )
 		pops <- lapply( 1:nPop, function(iPop){
-				chainsPopI <- (iPop-1)*nChainsPop + 1:nChainsPop
+				chainsPopI <- (iPop-1)*nChainPop + 1:nChainPop
 				pop <- list( 
 					parms=x[,,chainsPopI, drop=FALSE]
 					,T0=T0[iPop]
@@ -1410,7 +1410,7 @@ attr(twDEMCBlock.array,"ex") <- function(){
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.nPop = 2
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainsPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	dim(Zinit)
 	
 	.nGen=100
