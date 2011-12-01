@@ -329,7 +329,7 @@ twDEMCBlockInt <- function(
 	# one pAcceptance indication per chain and per block
 	pAccept <- lapply(iPops, function(iPop){	res <- array(NA_real_
 				, dim=c(1+nThinnedGenPops[iPop], nBlock, nChainPop) 
-				, dimnames=list(steps=NULL, block=NULL, chains=NULL) )
+				, dimnames=list(steps=NULL, block=names(blocks), chains=NULL) )
 			for( iChainPop in 1:nChainPop)
 				for( iBlock in 1:nBlock )
 					res[ 1,iBlock,iChainPop] <- sum(logDenCompXPops[[iPop]][resCompPosPops[[iBlock]],iChainPop ])
@@ -523,14 +523,14 @@ twDEMCBlockInt <- function(
 	# (might be slightly off because not up to date, but work for inspecting the trend)
 	for( iDen in iDens ){
 		dInfo <- dInfos[[iDen]]
-		cd <- dInfo$compPosDen # components used by the current density function
-		if( length(cd) == 1){
+		rcp <- dInfo$resCompPos # components used by the current density function
+		if( length(rcp) == 1){
 			for( iPop in iPops ){
-				logDen[[iPop]][,iDen,] <- resLogDen[[iPop]][,cd,]
+				logDen[[iPop]][,iDen,] <- resLogDen[[iPop]][,rcp,]
 			}
 		}else{
 			for( iPop in iPops ){
-				resLogDenI <- resLogDen[[iPop]][,cd,]
+				resLogDenI <- resLogDen[[iPop]][,rcp,]
 				logDen[[iPop]][,iDen,] <- apply(resLogDenI,c(1,3),sum)
 			}
 		} # length(resComp) == 1 

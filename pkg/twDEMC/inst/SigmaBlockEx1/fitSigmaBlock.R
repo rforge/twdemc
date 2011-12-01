@@ -2,7 +2,7 @@ data(twLinreg1)
 
 denSigmaEx1Obs <- function(
 	theta				 ##<< named numeric vector a,b,logSigma2
-	,twLinreg=twLinreg1 ##<< list with components xval and obs 
+	,twLinreg=twLinreg1  ##<< list with components xval and obs 
 ){
 	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
 	resid <- pred - twLinreg$obs
@@ -35,12 +35,14 @@ attr(denSigmaEx1Obs,"ex") <- function(){
 denSigmaEx1Sigma <- function(
 	theta				 ##<< named numeric vector a,b,logSigma2
 	,twLinreg=twLinreg1 ##<< list with components fModel, xval and obs
-	,varSigma2=var( twLinreg1$sdObs^2 )	##<< variance of the normal distribution of uncertainty of sigma2 
 ){
+	#see http://www.wutzler.net/reh/index.php?title=twutz:Gelman04_1#normal_distribution_with_known_mean_but_unknown_variance
 	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
-	resid <- twLinreg$obs - pred
-	sigma2Obs <- var(resid)
-	-1/2 * (exp(theta[3]) - sigma2Obs)^2/varSigma2 
+	resid <- pred - twLinreg$obs
+	n <- length(pred)
+	logSigma2 <- theta[3]
+	sigma2 <- exp(logSigma2)
+	-1/2*( n*logSigma2  + sum(resid^2)/sigma2 )
 }
 attr(denSigmaEx1Sigma,"ex") <- function(){
 	data(twLinreg1)
@@ -55,12 +57,13 @@ attr(denSigmaEx1Sigma,"ex") <- function(){
 	logLikSigma <- apply( Zinit, 1, denSigmaEx1Sigma, varSigma2=var( twLinreg1$sdObs^2 ) )
 	bo <- logLikSigma > max(logLikSigma)-3
 	plot( logLikSigma[bo] ~ exp(Zinit[bo,3]/2) )
-	abline(h=-2)
+	abline(h=max(logLikSigma)-2)
 }
 
 
 logSigma2 <- 2*log( mean(twLinreg1$sdObs) )		# expected sigma2
-varLogSigma2=1#var( 2*log(twLinreg1$sdObs) )		# variance for initialization
+logSigma2 <- logSigma2+2	# bad starting conditions: assume bigger variance
+varLogSigma2=2#var( 2*log(twLinreg1$sdObs) )		# variance for initialization
 
 lmDummy <- with(twLinreg1, lm( obs ~ xval, weights=1/sdObs^2))		# results without priors
 (.expTheta <- coef(lmDummy))
@@ -70,75 +73,63 @@ lmDummy <- with(twLinreg1, lm( obs ~ xval, weights=1/sdObs^2))		# results withou
 
 .nPop=2
 .nChainPop=4
-ZinitPops <- with(twLinreg1, initZtwDEMCNormal( c(theta0,logSigma2), diag(c(varTheta,varLogSigma2)), nChainPop=.nChainPop, nPop=.nPop))
+ZinitPops <- with(twLinreg1, initZtwDEMCNormal( c(theta0,logSigma2=logSigma2), diag(c(.expSdTheta^2,varLogSigma2)), nChainPop=.nChainPop, nPop=.nPop))
 #dim(ZinitPops)
 #head(ZinitPops[,,1])
-pops <- pops0 <- list(
-	pop1 <- list(
-		Zinit = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
-		,nGen=8
-	),
-	pop2 <- list(
-		Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
-		,nGen=100
-		,T0=10
-	)
-)
-#tmp <- .checkPop(pops[[1]])
-# both fLogDen compare the same model against the same observations but use different priors
-dInfoDefault <- list(
-	fLogDen=logDenGaussian
-)
-dInfos0 <- dInfox <- list(
-	rich = within(dInfoDefault,{
-			argsFLogDen = list(
-				fModel=rich$fModel,		### the model function, which predicts the output based on theta 
-				obs=rich$obs,			### vector of data to compare with
-				invCovar=rich$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
-				xval=rich$xval
-			)
-		})
-	,sparce = within(dInfoDefault,{
-			argsFLogDen = list(
-				fModel=sparce$fModel,		### the model function, which predicts the output based on theta 
-				obs=sparce$obs,			### vector of data to compare with
-				invCovar=sparce$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
-				xval=sparce$xval
-			)
-		})
-	,both = list( fLogDen=denBoth, argsFLogDen = list(twTwoDenEx1=twTwoDenEx1) )
-)
-#mtrace(logDenGaussian)
-do.call( logDenGaussian, c(list(theta=rich$theta0), dInfos0$rich$argsFLogDen))
-do.call( logDenGaussian, c(list(theta=sparce$theta0), dInfos0$sparce$argsFLogDen))
-do.call( denBoth, c(list(theta=rich$theta0), dInfos0$both$argsFLogDen))
+theta0 <- ZinitPops[nrow(ZinitPops),,1]
 
+do.call( denSigmaEx1Obs, c(list(theta=theta0)) )
+do.call( denSigmaEx1Sigma, c(list(theta=theta0)) )
 
-#fit only to rich data
-blocks <- list(
-	rich <- list(compPos=c("a","b"), dInfoPos="rich")
-)
-.nGen=100
-.thin=4
-#mtrace(.updateBlockTwDEMC)
-#mtrace(.updateBlocksTwDEMC)
-#mtrace(.updateIntervalTwDEMCPar)
+.nGen=128
+#.nGen=16
 #mtrace(twDEMCBlockInt)
-resRichOnly <- res <- twDEMCBlock( pops=pops, dInfos=dInfos0, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
-str(res$pops[[2]])
+resa <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+		dInfos=list(
+			dObs=list(fLogDen=denSigmaEx1Obs, argsFLogDen=argsFLogDen1)
+			,dSigma=list(fLogDen=denSigmaEx1Sigma, argsFLogDen=argsFLogDen2)
+		)
+		,blocks=list(
+			bObs=list(dInfoPos="dObs", compPos=c("a","b"))
+			,bSigma=list(dInfoPos="dSigma", compPos=c("logSigma2"))
+		)
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+#str(resBlock$pops[[1]])
+#str(resa)
+plot( as.mcmc.list(resa), smooth=FALSE )
+res <- thin(resa, start=64)
+plot( rescoda <- as.mcmc.list(res), smooth=FALSE )
+
+matplot(res$pAccept[,"bObs",], type="l")
+matplot(res$pAccept[,"bSigma",], type="l")
+matplot(res$logDen[,"dObs",], type="l")
+matplot(res$logDen[,"dSigma",], type="l")
+matplot(resa$parms[,"logSigma2",], type="l")
+matplot(res$parms[,"logSigma2",], type="l")
+matplot(exp(0.5*res$parms[,"logSigma2",]), type="l")
+
+#str(summary(rescoda))
+suppressWarnings({	
+		summary(rescoda)$statistics[,"Mean"]
+		summary(rescoda)$statistics[,"SD"]
+		(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+		(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+	})
+
+# 1/2 orders of magnitude around prescribed sd for theta
+.pop=1
+for( .pop in seq(along.with=.popsd) ){
+	checkMagnitude( .expSdTheta, .popsd[[.pop]][1:2] )
+}
+
+# check that thetaTrue is in 95% interval 
+.pthetaTrue <- sapply(1:2, function(.pop){
+		pnorm(.expTheta, mean=.popmean[[.pop]][1:2], sd=.popsd[[.pop]][1:2])
+	})
+checkInterval( .pthetaTrue ) 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-detach( twTwoDenEx1 )
