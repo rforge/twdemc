@@ -659,3 +659,4 @@ setMethodS3("thinN","mcmc.list", function(
 		})
 #mtrace(subChains.twDEMC)
 }
+

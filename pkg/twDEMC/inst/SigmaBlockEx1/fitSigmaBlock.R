@@ -1,6 +1,7 @@
 data(twLinreg1)
 
 denSigmaEx1Obs <- function(
+	### unnormalized log density for observations for given parameters
 	theta				 ##<< named numeric vector a,b,logSigma2
 	,twLinreg=twLinreg1  ##<< list with components xval and obs 
 ){
@@ -33,6 +34,7 @@ attr(denSigmaEx1Obs,"ex") <- function(){
 
 
 denSigmaEx1Sigma <- function(
+	### unnormalized log density for observations uncertainty logSigma2 for given parameters
 	theta				 ##<< named numeric vector a,b,logSigma2
 	,twLinreg=twLinreg1 ##<< list with components fModel, xval and obs
 ){
@@ -54,11 +56,43 @@ attr(denSigmaEx1Sigma,"ex") <- function(){
 	Zinit <- cbind( matrix(twLinreg1$thetaTrue,nrow=41,ncol=2,byrow=TRUE, dimnames=list(case=NULL,par=names(twLinreg1$thetaTrue)))
 	, logSigm2=logSigma2*seq(0.8,1.2,length.out=41))
 	head(Zinit)
-	logLikSigma <- apply( Zinit, 1, denSigmaEx1Sigma, varSigma2=var( twLinreg1$sdObs^2 ) )
+	logLikSigma <- apply( Zinit, 1, denSigmaEx1Sigma )
 	bo <- logLikSigma > max(logLikSigma)-3
 	plot( logLikSigma[bo] ~ exp(Zinit[bo,3]/2) )
 	abline(h=max(logLikSigma)-2)
 }
+
+denSigmaEx1SigmaInvX <- function(
+	### unnormalized log density for observations uncertainty logSigma2 for given parameters using invchisq distribution
+	theta				 ##<< named numeric vector a,b,logSigma2
+	,twLinreg=twLinreg1 ##<< list with components fModel, xval and obs
+){
+	#see http://www.wutzler.net/reh/index.php?title=twutz:Gelman04_1#normal_distribution_with_known_mean_but_unknown_variance
+	# this time calculating the density by a scaled inverse Chi-Square distribution
+	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
+	resid <- pred - twLinreg$obs
+	n <- length(pred)
+	v <- sum( resid^2 ) / n
+	logSigma2 <- theta[3]
+	sigma2 <- exp(logSigma2)	
+	dinvchisq( sigma2, n, v, log=TRUE )
+}
+attr(denSigmaEx1SigmaInvX,"ex") <- function(){
+	data(twLinreg1)
+	#mtrace(denSigmaEx1SigmaInvX)
+	logSigma2 <- 2*log( mean(twLinreg1$sdObs) )
+	(tmp2 <- denSigmaEx1SigmaInvX( c( twLinreg1$theta0, logSigma2=logSigma2 ) ))
+	
+	#likelihood profile of varSigma conditional on the true parameters
+	Zinit <- cbind( matrix(twLinreg1$thetaTrue,nrow=41,ncol=2,byrow=TRUE, dimnames=list(case=NULL,par=names(twLinreg1$thetaTrue)))
+		, logSigma2=logSigma2*seq(0.8,1.2,length.out=41))
+	head(Zinit)
+	logLikSigma <- apply( Zinit, 1, denSigmaEx1SigmaInvX )
+	bo <- logLikSigma > max(logLikSigma)-3
+	plot( logLikSigma[bo] ~ exp(Zinit[bo,3]/2) )
+	abline(h=max(logLikSigma)-2)
+}
+
 
 
 logSigma2 <- 2*log( mean(twLinreg1$sdObs) )		# expected sigma2
@@ -131,5 +165,10 @@ for( .pop in seq(along.with=.popsd) ){
 		pnorm(.expTheta, mean=.popmean[[.pop]][1:2], sd=.popsd[[.pop]][1:2])
 	})
 checkInterval( .pthetaTrue ) 
+
+
+
+#---------- now replace metropolis sampling of sigma by direct parameter sampling
+
 
 

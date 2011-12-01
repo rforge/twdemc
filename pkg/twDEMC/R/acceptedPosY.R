@@ -87,3 +87,4 @@ sampleAcceptedFixedTempDiffLogDens <- function(
 }
 
 } #.tmp.f
+
