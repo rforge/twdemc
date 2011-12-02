@@ -1,92 +1,113 @@
-denBoth <- function(
+.denSparce <- function(
+	### density of sparce observations
 	theta
-	,twTwoDenEx1=twTwoDenEx1 ##<< list with components rich and sparce 
+	,twTwoDemEx=twTwoDenEx1
 ){
-	obsRich <- with( twTwoDenEx1$rich, logDenGaussian(theta, fModel=fModel, obs=obs, invCovar=varObs, xval=xval ))
-	obsSparce <- with( twTwoDenEx1$sparce, logDenGaussian(theta, fModel=fModel, obs=obs, invCovar=varObs, xval=xval ))
-	obsRich["obs"] + obsSparce["obs"]
-	### the misfit: scale *( t(tmp.diffObs) %*% invCovar %*% tmp.diffObs + t(tmp.diffParms) %*% invCovarTheta %*% tmp.diffParms )
+	pred <- twTwoDemEx$fModel(theta, xSparce=twTwoDemEx$xSparce, xRich=twTwoDemEx$xRich)
+	misfit <- twTwoDemEx$obs$y1 - pred$y1
+	-1/2 * sum((misfit/twTwoDemEx$sdObs$y1)^2)
 }
 
-data( twTwoDenEx1 )
-denBoth( twTwoDenEx1$rich$theta0, twTwoDenEx1 )
+.denRich <- function(
+	### density of sparce observations
+	theta=thetaEff
+	,twTwoDemEx=twTwoDenEx1
+){
+	pred <- twTwoDemEx$fModel(theta, xSparce=twTwoDemEx$xSparce, xRich=twTwoDemEx$xRich)
+	misfit <- twTwoDemEx$obs$y2 - pred$y2
+	-1/2 * sum((misfit/twTwoDemEx$sdObs$y2)^2)
+}
 
-attach( twTwoDenEx1 )
+.denBoth <- function(
+	### density of sparce observations
+	theta
+	,twTwoDemEx=twTwoDenEx1
+	,weights=c(1,1)			# weights for the two data streams
+){
+	pred <- twTwoDemEx$fModel(theta, xSparce=twTwoDemEx$xSparce, xRich=twTwoDemEx$xRich)
+	misfit <- twTwoDemEx$obs$y1 - pred$y1
+	d1 <- -1/2 * sum((misfit/twTwoDemEx$sdObs$y1)^2)
+	misfit <- twTwoDemEx$obs$y2 - pred$y2
+	d2 <- -1/2 * sum((misfit/twTwoDemEx$sdObs$y2)^2)
+	db <- c(y1=d1,y2=d2)*weights
+	db
+}
+.denBoth(twTwoDenEx1$thetaEff)
 
 
 
-
-.nPops=2
+#---------  fit only the short term observations
+.nPop=2
 .nChainPop=4
-ZinitPops <- initZtwDEMCNormal( rich$theta0, diag(rich$varTheta), nChainPop=.nChainPop, nPops=.nPops)
+ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaEff, diag((thetaEff*0.3)^2), nChainPop=.nChainPop, nPop=.nPop))
+plot(density(ZinitPops[,"a",]))
+plot(density(ZinitPops[,"b",]))
 #dim(ZinitPops)
 #head(ZinitPops[,,1])
-pops <- pops0 <- list(
-	pop1 <- list(
-		Zinit = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
-		,nGen=8
-	),
-	pop2 <- list(
-		Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
-		,nGen=100
-		,T0=10
-	)
-)
-#tmp <- .checkPop(pops[[1]])
-# both fLogDen compare the same model against the same observations but use different priors
-dInfoDefault <- list(
-	fLogDen=logDenGaussian
-)
-dInfos0 <- dInfox <- list(
-	rich = within(dInfoDefault,{
-			argsFLogDen = list(
-				fModel=rich$fModel,		### the model function, which predicts the output based on theta 
-				obs=rich$obs,			### vector of data to compare with
-				invCovar=rich$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
-				xval=rich$xval
-			)
-		})
-	,sparce = within(dInfoDefault,{
-			argsFLogDen = list(
-				fModel=sparce$fModel,		### the model function, which predicts the output based on theta 
-				obs=sparce$obs,			### vector of data to compare with
-				invCovar=sparce$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
-				xval=sparce$xval
-			)
-		})
-	,both = list( fLogDen=denBoth, argsFLogDen = list(twTwoDenEx1=twTwoDenEx1) )
-)
-#mtrace(logDenGaussian)
-do.call( logDenGaussian, c(list(theta=rich$theta0), dInfos0$rich$argsFLogDen))
-do.call( logDenGaussian, c(list(theta=sparce$theta0), dInfos0$sparce$argsFLogDen))
-do.call( denBoth, c(list(theta=rich$theta0), dInfos0$both$argsFLogDen))
+theta0 <- ZinitPops[nrow(ZinitPops),,1]
 
-
-#fit only to rich data
-blocks <- list(
-	rich <- list(compPos=c("a","b"), dInfoPos="rich")
-)
-.nGen=100
-.thin=4
-#mtrace(.updateBlockTwDEMC)
-#mtrace(.updateBlocksTwDEMC)
-#mtrace(.updateIntervalTwDEMCPar)
+.nGen=512
+#.nGen=16
 #mtrace(twDEMCBlockInt)
-resRichOnly <- res <- twDEMCBlock( pops=pops, dInfos=dInfos0, blocks=blocks, nGen=.nGen, controlTwDEMC=list(thin=.thin) )
-str(res$pops[[2]])
+resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+		dInfos=list(dRich=list(fLogDen=.denRich))
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE)
+res1 <- res <- thin(resa, start=200)
+plot( as.mcmc.list(res), smooth=FALSE)
+apply(stackChains(res)[,-1],2,quantile, probs=c(0.025,0.5,0.975) )
+twTwoDenEx1$thetaEff
+# wide cf intervals a biased downwards, b biased upwards
+
+#---------  fit both data streams in one density
+resa <- resa2 <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+		dInfos=list(dBoth=list(fLogDen=.denBoth))
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE)
+#mtrace(subset.twDEMC)
+res2 <- res <- thin(resa, start=100)
+plot( as.mcmc.list(res), smooth=FALSE)
+apply(stackChains(res)[,-1],2,quantile, probs=c(0.025,0.5,0.975) )
+twTwoDenEx1$thetaEff
+# much more constrained but a biased downwards, b biased upwards
+
+#----------- fit b to shortterm and a to longterm observations
+.nGen=1024
+resa <- resa3 <- concatPops( resBlock <- twDEMCBlock( 
+		res2$parms
+		, nGen=.nGen 
+		,dInfos=list(
+			dSparce=list(fLogDen=.denSparce)
+			,dRich=list(fLogDen=.denRich)
+		)
+		,blocks = list(
+			a=list(dInfoPos="dSparce", compPos="a")
+			,b=list(dInfoPos="dRich", compPos="b")
+		)
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=8)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE)
+#mtrace(subset.twDEMC)
+res3 <- res <- thin(resa, start=100)
+plot( as.mcmc.list(res), smooth=FALSE)
+apply(stackChains(res)[,-(1:2)],2,quantile, probs=c(0.025,0.5,0.975) )
+twTwoDenEx1$thetaEff
+# a biased downwards, b biased upwards
+
+plot(density(stackChains(res2)[,"a"]))
+lines( density(stackChains(res3)[,"a"]), col="red")
+plot(density(stackChains(res2)[,"b"]))
+lines( density(stackChains(res3)[,"b"]), col="red")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-detach( twTwoDenEx1 )

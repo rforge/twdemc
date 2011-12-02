@@ -13,7 +13,7 @@ initZtwDEMCNormal <- function(
 	,m0FiniteFac=1
 	### use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities
 	,doIncludePrior=TRUE
-	### If TRUE, then last sample of chain 1 to the prior estimate, 
+	### If TRUE, then set last sample of chain 1 to the prior estimate, 
 	### which might be already a kind of best estimates by an optimization. 
 ){
 	# InittwDEMC

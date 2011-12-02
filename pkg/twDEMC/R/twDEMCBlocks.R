@@ -120,8 +120,8 @@ twDEMCBlockInt <- function(
 	# following refers to position in dInfo$compPosDen
 	compPosInDenBlock <- lapply( blocks, "[[", "compPosInDen" )
 	# make sure that all parameters are updated at least once
-	if( 0==length(compPosBlock) || !all.equal( sort(unique(do.call(c, compPosBlock))), 1:nParm, check.attributes = FALSE) ) 
-		stop("each parameter (columns of parms) must be updated in at least one block.")
+	if( 0==length(compPosBlock) || (length(sBlock <- sort(unique(do.call(c, compPosBlock)))) != nParm) || !all.equal( sBlock, 1:nParm, check.attributes = FALSE) ) 
+		stop(paste("each parameter (columns of parms) must be updated in at least one block. nParm=",nParm,"updatedVars=",paste(sBlock,collapse=",")) )
 	
 	#-- initialize further parameters to parallel and snooker steps
 	# that depend on pops (nParm, nChainPop)

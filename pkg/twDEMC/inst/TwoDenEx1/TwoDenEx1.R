@@ -1,7 +1,6 @@
 TwoDen1 <- function(
 	### Example of log-Unnormalized Density function with changing correlation and scales in variances 
 	theta	##<< named numeric vector with components "a" and "b"
-	, 
 	,muA=0.8	##<< parameter for the log-normal distribution of component a
 	,sigmaA=1	
 ){

@@ -303,7 +303,7 @@ setMethodS3("subset","twDEMC", function(
 	x$logDen <- x$logDen[boKeep,,, drop=FALSE] 
 	x$logDenComp <- x$logDenComp[boKeep,,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,,, drop=FALSE]
-	x$temp <- x$temp[boKeep, drop=FALSE]
+	x$temp <- x$temp[boKeep,, drop=FALSE]
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
