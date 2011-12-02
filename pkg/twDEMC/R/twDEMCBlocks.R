@@ -164,7 +164,7 @@ twDEMCBlockInt <- function(
 		logDenCompDen <- vector("list", nDen )		
 		for( iDen in iDens ){
 			dInfo = dInfos[[iDen]]
-			#tmp <- dInfo$fLogDen
+			#tmp <- dInfo$fLogDen; mtrace(tmp)
 			#tmp2 <- do.call( tmp, c(list(XChainsMissing[,1]),dInfo$argsFLogDen))
 			#mtrace(twCalcLogDenPar)
 			.resLogDenPar <- twCalcLogDenPar(
