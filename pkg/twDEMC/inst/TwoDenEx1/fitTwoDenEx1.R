@@ -101,7 +101,11 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-1],2,quantile, probs=c(0.025,0.5,0.975) ))
 # both biased downwards
 
-#---------  fit both data streams in one density
+pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # seems very good
+plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # far off 
+
+#---------  fit both data streams in one unweighted density
 resa <- resa2 <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
 		dInfos=list(dBoth=list(fLogDen=.denBoth))
 		,nPop=.nPop
@@ -119,11 +123,63 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-1],2,quantile, probs=c(0.025,0.5,0.975) ))
 # still biased downwards
 
-# clearly not effective to match short data stream
+
 pred <- pred2 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
-pred1 <- with( twTwoDenEx1, fModel(thetaBest1, xSparce=xSparce, xRich=xRich) )
-plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1)
-points( pred1$y1 ~ twTwoDenEx1$obs$y1, col="blue")
+plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # not as good but ok
+plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # still no relation 
+
+#----------- try to infer by weights
+res <- res2
+lDen <- stackChains(res$resLogDen)
+q10 <- apply(lDen,2,quantile,0.1)
+iKeep <- lapply(1:ncol(lDen),function(iCol){which(lDen[,iCol] >= q10[iCol])})
+lMin <- min( sapply(iKeep, length))
+iKeep <- lapply( iKeep, "[", 1:lMin )
+lDen90 <-  abind( lapply(seq_along(iKeep),function(iCol){ lDen[iKeep[[iCol]],iCol]}), rev.along=0 ) 
+lDenDiff <- apply(lDen90,2,function(lDenI){lDenI - max(lDenI)})
+plot(density(lDenDiff[,2]))
+lines(density(lDenDiff[,1]), col="blue")
+boxplot(lDen90)
+
+apply( lDen, 2, mean )
+(meanDen <- apply( lDen90, 2, mean ))
+(meanDen <- apply( lDenDiff, 2, mean ))
+weights <- meanDen/min(meanDen)
+
+resa <- resa2b <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
+		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(weights=weights)))
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE)
+#mtrace(subset.twDEMC)
+res2 <- res <- thin(resa, start=100)
+plot( as.mcmc.list(res), smooth=FALSE)
+ss <- stackChains(res)
+twTwoDenEx1$thetaTrue
+(thetaBest <- thetaBest2 <- ss[ which.max(ss[,1]), -1])
+(.qq <- apply(ss[,-1],2,quantile, probs=c(0.025,0.5,0.975) ))
+# still biased downwards
+
+pred <- pred2b <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) # mismatch evident
+plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1) # at least some relation 
+
+#XX check same magnitude of resLogDen
+res <- res2b
+lDen <- stackChains(res$resLogDen)
+q10 <- apply(lDen,2,quantile,0.1)
+iKeep <- lapply(1:ncol(lDen),function(iCol){which(lDen[,iCol] >= q10[iCol])})
+lMin <- min( sapply(iKeep, length))
+iKeep <- lapply( iKeep, "[", 1:lMin )
+lDen90 <-  abind( lapply(seq_along(iKeep),function(iCol){ lDen[iKeep[[iCol]],iCol]}), rev.along=0 ) 
+lDenDiff <- apply(lDen90,2,function(lDenI){lDenI - max(lDenI)})
+plot(density(lDenDiff[,1]))
+plot(density(lDenDiff[,2]))
+boxplot(lDenDiff)
+
 
 #----------- fit b to shortterm and a to longterm observations
 resa <- resa3 <- concatPops( resBlock <- twDEMCBlock( 
@@ -155,10 +211,9 @@ twTwoDenEx1$thetaTrue
 plot(density(stackChains(res2)[,"a"]), xlim=c(0.8,1.2))
 lines( density(stackChains(res3)[,"a"]), col="red")
 
-pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest3, xSparce=xSparce, xRich=xRich) )
-plot( pred2$y1 ~ twTwoDenEx1$obs$y1, ylim=range(c(pred1$y1,pred2$y1,pred3$y1)) ); abline(0,1)
-points( pred1$y1 ~ twTwoDenEx1$obs$y1, col="green")
-points( pred3$y1 ~ twTwoDenEx1$obs$y1, col="red")
+pred <- pred2 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes clear
+plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
 
 
 plot( ss[,"dSparce"] ~ ss[,"a"] )
