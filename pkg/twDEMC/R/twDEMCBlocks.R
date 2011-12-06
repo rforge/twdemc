@@ -78,14 +78,14 @@ twDEMCBlockInt <- function(
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
 
 	#--  dimensions of pops
-	pops <- lapply( pops, .checkPop, nGen=nGen) # fill in default values for missing entries 
+	nPop <- length(pops)
+	iPops <- 1:nPop
+	pops <- lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop])}) # fill in default values for missing entries 
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
 	nParm <- ncol(ZinitPops[[1]])
-	nPop <- length(pops)
 	nChainPop <- dim(ZinitPops[[1]])[3]
 	nChain <- nChainPop*nPop 
-	iPops <- 1:nPop
 	popChain <- rep(1:nPop,each=nChainPop)	# population for chain at given index
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
 	M0Pops <- sapply( ZinitPops, nrow )
@@ -550,8 +550,8 @@ twDEMCBlockInt <- function(
 			upperParBounds = upperParBoundsPop[[iPop]]	##<< upper parameter bounds for sampling
 			,lowerParBounds = lowerParBoundsPop[[iPop]] ##<< lower parameter bounds for sampling
 			,parms = ZPops[[iPop]][-(1:(M0Pops[iPop]-1)),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
-			,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector: global temperature, i.e. cost reduction factor
-			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains
+			,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector (nSample+1): global temperature, i.e. cost reduction factor
+			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains (nStep x nChainPop)
 			,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
 			,logDen = logDen[[iPop]]	##<< numberic array (steps x iDen x chains): results summed over blocks
 			,Y = YPops[[iPop]]
@@ -1431,7 +1431,53 @@ attr(twDEMCBlock.array,"ex") <- function(){
 	
 }
 
-setMethodS3("twDEMCBlock","twDEMC", function( 
+setMethodS3("twDEMCBlock","twDEMCPops", function(
+		### initialize \code{\link{twDEMCInt}} by former run and append results to former run
+		x, ##<< list of class twDEMC, result of \code{\link{twDEMCInt}}
+		... ##<< further arguments to \code{\link{twDEMCInt}}
+	){
+		#twDEMC.twDEMCPops
+		##details<< 
+		## pops, dInfos, and blocks are reused from x or overwritten by arguments
+		.dots <- argsList <- list(...)
+		argsList$pops <- x$pops
+		if( 0 == length(.dots$dInfos) )		 
+			argsList$dInfos <- x$dInfos
+		if( 0 == length(.dots$blocks) )		 
+			argsList$blocks <- x$blocks
+		res <- res0 <- do.call( twDEMCBlockInt, argsList )
+		##details<< 
+		## initial populations are appended by results
+		# iPop = length(x$pops)
+		for( iPop in 1:length(x$pops) ){
+			xPop <- x$pops[[iPop]]
+			resPop <- res0$pops[[iPop]]
+			res$pops[[iPop]]$parms <- abind(xPop$parms, resPop$parms[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$temp <- abind(xPop$temp, resPop$temp[-1], along=1 )
+			res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
+			# Y only from result so far
+		}
+		res
+		### parms appended with the further generations of \code{\link{twDEMCInt}} 
+	})
+attr(twDEMCBlock.twDEMCPops,"ex") <- function(){
+	data(twdemcEx1) 		# previous run of twDEMCBlock
+	class(twdemcEx1)
+	twdemcEx1$thin			# thinning interval
+	(nGen0 <- getNGen(twdemcEx1))		# number of generations
+	
+	# extend by 16 generations
+	nGen <- 16
+	#mtrace(twDEMCBlock.twDEMCPops)
+	res <- twDEMCBlock( twdemcEx1, nGen=nGen )
+	
+	identical( nGen0+nGen, getNGen(res) )
+	plot( as.mcmc.list(res), smooth=FALSE )
+}
+
+setMethodS3("twDEMCBlock","twDEMC", function(
 		### initialize \code{\link{twDEMCInt}} by former run and append results to former run
 		x, ##<< list of class twDEMC, result of \code{\link{twDEMCInt}}
 		... ##<< further arguments to \code{\link{twDEMCInt}}

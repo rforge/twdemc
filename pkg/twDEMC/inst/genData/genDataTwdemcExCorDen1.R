@@ -2,24 +2,25 @@
 
 (.expTheta <- c(a=0,b=0) )
 (.expCovTheta <- diag(c(a=2,b=2)) )		
-.nPops=2
-Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
+.nPop=2
+Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
 #mtrace(twDEMCInt)
 
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))
 
-den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=1000, fLogDen=den2dCor, nPops=.nPops )
+den2dCorTwDEMC <- concatPops(twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ))
 den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
 den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
 str(den2dCorTwDEMC)
 
 .tmp.f <- function(){
+	#den2dCorTwDEMC <- concatPops(den2dCorTwDEMC)
 	rescoda <- as.mcmc.list(den2dCorTwDEMC)
-	rescoda <- as.mcmc.list(den2dCorTwDEMC3)
+	#rescoda <- as.mcmc.list(den2dCorTwDEMC3)
 	plot(rescoda, smooth=FALSE)
 	ss <- stackChains(den2dCorTwDEMC)
-	ss <- stackChains(den2dCorTwDEMC3)
+	#ss <- stackChains(den2dCorTwDEMC3)
 	plot(density(ss[,"a"]))
 	plot( b ~ a, as.data.frame(ss) ); 
 	plot( b ~ a, as.data.frame(ss), xlim=c(-0.5,2), ylim=c(-20,40) ); 
