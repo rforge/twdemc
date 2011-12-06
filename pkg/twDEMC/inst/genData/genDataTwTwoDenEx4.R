@@ -9,6 +9,8 @@
    ## It is based on longterm average of xRich instead of detailed values
    ## \cr Model output y1 represents a short measurement campaing. 
    ## During this campaing xSparce does not vary but detailed measurements of xRich are utilized 
+   ## \cr In the short-term relation, the model may simulate a detailed threshold in the covariate
+   ## or abstract from those details by thresholdCovar=0.
 
    ##value<< list with model predictions
    list( ##describe<<
@@ -28,7 +30,8 @@ twTwoDenEx1 <- within( list(), {
 		xRich <- runif(1000,min=.7,max=1)  	 # 1000 observations	
 		# parameter b is an effective parameter 
 		thetaTrue <- c( a=thetaA, b=2 )
-		obsTrue <- .mod2Pred( thetaTrue, xSparce=xSparce,xRich=xRich, thresholdCovar=0.3)
+		obsTrue <- .mod2Pred( thetaTrue, xSparce=xSparce,xRich=xRich
+			, thresholdCovar=0.3)
 		obsBiased <- .mod2Pred( thetaTrue, xSparce=xSparce,xRich=xRich)		
 		sdObsTrue <- sdObs <- list( 
 			 y1=mean(obsTrue$y1)*0.06
