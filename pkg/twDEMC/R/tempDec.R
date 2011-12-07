@@ -8,6 +8,7 @@ calcDEMCTemp <- function(
 	# calcDEMCTemp
 	##seealso<< 
 	## \code{\link{twDEMCInt}}
+	if( nGen < 1) return( numeric(0) )
 	b = T0
 	a = log(Tend/T0)/nGen
 	### vector of Temperatures corresponding to steps iGen

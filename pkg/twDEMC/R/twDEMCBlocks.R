@@ -80,7 +80,13 @@ twDEMCBlockInt <- function(
 	#--  dimensions of pops
 	nPop <- length(pops)
 	iPops <- 1:nPop
-	pops <- lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop])}) # fill in default values for missing entries 
+	pops <- if( 0 == length(nGen) ){
+		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]] )}) # fill in default values for missing entries 
+	}else{
+		if( length(nGen)==1) nGen=rep(nGen[1],nPop)
+		if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
+		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop])}) # fill in default values for missing entries 
+	}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
 	nParm <- ncol(ZinitPops[[1]])
@@ -90,7 +96,7 @@ twDEMCBlockInt <- function(
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
 	M0Pops <- sapply( ZinitPops, nrow )
 	nGenPops <- sapply( pops, "[[", "nGen")
-	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 1 )	#number of thinning intervals 
+	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 0 )	#number of thinning intervals 
 	nGenPops = nThinnedGenPops * ctrl$thin  #number of generations in this batch (do not need to move behind last thinning interval)
 	Nz <- M0Pops +(nThinnedGenPops)			   #number of rows in Z after batch
 	XPops <- lapply( pops, "[[", "X" )
@@ -267,7 +273,7 @@ twDEMCBlockInt <- function(
 		else if( nResComp != lTp ) stop("twDEMCBlockInt: pops[[i]]$TProp must have the same length as the result components.")
 		TPropPops[,iPop] <- pop$TProp
 		# tempGlobal
-		tempGlobalPops[[iPop]] <- .tempG <- c( pops[[iPop]]$T0, pmax(1,calcDEMCTemp( pops[[iPop]]$T0, pops[[iPop]]$TEnd, nGenPops[iPop] )))
+		tempGlobalPops[[iPop]] <- .tempG <- pmax(1,c( pops[[iPop]]$T0, calcDEMCTemp( pops[[iPop]]$T0, pops[[iPop]]$TEnd, nGenPops[iPop] )))
 		# tempResComp
 		#mtrace(calcComponentTempMat)
 		tempResCompPops[[iPop]] <- calcComponentTempMat( temp=.tempG, TFix=TFixAll, TProp=TPropPops[,iPop], useMultiT=ctrl$useMultiT, posTFix=posTFixAll)
@@ -428,8 +434,9 @@ twDEMCBlockInt <- function(
 		zx <- abind( zxl, along= 2 )	# combine chains (and steps within each chain) of all populations
 		genPropRes <- .generateXPropThin(zx,ctrl=ctrl, nChain=length(isPops)*nChainPop)
 
-		# check if proposals should be recorded				
-		iPopsRecord <- which(isPops & (iThin0 == nThinOmitRecordPops))
+		# check if proposals should be recorded
+		# for the first time
+		iPopsRecord <- which( (1:nPop %in% isPops) & (iThin0 == nThinOmitRecordPops))
 		for( iiPop in iPopsRecord ){
 			# record the initial state of the proposals record
 			iisPop <- match(iiPop,isPops)	# index in iPop 
@@ -437,6 +444,7 @@ twDEMCBlockInt <- function(
 			YPops[[iiPop]][1,nParm+iBlocks,] <- 1	#TRUE
 			YPops[[iiPop]][1,nParm+nBlock+seq_along(resCompNamesUFlat),] <- chainState$logDenCompX[ ,chainsPop[[ iisPop ]] ]
 		}
+		# after the proposal has been made
 		isRecordProposalsPop = ((iThin0 >= nThinOmitRecordPops))[isPops]	# only record the last proposals after nThinOmitRecord
 
 		# numeric matrix (nGenThin x nPop)
@@ -527,7 +535,7 @@ twDEMCBlockInt <- function(
 			}
 		}else{
 			for( iPop in iPops ){
-				resLogDenI <- resLogDen[[iPop]][,rcp,]
+				resLogDenI <- resLogDen[[iPop]][,rcp, ,drop=FALSE]
 				logDen[[iPop]][,iDen,] <- apply(resLogDenI,c(1,3),sum)
 			}
 		} # length(resComp) == 1 
@@ -1435,12 +1443,14 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 		### initialize \code{\link{twDEMCInt}} by former run and append results to former run
 		x, ##<< list of class twDEMC, result of \code{\link{twDEMCInt}}
 		... ##<< further arguments to \code{\link{twDEMCInt}}
-	){
+		, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
+){
 		#twDEMC.twDEMCPops
 		##details<< 
 		## pops, dInfos, and blocks are reused from x or overwritten by arguments
 		.dots <- argsList <- list(...)
 		argsList$pops <- x$pops
+		argsList$doRecordProposals <- doRecordProposals
 		if( 0 == length(.dots$dInfos) )		 
 			argsList$dInfos <- x$dInfos
 		if( 0 == length(.dots$blocks) )		 
@@ -1457,7 +1467,12 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 			res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
 			res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
 			res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
-			# Y only from result so far
+			if( doRecordProposals || (nrY <- (nrow(resPop$Y) < 128)) ){
+				# if new Y has less than 128 rows append previous Y
+				res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
+				if( !doRecordProposals )
+					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ min(128,nrow(res$pops[[iPop]]$Y)),, ,drop=FALSE] 	# cut to 128 cases
+			}
 		}
 		res
 		### parms appended with the further generations of \code{\link{twDEMCInt}} 
