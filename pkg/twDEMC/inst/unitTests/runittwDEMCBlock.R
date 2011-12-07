@@ -278,7 +278,7 @@ test.extendRun <- function(){
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
 	
 	# nice starting values
-	.nPop=2
+	.nPop=4
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -292,7 +292,7 @@ test.extendRun <- function(){
 	Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
 	#dim(Zinit)
 	
-	.nGen=64
+	.nGen=c(16,64,0,0)
 	#mtrace(logDenGaussian)
 	#mtrace(twDEMCBlockInt)
 	res <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
@@ -308,32 +308,35 @@ test.extendRun <- function(){
 			,controlTwDEMC=list(thin=4)		
 			,debugSequential=TRUE
 			,doRecordProposals=TRUE
-		))
+		), minPopLength=2)	# omitting the zero generation chain from  
 	#str(res)
 	rescoda <- as.mcmc.list(res) 
+	getNSamples(resBlock)
+	getNSamples(res)
 	plot(rescoda, smooth=FALSE)
 	#gelman.diag(rescoda)
 	#summary(rescoda)
 
-	checkEquals(.nGen, nrow(resBlock$pops[[1]]$Y) )
+	checkEquals(.nGen, getNGen(resBlock) )
+	checkEquals(.nGen, sapply(resBlock$pops, function(pop){ nrow(pop$Y)}) )
 	
-	.nGen2 <- c(16,64+32)
-	#mtrace(twDEMCBlock.twDEMCPops)
+	.nGen2 <- c(0,64+32,16,0)	# will produce warnings for those populations 3,4 with 0 generations
+	#mtrace(twDEMCBlockInt)
 	resBlock2 <- twDEMCBlock(resBlock, nGen=.nGen2
 		,debugSequential=TRUE
 		,doRecordProposals=TRUE
 	)
+	getNSamples(resBlock2)
 	checkEquals( .nGen+.nGen2, getNGen(resBlock2) )
 	checkEquals( .nGen+.nGen2, sapply( resBlock2$pops, function(pop){ nrow(pop$Y)}) )
 	
+	#mtrace(twDEMCBlock.twDEMCPops)
 	resBlock2b <- twDEMCBlock(resBlock, nGen=.nGen2
 		,debugSequential=TRUE
 		#,doRecordProposals=TRUE
 	)
 	checkEquals( .nGen+.nGen2, getNGen(resBlock2b) )
 	checkEquals( pmin(.nGen+.nGen2,128), sapply( resBlock2b$pops, function(pop){ nrow(pop$Y)}) )
-	
-	
 }
 
 

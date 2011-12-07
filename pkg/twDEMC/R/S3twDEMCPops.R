@@ -128,6 +128,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 		nStepsPop <- nStepsPop[iKeep]
 	}
 	nSteps <- min(nStepsPop)
+	if( nSteps < 2 ) stop("concatPops.twDEMCPops: min(nStepsPop)<2: cannot reduce to single state. use minPopLength=2 to drop degenerated populations")
 	if( !all(nStepsPop == nSteps) ){
 		if( useThinning)
 			x <- squeeze(x, length.out=nSteps )
@@ -142,6 +143,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 	x$pAccept <- structure( abind( lapply(pops,"[[","pAccept"), along=3), dimnames=dimnames(p1$pAccept))
 	x$resLogDen <- structure( abind( lapply(pops,"[[","resLogDen"), along=3), dimnames=dimnames(p1$resLogDen))
 	x$logDen <- structure( abind( lapply(pops,"[[","logDen"), along=3), dimnames=dimnames(p1$logDen))
+	# for YL constrain to the 
 	YL <-  lapply(pops,"[[","Y")
 	nY <- min(sapply(YL,nrow))
 	YLs <- lapply(YL, function(Y){ Y[nrow(Y)-((nY-1):0),,,drop=FALSE] })

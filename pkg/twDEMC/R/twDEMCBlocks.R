@@ -94,7 +94,9 @@ twDEMCBlockInt <- function(
 	nChain <- nChainPop*nPop 
 	popChain <- rep(1:nPop,each=nChainPop)	# population for chain at given index
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
+	m0 <- calcM0twDEMC(nParm,nChainPop)
 	M0Pops <- sapply( ZinitPops, nrow )
+	if( any(M0Pops < m0) ) warning(paste("twDEMCBlockInt: too few initial cases for populations",paste(which(M0Pops < m0),collapse=",")) )
 	nGenPops <- sapply( pops, "[[", "nGen")
 	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 0 )	#number of thinning intervals 
 	nGenPops = nThinnedGenPops * ctrl$thin  #number of generations in this batch (do not need to move behind last thinning interval)
@@ -557,7 +559,7 @@ twDEMCBlockInt <- function(
 			##describe<<
 			upperParBounds = upperParBoundsPop[[iPop]]	##<< upper parameter bounds for sampling
 			,lowerParBounds = lowerParBoundsPop[[iPop]] ##<< lower parameter bounds for sampling
-			,parms = ZPops[[iPop]][-(1:(M0Pops[iPop]-1)),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
+			,parms = ZPops[[iPop]][ M0Pops[iPop]:nrow(ZPops[[iPop]]),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
 			,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector (nSample+1): global temperature, i.e. cost reduction factor
 			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains (nStep x nChainPop)
 			,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
@@ -1470,8 +1472,8 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 			if( doRecordProposals || (nrY <- (nrow(resPop$Y) < 128)) ){
 				# if new Y has less than 128 rows append previous Y
 				res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
-				if( !doRecordProposals )
-					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ min(128,nrow(res$pops[[iPop]]$Y)),, ,drop=FALSE] 	# cut to 128 cases
+				if( !doRecordProposals && (nrow(res$pops[[iPop]]$Y) > 1) )
+					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrow(res$pops[[iPop]]$Y)),, ,drop=FALSE] 	# cut to 128 cases
 			}
 		}
 		res
