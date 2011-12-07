@@ -37,6 +37,72 @@
 }
 .denBoth(twTwoDenEx1$thetaTrue)
 
+.updateTwoDenA <- function( 
+	### update paramter A conditional on observations and b
+	theta				##<< numeric vector: current state in parameter space with components a and b 
+	,argsFUpdateBlock=list()	##<< additional information from .updateBlocksTwDEMC
+	,twTwoDenEx=twTwoDenEx1
+){
+	# subtract the effect of parameter b
+	obsOffset <- twTwoDenEx$obs$y1 - theta[2]*mean(twTwoDenEx$xRich)/10
+	# fit a linear model without offset to obtain mean and sd of the slope, i.e. parameter theta1
+	lm1 <- lm( obsOffset ~ twTwoDenEx$xSparce -1 )
+	meanA <- coef(lm1)[1]
+	sdA <- sqrt(vcov(lm1)[1,1])
+	# do a random draw
+	newA <- rnorm(1,mean=meanA,sd=sdA)
+	##value<< list with components
+	list(	##describe<<
+		accepted=1			##<< boolean scalar: if step was accepted
+		, xC=c(a=newA)	##<< numeric vector: components of position in parameter space that are being updated
+	)	##end<<
+	#})
+}
+attr(.updateTwoDenA,"ex") <- function(){
+	data(twTwoDenEx1)
+	.updateTwoDenA( twTwoDenEx1$thetaTrue )
+}
+.tmp.f <- function(){
+	plot( obsOffset ~ twTwoDenEx$xSparce )
+	abline(lm1)
+	xGrid <- meanA + 2*sdA*seq(-1,1,length.out=31)
+	plot( dnorm(xGrid, mean=meanA, sd=sdA) ~ xGrid )
+}
+
+
+.updateTwoDenB <- function( 
+	### update paramter A conditional on observations and b
+	theta				##<< numeric vector: current state in parameter space with components a and b 
+	,argsFUpdateBlock=list()	##<< additional information from .updateBlocksTwDEMC
+	,twTwoDenEx=twTwoDenEx1
+){
+	# subtract the effect of parameter b
+	obsOffset <- twTwoDenEx$obs$y2 - theta[1]*twTwoDenEx$xSparce[1]
+	# fit a linear model without offset to obtain mean and sd of the slope, i.e. parameter theta1
+	lm1 <- lm( obsOffset ~ twTwoDenEx$xRich -1 )
+	meanB <- coef(lm1)[1]
+	sdB <- sqrt(vcov(lm1)[1,1])
+	# do a random draw
+	newB <- rnorm(1,mean=meanB,sd=sdB)
+	##value<< list with components
+	list(	##describe<<
+		accepted=1			##<< boolean scalar: if step was accepted
+		, xC=c(b=newB)	##<< numeric vector: components of position in parameter space that are being updated
+	)	##end<<
+	#})
+}
+attr(.updateTwoDenB,"ex") <- function(){
+	data(twTwoDenEx1)
+	.updateTwoDenB( twTwoDenEx1$thetaTrue )
+}
+.tmp.f <- function(){
+	plot( obsOffset ~ twTwoDenEx$xRich )
+	abline(lm1)
+	xGrid <- meanB + 2*sdB*seq(-1,1,length.out=31)
+	plot( dnorm(xGrid, mean=meanB, sd=sdB) ~ xGrid )
+}
+
+
 
 #--------- fit only a to the long term observations
 .nPop=2
@@ -171,9 +237,40 @@ if( require(ggplot2) ){
 		opts(axis.title.x=theme_blank())
 }
 
-#----------- fit b to shortterm and a to longterm observations
-resa <- resa3 <- concatPops( resBlock <- twDEMCBlock( 
+#----------- fit b to shortterm and a to longterm observations using direct sampling
+# takes quite long
+resa <- resa3a <- concatPops( resBlock <- twDEMCBlock( 
 		res2$parms
+		, nGen=.nGen 
+		,dInfos=list(
+			dBoth=list(fLogDen=.denBoth)
+		)
+		,blocks = list(
+			a=list(compPos="a", fUpdateBlock=.updateTwoDenA, requiresUpdatedDen=FALSE)
+			,b=list(compPos="b", fUpdateBlock=.updateTwoDenB, requiresUpdatedDen=FALSE)
+		)
+		,nPop=.nPop
+		,controlTwDEMC=list(thin=4)		
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	))
+plot( as.mcmc.list(resa), smooth=FALSE)
+#mtrace(subset.twDEMC)
+res3a <- res <- thin(resa, start=100)
+plot( as.mcmc.list(res), smooth=FALSE)
+ss <- stackChains(res)
+twTwoDenEx1$thetaTrue
+(thetaBest <- thetaBest3 <- ss[ which.max(ss[,1]), -1])
+(.qq <- apply(ss[,-(1)],2,quantile, probs=c(0.025,0.5,0.975) ))
+# a a bit biased upwards (effect of b)
+
+pred <- pred3a <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes clear
+plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
+
+#----------- fit b to shortterm and a to longterm observations using Metropolis
+resa <- resa3 <- concatPops( resBlock <- twDEMCBlock( 
+		res3a$parms
 		, nGen=.nGen 
 		,dInfos=list(
 			dSparce=list(fLogDen=.denSparce)
@@ -198,7 +295,7 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-(1:2)],2,quantile, probs=c(0.025,0.5,0.975) ))
 # a a bit biased upwards (effect of b)
 
-plot(density(stackChains(res2)[,"a"]), xlim=c(0.8,1.2))
+plot(density(stackChains(res3a)[,"a"]), xlim=c(0.8,1.2))
 lines( density(stackChains(res3)[,"a"]), col="red")
 
 pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
@@ -251,7 +348,8 @@ dfDen <- rbind(
 	cbind( data.frame( scenario="R", {tmp <- stackChains(res1)[,-1]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
 	,cbind( data.frame( scenario="RS", {tmp <- stackChains(res2)[,-1]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
 	,cbind( data.frame( scenario="RSw", {tmp <- stackChains(res2b)[,-1]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
-	,cbind( data.frame( scenario="D", {tmp <- stackChains(res3)[,-c(1:2)]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
+	,cbind( data.frame( scenario="DG", {tmp <- stackChains(res3a)[,-1]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
+	,cbind( data.frame( scenario="DM", {tmp <- stackChains(res3)[,-c(1:2)]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
 )
 dfDenM <- melt(dfDen)
 str(dfDenM)
@@ -287,7 +385,7 @@ pgm2 <- geom_line(aes(y = -..scaled..), stat="densityNonZero", size=1)
 optsm <- opts(axis.title.x = theme_blank(), axis.text.y = theme_blank(), axis.ticks.y = theme_blank() ) 
 pa <- ggplot(dfDen, aes(x = a, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('a')
 pb <- ggplot(dfDen, aes(x = b, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('b')
-pb
+#pb
 windows(width=7, height=3)
 grid.newpage()
 pushViewport( viewport(layout=grid.layout(2,1)))
@@ -295,27 +393,89 @@ print(pa , vp = viewport(layout.pos.row=1,layout.pos.col=1))
 print(pb + opts(legend.position = "none") , vp = viewport(layout.pos.row=2,layout.pos.col=1))	
 
 #----------- ggplot predictive posterior
-#str(pred1)
-dfPred <- rbind(
-	 data.frame( scenario="R", variable="y1", value = pred1$y1 )
-	,data.frame( scenario="R", variable="y2", value = pred1$y2 )
-	,data.frame( scenario="RS", variable="y1", value = pred2$y1 )
-	,data.frame( scenario="RS", variable="y2", value = pred2$y2 )
-	,data.frame( scenario="RSw", variable="y1", value = pred2b$y1 )
-	,data.frame( scenario="RSw", variable="y2", value = pred2b$y2 )
-	,data.frame( scenario="D", variable="y1", value = pred3$y1 )
-	,data.frame( scenario="D", variable="y2", value = pred3$y2 )
-)
-dfPred$observations <- NA_real_
-dfPred$observations[dfPred$variable=="y1"] <- twTwoDenEx1$obs$y1
-dfPred$observations[dfPred$variable=="y2"] <- twTwoDenEx1$obs$y2
-str(dfPred)
+	scenarios <- c("R","RS","RSw","DG","DM")
+	nScen <- length(scenarios)
+	# infer quantiles of predictions
+	.nSample=128
+	y1M <- array( NA_real_, dim=c(.nSample, length(twTwoDenEx1$obs$y1),nScen), dimnames=list(sample=NULL,iObs=NULL,scenario=scenarios)  )
+	y2M <- array( NA_real_, dim=c(.nSample, length(twTwoDenEx1$obs$y2),nScen), dimnames=list(sample=NULL,iObs=NULL,scenario=scenarios) )
+	resScen <- list( res1, res2, res2b, res3a, res3 ); names(resScen) <- scenarios
+	#scen <- "R"
+	for( scen in scenarios ){
+		ss <- stackChains(resScen[[scen]])[,-(1:getNBlocks(resScen[[scen]]))]
+		ssThin <- ss[round(seq(1,nrow(ss),length.out=.nSample)),]
+		#i <- .nSample
+		for( i in 1:.nSample){
+			pred <-  twTwoDenEx1$fModel(ssThin[i,], xSparce=twTwoDenEx1$xSparce, xRich=twTwoDenEx1$xRich) 
+			y1M[i,,scen] <- pred$y1
+			y2M[i,,scen] <- pred$y2
+		}
+	}
+	predQuantilesY1 <- lapply( scenarios, function(scen){
+		t(apply( y1M[,,scen],2, quantile, probs=c(0.025,0.5,0.975) ))
+	}); names(predQuantilesY1) <- scenarios
+	predQuantilesY2 <- lapply( scenarios, function(scen){
+			t(apply( y2M[,,scen],2, quantile, probs=c(0.025,0.5,0.975) ))
+		}); names(predQuantilesY2) <- scenarios
+	str(predQuantilesY1)
+	rm( y1M, y2M)	# free space, we only need the summary
+	
+	#str(pred1)
+	dfPred <- rbind(
+		 cbind( data.frame( scenario="R", variable="y1", value = pred1$y1 ), predQuantilesY1[["R"]] )
+		,cbind( data.frame( scenario="R", variable="y2", value = pred1$y2 ), predQuantilesY2[["R"]] )
+		,cbind( data.frame( scenario="RS", variable="y1", value = pred2$y1 ), predQuantilesY1[["RS"]] )
+		,cbind( data.frame( scenario="RS", variable="y2", value = pred2$y2 ), predQuantilesY2[["RS"]] )
+		,cbind( data.frame( scenario="RSw", variable="y1", value = pred2b$y1 ), predQuantilesY1[["RSw"]] )
+		,cbind( data.frame( scenario="RSw", variable="y2", value = pred2b$y2 ), predQuantilesY2[["RSw"]] )
+		,cbind( data.frame( scenario="DG", variable="y1", value = pred3a$y1 ), predQuantilesY1[["DG"]] )
+		,cbind( data.frame( scenario="DG", variable="y2", value = pred3a$y2 ), predQuantilesY2[["DG"]] )
+		,cbind( data.frame( scenario="DM", variable="y1", value = pred3$y1 ), predQuantilesY1[["DM"]] )
+		,cbind( data.frame( scenario="DM", variable="y2", value = pred3$y2 ), predQuantilesY2[["DM"]] )
+	)
+	dfPred$observations <- NA_real_
+	dfPred$observations[dfPred$variable=="y1"] <- twTwoDenEx1$obs$y1
+	dfPred$observations[dfPred$variable=="y2"] <- twTwoDenEx1$obs$y2
+	colnames(dfPred)[ match(c("2.5%","50%","97.5%"),colnames(dfPred)) ] <- c("lower","median","upper")
+	str(dfPred)
 
-p1 <- ggplot(dfPred, aes(x=value, y=observations, colour=scenario) ) + geom_point() + 
+.tmp.f <- function(){
+	dfPred <- rbind(
+		data.frame( scenario="R", variable="y1", value = pred1$y1 )
+		,data.frame( scenario="R", variable="y2", value = pred1$y2 )
+		,data.frame( scenario="RS", variable="y1", value = pred2$y1 )
+		,data.frame( scenario="RS", variable="y2", value = pred2$y2 )
+		,data.frame( scenario="RSw", variable="y1", value = pred2b$y1 )
+		,data.frame( scenario="RSw", variable="y2", value = pred2b$y2 )
+		,data.frame( scenario="DG", variable="y1", value = pred3a$y1 )
+		,data.frame( scenario="DG", variable="y2", value = pred3a$y2 )
+		,data.frame( scenario="DM", variable="y1", value = pred3$y1 )
+		,data.frame( scenario="DM", variable="y2", value = pred3$y2 )
+	)
+	dfPred$observations <- NA_real_
+	dfPred$observations[dfPred$variable=="y1"] <- twTwoDenEx1$obs$y1
+	dfPred$observations[dfPred$variable=="y2"] <- twTwoDenEx1$obs$y2
+	str(dfPred)
+
+	p1 <- ggplot(dfPred, aes(x=value, y=observations, colour=scenario) ) +
+		#geom_errorbarh(aes(xmax = upper, xmin = lower)) +
+		geom_point() +
+		facet_wrap( ~ variable, scales="free") +
+		opts(axis.title.x=theme_blank() ) +
+		geom_abline(colour="black") +
+		c()
+	p1
+}
+
+p1 <- ggplot(dfPred, aes(x=median, y=observations, colour=scenario) ) +
+	#geom_errorbarh(aes(xmax = upper, xmin = lower)) +
+	geom_point() +
 	facet_wrap( ~ variable, scales="free") +
 	opts(axis.title.x=theme_blank() ) +
 	geom_abline(colour="black") +
 	c()
 p1
+
+
 
 
