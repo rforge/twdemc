@@ -20,7 +20,11 @@
 	sfInit(parallel=TRUE, cpus=4)
 	#sfInit(parallel=TRUE, cpus=2)
 	
-	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
+	for(filename in Sys.glob(file.path("R","*.R")) ){
+		print(filename)
+		source(filename)
+	}
+	#tmp <- sapply(Sys.glob(file.path("R","*.R")), source)
 	tmp <- sapply(Sys.glob(file.path("R","multiTemp.R")), sfSource)
 	data( list=twStripFileExt(basename(Sys.glob(file.path("data","*.RData")))))
 	

@@ -84,7 +84,7 @@ calcM0twDEMC <- function(
 
 setMethodS3("initZtwDEMCSub","matrix", function(
 	### generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a matrix
-	x					##<< the mcmc matrix to subsample (nCases x nRows) 
+	x					##<< the mcmc matrix to subsample (nCases x nParms) 
 	,... 
 	,vars=colnames(x)	##<< which variables to keep
 	,nChainPop=4		##<< number of chains per population
@@ -443,10 +443,26 @@ replaceZinitNonFiniteLogDensLastStep <- function(
 	) ##end<<
 }
 #twUtestF(replaceZinitNonFiniteLogDens)
-.tmp.f <- function(){
-	### XXXTodo: adapt to changed dimension order: vars in columns
-}
 
+.twDEMCStackToChains <- function(
+	x			##<< numeric matrix (nStep x nParm)
+	, nChain	##<< number of chains
+){
+	##details<< 
+	# if nRow(x) is not a multiple of nChain, then last rows are skipped.
+	nCases <- nrow(x) %/% nChain
+	resL <- lapply((1:nChain)-1, function(iChain0){
+			x[nCases*iChain0 + (1:nCases), ,drop=FALSE]
+		})
+	### list of subsets (by rows)
+}
+attr(.twDEMCStackToChains,"ex") <- function(){
+	x <- matrix( 1:16, ncol=2, dimnames=list(step=NULL,parms=c("a","b")))
+	tail(x)
+	tmp <- abind(.twDEMCStackToChains(x, 2), 3) 
+	str(tmp)
+	tmp[,,2]
+}
 
 
 

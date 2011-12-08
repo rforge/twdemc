@@ -344,6 +344,8 @@ getSubSpaces <- function(
 	,minPSub=0.05		##<< minimum fraction a subSample, below which the sample is not split further
 	,splitHist=NA_real_[FALSE]	##<< named numeric numeric vector: history of splitting points
 ){
+	##details<< 
+	# uses interval: lower < val <= upper
 	# search for a single splitting point
 	nSplitMin <- min( nSplit, floor(pSub/minPSub)-1 )		# each subPopulation must comprise at least part minPSub, hence do not split in too many parts
 	if( is.null(argsFSplit) ) argsFSplit <- list()
@@ -517,7 +519,7 @@ divideTwDEMC <- function(
 	subSpacesFlat <- do.call( c, subSpaces )	# put all subPopulations of all populations on same level
 	nSub <- length(subSpacesFlat)			# number of total subs
 	iSubs <- 1:nSub						# set of sub indices
-	popSub <- sapply( 1:nPop, function(iPop){ rep,each=nSubPops)	
+	#popSub <- sapply( 1:nPop, function(iPop){ rep,each=nSubPops)	
 	iSubsPop <- {				# index of subs in flat version for each pop
 		cumNSubPops <- cumsum(nSubPops)
 		lapply(1:nPop, function(iPop){ cumNSubPops[iPop]+1-(nSubPops[iPop]:1)})	
@@ -856,4 +858,62 @@ twRunDivideTwDEMCBatch <- function(
 	# do the actual call
 	res <- do.call( divideTwDEMCBatch, argsDEMC )
 }
+
+divideTwDEMCPops <- function( 
+	### splits all populations of x into subpopulations for given subSpaces 
+	x			##<< an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
+	,subSpacesPop	##<< a list (nPop): each entry listing subspaces for the given population
+){
+	nPop <- getNPops(x)
+	if( length(subSpacesPop) != nPop ) 
+		stop("divideTwDEMCPops: argument subSpacesPop must list subspaces for all populations in x")
+	
+	res <- x
+	res$pops <- newPops <- lapply( 1:nPop, function(iPop){
+		res <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
+	})
+	### argument x with pops splitted into subspaces
+	res
+}
+
+divideTwDEMCPop <- function( 
+	### splits a specific populations of x into subpopulations for given subSpaces 
+	pop			##<< numeric array (nStep, nParm, nChain): an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
+	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population
+){
+	nSub <- length(subSpaces$spaces)
+	#iSub <- nSub
+	#iSub <- 6
+	newPops <- lapply(1:nSub, function(iSub){
+		subSpace <- subSpaces$spaces[[iSub]]
+		nChainPop <- dim(pop$parms)[3]
+		#iChain <- nChainPop
+		.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
+			aSample <- adrop(pop$parms[,,iChain ,drop=FALSE],3)
+			#i <- length(subSpace$lowerParBounds) 
+			boLower <- lapply( seq_along(subSpace$lowerParBounds), function(iBound){
+					aSample[,names(subSpace$lowerParBounds)[iBound] ] > subSpace$lowerParBounds[iBound]
+				})
+			boUpper <- lapply( seq_along(subSpace$upperParBounds), function(iBound){
+					aSample[,names(subSpace$upperParBounds)[iBound] ] <= subSpace$upperParBounds[iBound]
+				})
+			boMat <- abind( c(boLower,boUpper), along=2 )
+			boKeep <- apply(boMat,1,all)
+			.subsetTwDEMCPop( pop, iKeep=boKeep, iChain=iChain)
+		})	# iChain
+		# collect the subsamples of all chains into new chains of equal length
+		ss <- .stackChainsTwDEMCPops(.subSamplesChain)
+		ssu <- .unstackChainsTwDEMCPops(ss, nChainPop)	# here may loose a few samples due to not a multiple of nChains
+		newPop <- .concatChainsTwDEMCPops(ssu)
+		newPop$lowerParBounds <- subSpace$lowerParBounds	
+		newPop$upperParBounds <- subSpace$upperParBounds	
+		newPop
+	}) # iSub
+}
+attr(divideTwDEMCPop,"ex") <- function(){
+	data(den2dCorTwDEMC)
+	x <- den2dCorTwDEMCPops
+	newPops <- divideTwDEMCPop(x$pops[[1]], den2dCorSubSpaces[[1]] )
+}
+
 

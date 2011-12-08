@@ -21,7 +21,7 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{getNChainsPop.twDEMCPops}}
 		## \code{\link{getNParms.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		#mtrace(getNSamples.twDEMCPops)
 		(getNSamples(x)-1)*x$thin
 		### integer vector, number of completed generations
@@ -35,6 +35,7 @@ attr( getNGen.twDEMCPops, "ex") <- function(){
 	getNChains(twdemcEx1)
 	getNChainsPop(twdemcEx1)
 	getNParms(twdemcEx1)
+	getNBlocks(twdemcEx1)
 }
 
 setMethodS3("getNPops","twDEMCPops", function( 
@@ -46,7 +47,7 @@ setMethodS3("getNPops","twDEMCPops", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## ,\code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		length(x$pops)
 		### integer, number of populations in twDEMCPops
 	})
@@ -60,7 +61,7 @@ setMethodS3("getNChains","twDEMCPops", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		length(x$pops) * dim(x$pops[[1]]$parms)[3]
 		### integer, number of chains in twDEMCPops
 	})
@@ -74,7 +75,7 @@ setMethodS3("getNChainsPop","twDEMCPops", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		dim(x$pops[[1]]$parms)[3]
 		### integer, number of chains per population in twDEMCPops
 	})
@@ -88,7 +89,7 @@ setMethodS3("getNParms","twDEMCPops", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		ncol(x$pops[[1]]$parms)
 		### integer, number of parameters in twDEMCPops
 	})
@@ -102,9 +103,24 @@ setMethodS3("getNSamples","twDEMCPops", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		##details<< There is only one sample per thinning interval of length \code{x$thin}.
 		sapply( x$pops, function(pop){ nrow(pop$parms) })
+		### integer vector: number of samples in each population of twDEMCPops
+	})
+
+setMethodS3("getNBlocks","twDEMCPops", function( 
+		### Extracts the number of samples
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getNSamples.twDEMCPops
+		##seealso<<   
+		## \code{\link{getNGen.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		## ,\code{\link{twDEMCBlockInt}}
+		##details<< There is only one sample per thinning interval of length \code{x$thin}.
+		length(x$blocks)
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
@@ -120,7 +136,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 	#concatPops.twDEMCPops
 	##seealso<<   
 	## \code{\link{subset.twDEMCPops}}
-	## ,\code{\link{twDEMCInt}}
+	## ,\code{\link{twDEMCBlockInt}}
 	nStepsPop <- getNSamples(x)
 	if( 1 == length(minPopLength) ){
 		iKeep <- which( nStepsPop >= minPopLength )
@@ -166,6 +182,21 @@ attr(concatPops,"ex") <- function(){
 }
 
 #mtrace(concatPops.twDEMCPops)
+.subsetTwDEMCPop <- function(
+	### subset all items of a twDEMCPops population
+	pop		##<< single populatin of a twDEMCPops object
+	,iKeep	##<< indices to keep
+	,iChain=TRUE	##<< indices of chains to keep
+){
+	##details<< no checking of bounds performed
+	newPop <- pop
+	newPop$parms <- pop$parms[iKeep,,iChain, drop=FALSE] 
+	newPop$logDen <- pop$logDen[iKeep,,iChain, drop=FALSE] 
+	newPop$resLogDen <- pop$resLogDen[iKeep,,iChain, drop=FALSE] 
+	newPop$pAccept <- pop$pAccept[iKeep,,iChain, drop=FALSE]
+	newPop$temp <- pop$temp[iKeep, drop=FALSE]
+	newPop
+}
 
 #----------------------------------- subset ---------------
 setMethodS3("subset","twDEMCPops", function( 
@@ -179,10 +210,10 @@ setMethodS3("subset","twDEMCPops", function(
 	# subset.twDEMCPops 
 		
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	##details<< 
-	## There are several methods access properties a result of an \code{\link{twDEMCInt}}, i.e.
+	## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.
 	## an object of class \code{twDEMCPops} \itemize{
 	## \item{ number of generations: \code{\link{getNGen.twDEMCPops}}  } 
 	## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMCPops}}  } 
@@ -193,7 +224,7 @@ setMethodS3("subset","twDEMCPops", function(
 	## \item{ thinning interval: \code{res$thin}  } 
 	##}
 	##
-	## There are several methods to transform or subset the results of an \code{\link{twDEMCInt}} run. \itemize{
+	## There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
 	## \item{ select chains or sub-populations: this method  } 
 	## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
 	## \item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
@@ -220,11 +251,7 @@ setMethodS3("subset","twDEMCPops", function(
 	}else if( maxStep > min(nSamplesPop[iPops])) stop(
 			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use dropShortPops=TRUE to drop shorter populations before.")
 	for( iPop in iPops ){
-		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$pAccept <- x$pops[[iPop]]$pAccept[iKeep,,, drop=FALSE]
-		x$pops[[iPop]]$temp <- x$pops[[iPop]]$temp[iKeep, drop=FALSE]
+		x$pops[[iPop]] <- .subsetTwDEMCPop(x$pops[[iPop]], iKeep)
 	}
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
@@ -250,7 +277,7 @@ setMethodS3("subPops","twDEMCPops", function(
 	#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 	){
 		##seealso<<   
-		## \code{\link{twDEMCInt}}
+		## \code{\link{twDEMCBlockInt}}
 		## \code{\link{subset.twDEMCPops}}
 		x$pops <- x$pops[iPops]
 		x
@@ -299,7 +326,7 @@ attr(squeeze.twDEMCPops,"ex") <- function(){
 }
 
 setMethodS3("thin","twDEMCPops", function( 
-		### Reduces the rows of an twDEMCPops object (list returned by \code{\link{twDEMCInt}}) to correspond to a thinning of \code{newThin}.
+		### Reduces the rows of an twDEMCPops object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.
 		x, ##<< the twDEMCPops list to thin 
 		newThin=x$thin, ##<< finite numeric scalar: the target thinning factor, must be positive multiple of x$thin
 		start=0,  
@@ -376,5 +403,57 @@ as.mcmc.list.twDEMCPops <- function(
 ){
 	xStack <- concatPops.twDEMCPops(x, useThinning=useThinning, minPopLength=minPopLength)
 	as.mcmc.list.twDEMC(xStack)
+}
+
+.stackChainsTwDEMCPops <- function(
+	### stacks all the steps for all components of the pops
+	pops	##<< list of pops of a twDEMC
+){
+	newPop <- pops[[1]]
+	if( length(pops) > 1){
+		newPop$parms <- abind( lapply(pops,"[[","parms"), along=1 ) 
+		newPop$logDen <- abind( lapply(pops,"[[","logDen"), along=1 )
+		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=1 )
+		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=1 )
+		newPop$temp <- do.call( c, lapply(pops,"[[","temp") )
+		newPop
+	}
+	newPop
+}
+
+.unstackChainsTwDEMCPops <- function(
+	### unstacks a stacked population
+	pop	##<< stacked population
+	,nChain
+){
+	# if nCases in pop is not a multiple of nChain, then last rows are skipped.
+	nCases <- nrow(pop$parms) %/% nChain
+	pops <- vector("list", nChain)
+	for( iChain in (1:nChain) ){
+		cases <- nCases*(iChain-1) + (1:nCases)
+		pops[[iChain]] <- pop		
+		pops[[iChain]]$parms <- pop$parms[cases,, ,drop=FALSE] 
+		pops[[iChain]]$logDen <- pop$logDen[cases,, ,drop=FALSE] 
+		pops[[iChain]]$resLogDen <- pop$resLogDen[cases,, ,drop=FALSE] 
+		pops[[iChain]]$pAccept <- pop$pAccept[cases,, ,drop=FALSE] 
+		pops[[iChain]]$temp <- pop$temp[cases] 
+	}
+	pops
+	### list of subsets (by rows)
+}
+
+.concatChainsTwDEMCPops <- function(
+	pops
+){
+	newPop <- pops[[1]]
+	if( length(pops) > 1){
+		newPop$parms <- abind( lapply(pops,"[[","parms"), along=3 ) 
+		newPop$logDen <- abind( lapply(pops,"[[","logDen"), along=3 )
+		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=3 )
+		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=3 )
+		#newPop$temp <- abind( lapply(pops,"[[","temp"), along=2 ) # only one temperature per population
+		newPop
+	}
+	newPop
 }
 

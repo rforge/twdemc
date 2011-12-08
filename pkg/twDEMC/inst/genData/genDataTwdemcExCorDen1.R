@@ -9,10 +9,12 @@ Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))
 
-den2dCorTwDEMC <- concatPops(twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ))
-den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
-den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
-str(den2dCorTwDEMC)
+den2dCorTwDEMCPops <- thin( twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ), start=300)
+den2dCorTwDEMC <- concatPops(den2dCorTwDEMCPops)
+#den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
+#den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
+#str(den2dCorTwDEMC)
+getNGen(den2dCorTwDEMCPops)
 
 .tmp.f <- function(){
 	#den2dCorTwDEMC <- concatPops(den2dCorTwDEMC)
@@ -27,8 +29,24 @@ str(den2dCorTwDEMC)
 	points(0.8, 0, col="red" )	# theoretical maximum
 }
 
+#-----  infer subspaces on a subsample
+tmp <- squeeze(den2dCorTwDEMCPops, length.out= 256 %/% getNChainsPop(aTwDEMC0) ) # thin to 256 samples per space
+ss0 <- stackChainsPop(concatPops(tmp))
+#plot( b ~ a, as.data.frame(ss0[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) )
+
+nBlock <- attr(ss0,"nBlock")
+minPSub <- 0.1
+den2dCorSubSpaces <- lapply( 1:dim(ss0)[3], function(iPop){
+		samplePop <- ss0[,,iPop]
+		#mtrace(getSubSpaces)
+		#mtrace(findSplit)
+		getSubSpaces(samplePop[,-(1:nBlock)], minPSub=minPSub, isBreakEarly=FALSE, argsFSplit=list())	# here omit the logDensity column
+	})
+
+
+
 # save only the 1000 generations run, it can be easily extended
-save(den2dCorTwDEMC ,file="data/den2dCorTwDEMC.RData")
+save(den2dCorTwDEMC,  den2dCorTwDEMCPops, den2dCorSubSpaces, file="data/den2dCorTwDEMC.RData")
 
 
 aSample <- stackChainsPop(den2dCorTwDEMC)
