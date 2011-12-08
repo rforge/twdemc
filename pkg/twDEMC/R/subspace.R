@@ -424,9 +424,9 @@ attr(getSubSpaces,"ex") <- function(){
 	(tmp <- sapply( subSpaces$spaces, function(subSpace){nrow(subSpace$sample)})/nrow(aSample)) # percentiles
 	(tmp <- sapply( subSpaces$spaces, "[[", "upperParBounds" )) # bounds
 	#visualize the splits
-	ss1 <- do.call(rbind, lapply( seq_along(subSpaces$spaces), function(i){cbind(iSpace=i, subSpaces$spaces[[i]]$sample)}))
-	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[iSpace] )
-	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[iSpace], ylim=c(-5000,+5000) )
+	ss1 <- do.call(rbind, lapply( seq_along(subSpaces$spaces), function(i){cbind(spaceInd=i, subSpaces$spaces[[i]]$sample)}))
+	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[spaceInd] )
+	plot(b~a, as.data.frame(ss1), col=rainbow(length(subSpaces$spaces))[spaceInd], ylim=c(-5000,+5000) )
 	#twUtestF(getSubSpaces)	# there are unit tests for this function
 }
 
@@ -869,12 +869,27 @@ divideTwDEMCPops <- function(
 		stop("divideTwDEMCPops: argument subSpacesPop must list subspaces for all populations in x")
 	
 	res <- x
-	res$pops <- newPops <- lapply( 1:nPop, function(iPop){
-		res <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
+	newPops <- lapply( 1:nPop, function(iPop){
+		#mtrace(divideTwDEMCPop)
+		resPopsI <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
 	})
+	res$pops <- do.call( c, newPops )
 	### argument x with pops splitted into subspaces
 	res
 }
+attr(divideTwDEMCPops,"ex") <- function(){
+	data(den2dCorTwDEMC)
+	x <- den2dCorTwDEMCPops
+	for( i in 1:getNPops(x) ) x$pops[[i]]$spaceInd = i	# spaces
+	#sapply( x$pops, "[[", "spaceInd")
+	#mtrace(divideTwDEMCPops)
+	xNew <- divideTwDEMCPops(x, den2dCorSubSpaces )
+	sapply(den2dCorSubSpaces, function(subSpacesPop){ length(subSpacesPop$spaces) } )
+	getNPops(xNew)
+	str(xNew$pops[[9]])
+	sapply( xNew$pops, "[[", "spaceInd")
+}
+
 
 divideTwDEMCPop <- function( 
 	### splits a specific populations of x into subpopulations for given subSpaces 
@@ -882,14 +897,15 @@ divideTwDEMCPop <- function(
 	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population
 ){
 	nSub <- length(subSpaces$spaces)
+	nChainPop <- dim(pop$parms)[3]
+	aSampleChain <- lapply(1:nChainPop, function(iChain){ adrop(pop$parms[,,iChain ,drop=FALSE],3) })
 	#iSub <- nSub
 	#iSub <- 6
 	newPops <- lapply(1:nSub, function(iSub){
 		subSpace <- subSpaces$spaces[[iSub]]
-		nChainPop <- dim(pop$parms)[3]
 		#iChain <- nChainPop
 		.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
-			aSample <- adrop(pop$parms[,,iChain ,drop=FALSE],3)
+			aSample <- aSampleChain[[iChain]]
 			#i <- length(subSpace$lowerParBounds) 
 			boLower <- lapply( seq_along(subSpace$lowerParBounds), function(iBound){
 					aSample[,names(subSpace$lowerParBounds)[iBound] ] > subSpace$lowerParBounds[iBound]
@@ -906,14 +922,30 @@ divideTwDEMCPop <- function(
 		ssu <- .unstackChainsTwDEMCPops(ss, nChainPop)	# here may loose a few samples due to not a multiple of nChains
 		newPop <- .concatChainsTwDEMCPops(ssu)
 		newPop$lowerParBounds <- subSpace$lowerParBounds	
-		newPop$upperParBounds <- subSpace$upperParBounds	
+		newPop$upperParBounds <- subSpace$upperParBounds
+	if( iSub==9) recover()
+		# add initial lower and upper bounds to unbounded parameters
+		for( pName in pop$lowerParBounds ){
+			if( !(pName %in% names(newPop$lowerParBounds)) ) 
+				newPop$lowerParBounds <- c( pop$lowerParBounds[pName], newPop$lowerParBounds )
+		}
+		for( pName in pop$upperParBounds ){
+			if( !(pName %in% names(newPop$upperParBounds)) ) 
+				newPop$upperParBounds <- c( pop$upperParBounds[pName], newPop$upperParBounds )
+		}
+		newPop$spaceInd <- pop$spaceInd		# inherit the reference to space replicate
 		newPop
 	}) # iSub
+	newPops
 }
 attr(divideTwDEMCPop,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	x <- den2dCorTwDEMCPops
-	newPops <- divideTwDEMCPop(x$pops[[1]], den2dCorSubSpaces[[1]] )
+	pop <- x$pops[[1]]
+	pop$spaceInd <- 1
+	newPops <- divideTwDEMCPop(pop, den2dCorSubSpaces[[1]] )
+	length(newPops)
+	str(newPops[[1]])
 }
 
 
