@@ -421,9 +421,9 @@ twDEMCBlockInt <- function(
 			parUpdateDenLast[,,iChainsOut] <- chainState$parUpdateDen[,,iiChainsOut]
 			# adapt chainState that refer to current populations only
 			chainState <- within(chainState,{
-				X <- X[,-iiChainsOut]
-				logDenCompX <- logDenCompX[,-iiChainsOut]
-				parUpdateDen <- parUpdateDen[,,-iiChainsOut]
+				X <- X[,-iiChainsOut ,drop=FALSE]
+				logDenCompX <- logDenCompX[,-iiChainsOut ,drop=FALSE]
+				parUpdateDen <- parUpdateDen[,,-iiChainsOut ,drop=FALSE]
 			})
 			#acceptance rates and nGenBack refer to all chains
 		}	
@@ -1469,11 +1469,13 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 			res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
 			res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
 			res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
-			if( doRecordProposals || (nrY <- (nrow(resPop$Y) < 128)) ){
+			nrY <- nrow(resPop$Y)
+			if( doRecordProposals || (nrY < 128) ){
 				# if new Y has less than 128 rows append previous Y
 				res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
-				if( !doRecordProposals && (nrow(res$pops[[iPop]]$Y) > 1) )
-					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrow(res$pops[[iPop]]$Y)),, ,drop=FALSE] 	# cut to 128 cases
+				nrY <- nrow(res$pops[[iPop]]$Y)	# rows did change
+				if( !doRecordProposals && (nrY > 1) )
+					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrY),, ,drop=FALSE] 	# cut to 128 cases
 			}
 		}
 		res

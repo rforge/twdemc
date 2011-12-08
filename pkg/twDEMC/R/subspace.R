@@ -471,7 +471,8 @@ divideTwDEMC <- function(
 	,nGen=512				##<< the number of generations for twDEMCBlock
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
-	, minPSub = 0.05		##<< passed to \code{\link{getSubSpaces}}
+	, minPSub = 0.1			##<< passed to \code{\link{getSubSpaces}}
+	, subPercChangeCrit=1.6	##<< if all subPercChange of all sub-populations are belwo this value in two last batches, may assume convergence and skip further batches 
 	, isBreakEarly = FALSE	##<< passed to \code{\link{getSubSpaces}}
 	, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}
 	, nChainPop=4			##<< number of chains in subPopulations
@@ -493,7 +494,7 @@ divideTwDEMC <- function(
 		warning("divideTwDEMC:third dimension missing of aSample missing - assuming 1 population.")
 		aSample <- array(aSample, dim=c(dim(aSample),1), dimnames=c(dimnames(aSample), pops=NULL) )
 	}
-	nPops <- dim(aSample)[3]
+	nPop <- dim(aSample)[3]
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
 	nGenThin <- (nGen %/% thin)*thin		# when dealing with thinned samples use the number of generations of last recorded thinned generation
@@ -516,9 +517,10 @@ divideTwDEMC <- function(
 	subSpacesFlat <- do.call( c, subSpaces )	# put all subPopulations of all populations on same level
 	nSub <- length(subSpacesFlat)			# number of total subs
 	iSubs <- 1:nSub						# set of sub indices
+	popSub <- sapply( 1:nPop, function(iPop){ rep,each=nSubPops)	
 	iSubsPop <- {				# index of subs in flat version for each pop
 		cumNSubPops <- cumsum(nSubPops)
-		lapply(1:nPops, function(iPop){ cumNSubPops[iPop]+1-(nSubPops[iPop]:1)})	
+		lapply(1:nPop, function(iPop){ cumNSubPops[iPop]+1-(nSubPops[iPop]:1)})	
 	}
 
 	# calculating initial quantiles and number of genrations
@@ -540,10 +542,9 @@ divideTwDEMC <- function(
 		subs0[[iSub]]$parms <- Zinit
 		subs0[[iSub]]$upperParBounds <- subSpacesI$upperParBounds
 		subs0[[iSub]]$lowerParBounds <- subSpacesI$lowerParBounds
-		subs0[[iSub]]$nGen <- ceiling(nGen0[iSub])
 	}
 	
-	resTwDEMC <- resTwDEMC0 <- twDEMCBlockInt(pops=subs0, controlTwDEMC=controlTwDEMC, ...)
+	resTwDEMC <- resTwDEMC0 <- twDEMCBlockInt(pops=subs0, nGen=nGen, controlTwDEMC=controlTwDEMC, ...)
 	##details<< 
 	## A first estimate of the proportion of samples from different subspaces
 	## are the initial percentiles qp. 
@@ -553,7 +554,7 @@ divideTwDEMC <- function(
 	## estimate proportional to the volume: the initial quantiles.
 	#iPop <- 1
 	#iPop <- 2
-	popLogMeanDensSubs <- lapply( 1:nPops, function(iPop){
+	popLogMeanDensSubs <- lapply( 1:nPop, function(iPop){
 			iSubs <- iSubsPop[[iPop]]
 			#iSub <- 2
 			#iSub <- nSub
@@ -569,7 +570,7 @@ divideTwDEMC <- function(
 	
 	# estimate proportion of subspaces in the limiting distribution
 	# it will be used to sample from the subspaces 
-	pSubs <- do.call(c, lapply( 1:nPops, function(iPop){
+	pSubs <- do.call(c, lapply( 1:nPop, function(iPop){
 			p2u <- exp(popLogMeanDensSubs[[iPop]])*popQSubs[[iPop]]		# two weights: quantile and density importance
 			p2 <- p2u/sum(p2u)									# normalize to 1 within population 
 		}))
@@ -578,7 +579,7 @@ divideTwDEMC <- function(
 	# because of rounding small differences in sum of sample numbers may occur 
 	# for small deviations, adjust the number of samples in the largest sample
 	# add argument nGen to pops
-	for( iPop in 1:nPops ){
+	for( iPop in 1:nPop ){
 		dGen <- nGenThin/thin - sum(nSamplesSubsReq[iSubsPop[[iPop]] ])  
 		if( dGen != 0 ){
 			if( abs(dGen)>length(iSubsPop[[iPop]]) ) stop("divideTwDEMC: problem in calculating subspace sample numbers")
@@ -587,37 +588,31 @@ divideTwDEMC <- function(
 		} 
 	}
 	
-	print("calling recover()")
-	recover()
-	
 	# extend the previous runs
 	nSamplesAdd <- pmax(0, nSamplesSubsReq-getNSamples(resTwDEMC0))
 	resTwDEMC <- resTwDEMC1 <- if( max(nSamplesAdd) == 0) resTwDEMC0 else
 		#mtrace(twDEMCBlock.twDEMCPops)
-		resTwDEMC <- twDEMCBlock( resTwDEMC0, nGen=nSamplesAdd*thin )
-	
+		#mtrace(twDEMCBlockInt)
+		resTwDEMC <- twDEMCBlock( resTwDEMC0, nGen=nSamplesAdd*thin, controlTwDEMC=controlTwDEMC, ...  )
+	#all( getNSamples(resTwDEMC) >= nSamplesSubsReq)
+
 	# do a subsampling
 	# iPop=2
 	subSamplePop <- function(iPop){
 		iSubs  <- iSubsPop[[iPop]] 
 		#nSamplesSubsReq[iSubs]
-		#(iSub <- iSubs[1])
+		#(iSub <- iSubs[length(iSubs)])
 		ssImpList <-  lapply( iSubs, function(iSub){
 			if( nSamplesSubsReq[iSub] == 0) c() else{
-				aTwDEMC <- resITwDEMC[[ subInfo[iSub,"run"] ]]
-				aTwDEMCSub <- subChains( aTwDEMC, iPops=subInfo[iSub,"rpop"] )
+				aTwDEMCSub <- concatPops(subPops( resTwDEMC, iPops=iSub ))
 				ss <- stackChains(aTwDEMCSub)
-				#windows(record=TRUE); plot(as.mcmc.list(aTwDEMCSub), smooth=FALSE )
-				#matplot( aTwDEMCSub$pAccept, type="l" )
-				#tmp <- findSplit( ss[,-1], isBreakEarly=FALSE, rVarCrit = 2^2 )
-				#mtrace(getSubSpaces)
-				#tmp2 <- getSubSpaces( ss[,-1], isBreakEarly=FALSE, argsFSplit=list(rVarCrit = 2^2, rAlphaSlopeCrit=base:::pi/2),minPSub=0.2 )
-				#lapply(tmp2$spaces, "[[", "upperParBounds" )
-				#colnames(ss)[-1][tmp$iVars]
+				ssp <- ss[,-(1:getNBlocks(aTwDEMCSub))]
+				# see .tmp.f below for commands to trace error
 				if( nSamplesSubsReq[iSub] == 1) 
 					ss[ sample.int( nrow(ss),1),] 
 				else {
-					resFCheck <- do.call( fCheckProblems, c(list(aTwDEMCSub), argsFCheckProblems)) 
+					resFCheck <- do.call( fCheckProblems, c(list(aTwDEMCSub), argsFCheckProblems))
+		if( iSub==21) recover()
 					if( resFCheck$hasProblems ){
 						if( !is.null(dumpfileBasename) )
 							if( dumpfileBasename == "recover"){
@@ -633,18 +628,18 @@ divideTwDEMC <- function(
 		ssImp <- do.call( rbind, ssImpList )
 	}
 	#mtrace(tmp.f)
-	resl <- lapply( 1:nPops, subSamplePop)	# end lapply iPop: giving a single combined sample for each population
+	resl <- lapply( 1:nPop, subSamplePop)	# end lapply iPop: giving a single combined sample for each population
 	#res <- ssImpPops <- abind(resl, rev.along=0)
 	
 	##value<< 
 	## For each population, a list with entries
-	res <- lapply(1:nPops,function(iPop){
-			posPop <- which(popSubPops==iPop)
+	res <- lapply(1:nPop,function(iPop){
+			iSubs <- iSubsPop[[iPop]]
 			list(
 				sample=resl[[iPop]]					##<< numeric matrix: the sampled parameters (rows: cases, cols: 1: logDensity, others parameter dimensions
-				,subPercChange=subPercChange[posPop]	##<< numeric vector: estimated proportion in limiting distribution to proportion of initial proportion 
-				,upperParBounds=upperParBounds[posPop]	##<< list of named numeric vectors: the upper parameter bounds for the subspaces
-				,lowerParBounds=lowerParBounds[posPop]	##<< dito upperParBounds
+				,subPercChange=subPercChange[iSubs]	##<< numeric vector: estimated proportion in limiting distribution to proportion of initial proportion 
+				#,upperParBounds=subSpacesFlat[iSubs] upperParBounds[iSubs]	##<< list of named numeric vectors: the upper parameter bounds for the subspaces
+				#,lowerParBounds=lowerParBounds[iSubs]	##<< dito upperParBounds
 				,iVars=subSpacesL[[iPop]]$iVars		##<< reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}
 				,jVarsVar=subSpacesL[[iPop]]$jVarsVar		##<< reordered index or parameter dimensions to check for split, see \code{\link{findSplit}}
 				#,pSubs0=pSubs0[posPop]
@@ -652,19 +647,18 @@ divideTwDEMC <- function(
 			)
 		})
 	##end<<
-	
 }
 attr(divideTwDEMC,"ex") <- function(){
 	data(den2dCorTwDEMC)
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
+	plot( b ~ a, as.data.frame(stackChains(subChains(aTwDEMC,iPops=1)$parms)), xlim=c(-0.5,2), ylim=c(-20,40) )
 	aSample <- stackChainsPop(aTwDEMC)
 	ss0 <- stackChains(aTwDEMC)
 	#aSamplePure <- aSample[,-1,]
 	#aSamplePurePop <- aSamplePure[,,1]
-	#res <- divideTwDEMC(aSample, nGen=100, fLogDen=den2dCor, attachDetails=TRUE )
 	#mtrace(divideTwDEMC)
-	res <- divideTwDEMC(aSample, nGen=128, dInfos=list(list(fLogDen=den2dCor)),  isBreakEarly=FALSE, debugSequential=TRUE )
-	res <- divideTwDEMC(aSample, nGen=500, dInfos=list(list(fLogDen=den2dCor)),  isBreakEarly=FALSE, debugSequential=TRUE )
+	#res <- divideTwDEMC(aSample, nGen=128, dInfos=list(list(fLogDen=den2dCor)),  isBreakEarly=FALSE, debugSequential=TRUE )
+	res <- divideTwDEMC(aSample, nGen=256, dInfos=list(list(fLogDen=den2dCor)),  isBreakEarly=FALSE, debugSequential=TRUE,  controlTwDEMC=list(DRGamma=0.1) )
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
 	#barplot(res[[1]]$subPercChange, names.arg=seq_along(res[[1]]$subPercChange) )
 	#str(res[[1]]$lowerParBounds)
@@ -686,6 +680,36 @@ attr(divideTwDEMC,"ex") <- function(){
 }
 #mtrace(divideTwDEMC)
 #twUtestF(divideTwDEMC, divertOutputFile=NULL)
+
+.debug.divideTwDEMC <- function(){
+	tmp <- concatPops(subPops(resTwDEMC0,iPops=iSub))
+	ss1 <- stackChains(tmp)
+	plot(as.mcmc.list(tmp), smooth=FALSE )
+	matplot( tmp$pAccept[,1,], type="l" )
+	
+	windows(record=TRUE); plot(as.mcmc.list(aTwDEMCSub), smooth=FALSE )
+	matplot( aTwDEMCSub$pAccept[,1,], type="l" )
+	matplot( aTwDEMCSub$logDen[,1,], type="l" )
+	plot(ss[,"a"], ss[,"b"], col=rev(heat.colors(100))[ twRescale(ss[,1],c(20,100)) ] )
+	
+	resFCheck
+	
+	tmp <- findSplit( ss[,-1], isBreakEarly=FALSE, rVarCrit = 2^2 )
+	mtrace(getSubSpaces)
+	tmp2 <- getSubSpaces( ss[,-1], isBreakEarly=FALSE, argsFSplit=list(rVarCrit = 2^2, rAlphaSlopeCrit=base:::pi/2),minPSub=minPSub, pSub=pSubs[iSub] )
+	lapply(tmp2$spaces, "[[", "upperParBounds" )
+	colnames(ss)[-1][tmp$iVars]
+
+	iSubsCheckSubspaces <- which(  (pSubs > 2*minPSub) & (subPercChange > subPercChangeCrit) )
+	#iSub <- iSubsCheck[length(iSubsCheck)]
+	if( iSub %in% iSubsCheckSubspaces ){
+		subSubSpaces <- getSubSpaces( ssp, isBreakEarly=FALSE, argsFSplit=argsFSplitPop[[ popSub]],minPSub=minPSub, pSub=pSubs[iSub] )
+	}
+	
+	
+	pSub > 2*minPSub
+}
+
 
 setMethodS3("divideTwDEMCBatch","divideTwDEMCBatch", function(
 	### append runs to result of \code{\link{divideTwDEMCBatch.default}}
