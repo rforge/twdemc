@@ -14,6 +14,7 @@ twDEMCBlockInt <- function(
 			### named numeric vectors: giving upper parameter bounds  
 			### for exploring subspaces of the limiting distribution, see details
 			, lowerParBounds = numeric(0)  ##<< similar to upperParBounds
+			, spaceInd = 1	##<< the space replicate that this population belongs to
 		)) ##end<<
 	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
 			##describe<<
@@ -85,7 +86,7 @@ twDEMCBlockInt <- function(
 	}else{
 		if( length(nGen)==1) nGen=rep(nGen[1],nPop)
 		if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
-		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop])}) # fill in default values for missing entries 
+		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=iPop)}) # fill in default values for missing entries 
 	}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
@@ -545,6 +546,7 @@ twDEMCBlockInt <- function(
 
 	#-- return
 	##value<< a list with entriesof populations, each entry is a list
+	spacesPop <- sapply(pops,"[[","spaceInd")
 	res <- list(
 		##describe
 		thin=ctrl$thin		##<< thinning interval that has been used
@@ -559,6 +561,7 @@ twDEMCBlockInt <- function(
 			##describe<<
 			upperParBounds = upperParBoundsPop[[iPop]]	##<< upper parameter bounds for sampling
 			,lowerParBounds = lowerParBoundsPop[[iPop]] ##<< lower parameter bounds for sampling
+			,spaceInd = spacesPop[iPop]		##<< the space replicate that the population belongs to
 			,parms = ZPops[[iPop]][ M0Pops[iPop]:nrow(ZPops[[iPop]]),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
 			,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector (nSample+1): global temperature, i.e. cost reduction factor
 			,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains (nStep x nChainPop)
@@ -682,16 +685,19 @@ attr(twDEMCBlockInt,"ex") <- function(){
 .checkPop <- function(
 	### filling default values in pop description
 	pop
-	,nGen=pop$nGen		##<< may overwrite settings given in pop
+	,nGen=numeric(0)		##<< number of generations to take: overwrites settings given in pop
+	,spaceInd=numeric(0)	##<< the space replicate that this population belongs to, overwritten by setting in pop 
 ){
 	##details<<
 	## If several entries are null, they are set to default values
 	if( 0==length(pop$parms) || !is.numeric(pop$parms) || length(dim(pop$parms)) != 3 )
 		stop(".checkPop: entry parms must be a numeric 3D array")
-	if( 0 == length(nGen) ) nGen <- pop$nGen	# if specified non valied 
-	if( (1 != length(nGen)) )	
-		stop(".checkPop: scalar integer nGen must be given as entry nGen in population or in invokdation of twDEMCBlockInt.")
-	pop$nGen <- nGen 
+	if( 0 != length(nGen) )	pop$nGen <- nGen 
+	if( (1 != length(pop$nGen)) )	
+		stop(".checkPop: scalar integer nGen must be given as entry nGen in population or in invocation of twDEMCBlockInt.")
+	if( 0 == length(pop$spaceInd) ) pop$spaceInd = spaceInd
+	if( (1 != length(pop$spaceInd)) )	
+		stop(".checkPop: scalar integer spaceInd must be given as entry nGen in population or in invocation of twDEMCBlockInt.")
 	if( 0==length(pop$T0) ) pop$T0 <- 1
 	if( 0==length(pop$TEnd) ) pop$TEnd <- 1
 	if( 0==length(pop$X) ){
@@ -700,6 +706,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		if( !all.equal( rownames(pop$X), colnames(pop$parms), check.attributes = FALSE) )
 			stop(".checkPop: rownames of X and colnames of parms must match")
 	}
+	
 	### pop with entries nGen, T0, TEnd and X defined 
 	pop	
 }
@@ -1374,6 +1381,7 @@ setMethodS3("twDEMCBlock","array", function(
 		### \cr Alternatively a single numeric vector can be supplied, which is replicated for each population.
 		, lowerParBounds = vector("list",nPop)
 		### similar to upperParBounds
+		, spacePop = 1:nPop		##<< the space replicate that each population belongs to. By default assume only one population per space 
 	){
 		#twDEMC.array
 		if( 1 == length(T0) ) T0 <- rep(T0,nPop)
@@ -1398,6 +1406,7 @@ setMethodS3("twDEMCBlock","array", function(
 				if( isX ) pop$X <- X[,chainsPopI , drop=FALSE]
 				if( isLogDenCompX ) pop$logDenCompX <- logDenCompX[,chainsPopI ,drop=FALSE]
 				if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
+				pop$spaceInd <- spacePop[iPop]
 				pop
 		})
 		#res <- twDEMCBlockInt(pops)
@@ -1441,11 +1450,40 @@ attr(twDEMCBlock.array,"ex") <- function(){
 	
 }
 
+.concatTwDEMCRuns <- function(
+	x		##<< initial run (of class twDEMCPops)
+	,res	##<< extended run
+	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
+){
+	##details<< 
+	## initial populations are appended by results
+	# iPop = length(x$pops)
+	for( iPop in 1:length(x$pops) ){
+		xPop <- x$pops[[iPop]]
+		resPop <- res$pops[[iPop]]
+		res$pops[[iPop]]$parms <- abind(xPop$parms, resPop$parms[-1,, ,drop=FALSE], along=1)
+		res$pops[[iPop]]$temp <- abind(xPop$temp, resPop$temp[-1], along=1 )
+		res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
+		res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
+		res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
+		nrY <- nrow(resPop$Y)
+		if( doRecordProposals || (nrY < 128) ){
+			# if new Y has less than 128 rows append previous Y
+			res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
+			nrY <- nrow(res$pops[[iPop]]$Y)	# rows did change
+			if( !doRecordProposals && (nrY > 1) )
+				res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrY),, ,drop=FALSE] 	# cut to 128 cases
+		}
+	}
+	res
+}
+
 setMethodS3("twDEMCBlock","twDEMCPops", function(
 		### initialize \code{\link{twDEMCInt}} by former run and append results to former run
 		x, ##<< list of class twDEMC, result of \code{\link{twDEMCInt}}
 		... ##<< further arguments to \code{\link{twDEMCInt}}
 		, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
+		, extendRun=TRUE				##<< if set to FALSE then only the new samples are returned
 ){
 		#twDEMC.twDEMCPops
 		##details<< 
@@ -1458,28 +1496,8 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 		if( 0 == length(.dots$blocks) )		 
 			argsList$blocks <- x$blocks
 		res <- res0 <- do.call( twDEMCBlockInt, argsList )
-		##details<< 
-		## initial populations are appended by results
-		# iPop = length(x$pops)
-		for( iPop in 1:length(x$pops) ){
-			xPop <- x$pops[[iPop]]
-			resPop <- res0$pops[[iPop]]
-			res$pops[[iPop]]$parms <- abind(xPop$parms, resPop$parms[-1,, ,drop=FALSE], along=1)
-			res$pops[[iPop]]$temp <- abind(xPop$temp, resPop$temp[-1], along=1 )
-			res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
-			res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
-			res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
-			nrY <- nrow(resPop$Y)
-			if( doRecordProposals || (nrY < 128) ){
-				# if new Y has less than 128 rows append previous Y
-				res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
-				nrY <- nrow(res$pops[[iPop]]$Y)	# rows did change
-				if( !doRecordProposals && (nrY > 1) )
-					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrY),, ,drop=FALSE] 	# cut to 128 cases
-			}
-		}
+		if( extendRun ) res <- .concatTwDEMCRuns(x,res0,doRecordProposals=doRecordProposals)
 		res
-		### parms appended with the further generations of \code{\link{twDEMCInt}} 
 	})
 attr(twDEMCBlock.twDEMCPops,"ex") <- function(){
 	data(twdemcEx1) 		# previous run of twDEMCBlock

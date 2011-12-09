@@ -15,6 +15,7 @@ den2dCorTwDEMC <- concatPops(den2dCorTwDEMCPops)
 #den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
 #str(den2dCorTwDEMC)
 getNGen(den2dCorTwDEMCPops)
+getSpacesPop(den2dCorTwDEMCPops)
 
 .tmp.f <- function(){
 	#den2dCorTwDEMC <- concatPops(den2dCorTwDEMC)
@@ -43,10 +44,14 @@ den2dCorSubSpaces <- lapply( 1:dim(ss0)[3], function(iPop){
 		getSubSpaces(samplePop[,-(1:nBlock)], minPSub=minPSub, isBreakEarly=FALSE, argsFSplit=list())	# here omit the logDensity column
 	})
 
+#------- split the result into subspaces
+den2dCorTwDEMCSpaces <-  divideTwDEMCPops(den2dCorTwDEMCPops, den2dCorSubSpaces )
+getSpacesPop(den2dCorTwDEMCSpaces)
+
 
 
 # save only the 1000 generations run, it can be easily extended
-save(den2dCorTwDEMC,  den2dCorTwDEMCPops, den2dCorSubSpaces, file="data/den2dCorTwDEMC.RData")
+save(den2dCorTwDEMC,  den2dCorTwDEMCPops, den2dCorSubSpaces, den2dCorTwDEMCSpaces, file="data/den2dCorTwDEMC.RData")
 
 
 aSample <- stackChainsPop(den2dCorTwDEMC)
