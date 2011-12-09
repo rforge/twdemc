@@ -3,13 +3,13 @@
 divideTwDEMCStep <- function(
 	### run twDEMCBlock on subspaces
 	aTwDEMC					##<< former run of twDEMCBlockInt
-	,spacePop=seq_along(aTwDEMC$pops)	##<< integer vector (nPop): specifying the space replicated that the population belongs to
 	,qPop=numeric(0)		##<< numeric vector (nPop): probability of samples in subspace within entire space 
 	,nGen=512				##<< the number of generations for twDEMCBlock
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
 ){
+	spacePop=getSpacesPop(aTwDEMC)	# integer vector (nPop): specifying the space replicated that the population belongs to
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
 	nGenThin <- (nGen %/% thin)*thin		# when dealing with thinned samples use the number of generations of last recorded thinned generation
@@ -39,8 +39,12 @@ divideTwDEMCStep <- function(
 	nGen0PopsThin <- (ceiling(nGen0Pops/thin))*thin		 
 	
 	#----- initial run based on current quantiles
+	#trace("twDEMCBlockInt")
 	resTwDEMC <- resTwDEMC0 <- twDEMCBlock(aTwDEMC, nGen=nGen0PopsThin, extendRun=FALSE, controlTwDEMC=controlTwDEMC, doRecordProposals=doRecordProposals, ...)
+	recover()
 	#plot(as.mcmc.list(resTwDEMC),smooth=FALSE)
+	#mcp <- concatPops( mcpBlock <- subPops(resTwDEMC0, iPops=nPop))
+	#plot( as.mcmc.list(mcp), smooth=FALSE)
 	
 	#----- calculating quantiles based on density of the (pSubs) 
 	##details<< 
@@ -88,11 +92,18 @@ divideTwDEMCStep <- function(
 	}
 	
 	#-------  extend the previous runs
-	nSamplesAdd <- pmax(0, nSamplesSubsReq-getNSamples(resTwDEMC0))
-	resTwDEMC <- resTwDEMC1 <- if( max(nSamplesAdd) == 0) resTwDEMC0 else
+	nSamples0 <- getNSamples(resTwDEMC0)
+	nSamplesAdd <- pmax(0, nSamplesSubsReq-nSamples0)
+	resTwDEMC <- resTwDEMC1 <- if( max(nSamplesAdd) == 0) resTwDEMC0 else{
+			# stay at current temperature (we are alreay at the prescribed end temperature)
+			for( iPop in seq_along(resTwDEMC0$pops) ){
+				resTwDEMC0$pops[[iPop]]$TEnd <- 
+					resTwDEMC0$pops[[iPop]]$temp[ nSamples0[iPop] ]
+			}
 			#mtrace(twDEMCBlock.twDEMCPops)
 			#mtrace(twDEMCBlockInt)
 			resTwDEMC <- twDEMCBlock( resTwDEMC0, nGen=nSamplesAdd*thin, controlTwDEMC=controlTwDEMC, doRecordProposals=doRecordProposals, ...  )
+		}
 	#all( getNSamples(resTwDEMC) >= nSamplesSubsReq)
 	#getNSamples(resTwDEMC1)
 	
@@ -101,13 +112,13 @@ divideTwDEMCStep <- function(
 	#getNSamples(resTwDEMC2)
 
 	#----- append to former run
-	resTwDEMC <- .concatTwDEMCRuns(aTwDEMC,resTwDEMC2,doRecordProposals=doRecordProposals)
+	#resTwDEMC <- .concatTwDEMCRuns(aTwDEMC,resTwDEMC2,doRecordProposals=doRecordProposals)
 	#getNSamples(resTwDEMC)
 	
 	##value<< 
 	## For each population, a list with entries
 	res <- list(	##describe<<
-		resTwDEMC = resTwDEMC	##<< the appended TWDEMC runs of class twDEMCPops
+		resTwDEMC = resTwDEMC	##<< the runs with new samples of class twDEMCPops
 		,pSubs = pPops			##<< the quantiles of samples within given subspace
 		,subPercChange = subPercChange	##<< ##<< numeric vector: ratio of estimated proportion in limiting distribution to proportion of initial proportion
 		)
@@ -120,7 +131,19 @@ attr(divideTwDEMCStep,"ex") <- function(){
 	getNSamples(aTwDEMC)
 
 	#mtrace(divideTwDEMCStep)
-	res <- divideTwDEMCStep(aTwDEMC, spacePop=spacePop, nGen=256, dInfos=list(list(fLogDen=den2dCor)),  debugSequential=TRUE,  controlTwDEMC=list(DRGamma=0.1) )
+	res <- divideTwDEMCStep(aTwDEMC, nGen=256, dInfos=list(list(fLogDen=den2dCor))
+		,  debugSequential=TRUE
+		#,  controlTwDEMC=list(DRGamma=0.05) 
+	)
+	getNSamples(res$resTwDEMC)
+	
+	#windows(record=TRUE)
+	plot( as.mcmc.list(stackPops(aTwDEMC)), smooth=FALSE)
+	tmp <- stackPops(res$resTwDEMC, mergeMethod="stack")
+	plot( as.mcmc.list(tmp), smooth=FALSE)
+	plot( as.mcmc.list(concatPops(res$resTwDEMC,minPopLength=4)), smooth=FALSE)
+	plot( as.mcmc.list(concatPops(res$resTwDEMC,minPopLength=30)), smooth=FALSE)
+	plot( as.mcmc.list(subChains(concatPops(res$resTwDEMC,minPopLength=30),iPops=2)), smooth=FALSE)
 	
 	ss <- stackChains()
 	plot( b ~ a, as.data.frame(res[[1]]$sample), xlim=c(-0.5,2), ylim=c(-20,40) )
@@ -142,3 +165,103 @@ attr(divideTwDEMCStep,"ex") <- function(){
 	ssImpPops6 <- ssImpPops <- abind( lapply( res <- divideTwDEMC(ssImpPops5[,,], nGen=500, fLogDen=den2dCor, attachDetails=TRUE ), "[[", "sample"), rev.along=0 )
 	str(ssImpPops)
 }
+
+
+
+divideTwDEMCSteps <- function(
+	### run twDEMCBlock on subspaces
+	aTwDEMC					##<< former run of twDEMCBlockInt
+	,nGen=512				##<< the number of generations for twDEMCBlock
+	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
+	,nGenBatch=256
+	, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}
+	, dumpfileBasename="recover"
+){
+	nPop <- getNPops(aTwDEMC)
+	resStep <- divideTwDEMCStep(aTwDEMC, nGen=nGenBatch, ... )
+	
+	#---- check the populations for problems
+	mc <- resStep$resTwDEMC
+	nSamplePop <- getNSamples(mc)
+	iPop=nPop
+	#for( iPop in 1:nPop) if( nSamplePop[iPop] > 1){
+		mcp <- concatPops( mcpBlock <- subPops(mc, iPops=iPop ))
+		ss <- stackChains(mcp)
+		ssp <- ss[,-(1:getNBlocks(mcp))]
+		
+		recover()
+		
+		# see .tmp.f below for commands to trace error
+		resFCheck <- do.call( fCheckProblems, c(list(mcp), argsFCheckProblems))
+		#if( iPop==21) recover()
+		if( resFCheck$hasProblems ){
+			if( !is.null(dumpfileBasename) )
+				if( dumpfileBasename == "recover"){
+					cat("encountered convergence problems in a subSpace. calling recover() \n ")
+					recover()
+				}  else dump.frames(dumpfileBasename,TRUE)
+			stop(paste("divideTwDEMC: checking function encountered problems. Dump in ",dumpfileBasename,sep=""))
+		}
+	#}
+
+	##XXTODO: split pops with large proportions
+
+	##XXTODO: merge pops with small proportions
+	resStep
+}
+attr(divideTwDEMCSteps,"ex") <- function(){
+	data(den2dCorTwDEMC)
+	#mtrace(divideTwDEMCSteps)
+	#trace("twDEMCBlockInt", recover)
+	mc0 <- den2dCorTwDEMCSpaces
+	mc0$pops[[ length(mc0$pops) ]]$T0 <- mc0$pops[[ length(mc0$pops) ]]$TEnd <- 100
+	mc0$blocks[[1]]$fUpdateBlock <- updateBlockTwDEMC	# if beeing traced
+	res <- divideTwDEMCSteps(mc0
+		, nGen=256
+		, nGenBatch=256
+		, dInfos=list(list(fLogDen=den2dCor))
+		,  debugSequential=TRUE
+		,  controlTwDEMC=list(DRGamma=0.1)
+	)
+	getNSamples(res$resTwDEMC)
+	#str(controlTwDEMC)
+	#str(list(...)$controlTwDEMC)	
+	
+}
+
+.debug.divideTwDEMC <- function(){
+	str(mcp)
+	plot(as.mcmc.list(mcp), smooth=FALSE)
+	matplot( mcp$pAccept[,1,], type="l" )
+	matplot( mcp$logDen[,1,], type="l" )
+	matplot( mcp$temp, type="l" )
+	plot(ss[,"a"], ss[,"b"], col=rev(heat.colors(100))[ twRescale(ss[,1],c(20,100)) ] )
+	plot(mcp$Y[,"a",1], mcp$Y[,"b",1], col=rev(heat.colors(100))[ twRescale(mcp$Y[,"logDen1",1],c(20,100)) ] )
+	mcp$Y[,,1]
+	#twCalcLogDenPar( den2dCor, mcp$Y[,1:2,1] ) # it is not -Inf but finite
+	
+	resFCheck
+	
+	tmp <- findSplit( ss[,-1], isBreakEarly=FALSE, rVarCrit = 2^2 )
+	mtrace(getSubSpaces)
+	tmp2 <- getSubSpaces( ss[,-1], isBreakEarly=FALSE, argsFSplit=list(rVarCrit = 2^2, rAlphaSlopeCrit=base:::pi/2),minPSub=minPSub, pSub=pSubs[iSub] )
+	lapply(tmp2$spaces, "[[", "upperParBounds" )
+	colnames(ss)[-1][tmp$iVars]
+	
+	iSubsCheckSubspaces <- which(  (pSubs > 2*minPSub) & (subPercChange > subPercChangeCrit) )
+	#iSub <- iSubsCheck[length(iSubsCheck)]
+	if( iSub %in% iSubsCheckSubspaces ){
+		subSubSpaces <- getSubSpaces( ssp, isBreakEarly=FALSE, argsFSplit=argsFSplitPop[[ popSub]],minPSub=minPSub, pSub=pSubs[iSub] )
+	}
+	
+	
+	pSub > 2*minPSub
+}
+
+
+	
+
+
+
+
+

@@ -154,9 +154,9 @@ setMethodS3("concatPops","twDEMCPops", function(
 	## ,\code{\link{twDEMCBlockInt}}
 	nStepsPop <- getNSamples(x)
 	if( 1 == length(minPopLength) ){
-		iKeep <- which( nStepsPop >= minPopLength )
-		x <- subPops(x, iPops=iKeep )
-		nStepsPop <- nStepsPop[iKeep]
+		iKeepPops <- which( nStepsPop >= minPopLength )
+		x <- subPops(x, iPops=iKeepPops )
+		nStepsPop <- nStepsPop[iKeepPops]
 	}
 	nSteps <- min(nStepsPop)
 	if( nSteps < 2 ) stop("concatPops.twDEMCPops: min(nStepsPop)<2: cannot reduce to single state. use minPopLength=2 to drop degenerated populations")
@@ -288,7 +288,7 @@ setMethodS3("subPops","twDEMCPops", function(
 		### Condenses an twDEMCPops List to the chains iChains e.g \code{1:4}.
 		x
 		, iPops 		##<< populations to keep
-		, iSpaces		##<< alternatively specifying the space replicates for which to keep populations
+		, iSpaces=NULL	##<< alternatively specifying the space replicates for which to keep populations
 		,... 
 	#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 	){
@@ -488,7 +488,7 @@ as.mcmc.list.twDEMCPops <- function(
 	### combine given populations to one big chain with more cases
 	pops
 	,popCases=integer(0)	##<< integer vector (sum(getNSamples(pops))): specifying for each case (row) from which population it is filled
-	,mergeMethod="stack"	##<< method of merging the pops, see \code{\link{twMergeSequences}}
+	,mergeMethod="random"	##<< method of merging the pops, see \code{\link{twMergeSequences}}
 	,nInSlice=4		##<< sequence length from each population
 ){
 	nPop <- length(pops)
@@ -550,7 +550,7 @@ attr(.combineTwDEMCPops,"ex") <- function(){
 setMethodS3("stackPops","twDEMCPops", function( 
 		### Combine populations for subspaces to bigger populations 
 		x
-		,...	##<< arguments passed \code{\link{.combineTwDEMCPops}}
+		,...	##<< arguments passed \code{\link{.combineTwDEMCPops}} such as \code{mergeMethod}=stack/slice/random
 		,spacePop = getSpacesPop(x)
 	){
 		# stackPops.twDEMCPops
@@ -570,7 +570,10 @@ attr(stackPops.twDEMCPops,"ex") <- function(){
 	res <- stackPops( den2dCorTwDEMCSpaces )
 	getNSamples(res)	# lost a few samples in sorting chains to subspaces
 	#mtrace(concatPops.twDEMCPops)
-	plot( as.mcmc.list(res), smooth=FALSE )
+	plot( as.mcmc.list(den2dCorTwDEMCPops), smooth=FALSE ) # original before splitting into subspaces
+	plot( as.mcmc.list(res), smooth=FALSE )		# stacked populations of subspaces
+	plot( as.mcmc.list(stackPops( den2dCorTwDEMCSpaces,mergeMethod="stack" )), smooth=FALSE )
+	plot( as.mcmc.list(stackPops( den2dCorTwDEMCSpaces,mergeMethod="slice" )), smooth=FALSE )
 }
 
 
