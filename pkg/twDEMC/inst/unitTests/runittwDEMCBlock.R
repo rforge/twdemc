@@ -339,6 +339,100 @@ test.extendRun <- function(){
 	checkEquals( pmin(.nGen+.nGen2,128), sapply( resBlock2b$pops, function(pop){ nrow(pop$Y)}) )
 }
 
+test.split <- function(){
+	lmDummy <- lm( obs ~ xval, weights=1/sdObs^2)		# results without priors
+	(.expTheta <- coef(lmDummy))
+	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
+	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
+	
+	# nice starting values
+	.nPop=2
+	argsFLogDen <- list(
+		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+		obs=obs,			### vector of data to compare with
+		invCovar=invCovar,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
+		thetaPrior = thetaTrue,	### the prior estimate of the parameters
+		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+		xval=xval
+	)
+	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
+	
+	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
+	#dim(Zinit)
+	
+	.nGenL <- 128
+	.nGen=c(.nGenL-32,.nGenL)
+	aSplit=10.8
+	#mtrace(logDenGaussian)
+	#mtrace(twDEMCBlockInt)
+	resBlockA <- twDEMCBlock( Zinit, nGen=.nGen, 
+			dInfos=list(
+				d1 = list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)
+				,d2 = list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)
+			)
+			,blocks = list(
+				b1 = list(dInfoPos="d1", compPos="a")
+				,b1 = list(dInfoPos="d1", compPos="b")
+			)
+			,nPop=.nPop
+			,controlTwDEMC=list(thin=4)		
+			,debugSequential=TRUE
+			,doRecordProposals=TRUE
+			,upperParBounds=list(NULL,c(a=aSplit))
+			,lowerParBounds=list(c(a=aSplit),NULL)
+	)  
+	#str(res)
+	res <- resB <-  concatPops(resBlock <- thin(resBlockA, start=8))
+	res <- resU <- subChains(resB,iPops=1)
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda, smooth=FALSE)
+	res <- resL <- subChains(resB,iPops=2)
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda, smooth=FALSE)
+
+	checkTrue( all( stackChains(resL)[,"a"] <= asplit ) )
+	checkTrue( all( stackChains(resU)[,"a"] > asplit ) )
+	
+	.nGen2 <- .nGen + c(32,16) 
+	#mtrace(twDEMCBlockInt)
+	resBlock2 <- twDEMCBlock(resBlockA, nGen=.nGen2
+		,debugSequential=TRUE
+		,doRecordProposals=TRUE
+	)
+	getNSamples(resBlock2)
+	checkEquals( .nGen+.nGen2, getNGen(resBlock2) )
+
+	res <- resB <-  concatPops(resBlock <- thin(resBlock2, start=8))
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda, smooth=FALSE)
+	res <- resU <- subChains(resB,iPops=1)
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda, smooth=FALSE)
+	res <- resL <- subChains(resB,iPops=2)
+	rescoda <- as.mcmc.list(res) 
+	plot(rescoda, smooth=FALSE)
+	
+	checkTrue( all( stackChains(resL)[,"a"] <= asplit ) )
+	checkTrue( all( stackChains(resU)[,"a"] > asplit ) )
+	
+	ssc <- stackChains(concatPops(resBlock2))
+	.popmean <- colMeans( ssc[,-(1:2)])
+	.popsd <- apply(ssc[,-(1:2)], 2, sd )
+	
+	# 1/2 orders of magnitude around prescribed sd for theta
+	.pop=1
+	for( .pop in seq(along.with=.popsd) ){
+		checkMagnitude( sdTheta, .popsd[[.pop]] )
+	}
+	
+	# check that thetaTrue is in 95% interval 
+	.pthetaTrue <- sapply(1:2, function(.pop){
+			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+		})
+	checkInterval( .pthetaTrue ) 
+}
+
 
 
 

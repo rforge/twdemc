@@ -11,9 +11,9 @@ twDEMCBlockInt <- function(
 			, X=NULL		##<< numeric matrix (nParm x nChainPop) initial state
 			, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 			, upperParBounds = numeric(0)
-			### named numeric vectors: giving upper parameter bounds  
+			### named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound
 			### for exploring subspaces of the limiting distribution, see details
-			, lowerParBounds = numeric(0)  ##<< similar to upperParBounds
+			, lowerParBounds = numeric(0)  ##<< similar to upperParBounds: sample > bound
 			, spaceInd = 1	##<< the space replicate that this population belongs to
 		)) ##end<<
 	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
@@ -1047,7 +1047,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 					, tempDenCompC=tempDenCompSteps[iStep0+1,,isPop ,drop=TRUE]
 					, pAccept=pAcceptPar[,isPop]
 					, isPop=isPop
-					, iPop=isPop[isPop]
+					, iPop=isPops[isPop]
 			 		, remoteFunArgs=remoteFunArgs )
 		)}	
 	#mtrace(F_ARGS)
@@ -1160,6 +1160,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			resUpdate <- block$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
 			acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
 			if( resUpdate$accepted != 0){
+				#if( resUpdate$xC["a"] > 10.8) recover()
 				xC[cu] <- xP[cu] <- resUpdate$xC		# update the components of current state
 				parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the update parameters
 				if( 0 != length(resUpdate$logDenCompC) ){				

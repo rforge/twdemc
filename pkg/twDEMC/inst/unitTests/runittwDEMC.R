@@ -446,10 +446,10 @@ test.upperParBounds <- function(){
 		rescoda <- as.mcmc.list(res)
 		plot(rescoda, smooth=FALSE)
 	
-		plot( density(ssc[,"a"]))	
-		lines(density(ss0[,"a"]), col="blue")
-		lines(density(ss1[,"a"]), col="green")
-		lines(density(ss2[,"a"]), col="darkgreen")
+		plot( density(ssc[,"a"]))				# combined
+		lines(density(ss0[,"a"]), col="blue")	# orig
+		lines(density(ss1[,"a"]), col="green")	# left
+		lines(density(ss2[,"a"]), col="darkgreen")	# right
 		
 		gelman.diag(res1)
 		gelman.diag(res2)
