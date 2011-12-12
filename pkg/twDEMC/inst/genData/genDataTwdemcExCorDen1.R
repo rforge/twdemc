@@ -9,13 +9,13 @@ Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))
 
-den2dCorTwDEMCPops <- thin( twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ), start=300)
-den2dCorTwDEMC <- concatPops(den2dCorTwDEMCPops)
+den2dCorExmcBulk <- thin( twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ), start=300)
+den2dCorTwDEMC <- concatPops(den2dCorExmcBulk)
 #den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
 #den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
 #str(den2dCorTwDEMC)
-getNGen(den2dCorTwDEMCPops)
-getSpacesPop(den2dCorTwDEMCPops)
+getNGen(den2dCorExmcBulk)
+getSpacesPop(den2dCorExmcBulk)
 
 .tmp.f <- function(){
 	#den2dCorTwDEMC <- concatPops(den2dCorTwDEMC)
@@ -31,7 +31,7 @@ getSpacesPop(den2dCorTwDEMCPops)
 }
 
 #-----  infer subspaces on a subsample
-tmp <- squeeze(den2dCorTwDEMCPops, length.out= 256 %/% getNChainsPop(aTwDEMC0) ) # thin to 256 samples per space
+tmp <- squeeze(den2dCorExmcBulk, length.out= 256 %/% getNChainsPop(den2dCorExmcBulk) ) # thin to 256 samples per space
 ss0 <- stackChainsPop(concatPops(tmp))
 #plot( b ~ a, as.data.frame(ss0[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) )
 
@@ -44,27 +44,36 @@ den2dCorSubSpaces <- lapply( 1:dim(ss0)[3], function(iPop){
 		getSubSpaces(samplePop[,-(1:nBlock)], minPSub=minPSub, isBreakEarly=FALSE, argsFSplit=list())	# here omit the logDensity column
 	})
 
-#------- split the result into subspaces
-den2dCorTwDEMCSpaces <-  divideTwDEMCPops(den2dCorTwDEMCPops, den2dCorSubSpaces )
+#------- single step MC runs using subspaces
+den2dCorTwDEMCSpaces <-  divideTwDEMCPops(den2dCorExmcBulk, den2dCorSubSpaces )
 getSpacesPop(den2dCorTwDEMCSpaces)
 
-
+# ------ iterative MC runs using subspaces
+# XXTODO
 
 # save only the 1000 generations run, it can be easily extended
-save(den2dCorTwDEMC,  den2dCorTwDEMCPops, den2dCorSubSpaces, den2dCorTwDEMCSpaces, file="data/den2dCorTwDEMC.RData")
+den2dCorEx <- list(
+	den2dCor = den2dCor				##<< the density function
+	,mcBulk = den2dCorExmcBulk	##<< DEMC run (class twDEMCPops) without subspaces
+	,subspaces0 = den2dCorSubSpaces	##<< subspaces inferred on a subsample of mcBulk
+	,mcSubspaces0 = den2dCorTwDEMCSpaces ##<< DEMC run using a single step with subspaces 
+	)
+save(den2dCorEx  , file="data/den2dCorEx.RData")
 
 
-aSample <- stackChainsPop(den2dCorTwDEMC)
-den2dCorDivideTwDEMC <- divideTwDEMCBatch( aSample, nGen=8*512, fLogDen=den2dCor)
 .tmp.f <- function(){
-	rescoda <- as.mcmc.list( lapply(twListArrDim(den2dCorDivideTwDEMC$sample),mcmc)  )
-	plot(rescoda, smooth=FALSE)
-	ss <- stackChains(den2dCorTwDEMC)
-	ss2 <- t(stackChains(den2dCorDivideTwDEMC$sample))
-	plot(density(ss[,"a"]))
-	lines(density(ss2[,"a"]), col="green")
-	plot( b ~ a, as.data.frame(ss2), xlim=c(-0.5,2), ylim=c(-20,40) ); 
-	points(0.8, 0, col="red" )	# theoretical maximum
+	aSample <- stackChainsPop(den2dCorTwDEMC)
+	den2dCorDivideTwDEMC <- divideTwDEMCBatch( aSample, nGen=8*512, fLogDen=den2dCor)
+	.tmp.f <- function(){
+		rescoda <- as.mcmc.list( lapply(twListArrDim(den2dCorDivideTwDEMC$sample),mcmc)  )
+		plot(rescoda, smooth=FALSE)
+		ss <- stackChains(den2dCorTwDEMC)
+		ss2 <- t(stackChains(den2dCorDivideTwDEMC$sample))
+		plot(density(ss[,"a"]))
+		lines(density(ss2[,"a"]), col="green")
+		plot( b ~ a, as.data.frame(ss2), xlim=c(-0.5,2), ylim=c(-20,40) ); 
+		points(0.8, 0, col="red" )	# theoretical maximum
+	}
+	save(den2dCorDivideTwDEMC ,file="data/den2dCorDivideTwDEMC.RData")
 }
-save(den2dCorDivideTwDEMC ,file="data/den2dCorDivideTwDEMC.RData")
 

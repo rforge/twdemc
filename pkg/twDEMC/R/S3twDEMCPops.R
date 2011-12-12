@@ -285,7 +285,7 @@ attr(subset.twDEMCPops,"ex") <- function(){
 }
 
 setMethodS3("subPops","twDEMCPops", function( 
-		### Condenses an twDEMCPops List to the chains iChains e.g \code{1:4}.
+		### Condenses an twDEMCPops List to given population indices or space replicates
 		x
 		, iPops 		##<< populations to keep
 		, iSpaces=NULL	##<< alternatively specifying the space replicates for which to keep populations
@@ -429,6 +429,9 @@ as.mcmc.list.twDEMCPops <- function(
 	as.mcmc.list.twDEMC(xStack)
 }
 
+
+
+
 .stackChainsTwDEMCPops <- function(
 	### stacks all the steps for all components of the pops
 	pops	##<< list of pops of a twDEMC
@@ -502,10 +505,10 @@ as.mcmc.list.twDEMCPops <- function(
 			stop(".combineTwDEMCPops: length of argument popCases must equal sum of samples of all populations")
 		
 		#----  initialize entries
-		tmp <- "parms"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(tmp)) 
-		tmp <- "logDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(tmp)) 
-		tmp <- "resLogDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(tmp)) 
-		tmp <- "pAccept"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(tmp)) 
+		tmp <- "parms"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
+		tmp <- "logDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
+		tmp <- "resLogDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
+		tmp <- "pAccept"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "temp"; newPop[[tmp]] <- vector( "numeric", length =nSample) 
 
 		#---- copy the entries
@@ -539,12 +542,14 @@ as.mcmc.list.twDEMCPops <- function(
 	)
 }
 attr(.combineTwDEMCPops,"ex") <- function(){
-	data(den2dCorTwDEMC)
-	runs0 <- subPops(den2dCorTwDEMCSpaces, iSpaces=c(1))
+	data(den2dCorEx)
+	runs0 <- subPops(den2dCorEx$mcSubspaces0, iSpaces=c(1))
 	getSpacesPop(runs0)	# all populatins belonging to space replicate 1
 	#pops <- runs0$pops
+	#mtrace(.combineTwDEMCPops)
 	res <- .combineTwDEMCPops(runs0$pops) 
-	str(res)
+	#str(res)
+	head(res$pop$parms[,,1])
 }
 
 setMethodS3("stackPops","twDEMCPops", function( 
@@ -565,16 +570,57 @@ setMethodS3("stackPops","twDEMCPops", function(
 		x
 	})
 attr(stackPops.twDEMCPops,"ex") <- function(){
-	data(den2dCorTwDEMC)
-	getNSamples(den2dCorTwDEMCPops)
-	res <- stackPops( den2dCorTwDEMCSpaces )
+	data(den2dCorEx)
+	getNSamples(den2dCorEx$mcBulk)
+	res <- stackPops( den2dCorEx$mcSubspaces0 )
 	getNSamples(res)	# lost a few samples in sorting chains to subspaces
 	#mtrace(concatPops.twDEMCPops)
-	plot( as.mcmc.list(den2dCorTwDEMCPops), smooth=FALSE ) # original before splitting into subspaces
+	plot( as.mcmc.list(den2dCorEx$mcBulk), smooth=FALSE ) # original before splitting into subspaces
 	plot( as.mcmc.list(res), smooth=FALSE )		# stacked populations of subspaces
-	plot( as.mcmc.list(stackPops( den2dCorTwDEMCSpaces,mergeMethod="stack" )), smooth=FALSE )
-	plot( as.mcmc.list(stackPops( den2dCorTwDEMCSpaces,mergeMethod="slice" )), smooth=FALSE )
+	plot( as.mcmc.list(stackPops( den2dCorEx$mcSubspaces0,mergeMethod="stack" )), smooth=FALSE )
+	plot( as.mcmc.list(stackPops( den2dCorEx$mcSubspaces0,mergeMethod="slice" )), smooth=FALSE )
 }
+
+#------------------------ 
+.stackChainsWithinPop <- function(pop){
+	nc <- dim(pop$parms)[3]
+	newPop <- pop
+	newPop$parms <- abind( lapply( 1:nc, function(iChain){ pop$parms[,,iChain ,drop=FALSE]}), along=1 ) 
+	newPop$logDen <- abind( lapply( 1:nc, function(iChain){ pop$logDen[,,iChain ,drop=FALSE]}), along=1 )
+	newPop$resLogDen <-abind( lapply( 1:nc, function(iChain){ pop$resLogDen[,,iChain ,drop=FALSE]}), along=1 )
+	newPop$pAccept <- abind( lapply( 1:nc, function(iChain){ pop$pAccept[,,iChain ,drop=FALSE]}), along=1 )
+	newPop$temp <- rep( pop$temp, dim(pop$parms)[3] )
+	newPop$Y <- abind( lapply( 1:nc, function(iChain){ pop$Y[,,iChain ,drop=FALSE]}), along=1 )
+	newPop
+}
+
+setMethodS3("stackChainsPop","twDEMCPops", function( 
+		### Combine MarkovChains of each population of a twDEMC.
+		x
+		,...
+	){
+		#stackChainsPop.twDEMCPops
+		##seealso<<   
+		# stack logDen for each population
+		#nPop = getNPops(x)
+		#iPop = nPop
+		#pop <- x$pops[[nPop]]
+		xNew <- x
+		xNew$pops <- newPops <- lapply( x$pops, .stackChainsWithinPop )
+		xNew
+	})
+attr(stackChainsPop.twDEMCPops,"ex") <- function(){
+	data(twdemcEx1)
+	getNChainsPop(twdemcEx1)	# four chains within population
+	getNSamples(twdemcEx1)		# with 26 samples
+	
+	res <- stackChainsPop(twdemcEx1)
+	getNChainsPop(res)			# only 1 chains
+	getNSamples(res)			# but with 26*4=104 samples
+	str(concatPops(res))
+}
+
+
 
 
 
