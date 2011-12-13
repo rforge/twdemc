@@ -100,7 +100,8 @@ test.distinctLogDen <- function(){
 	
 	# here no nGen argument to use different nGen of pops
 	#mtrace(twDEMCBlockInt)
-	res <- twDEMCBlockInt( pops=pops0, dInfos=dInfos0, blocks=blocks0, controlTwDEMC=list(thin=.thin) )
+	# issues a warning because of too few initial cases of pop1. (This is because we subsetted initial Zinit to test different Zinit Length)
+	res <- twDEMCBlockInt( pops=pops0, dInfos=dInfos0, blocks=blocks0, controlTwDEMC=list(thin=.thin)  )
 	str(res$pops[[2]])
 	str(res$pops[[3]])
 	
@@ -171,38 +172,6 @@ test.distinctLogDen <- function(){
 		plot( density(pop$parms[,"b",]) )
 	}
 	
-	
-	#mtrace(sfRemoteWrapper)
-	#mtrace(.doDEMCStep)
-	#mtrace(logDenGaussian)
-	#mtrace(.doDEMCSteps )
-	#mtrace(twDEMCInt)
-	res <-  twDEMC( Zinit, nGen=.nGen, 
-		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPop=.nPop
-		,controlTwDEMC=list(thin=8)		
-		,debugSequential=TRUE
-		,doRecordProposals=TRUE
-	)
-	#str(res)
-	checkEquals( 8, res$thin )
-	checkEquals( (.nGen%/%res$thin)+1,nrow(res$rLogDen))
-
-	#windows(record=TRUE)
-	rescoda <- as.mcmc.list(resB) 
-	plot(rescoda, smooth=FALSE)
-	#gelman.diag(rescoda)
-	#summary(rescoda)
-	
-	.tmp.f <- function(){
-		matplot( res$rLogDen,type="l" )
-		tmp <- data.frame( a=as.numeric(res$Y["a",,]), b=as.numeric(res$Y["b",,]), rLogDen=as.numeric(res$Y["rLogDen",,]) )
-		colorFun <- colorRampPalette(c("yellow","red"))
-		levelplot( rLogDen ~ a + b, tmp, col.regions = colorFun(50))
-		tmp2 <- data.frame( a=as.numeric(res$parms["a",,]), b=as.numeric(res$parms["b",,]), rLogDen=as.numeric(res$rLogDen) )
-		levelplot( rLogDen ~ a + b, tmp2, col.regions = colorFun(50))
-		#image( as.numeric(res$Y["a",,]), as.numeric(res$Y["b",,]), as.numeric(res$Y["rLogDen",,]))
-	}
 	
 	.tmp.f <- function(){
 		# with blocked updates chains do not sample the distribution
@@ -357,13 +326,16 @@ test.split <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
+	aSplit=10.8
 	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=1, m0FiniteFac=0.4)
+	ZinitL <- initZtwDEMCSub( {tmp <- stackChains(Zinit); tmp[tmp[,"a"] <= aSplit,]}, nChainPop=4, nPop=1 )
+	ZinitU <- initZtwDEMCSub( {tmp <- stackChains(Zinit); tmp[tmp[,"a"] > aSplit,]}, nChainPop=4, nPop=1 )
+	Zinit <- abind(ZinitL, ZinitU, along=3)
 	#dim(Zinit)
 	
 	.nGenL <- 128
 	.nGen=c(.nGenL-32,.nGenL)
-	aSplit=10.8
 	#mtrace(logDenGaussian)
 	#mtrace(twDEMCBlockInt)
 	resBlockA <- twDEMCBlock( Zinit, nGen=.nGen, 
@@ -379,20 +351,20 @@ test.split <- function(){
 			,controlTwDEMC=list(thin=4)		
 			,debugSequential=TRUE
 			,doRecordProposals=TRUE
-			,upperParBounds=list(NULL,c(a=aSplit))
-			,lowerParBounds=list(c(a=aSplit),NULL)
+			,upperParBounds=list(c(a=aSplit),NULL)
+			,lowerParBounds=list(NULL, c(a=aSplit))
 	)  
 	#str(res)
 	res <- resB <-  concatPops(resBlock <- thin(resBlockA, start=8))
-	res <- resU <- subChains(resB,iPops=1)
+	res <- resL <- subChains(resB,iPops=1)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
-	res <- resL <- subChains(resB,iPops=2)
+	res <- resU <- subChains(resB,iPops=2)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
 
-	checkTrue( all( stackChains(resL)[,"a"] <= asplit ) )
-	checkTrue( all( stackChains(resU)[,"a"] > asplit ) )
+	checkTrue( all( stackChains(resL)[,"a"] <= aSplit ) )
+	checkTrue( all( aSplit < stackChains(resU)[,"a"] ) )
 	
 	.nGen2 <- .nGen + c(32,16) 
 	#mtrace(twDEMCBlockInt)
@@ -406,15 +378,15 @@ test.split <- function(){
 	res <- resB <-  concatPops(resBlock <- thin(resBlock2, start=8))
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
-	res <- resU <- subChains(resB,iPops=1)
+	res <- resL <- subChains(resB,iPops=1)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
-	res <- resL <- subChains(resB,iPops=2)
+	res <- resU <- subChains(resB,iPops=2)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
 	
-	checkTrue( all( stackChains(resL)[,"a"] <= asplit ) )
-	checkTrue( all( stackChains(resU)[,"a"] > asplit ) )
+	checkTrue( all( stackChains(resL)[,"a"] <= aSplit ) )
+	checkTrue( all( stackChains(resU)[,"a"] > aSplit ) )
 	
 	ssc <- stackChains(concatPops(resBlock2))
 	.popmean <- colMeans( ssc[,-(1:2)])

@@ -32,7 +32,9 @@
 	
 	twUtestF("initZ")
 	twUtestF("S3twDEMC")
+	#twUtestF("S3twDEMCPops")
 	twUtestF("twDEMC")
+	twUtestF("twDEMCPops")
 	
 	twUtestF(transOrigPopt)
 	twUtestF(twDEMCBatch,"test.goodStart")

@@ -207,7 +207,7 @@ findSplit <- function(
 }
 attr(findSplit,"ex") <- function(){
 	#twUtestF(findSplit) # there are unit tests for this function
-	data(den2dCorTwDEMC)
+	data(den2dCorEx)
 	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(findSplit)
 	(res <- res0 <- findSplit(ss1))	# returns before checking slope angles
@@ -361,7 +361,7 @@ getSubSpaces <- function(
 		list( 
 			spaces=list(list(	##<< a list with an entry for each subspace. Each Entry is a list with entries \itemize{
 				##describe<< 
-				sample = aSample		##<< numeric matrix: a subsample constrained to the subspace with col parameters
+				sample = aSample		##<< numeric matrix: a subsample constrained to the subspace lb < val <= ub with col parameters
 				, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
 				, lowerParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
 				, pSub = pSub			##<< the proportion of the subSample to the overall Sample
@@ -414,7 +414,7 @@ getSubSpaces <- function(
 	}
 } 
 attr(getSubSpaces,"ex") <- function(){
-	data(den2dCorTwDEMC)
+	data(den2dCorEx)
 	aSample <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
 	#mtrace(getSubSpaces)
 	subSpaces <- getSubSpaces(aSample, minPSub=0.4 )
@@ -651,7 +651,7 @@ divideTwDEMC <- function(
 	##end<<
 }
 attr(divideTwDEMC,"ex") <- function(){
-	data(den2dCorTwDEMC)
+	data(den2dCorEx)
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
 	plot( b ~ a, as.data.frame(stackChains(subChains(aTwDEMC,iPops=1)$parms)), xlim=c(-0.5,2), ylim=c(-20,40) )
 	aSample <- stackChainsPop(aTwDEMC)
@@ -803,7 +803,7 @@ setMethodS3("divideTwDEMCBatch","default", function(
 	res
 })
 attr(divideTwDEMCBatch.default,"ex") <- function(){
-	data(den2dCorTwDEMC)
+	data(den2dCorEx)
 	aTwDEMC <- 	thin(den2dCorTwDEMC, start=300)
 	aSample <- stackChainsPop(aTwDEMC)
 	#mtrace(divideTwDEMCBatch.default)
@@ -859,37 +859,6 @@ twRunDivideTwDEMCBatch <- function(
 	res <- do.call( divideTwDEMCBatch, argsDEMC )
 }
 
-divideTwDEMCPops <- function( 
-	### splits all populations of x into subpopulations for given subSpaces 
-	x			##<< an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
-	,subSpacesPop	##<< a list (nPop): each entry listing subspaces for the given population
-){
-	nPop <- getNPops(x)
-	if( length(subSpacesPop) != nPop ) 
-		stop("divideTwDEMCPops: argument subSpacesPop must list subspaces for all populations in x")
-	
-	res <- x
-	newPops <- lapply( 1:nPop, function(iPop){
-		#mtrace(divideTwDEMCPop)
-		resPopsI <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
-	})
-	res$pops <- do.call( c, newPops )
-	### argument x with pops splitted into subspaces
-	res
-}
-attr(divideTwDEMCPops,"ex") <- function(){
-	data(den2dCorTwDEMC)
-	x <- den2dCorTwDEMCPops
-	for( i in 1:getNPops(x) ) x$pops[[i]]$spaceInd = i	# spaces
-	#sapply( x$pops, "[[", "spaceInd")
-	#mtrace(divideTwDEMCPops)
-	xNew <- divideTwDEMCPops(x, den2dCorSubSpaces )
-	sapply(den2dCorSubSpaces, function(subSpacesPop){ length(subSpacesPop$spaces) } )
-	getNPops(xNew)
-	str(xNew$pops[[9]])
-	sapply( xNew$pops, "[[", "spaceInd")
-}
-
 
 divideTwDEMCPop <- function( 
 	### splits a specific populations of x into subpopulations for given subSpaces 
@@ -918,11 +887,12 @@ divideTwDEMCPop <- function(
 			.subsetTwDEMCPop( pop, iKeep=boKeep, iChain=iChain)
 		})	# iChain
 		# collect the subsamples of all chains into new chains of equal length
-		ss <- .stackChainsTwDEMCPops(.subSamplesChain)
-		ssu <- .unstackChainsTwDEMCPops(ss, nChainPop)	# here may loose a few samples due to not a multiple of nChains
+		ss <- .combineTwDEMCPops(.subSamplesChain)
+		ssu <- .unstackPopsTwDEMCPops(ss, nChainPop)	# here may loose a few samples due to not a multiple of nChains
 		newPop <- .concatChainsTwDEMCPops(ssu)
 		newPop$lowerParBounds <- subSpace$lowerParBounds	
 		newPop$upperParBounds <- subSpace$upperParBounds
+		newPop$splits <- subSpace$splits
 	if( iSub==9) recover()
 		# add initial lower and upper bounds to unbounded parameters
 		for( pName in pop$lowerParBounds ){
@@ -936,16 +906,50 @@ divideTwDEMCPop <- function(
 		newPop$spaceInd <- pop$spaceInd		# inherit the reference to space replicate
 		newPop
 	}) # iSub
+	### populations with lBound < val <= uBound
 	newPops
 }
 attr(divideTwDEMCPop,"ex") <- function(){
-	data(den2dCorTwDEMC)
-	x <- den2dCorTwDEMCPops
-	pop <- x$pops[[1]]
-	pop$spaceInd <- 1
-	newPops <- divideTwDEMCPop(pop, den2dCorSubSpaces[[1]] )
+	data(den2dCorEx)
+	x <- den2dCorEx$mcBulk
+	newPops <- divideTwDEMCPop(x$pops[[1]], den2dCorEx$subspaces0[[1]] )
 	length(newPops)
 	str(newPops[[1]])
+	#lapply(newPops,"[[","splits")
 }
+
+
+divideTwDEMCPops <- function( 
+	### splits all populations of x into subpopulations for given subSpaces 
+	x			##<< an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
+	,subSpacesPop	##<< a list (nPop): each entry listing subspaces for the given population
+){
+	nPop <- getNPops(x)
+	if( length(subSpacesPop) != nPop ) 
+		stop("divideTwDEMCPops: argument subSpacesPop must list subspaces for all populations in x")
+	
+	res <- x
+	newPops <- lapply( 1:nPop, function(iPop){
+			#mtrace(divideTwDEMCPop)
+			resPopsI <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
+		})
+	res$pops <- do.call( c, newPops )
+	### argument x with pops splitted into subspaces lBound < val <= uBound
+	res
+}
+attr(divideTwDEMCPops,"ex") <- function(){
+	data(den2dCorEx)
+	x <- den2dCorEx$mcBulk
+	#sapply( x$pops, "[[", "spaceInd")
+	#mtrace(divideTwDEMCPops)
+	xNew <- divideTwDEMCPops(x, den2dCorSubSpaces )
+	sapply(den2dCorSubSpaces, function(subSpacesPop){ length(subSpacesPop$spaces) } )
+	getNPops(xNew)
+	getSpacesPop(xNew)
+	str(xNew$pops[[9]])
+	#lapply(xNew$pops,"[[","splits")
+}
+
+
 
 

@@ -139,6 +139,23 @@ setMethodS3("getNBlocks","twDEMCPops", function(
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
+setMethodS3("getParBoundsPop","twDEMCPops", function( 
+		### Extracts lower or upper ParBounds
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getParBoundsPop.twDEMCPops
+		##seealso<<   
+		## \code{\link{getNGen.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		## ,\code{\link{twDEMCBlockInt}}
+		
+		##value<<
+		list( ##describe<<
+			upperParBoundsPop = lapply(x$pops, "[[", "upperParBounds")	##<< list of named numeric vectors giving upper parameter bounds per population 
+			,lowerParBoundsPop = lapply(x$pops, "[[", "lowerParBounds") ##<< list of named numeric vectors giving lower parameter bounds per population
+		) ##end <<
+	})
 
 #------------------------ concatPops -------------------------------------
 setMethodS3("concatPops","twDEMCPops", function( 
@@ -204,7 +221,7 @@ attr(concatPops,"ex") <- function(){
 	,iChain=TRUE	##<< indices of chains to keep
 ){
 	##details<< no checking of bounds performed
-	newPop <- pop
+	newPop <- pop	# keep entries upperParBounds, lowerParBounds, splits
 	newPop$parms <- pop$parms[iKeep,,iChain, drop=FALSE] 
 	newPop$logDen <- pop$logDen[iKeep,,iChain, drop=FALSE] 
 	newPop$resLogDen <- pop$resLogDen[iKeep,,iChain, drop=FALSE] 
@@ -266,7 +283,8 @@ setMethodS3("subset","twDEMCPops", function(
 	}else if( maxStep > min(nSamplesPop[iPops])) stop(
 			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use dropShortPops=TRUE to drop shorter populations before.")
 	for( iPop in iPops ){
-		x$pops[[iPop]] <- .subsetTwDEMCPop(x$pops[[iPop]], iKeep)
+		#mtrace(.subsetTwDEMCPop)
+		x$pops[[iPop]] <- tmp <- .subsetTwDEMCPop(x$pops[[iPop]], iKeep)
 	}
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
@@ -380,6 +398,7 @@ setMethodS3("thin","twDEMCPops", function(
 		startT <- ceiling( start / x$thin ) * x$thin		# adjust start time so that it coincides with next start of next thinning interval
 		if( 1 == length(end) ) end <- rep(end, length(x$pops) )
 		#nGenPops <- getNGen(x)
+		#iPop=1
 		for( iPop in seq_along(x$pops)){
 			maxSampleTime <- iSample2time(nSPops[iPop], thin=x$thin)
 			endi <- end[[iPop]]
@@ -390,7 +409,8 @@ setMethodS3("thin","twDEMCPops", function(
 			endT <- startT + floor( (endi-startT) / newThin) * newThin 			# adjust end time so that it coincides with beginning of thinning interval of end
 			iStartEnd <- time2iSample( c(startT,endT), thin=x$thin, match="none" )
 			iKeep <- seq(iStartEnd[1],iStartEnd[2],by=thinFac)
-			x <- subset.twDEMCPops( x, iKeep, iPops=iPop )
+			#mtrace(subset.twDEMCPops)
+			x <- tmp <- subset.twDEMCPops( x, iKeep, iPops=iPop )
 		}
 		x$thin <- newThin
 		#time2iSample(70,5)
@@ -430,26 +450,43 @@ as.mcmc.list.twDEMCPops <- function(
 }
 
 
-
-
-.stackChainsTwDEMCPops <- function(
-	### stacks all the steps for all components of the pops
-	pops	##<< list of pops of a twDEMC
+.parBoundsEnvelope <- function(
+	### get the parameter bounds that encompasses all given parBounds 
+	popsParBounds	##<< list of populations with entries upperParBounds and upperParBounds both named numeric vectors 
 ){
-	newPop <- pops[[1]]
-	if( length(pops) > 1){
-		newPop$parms <- abind( lapply(pops,"[[","parms"), along=1 ) 
-		newPop$logDen <- abind( lapply(pops,"[[","logDen"), along=1 )
-		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=1 )
-		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=1 )
-		newPop$temp <- do.call( c, lapply(pops,"[[","temp") )
-		newPop
+	#stop(".parBoundsEnvelope: not implemented yet.")
+	#parName <- colnames(pop1$parms)[1]
+	ub <- lb <- list()
+	#pop <- popsParBounds[[2]]
+	pnames <- unique( do.call(c, c( 
+		lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
+		,lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
+	)))
+	#parName <- pnames[1]
+	for( parName in pnames ){
+		ubPop <- lapply( popsParBounds, function(pop){ pop$upperParBounds[parName] })
+		lbPop <- lapply( popsParBounds, function(pop){ pop$lowerParBounds[parName] })
+		if( all(sapply(ubPop, function(x){ !is.null(x) && is.finite(x)})) ) 
+			ub[parName] <- max(unlist(ubPop)) 
+		if( all(sapply(lbPop, function(x){ !is.null(x) && is.finite(x)})) ) 
+			lb[parName] <- min(unlist(lbPop)) 
 	}
-	newPop
+	##value<< list with entries
+	list( ##describe<<
+		upperParBounds = unlist(ub)		##<< named numeric vector of upper parameter bounds
+		,lowerParBounds = unlist(lb)	##<< named numeric vector of lower parameter bounds
+	) ##end<<
+}
+attr(.parBoundsEnvelope,"ex") <- function(){
+	data(den2dCorEx)
+	mc0 <- den2dCorEx$mcSubspaces0
+	#mtrace(.parBoundsEnvelope)
+	.parBoundsEnvelope( mc0$pops[1:4] )
+	.parBoundsEnvelope( mc0$pops[3:4] )
 }
 
-.unstackChainsTwDEMCPops <- function(
-	### unstacks a stacked population
+.unstackPopsTwDEMCPops <- function(
+	### unstacks a stacked population (by \cdoe{.combineTwDEMCPops(mergeMethod="stack")})
 	pop	##<< stacked population
 	,nChain
 ){
@@ -458,7 +495,7 @@ as.mcmc.list.twDEMCPops <- function(
 	pops <- vector("list", nChain)
 	for( iChain in (1:nChain) ){
 		cases <- nCases*(iChain-1) + (1:nCases)
-		pops[[iChain]] <- pop		
+		pops[[iChain]] <- pop	# keeping entries spaceInd, upperParBound, lowerParBounds, and splits		
 		pops[[iChain]]$parms <- pop$parms[cases,, ,drop=FALSE] 
 		pops[[iChain]]$logDen <- pop$logDen[cases,, ,drop=FALSE] 
 		pops[[iChain]]$resLogDen <- pop$resLogDen[cases,, ,drop=FALSE] 
@@ -470,10 +507,10 @@ as.mcmc.list.twDEMCPops <- function(
 }
 
 .concatChainsTwDEMCPops <- function(
-	### combine given population to one big population with more chains  
+	### combine given populations to one big population with more chains  
 	pops
 ){
-	newPop <- pops[[1]]
+	newPop <- pops[[1]]	# keeping entries spaceInd
 	if( length(pops) > 1){
 		along = 3 
 		newPop$parms <- abind( lapply(pops,"[[","parms"), along=along ) 
@@ -481,6 +518,13 @@ as.mcmc.list.twDEMCPops <- function(
 		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=along )
 		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=along )
 		#newPop$temp <- abind( lapply(pops,"[[","temp"), along=2 ) # only one temperature per population
+		parBounds <- lapply(pops, "[[", "upperParBounds" )
+		newPop$upperParBounds <- .parBoundsEnvelope(parBounds, upper=TRUE)
+		parBounds <- lapply(pops, "[[", "lowerParBounds" )
+		newPop$lowerParBounds <- .parBoundsEnvelope(parBounds, upper=FALSE)
+		##details<<
+		## entry splits is discarded, as it is not generally determined.
+		newPop$splits <- numeric(0)	 
 		newPop
 	}
 	newPop
@@ -524,16 +568,11 @@ as.mcmc.list.twDEMCPops <- function(
 		# newPop$parms[,1,1]
 		
 		#---- update the parameter bounds
-		#parName <- colnames(pop1$parms)[1]
-		ub <- lb <- list()
-		for( parName in colnames(pop1$parms) ){
-			ubPop <- lapply( pops, function(pop){ pop$upperParBounds[parName] })
-			lbPop <- lapply( pops, function(pop){ pop$upperParBounds[parName] })
-			if( !any(sapply(ubPop, is.null)) ) ub[parName] <- max(unlist(ubPop)) 
-			if( !any(sapply(lbPop, is.null)) ) lb[parName] <- min(unlist(lbPop)) 
-		}
-		newPop$upperParBounds <- unlist(ub)
-		newPop$lowerParBounds <- unlist(lb)
+		pB <- .parBoundsEnvelope(pops)
+		newPop[ names(pB)] <- pB	
+		##details<<
+		## entry splits is discarded, as it is not generally determined.
+		newPop$splits <- numeric(0)	 
 	} # length(pops) > 1
 	##value<<
 	list( 
@@ -550,15 +589,19 @@ attr(.combineTwDEMCPops,"ex") <- function(){
 	res <- .combineTwDEMCPops(runs0$pops) 
 	#str(res)
 	head(res$pop$parms[,,1])
+	
+	res <- .combineTwDEMCPops(runs0$pops[3:4])
+	#str(res)
+	
 }
 
-setMethodS3("stackPops","twDEMCPops", function( 
+setMethodS3("stackPopsInSpace","twDEMCPops", function( 
 		### Combine populations for subspaces to bigger populations 
 		x
 		,...	##<< arguments passed \code{\link{.combineTwDEMCPops}} such as \code{mergeMethod}=stack/slice/random
 		,spacePop = getSpacesPop(x)
 	){
-		# stackPops.twDEMCPops
+		# stackPopsInSpace.twDEMCPops
 		##seealso<<   
 		## \code{\link{subChains.twDEMC}}
 		#iSpace=1
@@ -569,16 +612,16 @@ setMethodS3("stackPops","twDEMCPops", function(
 		x$pops <- lapply( resComb, "[[", "pop" )
 		x
 	})
-attr(stackPops.twDEMCPops,"ex") <- function(){
+attr(stackPopsInSpace.twDEMCPops,"ex") <- function(){
 	data(den2dCorEx)
 	getNSamples(den2dCorEx$mcBulk)
-	res <- stackPops( den2dCorEx$mcSubspaces0 )
+	res <- stackPopsInSpace( den2dCorEx$mcSubspaces0 )
 	getNSamples(res)	# lost a few samples in sorting chains to subspaces
 	#mtrace(concatPops.twDEMCPops)
 	plot( as.mcmc.list(den2dCorEx$mcBulk), smooth=FALSE ) # original before splitting into subspaces
 	plot( as.mcmc.list(res), smooth=FALSE )		# stacked populations of subspaces
-	plot( as.mcmc.list(stackPops( den2dCorEx$mcSubspaces0,mergeMethod="stack" )), smooth=FALSE )
-	plot( as.mcmc.list(stackPops( den2dCorEx$mcSubspaces0,mergeMethod="slice" )), smooth=FALSE )
+	plot( as.mcmc.list(stackPopsInSpace( den2dCorEx$mcSubspaces0,mergeMethod="stack" )), smooth=FALSE )
+	plot( as.mcmc.list(stackPopsInSpace( den2dCorEx$mcSubspaces0,mergeMethod="slice" )), smooth=FALSE )
 }
 
 #------------------------ 
@@ -595,7 +638,7 @@ attr(stackPops.twDEMCPops,"ex") <- function(){
 }
 
 setMethodS3("stackChainsPop","twDEMCPops", function( 
-		### Combine MarkovChains of each population of a twDEMC.
+		### Combine MarkovChains of each population of a twDEMC to a single chain.
 		x
 		,...
 	){

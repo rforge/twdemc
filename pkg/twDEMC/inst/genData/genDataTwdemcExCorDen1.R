@@ -9,13 +9,13 @@ Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))
 
-den2dCorExmcBulk <- thin( twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ), start=300)
-den2dCorTwDEMC <- concatPops(den2dCorExmcBulk)
+den2dCorTwDEMCPops <- thin( twDEMCBlock(Zinit, nGen=1000, dInfos=list(list(fLogDen=den2dCor)), nPop=.nPop, debugSequential=TRUE ), start=300)
+den2dCorTwDEMC <- concatPops(den2dCorTwDEMCPops)
 #den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1500)
 #den2dCorTwDEMC3 <- twDEMCBatch(den2dCorTwDEMC, nGen=1000+6*500)	# compare to divideTwDEMC
 #str(den2dCorTwDEMC)
-getNGen(den2dCorExmcBulk)
-getSpacesPop(den2dCorExmcBulk)
+getNGen(den2dCorTwDEMCPops)
+getSpacesPop(den2dCorTwDEMCPops)
 
 .tmp.f <- function(){
 	#den2dCorTwDEMC <- concatPops(den2dCorTwDEMC)
@@ -31,7 +31,7 @@ getSpacesPop(den2dCorExmcBulk)
 }
 
 #-----  infer subspaces on a subsample
-tmp <- squeeze(den2dCorExmcBulk, length.out= 256 %/% getNChainsPop(den2dCorExmcBulk) ) # thin to 256 samples per space
+tmp <- squeeze(den2dCorTwDEMCPops, length.out= 256 %/% getNChainsPop(den2dCorTwDEMCPops) ) # thin to 256 samples per space
 ss0 <- stackChainsPop(concatPops(tmp))
 #plot( b ~ a, as.data.frame(ss0[,,1]), xlim=c(-0.5,2), ylim=c(-20,40) )
 
@@ -45,7 +45,7 @@ den2dCorSubSpaces <- lapply( 1:dim(ss0)[3], function(iPop){
 	})
 
 #------- single step MC runs using subspaces
-den2dCorTwDEMCSpaces <-  divideTwDEMCPops(den2dCorExmcBulk, den2dCorSubSpaces )
+den2dCorTwDEMCSpaces <-  divideTwDEMCPops(den2dCorTwDEMCPops, den2dCorSubSpaces )
 getSpacesPop(den2dCorTwDEMCSpaces)
 
 # ------ iterative MC runs using subspaces
@@ -54,7 +54,7 @@ getSpacesPop(den2dCorTwDEMCSpaces)
 # save only the 1000 generations run, it can be easily extended
 den2dCorEx <- list(
 	den2dCor = den2dCor				##<< the density function
-	,mcBulk = den2dCorExmcBulk	##<< DEMC run (class twDEMCPops) without subspaces
+	,mcBulk = den2dCorTwDEMCPops	##<< DEMC run (class twDEMCPops) without subspaces
 	,subspaces0 = den2dCorSubSpaces	##<< subspaces inferred on a subsample of mcBulk
 	,mcSubspaces0 = den2dCorTwDEMCSpaces ##<< DEMC run using a single step with subspaces 
 	)

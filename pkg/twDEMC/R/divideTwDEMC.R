@@ -138,15 +138,15 @@ attr(divideTwDEMCStep,"ex") <- function(){
 	getNSamples(res$resTwDEMC)
 	
 	#windows(record=TRUE)
-	plot( as.mcmc.list(stackPops(aTwDEMC)), smooth=FALSE)
-	#mc1 <- stackPops(res$resTwDEMC, mergeMethod="stack")
-	mc1 <- stackPops(res$resTwDEMC, mergeMethod="random")
+	plot( as.mcmc.list(stackPopsInSpace(aTwDEMC)), smooth=FALSE)
+	#mc1 <- stackPopsInSpace(res$resTwDEMC, mergeMethod="stack")
+	mc1 <- stackPopsInSpace(res$resTwDEMC, mergeMethod="random")
 	plot( as.mcmc.list(mc1), smooth=FALSE) # note how the distribution shifted
 	#plot( as.mcmc.list(concatPops(res$resTwDEMC,minPopLength=4)), smooth=FALSE)
 	#plot( as.mcmc.list(concatPops(res$resTwDEMC,minPopLength=30)), smooth=FALSE)
 	
 	ss <- stackChains(concatPops(mc1))			# the new sample
-	ss0 <- stackChains(concatPops(squeeze(stackPops(aTwDEMC),length.out=getNSamples(tmp)[1]))) # initial sample of same length
+	ss0 <- stackChains(concatPops(squeeze(stackPopsInSpace(aTwDEMC),length.out=getNSamples(tmp)[1]))) # initial sample of same length
 	plot( b ~ a, as.data.frame(ss0), xlim=c(-0.5,2), ylim=c(-20,40) )
 	plot( b ~ a, as.data.frame(ss), xlim=c(-0.5,2), ylim=c(-20,40) ) # not that more samples are in the region of interest
 	

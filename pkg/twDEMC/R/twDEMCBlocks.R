@@ -10,11 +10,12 @@ twDEMCBlockInt <- function(
 				### can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
 			, X=NULL		##<< numeric matrix (nParm x nChainPop) initial state
 			, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
+			, spaceInd = 1	##<< the space replicate that this population belongs to
 			, upperParBounds = numeric(0)
 			### named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound
 			### for exploring subspaces of the limiting distribution, see details
 			, lowerParBounds = numeric(0)  ##<< similar to upperParBounds: sample > bound
-			, spaceInd = 1	##<< the space replicate that this population belongs to
+			, splits=numeric(0)		##<< named numeric vector of splitting points, used to remerge divided subspaces 
 		)) ##end<<
 	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
 			##describe<<
@@ -52,6 +53,7 @@ twDEMCBlockInt <- function(
 		#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
 		)) ##end<<
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
+	, spacePop = 1:nPop			##<< the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops 
 	, controlTwDEMC = list()	##<< DEMCzsControl parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
 	, remoteDumpfileBasename=NULL	##<< the basename of a dumpfile that is created on error on remote process 
@@ -82,11 +84,11 @@ twDEMCBlockInt <- function(
 	nPop <- length(pops)
 	iPops <- 1:nPop
 	pops <- if( 0 == length(nGen) ){
-		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]] )}) # fill in default values for missing entries 
+		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], spaceInd=spacePop[iPop] )}) # fill in default values for missing entries 
 	}else{
 		if( length(nGen)==1) nGen=rep(nGen[1],nPop)
 		if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
-		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=iPop)}) # fill in default values for missing entries 
+		lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=spacePop[iPop])}) # fill in default values for missing entries 
 	}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
@@ -563,6 +565,7 @@ twDEMCBlockInt <- function(
 			##describe<<
 			upperParBounds = upperParBoundsPop[[iPop]]	##<< upper parameter bounds for sampling
 			,lowerParBounds = lowerParBoundsPop[[iPop]] ##<< lower parameter bounds for sampling
+			,splits=pops[[iPop]]$splits
 			,spaceInd = spacesPop[iPop]		##<< the space replicate that the population belongs to
 			,parms = ZPops[[iPop]][ M0Pops[iPop]:nrow(ZPops[[iPop]]),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
 			,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector (nSample+1): global temperature, i.e. cost reduction factor
@@ -1234,8 +1237,8 @@ updateBlockTwDEMC <- function(
 			xP[a$compPosInDen] <- xP[a$compPosInDen] + a$step[a$compPosInDen]  
 			
 			boOutside <- 
-				any( sapply( names(a$upperParBounds), function(pname){ xP[pname] > a$upperParBounds[pname] })) ||
-				any( sapply( names(a$lowerParBounds), function(pname){ xP[pname] <= a$lowerParBounds[pname] }))
+				any( sapply( names(a$upperParBounds), function(pname){ xP[pname] >= a$upperParBounds[pname] })) ||
+				any( sapply( names(a$lowerParBounds), function(pname){ xP[pname] < a$lowerParBounds[pname] }))
 			#if(xProp[1] < 10.8)	recover()
 			#sapply( names(a$lowerParBounds), function(pname){ pname })
 			#sapply( names(a$lowerParBounds), function(pname){ xP[pname] })
@@ -1393,7 +1396,6 @@ setMethodS3("twDEMCBlock","array", function(
 		### \cr Alternatively a single numeric vector can be supplied, which is replicated for each population.
 		, lowerParBounds = vector("list",nPop)
 		### similar to upperParBounds
-		, spacePop = 1:nPop		##<< the space replicate that each population belongs to. By default assume only one population per space 
 	){
 		#twDEMC.array
 		if( 1 == length(T0) ) T0 <- rep(T0,nPop)
@@ -1418,7 +1420,7 @@ setMethodS3("twDEMCBlock","array", function(
 				if( isX ) pop$X <- X[,chainsPopI , drop=FALSE]
 				if( isLogDenCompX ) pop$logDenCompX <- logDenCompX[,chainsPopI ,drop=FALSE]
 				if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
-				pop$spaceInd <- spacePop[iPop]
+				#pop$spaceInd <- spacePop[iPop]
 				pop
 		})
 		#res <- twDEMCBlockInt(pops)

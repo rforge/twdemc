@@ -8,7 +8,7 @@ initZtwDEMCNormal <- function(
 	### number of chains to run
 	nPop=2, 
 	### number of independent populations among the chains 
-	m0=calcM0twDEMC(length(thetaPrior),nChainPop)/(m0FiniteFac)
+	m0=ceiling(calcM0twDEMC(length(thetaPrior),nChainPop)/(m0FiniteFac))
 	### number of initial states for each chain
 	,m0FiniteFac=1
 	### use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities
