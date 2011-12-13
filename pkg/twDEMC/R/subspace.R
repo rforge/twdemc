@@ -888,8 +888,8 @@ divideTwDEMCPop <- function(
 		})	# iChain
 		# collect the subsamples of all chains into new chains of equal length
 		ss <- .combineTwDEMCPops(.subSamplesChain)
-		ssu <- .unstackPopsTwDEMCPops(ss, nChainPop)	# here may loose a few samples due to not a multiple of nChains
-		newPop <- .concatChainsTwDEMCPops(ssu)
+		ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose a few samples due to not a multiple of nChains
+		newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array 
 		newPop$lowerParBounds <- subSpace$lowerParBounds	
 		newPop$upperParBounds <- subSpace$upperParBounds
 		newPop$splits <- subSpace$splits

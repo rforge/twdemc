@@ -224,6 +224,7 @@ divideTwDEMCSteps <- function(
 	
 	#---- check the populations for problems
 	mc <- resStep$resTwDEMC
+	pSubs <- resStep$pSubs
 	nSamplePop <- getNSamples(mc)
 	#iPop=nPop
 	for( iPop in 1:nPop) if( nSamplePop[iPop] > 1){
@@ -243,22 +244,40 @@ divideTwDEMCSteps <- function(
 		}
 	}
 
-	recover()
-
-	
 	#-------- split subspaces that are large and have changing quantiles
-	iCheckSplit <- which( (resStep$pSubs/2 > minPSub) & (resStep$subPercChange >  subPercChangeCrit))
-	#iPop = iCheckSplit[ length(iCheckSplit) ]
-	for( iPop in iCheckSplit){
-		aSample <- stackChains( mc$pops[[iPop]]$parms )
-		subs <- getSubSpaces( aSample, isBreakEarly=FALSE, pSub=resStep$pSubs[iPop], minPSub=minPSub
-		, splitHist=den2dCorEx$subspaces0[[iPop]] )
+	mc1 <- mc
+	iPopsSplit <- which( (resStep$pSubs/2 > minPSub) & (resStep$subPercChange >  subPercChangeCrit))
+	if( 0 != length(iPopsSplit) ){
+		#iPop = iCheckSplit[ length(iCheckSplit) ]
+		newPops <- list()
+		newPSubs <- integer(0)
+		for( iPop in iPopsSplit){
+			pop <- mc$pops[[iPop]]
+			aSample <- stackChains( mc$pops[[iPop]]$parms )
+			subs <- getSubSpaces( aSample, isBreakEarly=FALSE, pSub=resStep$pSubs[iPop], minPSub=minPSub, splitHist=pop$splits )
+			#mtrace(divideTwDEMCPop)
+			newPopsI <- divideTwDEMCPop(pop, subs)
+			newPops <- c( newPops, newPopsI)
+			newPSubs <- c( newPSubs, sapply(subs$spaces, "[[", "pSub") )
+		}
+		mc1$pops <- c( mc$pops[-iPopsSplit], newPops )
+		pSubs1 <- c( pSubs[-iPopsSplit], newPSubs)
 	}
-
-	##XXTODO: split pops with large proportions
-
-	##XXTODO: merge pops with small proportions
-	resStep
+	
+	#-------- merge subspaces that contain less samples than minPSub/2 
+	mc2 <- mc1
+	iPopsMerge <- which( pSubs1 < minPSub/2 )
+	iExit <- getNPops(mc2)	# prevent infinite runs
+	while( 0 != length(iPopsMerge) && iExit != 0){
+		iPop <- iPopsMerge[ order(pSubs1[iPopsMerge])[1] ] # the one with lowest p
+		resMerge <- .mergePopTwDEMC( mc2$pops, iPop )
+		mc2$pops <- resMerge$pops
+		pSubs1 <- resMerge(pSubs)
+		iPopsMerge <- which( pSubs1 < minPSub/2 )
+		iExit <- iExit -1 
+	}
+	if( iExit == 0 ) stop("divideTwDEMCSteps: while loop of populations to merge did not exit.")
+	mc2
 }
 attr(divideTwDEMCSteps,"ex") <- function(){
 	data(den2dCorEx)

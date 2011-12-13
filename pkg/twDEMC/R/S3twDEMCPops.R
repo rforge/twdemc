@@ -518,16 +518,24 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=along )
 		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=along )
 		#newPop$temp <- abind( lapply(pops,"[[","temp"), along=2 ) # only one temperature per population
-		parBounds <- lapply(pops, "[[", "upperParBounds" )
-		newPop$upperParBounds <- .parBoundsEnvelope(parBounds, upper=TRUE)
-		parBounds <- lapply(pops, "[[", "lowerParBounds" )
-		newPop$lowerParBounds <- .parBoundsEnvelope(parBounds, upper=FALSE)
+		
+		#---- update the parameter bounds
+		pB <- .parBoundsEnvelope(pops)
+		newPop[ names(pB)] <- pB	
 		##details<<
 		## entry splits is discarded, as it is not generally determined.
 		newPop$splits <- numeric(0)	 
 		newPop
 	}
 	newPop
+}
+
+.mergePopTwDEMC <- function(
+	### merge population iPop to other populations
+	pops	##<< list of populations with entries upperParBounds, lowerParBounds, spaceInd, splits
+	,iPop	##<< index of the population that should be merged to other ones 
+){
+	stop(".mergePopTwDEMC: not implemented yet.")
 }
 
 
