@@ -912,7 +912,7 @@ divideTwDEMCPop <- function(
 attr(divideTwDEMCPop,"ex") <- function(){
 	data(den2dCorEx)
 	x <- den2dCorEx$mcBulk
-	newPops <- divideTwDEMCPop(x$pops[[1]], den2dCorEx$subspaces0[[1]] )
+	newPops <- divideTwDEMCPop(x$pops[[1]], den2dCorEx$subspaces0[[1]]$spaces )
 	length(newPops)
 	str(newPops[[1]])
 	#lapply(newPops,"[[","splits")
@@ -927,11 +927,10 @@ divideTwDEMCPops <- function(
 	nPop <- getNPops(x)
 	if( length(subSpacesPop) != nPop ) 
 		stop("divideTwDEMCPops: argument subSpacesPop must list subspaces for all populations in x")
-	
 	res <- x
 	newPops <- lapply( 1:nPop, function(iPop){
 			#mtrace(divideTwDEMCPop)
-			resPopsI <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]] )		
+			resPopsI <- divideTwDEMCPop( x$pops[[iPop]], subSpacesPop[[iPop]]$spaces )		
 		})
 	res$pops <- do.call( c, newPops )
 	### argument x with pops splitted into subspaces lBound < val <= uBound
@@ -939,11 +938,14 @@ divideTwDEMCPops <- function(
 }
 attr(divideTwDEMCPops,"ex") <- function(){
 	data(den2dCorEx)
+	#x <- den2dCorEx$mcSubspaces0
 	x <- den2dCorEx$mcBulk
 	#sapply( x$pops, "[[", "spaceInd")
+	#subSpaces <- do.call( c, lapply(den2dCorEx$subspaces0,"[[","spaces"))
+	subSpacesPop <- den2dCorEx$subspaces0
 	#mtrace(divideTwDEMCPops)
-	xNew <- divideTwDEMCPops(x, den2dCorSubSpaces )
-	sapply(den2dCorSubSpaces, function(subSpacesPop){ length(subSpacesPop$spaces) } )
+	xNew <- divideTwDEMCPops(x, subSpacesPop )
+	sapply(den2dCorEx$subspaces0, function(subSpacesPop){ length(subSpacesPop$spaces) } )
 	getNPops(xNew)
 	getSpacesPop(xNew)
 	str(xNew$pops[[9]])

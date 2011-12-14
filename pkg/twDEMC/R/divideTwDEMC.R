@@ -256,7 +256,7 @@ divideTwDEMCSteps <- function(
 			aSample <- stackChains( mc$pops[[iPop]]$parms )
 			subs <- getSubSpaces( aSample, isBreakEarly=FALSE, pSub=resStep$pSubs[iPop], minPSub=minPSub, splitHist=pop$splits )
 			#mtrace(divideTwDEMCPop)
-			newPopsI <- divideTwDEMCPop(pop, subs)
+			newPopsI <- divideTwDEMCPop(pop, subs$spaces)
 			newPops <- c( newPops, newPopsI)
 			newPSubs <- c( newPSubs, sapply(subs$spaces, "[[", "pSub") )
 		}
