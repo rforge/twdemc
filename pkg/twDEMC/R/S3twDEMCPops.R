@@ -471,7 +471,7 @@ as.mcmc.list.twDEMCPops <- function(
 	#pop <- popsParBounds[[2]]
 	pnames <- unique( do.call(c, c( 
 		lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
-		,lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
+		,lapply(popsParBounds, function(pop){ names(pop$lowerParBounds) }) 
 	)))
 	#parName <- pnames[1]
 	for( parName in pnames ){
@@ -634,7 +634,10 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 		subPopSource <- subsPopSource[[ij]]
 		# c(pop$lowerParBounds, pop$upperParBounds )
 		# c(popM$lowerParBounds, popM$upperParBounds )  # a combination of uB and lB should match
+		# mtrace(.combineTwDEMCPops)
 		newPops[[jPop]] <- tmp <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" )$pop
+		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
+		.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
 		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
 		newPPops[jPop] <- newPPops[jPop] + newPPops[iPop]*pSubsSource[ij]   # update the probability of the space
 		#c( nrow(pop$parms), nrow(popM$parms), nrow(tmp$parms) )
@@ -697,7 +700,9 @@ attr(.mergePopTwDEMC,"ex") <- function(){
 	all.equal(13, length(resMerge$pPops) )
 	all.equal(13, length(resMerge$pops) )
 	all.equal(nrow(pops[[1]]$parms)+nrow(pops[[2]]$parms)+nrow(pops[[3]]$parms), nrow(resMerge$pops[[8]]$parms)+nrow(resMerge$pops[[9]]$parms) ) 
-	all.equal(pPops[[1]]+pPops[[2]]+pPops[[3]], resMerge$pPops[[8]]+resMerge$pPops[[9]] ) 
+	all.equal(pPops[[1]]+pPops[[2]]+pPops[[3]], resMerge$pPops[[8]]+resMerge$pPops[[9]] )
+	pops[[1]]$splits
+	.getParBoundsPops(resMerge$pops[8:9])
 }
 
 
@@ -738,6 +743,8 @@ attr(.mergePopTwDEMC,"ex") <- function(){
 		# newPop$parms[,1,1]
 		
 		#---- update the parameter bounds
+		# .getParBoundsPops(pops)
+		# mtrace(.parBoundsEnvelope)
 		pB <- .parBoundsEnvelope(pops)
 		newPop[ names(pB)] <- pB	
 		##details<<
