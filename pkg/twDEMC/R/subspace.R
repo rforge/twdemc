@@ -863,15 +863,15 @@ twRunDivideTwDEMCBatch <- function(
 divideTwDEMCPop <- function( 
 	### splits a specific populations of x into subpopulations for given subSpaces 
 	pop			##<< numeric array (nStep, nParm, nChain): an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
-	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population
+	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population with entries lowerParBounds, upperParBounds, and splits
 ){
-	nSub <- length(subSpaces$spaces)
+	nSub <- length(subSpaces)
 	nChainPop <- dim(pop$parms)[3]
 	aSampleChain <- lapply(1:nChainPop, function(iChain){ adrop(pop$parms[,,iChain ,drop=FALSE],3) })
 	#iSub <- nSub
 	#iSub <- 6
 	newPops <- lapply(1:nSub, function(iSub){
-		subSpace <- subSpaces$spaces[[iSub]]
+		subSpace <- subSpaces[[iSub]]
 		#iChain <- nChainPop
 		.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
 			aSample <- aSampleChain[[iChain]]
@@ -893,7 +893,7 @@ divideTwDEMCPop <- function(
 		newPop$lowerParBounds <- subSpace$lowerParBounds	
 		newPop$upperParBounds <- subSpace$upperParBounds
 		newPop$splits <- subSpace$splits
-	if( iSub==9) recover()
+	#if( iSub==9) recover()
 		# add initial lower and upper bounds to unbounded parameters
 		for( pName in pop$lowerParBounds ){
 			if( !(pName %in% names(newPop$lowerParBounds)) ) 

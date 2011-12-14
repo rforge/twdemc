@@ -139,6 +139,15 @@ setMethodS3("getNBlocks","twDEMCPops", function(
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
+.getParBoundsPops <- function(
+	pops
+){
+#	lapply( c("upperParBounds","lowerParBounds","splits"), function(entry){
+#			sapply(pops, function(pop){ pop[entry] })
+#		} )
+	lapply(pops, function(pop){ pop[c("upperParBounds","lowerParBounds","splits")] })
+}
+
 setMethodS3("getParBoundsPop","twDEMCPops", function( 
 		### Extracts lower or upper ParBounds
 		x	##<< object of class twDEMCPops
@@ -156,6 +165,8 @@ setMethodS3("getParBoundsPop","twDEMCPops", function(
 			,lowerParBoundsPop = lapply(x$pops, "[[", "lowerParBounds") ##<< list of named numeric vectors giving lower parameter bounds per population
 		) ##end <<
 	})
+
+
 
 #------------------------ concatPops -------------------------------------
 setMethodS3("concatPops","twDEMCPops", function( 
@@ -533,9 +544,136 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 .mergePopTwDEMC <- function(
 	### merge population iPop to other populations
 	pops	##<< list of populations with entries upperParBounds, lowerParBounds, spaceInd, splits
-	,iPop	##<< index of the population that should be merged to other ones 
+	,iPop	##<< index of the population that should be merged to other ones
+	,pPops	##<< the initial proabilities of the subspaces 
 ){
-	stop(".mergePopTwDEMC: not implemented yet.")
+	#stop(".mergePopTwDEMC: not implemented yet.")
+	if( length(pops) <= 1 ){
+		warning(".mergePopTwDEMC: called with only population.")
+		return( list(pops=pops, pPops=pPops) )
+	}
+	iPop0 <- iPop	# index of population in all populations of all space replicates
+	popSource <- pops[[iPop]]	# the population to merge from
+	spacesPop <- tmp <- sapply( pops, "[[", "spaceInd" )
+	iSameSpace <- which(spacesPop == popSource$spaceInd)
+	popsS <- pops[ iSameSpace]	# possible populations to merge to of same space replicate
+	# translate iPop0 in all populations into iPop index within same space 
+	nPop <- length(popsS)
+	tmp[iSameSpace] <- 1:nPop
+	tmp[-iSameSpace] <- NA	# for detecting errors
+	iPop <- tmp[iPop0]
+	#determine neighbouring pops with same first part of splits
+	jPops <- (1:nPop)[-iPop][ sapply( popsS[-iPop], function(pop){ 
+			(length(pop$splits) >= length(popSource$splits)) && all(pop$splits[ 1:length(popSource$splits)] == popSource$splits)
+		})]
+	# adjust the parBounds and add merge the samples
+	newPops <- popsS
+	newPPops <- pPops[iSameSpace]
+	# j = jPops[1]
+	if( 1 != length(jPops) ){
+		# need to split the population to merge
+		# in addition, some of the spaces might have no common border (seperated by a further split)
+		# update newPops[jPops] and also strip non-border indices from jPops
+		jPopsBorder <- integer(max(jPops))		# initialized by 0, not updated means no border
+		#.getParBoundsPops(c(subSpacesAll,list(popM)))
+		# if upper Bound of source pop equals lower bound of target pop, decrease lower target bound 
+		#iB=1
+		for( iB in seq_along(popSource$upperParBounds) ){
+			parName <- names(popSource$upperParBounds)[iB]
+			ubVal <- popSource$upperParBounds[iB]
+			lbVal <- if( 0 != length(popSource$lowerParBounds) && is.finite(popSource$lowerParBounds[parName])) 
+				popSource$lowerParBounds[parName] else NULL
+			#iSub = 2
+			for( jPop in jPops ){
+				lb <- newPops[[jPop]]$lowerParBounds
+				if( 0 != length(lb) && is.finite(lb[parName]) && lb[parName]==ubVal ){
+					newPops[[j]]$lowerParBounds[parName] <- lbVal					
+					jPopsBorder[jPop] <- jPop 
+				}
+			}
+		}
+		# if lower Bound of source pop equals upper bound of target pop, increase upper target bound 
+		for( iB in seq_along(popSource$lowerParBounds) ){
+			parName <- names(popSource$lowerParBounds)[iB]
+			lbVal <- popSource$lowerParBounds[iB]
+			ubVal <- if( 0 != length(popSource$upperParBounds) && is.finite(popSource$upperParBounds[parName])) 
+					popSource$upperParBounds[parName] else NULL
+			#iSub = 2
+			for( jPop in jPops ){
+				ub <- newPops[[jPop]]$upperParBounds
+				if( 0 != length(ub) && is.finite(ub[parName]) && ub[parName]==lbVal ){
+					newPops[[j]]$upperParBounds[parName] <- ubVal					
+					jPopsBorder[jPop] <- jPop 
+				}
+			}
+		}
+		#mtrace(divideTwDEMCPop)
+		jPops <- jPopsBorder[ jPopsBorder != 0]
+	} else newPops[jPops] # end nPops != 1
+
+	# jPops indicates position of subspaces in newPops
+	subsPopSource <- if( length(jPops) > 1 ){
+		recover()
+		subsPopSource <- divideTwDEMCPop( popSource, subSpaces )
+	}else{
+		newPops[jPops]
+	}
+	
+	#-------- do the actual merge
+	#ij = 1
+	for( ij in seq_along(jPops) ){
+		j <- jPops[ij]
+		popDest <- newPops[[j]]
+		subPopSource <- subsPopSource[[ij]]
+		# c(pop$lowerParBounds, pop$upperParBounds )
+		# c(popM$lowerParBounds, popM$upperParBounds )  # a combination of uB and lB should match
+		newPops[[j]] <- tmp <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" )$pop
+		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
+		newPPops[j] <- newPPops[j] + newPPops[iPop]   # update the probability of the space
+		#c( nrow(pop$parms), nrow(popM$parms), nrow(tmp$parms) )
+	}
+	
+	# ------- delete the merged population 
+	# only after merging so that indices hold true		
+	newPops[[iPop]] <- NULL	
+	newPPops <- newPPops[-iPop]		
+	##value<<
+	resMerge <- list(	##describe<<
+		pops = c(pops[-iSameSpace], newPops) 	##<< the pops with one population less, that has been merged to the other pops
+		,pPops = c( pPops[-iSameSpace], newPPops ) 
+		)	##end<<
+}
+attr(.mergePopTwDEMC,"ex") <- function(){
+	data(den2dCorEx)
+	#mtrace(divideTwDEMCSteps)
+	#trace("twDEMCBlockInt", recover)
+	mc0 <- den2dCorEx$mcSubspaces0
+	(tmp <- lapply(mc0$pops, "[[", "splits") )
+	pops <- mc0$pops
+	#spaceI <- den2dCorEx$subspaces0[[1]] 
+	pPops <- do.call( c, lapply( den2dCorEx$subspaces0, function(spaceI){
+			sapply( spaceI$spaces, "[[", "pSub")
+		}))
+	getSpacesPop(mc0)
+
+	iPop <- 8	# second space replicate, must merge to 9 only
+	#mtrace(.mergePopTwDEMC)
+	resMerge <- .mergePopTwDEMC( mc0$pops, iPop=iPop, pPops=pPops)
+	all.equal(13, length(resMerge$pPops) )
+	all.equal(13, length(resMerge$pops) )
+	all.equal(nrow(pops[[8]]$parms)+nrow(pops[[9]]$parms), nrow(resMerge$pops[[8]]$parms) ) 
+	all.equal(pPops[[8]]+pPops[[9]], resMerge$pPops[[8]] ) 
+	
+	iPop <- 10	# second space replicate, hast split with 8 and 9 but must merge only to second
+	#mtrace(.mergePopTwDEMC)
+	resMerge <- .mergePopTwDEMC( mc0$pops, iPop=iPop, pPops=pPops)
+	all.equal(13, length(resMerge$pPops) )
+	all.equal(13, length(resMerge$pops) )
+	all.equal(nrow(pops[[10]]$parms)+nrow(pops[[9]]$parms), nrow(resMerge$pops[[9]]$parms) ) 
+	all.equal(pPops[[10]]+pPops[[9]], resMerge$pPops[[9]] )
+	#sapply( pops, function(pop){ nrow(pop$parms) })
+	#sapply( resMerge$pops, function(pop){ nrow(pop$parms) })
+	
 }
 
 
