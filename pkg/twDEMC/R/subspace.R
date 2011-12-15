@@ -342,7 +342,11 @@ getSubSpaces <- function(
 	,argsFSplit=list()	##<< further arguments to \code{\link{findSplit}}
 	,pSub=1				##<< the fraction that a subSample comprises within a bigger sample (used in recursive calls) 
 	,minPSub=0.05		##<< minimum fraction a subSample, below which the sample is not split further
-	,splitHist=NA_real_[FALSE]	##<< named numeric numeric vector: history of splitting points
+	, upperParBounds = numeric(0)
+	### named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound
+	### for exploring subspaces of the limiting distribution, see details
+	, lowerParBounds = numeric(0)  ##<< similar to upperParBounds: sample > bound
+	,splits=numeric(0)	##<< named numeric numeric vector: history of splitting points
 ){
 	##details<< 
 	# uses interval: lower < val <= upper
@@ -355,17 +359,17 @@ getSubSpaces <- function(
 	if( !boMinPSub) 
 		resSplit <- do.call( findSplit, c(list(aSample=aSample, isBreakEarly=isBreakEarly, checkSlopesFirst=checkSlopesFirst), argsFSplitMod ))
 	if( boMinPSub || is.na(resSplit$split) ){
-		print(paste("getSubSpaces: pSub=",signif(pSub,2),"splits=",paste(names(splitHist),signif(splitHist,2),sep=":",collapse=", ")))
+		print(paste("getSubSpaces: pSub=",signif(pSub,2),"splits=",paste(names(splits),signif(splits,2),sep=":",collapse=", ")))
 		# when no splitting point was found, return the sample without parameter bounds
 		##value<< a list with entries
 		list( 
 			spaces=list(list(	##<< a list with an entry for each subspace. Each Entry is a list with entries \itemize{
 				##describe<< 
 				sample = aSample		##<< numeric matrix: a subsample constrained to the subspace lb < val <= ub with col parameters
-				, upperParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
-				, lowerParBounds = c()	##<< list with each entry numeric scalar: upper parameter bounds
+				, upperParBounds = upperParBounds	##<< list with each entry numeric scalar: upper parameter bounds
+				, lowerParBounds = lowerParBounds	##<< list with each entry numeric scalar: upper parameter bounds
 				, pSub = pSub			##<< the proportion of the subSample to the overall Sample
-				, splits=splitHist		##<< named numeric vector of splitting points
+				, splits=splits		##<< named numeric vector of splitting points
 				##end<< 
 			))
 			#, iVars=NA	##<< integer vector: the indices of variables to check for splits. If \code{isBreakEarly=FALSE} its has been updated. NA if no split was found. 
@@ -381,12 +385,12 @@ getSubSpaces <- function(
 		sampleRight <- aSample[!boLeft,]
 		pSubLeft <- pSub*resSplit$perc
 		pSubRight <- pSub*(1-resSplit$perc)
-		splitHistNew <- c(splitHist, resSplit$split)
+		splitsNew <- c(splits, resSplit$split)
 		#spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub)$spaces
 		#spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
 		#even when provided iVars for first level, need to check on subspaces for different variables agin
-		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splitHist=splitHistNew)$spaces
-		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splitHist=splitHistNew)$spaces
+		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splits=splitsNew)$spaces
+		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splits=splitsNew)$spaces
 		# add the splitting point as a new border to the results
 		# XXadd return iVars and jVarsVar
 		resLeft <- lapply( spacesLeft, function(spEntry){
@@ -415,7 +419,7 @@ getSubSpaces <- function(
 } 
 attr(getSubSpaces,"ex") <- function(){
 	data(den2dCorEx)
-	aSample <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
+	aSample <- stackChains(thin(concatPops(den2dCorEx$mcBulk), start=300))[,-1]
 	#mtrace(getSubSpaces)
 	subSpaces <- getSubSpaces(aSample, minPSub=0.4 )
 	str(subSpaces)
@@ -866,7 +870,12 @@ divideTwDEMCPop <- function(
 	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population with entries lowerParBounds, upperParBounds, and splits
 ){
 	nSub <- length(subSpaces)
+	if( nSub < 2){ 
+		warning("divideTwDEMCPop: called with less than 2 subspaces.")
+		return( list(pop) )
+	}
 	nChainPop <- dim(pop$parms)[3]
+	# list of parms for each chain in pop
 	aSampleChain <- lapply(1:nChainPop, function(iChain){ adrop(pop$parms[,,iChain ,drop=FALSE],3) })
 	#iSub <- nSub
 	#iSub <- 6

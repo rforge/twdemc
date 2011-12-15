@@ -35,6 +35,7 @@
 	#twUtestF("S3twDEMCPops")
 	twUtestF("twDEMC")
 	twUtestF("twDEMCPops")
+	twUtestF("getSubSpaces")
 	
 	twUtestF(transOrigPopt)
 	twUtestF(twDEMCBatch,"test.goodStart")

@@ -713,6 +713,11 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		if( !all.equal( rownames(pop$X), colnames(pop$parms), check.attributes = FALSE) )
 			stop(".checkPop: rownames of X and colnames of parms must match")
 	}
+	if( 0 != length(pop$upperParBounds) && any(is.na(pop$upperParBounds)))
+		stop(".checkPop: encountered NA in upperParBounds")
+	if( 0 != length(pop$lowerParBounds) && any(is.na(pop$lowerParBounds)))
+		stop(".checkPop: encountered NA in lowerParBounds")
+	
 	
 	### pop with entries nGen, T0, TEnd and X defined 
 	pop	

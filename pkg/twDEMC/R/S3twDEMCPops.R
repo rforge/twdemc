@@ -568,7 +568,7 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 		})]
 	# adjust the parBounds and add merge the samples
 	newPops <- popsS
-	newPPops <- pPops[iSameSpace]
+	newPPops <- pPopsS <- pPops[iSameSpace]
 	# j = jPops[1]
 	if( 1 != length(jPops) ){
 		# need to split the population to merge
@@ -587,7 +587,10 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 			for( jPop in jPops ){
 				lb <- newPops[[jPop]]$lowerParBounds
 				if( 0 != length(lb) && is.finite(lb[parName]) && lb[parName]==ubVal ){
-					newPops[[jPop]]$lowerParBounds[parName] <- lbVal					
+					if( is.null(lbVal) )
+						newPops[[jPop]]$lowerParBounds <- newPops[[jPop]]$lowerParBounds[-parName]					
+					else
+						newPops[[jPop]]$lowerParBounds[parName] <- lbVal					
 					jPopsBorder[jPop] <- jPop
 					recover()
 				}
@@ -603,7 +606,10 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 			for( jPop in jPops ){
 				ub <- newPops[[jPop]]$upperParBounds
 				if( 0 != length(ub) && is.finite(ub[parName]) && ub[parName]==lbVal ){
-					newPops[[jPop]]$upperParBounds[parName] <- ubVal					
+					if( is.null(ubVal) )
+						newPops[[jPop]]$upperParBounds <- newPops[[jPop]]$upperParBounds[-parName]					
+					else
+						newPops[[jPop]]$upperParBounds[parName] <- ubVal					
 					jPopsBorder[jPop] <- jPop
 				}
 			}
@@ -653,7 +659,7 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 	.nS <- sapply( newPops, function(pop){ nrow(pop$parms)})
 	if( sum(.nS0) != sum(.nS) )
 		stop(".mergePopTwDEMC: sample number in merged populations differs.")
-	if( !all.equal( sum(newPPops),1) )
+	if( !isTRUE(all.equal( sum(newPPops),1)) )
 		stop(".mergePopTwDEMC: probabilities of space with merged does not sum to 1")
 	
 	##value<<
