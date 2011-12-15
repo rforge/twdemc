@@ -466,7 +466,7 @@ twDEMCBlockInt <- function(
 			,xStep=genPropRes$xStep, rExtra=genPropRes$rExtra
 			, tempGlobalSteps=tempGlobalThinSteps
 			, tempDenCompSteps=tempDenCompThinSteps		
-			, nsPop=length(isPops), pAcceptPar=pAcceptPops
+			, nsPop=length(isPops), pAcceptPar=pAcceptPops[,isPops ,drop=FALSE]
 			,remoteFunArgs=remoteArgsFUpdateBlocksTwDEMC
 			,debugSequential=debugSequential
 			,isRecordProposalsPop=isRecordProposalsPop 
@@ -484,7 +484,9 @@ twDEMCBlockInt <- function(
 		acceptWindow[ acceptPos0+1,, isChains] <- resUpdate$accepted
 		curAcceptRows <- (acceptPos0+1)-(min(aThinWinW-1,max(iThin0,8)):0)	# at the start average over at least 4 slots,  
 		#acceptWindow[curAcceptRows,]
-		pAcceptChains <- apply(acceptWindow[curAcceptRows,,,drop=FALSE],c(2,3),sum) / (length(curAcceptRows)*ctrl$thin)
+		pAcceptChains <- apply(acceptWindow[curAcceptRows,, ,drop=FALSE],c(2,3),sum) / (length(curAcceptRows)*ctrl$thin)
+		#if( !all(is.finite(pAcceptChains[,isChains ,drop=FALSE])))
+		#	stop("twDEMCBlocks: encountered non-finite pAcceptChains")
 		pAcceptPops <- popMeansTwDEMC(pAcceptChains, nPop) # current acceptance rate of population (block x pop)
 		pAcceptPops[] <- pmax(1/ctrl$thin,pAcceptPops ) # lower bound
 		pAcceptMinPops <- apply(pAcceptPops,2,min)	# minimum of acceptance rate across blocks for each population 
@@ -1124,6 +1126,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	,iPop			##<< population in total array of populations
 	,argsUpdateBlocksTwDEMC	##<< further arguments that do not change between calls (exported and handled by remoteWrapper)
 ){
+	if( !all(is.finite(pAcceptC)))
+		stop(".updateBlocksTwDEMC: encountered non-finited pAcceptC")
 	a <- argsUpdateBlocksTwDEMC
 	#with( argsUpdateBlocksTwDEMC,{
 		acceptedBlock <- numeric(a$nBlock) 
@@ -1162,6 +1166,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			#resUpdate <- updateBlockTwDEMC( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
 			resUpdate <- block$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
 			acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
+			if( !all(is.finite(resUpdate$accepted)))
+				stop(".updateBlocksTwDEMC: encountered non-finited acceptance rate")
 			if( resUpdate$accepted != 0){
 				#if( resUpdate$xC["a"] > 10.8) recover()
 				xC[cu] <- xP[cu] <- resUpdate$xC		# update the components of current state
