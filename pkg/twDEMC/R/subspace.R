@@ -328,6 +328,43 @@ attr(findSplit,"ex") <- function(){
 
 
 
+.parBoundsEnvelope <- function(
+	### get the parameter bounds that encompasses all given parBounds 
+	popsParBounds	##<< list of populations with entries upperParBounds and upperParBounds both named numeric vectors 
+){
+	#stop(".parBoundsEnvelope: not implemented yet.")
+	#parName <- colnames(pop1$parms)[1]
+	ub <- lb <- list()
+	#pop <- popsParBounds[[2]]
+	pnames <- unique( do.call(c, c( 
+				lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
+				,lapply(popsParBounds, function(pop){ names(pop$lowerParBounds) }) 
+			)))
+	#parName <- pnames[1]
+	for( parName in pnames ){
+		ubPop <- lapply( popsParBounds, function(pop){ pop$upperParBounds[parName] })
+		lbPop <- lapply( popsParBounds, function(pop){ pop$lowerParBounds[parName] })
+		if( all(sapply(ubPop, function(x){ !is.null(x) && is.finite(x)})) ) 
+			ub[parName] <- max(unlist(ubPop)) 
+		if( all(sapply(lbPop, function(x){ !is.null(x) && is.finite(x)})) ) 
+			lb[parName] <- min(unlist(lbPop)) 
+	}
+	##value<< list with entries
+	list( ##describe<<
+		upperParBounds = unlist(ub)		##<< named numeric vector of upper parameter bounds
+		,lowerParBounds = unlist(lb)	##<< named numeric vector of lower parameter bounds
+	) ##end<<
+}
+attr(.parBoundsEnvelope,"ex") <- function(){
+	data(den2dCorEx)
+	mc0 <- den2dCorEx$mcSubspaces0
+	#mtrace(.parBoundsEnvelope)
+	.parBoundsEnvelope( mc0$pops[1:4] )
+	.parBoundsEnvelope( mc0$pops[3:4] )
+}
+
+
+
 
 
 
@@ -347,7 +384,12 @@ getSubSpaces <- function(
 	### for exploring subspaces of the limiting distribution, see details
 	, lowerParBounds = numeric(0)  ##<< similar to upperParBounds: sample > bound
 	,splits=numeric(0)	##<< named numeric numeric vector: history of splitting points
+	,maxNSample=128					##<< if given a value, then aSample is thinned before to given number of records (for efficiently calculating variances)
+	, verbose=FALSE		##<< if TRUE then prints on every terminating subspace
 ){
+	if( 0 != length(maxNSample) && is.finite(maxNSample) && (nrow(aSample) > maxNSample) ){
+		aSample <- aSample[ sample.int( nrow(aSample), maxNSample),]		
+	}
 	##details<< 
 	# uses interval: lower < val <= upper
 	# search for a single splitting point
@@ -359,7 +401,7 @@ getSubSpaces <- function(
 	if( !boMinPSub) 
 		resSplit <- do.call( findSplit, c(list(aSample=aSample, isBreakEarly=isBreakEarly, checkSlopesFirst=checkSlopesFirst), argsFSplitMod ))
 	if( boMinPSub || is.na(resSplit$split) ){
-		print(paste("getSubSpaces: pSub=",signif(pSub,2),"splits=",paste(names(splits),signif(splits,2),sep=":",collapse=", ")))
+		if( verbose ) print(paste("getSubSpaces: pSub=",signif(pSub,2),"splits=",paste(names(splits),signif(splits,2),sep=":",collapse=", ")))
 		# when no splitting point was found, return the sample without parameter bounds
 		##value<< a list with entries
 		list( 
@@ -385,30 +427,36 @@ getSubSpaces <- function(
 		sampleRight <- aSample[!boLeft,]
 		pSubLeft <- pSub*resSplit$perc
 		pSubRight <- pSub*(1-resSplit$perc)
+		upperParBoundsLeft <- upperParBounds;  vectorElements(upperParBoundsLeft) <- resSplit$split
+		lowerParBoundsRight <- lowerParBounds; vectorElements(lowerParBoundsRight) <- resSplit$split
 		splitsNew <- c(splits, resSplit$split)
+		# adjust the parBounds
+		
 		#spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub)$spaces
 		#spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
 		#even when provided iVars for first level, need to check on subspaces for different variables agin
-		spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splits=splitsNew)$spaces
-		spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splits=splitsNew)$spaces
+		resLeft <- spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splits=splitsNew, upperParBounds=upperParBoundsLeft, lowerParBounds=lowerParBounds)$spaces
+		resRight <- spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splits=splitsNew, upperParBounds=upperParBounds, lowerParBounds=lowerParBoundsRight)$spaces
 		# add the splitting point as a new border to the results
 		# XXadd return iVars and jVarsVar
-		resLeft <- lapply( spacesLeft, function(spEntry){
-				posVar <- match(resSplit$varName, names(spEntry$upperParBounds) )
-				spEntry$upperParBounds <- if( is.finite(posVar) )
-					c(spEntry$upperParBounds[posVar], spEntry$upperParBounds[-posVar]) # make this variable first position in parBounds
-				else
-					spEntry$upperParBounds <- c(resSplit$split, spEntry$upperParBounds)
-				spEntry
-			})
-		resRight <- lapply( spacesRight, function(spEntry){
-				posVar <- match(resSplit$varName, names(spEntry$lowerParBounds) )
-				spEntry$lowerParBounds <- if( is.finite(posVar) )
-						c(spEntry$lowerParBounds[posVar], spEntry$lowerParBounds[-posVar])
+		.tmp.f <- function(){
+			resLeft <- lapply( spacesLeft, function(spEntry){
+					posVar <- match(resSplit$varName, names(spEntry$upperParBounds) )
+					spEntry$upperParBounds <- if( is.finite(posVar) )
+						c(spEntry$upperParBounds[posVar], spEntry$upperParBounds[-posVar]) # make this variable first position in parBounds
 					else
-						spEntry$lowerParBounds <- c(resSplit$split, spEntry$lowerParBounds)
-				spEntry
-			})
+						spEntry$upperParBounds <- c(resSplit$split, spEntry$upperParBounds)
+					spEntry
+				})
+			resRight <- lapply( spacesRight, function(spEntry){
+					posVar <- match(resSplit$varName, names(spEntry$lowerParBounds) )
+					spEntry$lowerParBounds <- if( is.finite(posVar) )
+							c(spEntry$lowerParBounds[posVar], spEntry$lowerParBounds[-posVar])
+						else
+							spEntry$lowerParBounds <- c(resSplit$split, spEntry$lowerParBounds)
+					spEntry
+				})
+		}
 		res <- list(
 			spaces = c( resLeft, resRight)	
 			#, iVars=resSplit$iVars	 
@@ -868,6 +916,7 @@ divideTwDEMCPop <- function(
 	### splits a specific populations of x into subpopulations for given subSpaces 
 	pop			##<< numeric array (nStep, nParm, nChain): an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}
 	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population with entries lowerParBounds, upperParBounds, and splits
+	,isCheckBorderConsistency = TRUE	##<< if FALSE the check for border consistency is omitted.
 ){
 	nSub <- length(subSpaces)
 	if( nSub < 2){ 
@@ -881,6 +930,23 @@ divideTwDEMCPop <- function(
 	#iSub <- 6
 	newPops <- lapply(1:nSub, function(iSub){
 		subSpace <- subSpaces[[iSub]]
+		# check that the subspace borders are consistent with the population
+		if( isCheckBorderConsistency && (length(pop$splits) != 0)){
+			if( !isTRUE(all.equal(subSpace$splits[ 1:length(pop$splits)] , pop$splits)) )
+				stop("divideTwDEMCPop: encountered subspaces with inconsitent splits to pop")
+			for( pName in names(pop$lowerParBounds) ){
+				if( !(pName %in% names(subSpace$lowerParBounds)) || 
+					!(subSpace$lowerParBounds[pName] >= pop$lowerParBounds[pName]) )  
+						stop("divideTwDEMCPop: encountered subspaces with lower lower parameter bound than pop")
+			}
+			for( pName in names(pop$upperParBounds) ){
+				if( !(pName %in% names(subSpace$upperParBounds)) || 
+					!(subSpace$upperParBounds[pName] <= pop$upperParBounds[pName]) )  
+					stop("divideTwDEMCPop: encountered subspaces with higher upper parameter bound than pop")
+			}
+			#.getParBoundsPops(list(pop, subSpace))
+		}
+		
 		#iChain <- nChainPop
 		.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
 			aSample <- aSampleChain[[iChain]]
@@ -898,19 +964,22 @@ divideTwDEMCPop <- function(
 		# collect the subsamples of all chains into new chains of equal length
 		ss <- .combineTwDEMCPops(.subSamplesChain)
 		ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose a few samples due to not a multiple of nChains
-		newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array 
+		newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
+		# do the new parameter bounds
 		newPop$lowerParBounds <- subSpace$lowerParBounds	
 		newPop$upperParBounds <- subSpace$upperParBounds
 		newPop$splits <- subSpace$splits
 	#if( iSub==9) recover()
-		# add initial lower and upper bounds to unbounded parameters
-		for( pName in pop$lowerParBounds ){
-			if( !(pName %in% names(newPop$lowerParBounds)) ) 
-				newPop$lowerParBounds <- c( pop$lowerParBounds[pName], newPop$lowerParBounds )
-		}
-		for( pName in pop$upperParBounds ){
-			if( !(pName %in% names(newPop$upperParBounds)) ) 
-				newPop$upperParBounds <- c( pop$upperParBounds[pName], newPop$upperParBounds )
+		.tmp.f <- function(){
+			# add initial lower and upper bounds to unbounded parameters
+			for( pName in pop$lowerParBounds ){
+				if( !(pName %in% names(newPop$lowerParBounds)) ) 
+					newPop$lowerParBounds <- c( pop$lowerParBounds[pName], newPop$lowerParBounds )
+			}
+			for( pName in pop$upperParBounds ){
+				if( !(pName %in% names(newPop$upperParBounds)) ) 
+					newPop$upperParBounds <- c( pop$upperParBounds[pName], newPop$upperParBounds )
+			}
 		}
 		newPop$spaceInd <- pop$spaceInd		# inherit the reference to space replicate
 		newPop

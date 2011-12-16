@@ -461,41 +461,6 @@ as.mcmc.list.twDEMCPops <- function(
 }
 
 
-.parBoundsEnvelope <- function(
-	### get the parameter bounds that encompasses all given parBounds 
-	popsParBounds	##<< list of populations with entries upperParBounds and upperParBounds both named numeric vectors 
-){
-	#stop(".parBoundsEnvelope: not implemented yet.")
-	#parName <- colnames(pop1$parms)[1]
-	ub <- lb <- list()
-	#pop <- popsParBounds[[2]]
-	pnames <- unique( do.call(c, c( 
-		lapply(popsParBounds, function(pop){ names(pop$upperParBounds) }) 
-		,lapply(popsParBounds, function(pop){ names(pop$lowerParBounds) }) 
-	)))
-	#parName <- pnames[1]
-	for( parName in pnames ){
-		ubPop <- lapply( popsParBounds, function(pop){ pop$upperParBounds[parName] })
-		lbPop <- lapply( popsParBounds, function(pop){ pop$lowerParBounds[parName] })
-		if( all(sapply(ubPop, function(x){ !is.null(x) && is.finite(x)})) ) 
-			ub[parName] <- max(unlist(ubPop)) 
-		if( all(sapply(lbPop, function(x){ !is.null(x) && is.finite(x)})) ) 
-			lb[parName] <- min(unlist(lbPop)) 
-	}
-	##value<< list with entries
-	list( ##describe<<
-		upperParBounds = unlist(ub)		##<< named numeric vector of upper parameter bounds
-		,lowerParBounds = unlist(lb)	##<< named numeric vector of lower parameter bounds
-	) ##end<<
-}
-attr(.parBoundsEnvelope,"ex") <- function(){
-	data(den2dCorEx)
-	mc0 <- den2dCorEx$mcSubspaces0
-	#mtrace(.parBoundsEnvelope)
-	.parBoundsEnvelope( mc0$pops[1:4] )
-	.parBoundsEnvelope( mc0$pops[3:4] )
-}
-
 .unstackPopsTwDEMCPops <- function(
 	### unstacks a stacked population (by \cdoe{.combineTwDEMCPops(mergeMethod="stack")})
 	pop	##<< stacked population
@@ -588,11 +553,10 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 				lb <- newPops[[jPop]]$lowerParBounds
 				if( 0 != length(lb) && is.finite(lb[parName]) && lb[parName]==ubVal ){
 					if( is.null(lbVal) )
-						newPops[[jPop]]$lowerParBounds <- newPops[[jPop]]$lowerParBounds[-parName]					
+						newPops[[jPop]]$lowerParBounds <- newPops[[jPop]]$lowerParBounds[-match(parName,names(newPops[[jPop]]$lowerParBounds))]					
 					else
 						newPops[[jPop]]$lowerParBounds[parName] <- lbVal					
 					jPopsBorder[jPop] <- jPop
-					recover()
 				}
 			}
 		}
@@ -607,7 +571,7 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 				ub <- newPops[[jPop]]$upperParBounds
 				if( 0 != length(ub) && is.finite(ub[parName]) && ub[parName]==lbVal ){
 					if( is.null(ubVal) )
-						newPops[[jPop]]$upperParBounds <- newPops[[jPop]]$upperParBounds[-parName]					
+						newPops[[jPop]]$upperParBounds <- newPops[[jPop]]$upperParBounds[-match(parName,names(newPops[[jPop]]$upperParBounds))]					
 					else
 						newPops[[jPop]]$upperParBounds[parName] <- ubVal					
 					jPopsBorder[jPop] <- jPop
@@ -615,16 +579,22 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 			}
 		}
 		#mtrace(divideTwDEMCPop)
-		jPops <- jPopsBorder[ jPopsBorder != 0]
-	} else newPops[jPops] # end nPops != 1
+		jPopsSplitBorder <- jPopsBorder[ jPopsBorder != 0]
+		jPopsSplitNonBorder <- setdiff( jPops, jPopsSplitBorder )	# remember those non neighbouring to remove the split
+	} else{
+		# nPops == 1
+		jPopsSplitBorder <- jPops
+		jPopsSplitNonBorder <- integer(0) 
+	} 
 
 	# jPops indicates position of subspaces in newPops
 	pSubsSource <- 1
-	subsPopSource <- if( length(jPops) > 1 ){
+	subsPopSource <- if( length(jPopsSplitBorder) > 1 ){
 		# must merge this population to several other populations, need to split before
-		subsPopSource <- divideTwDEMCPop( popSource, newPops[jPops] )
-		if( nrow(popSource$parms) != sum( sapply( subsPopSource,function(pop){ nrow(pop$parms)})) )
-			stop(".mergePopTwDEMC: sum of samples of subspaces does not match the original sample number.")
+		subsPopSource <- divideTwDEMCPop( popSource, newPops[jPopsSplitBorder], isCheckBorderConsistency=FALSE ) #popSource has more constrained support, hence do not check borders
+		# may loose a few samples on dividing into subspaces because all chains must have equal length
+		#if( nrow(popSource$parms) != sum( sapply( subsPopSource,function(pop){ nrow(pop$parms)})) )
+		#	stop(".mergePopTwDEMC: sum of samples of subspaces does not match the original sample number.")
 		.nS <- sapply(subsPopSource, function(pop){ nrow(pop$parms) })
 		pSubsSource <- .nS/sum(.nS)
 		subsPopSource
@@ -634,19 +604,26 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 	
 	#-------- do the actual merge
 	#ij = 1
-	for( ij in seq_along(jPops) ){
-		jPop <- jPops[ij]
+	for( ij in seq_along(jPopsSplitBorder) ){
+		jPop <- jPopsSplitBorder[ij]
 		popDest <- newPops[[jPop]]
 		subPopSource <- subsPopSource[[ij]]
 		# c(pop$lowerParBounds, pop$upperParBounds )
 		# c(popM$lowerParBounds, popM$upperParBounds )  # a combination of uB and lB should match
 		# mtrace(.combineTwDEMCPops)
 		newPops[[jPop]] <- tmp <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" )$pop
-		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
 		.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
 		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
 		newPPops[jPop] <- newPPops[jPop] + newPPops[iPop]*pSubsSource[ij]   # update the probability of the space
 		#c( nrow(pop$parms), nrow(popM$parms), nrow(tmp$parms) )
+		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
+	}
+
+	#-------- remove the split from all non-bordering populations with same split history, also the non-bordering
+	#rmSplit <-  popSource$splits[ length(popSource$splits) ]
+	#jPop <- jPopsSplitNonBorder[1]
+	for( jPop in jPopsSplitNonBorder ){
+		newPops[[jPop]]$splits <- pops[[jPop]]$splits[ -length(popSource$splits) ]  
 	}
 	
 	# ------- delete the merged population 
@@ -655,10 +632,11 @@ attr(.parBoundsEnvelope,"ex") <- function(){
 	newPPops <- newPPops[-iPop]
 	
 	#-------- check consistency
-	.nS0 <- sapply( pops[ iSameSpace ], function(pop){ nrow(pop$parms)})
-	.nS <- sapply( newPops, function(pop){ nrow(pop$parms)})
-	if( sum(.nS0) != sum(.nS) )
-		stop(".mergePopTwDEMC: sample number in merged populations differs.")
+	# may have lost some samples during splitting because all chains in one pop need to have the same lenght
+	#.nS0 <- sapply( pops[ iSameSpace ], function(pop){ nrow(pop$parms)})
+	#.nS <- sapply( newPops, function(pop){ nrow(pop$parms)})
+	#if( sum(.nS0) != sum(.nS) )
+	#		stop(".mergePopTwDEMC: sample number in merged populations differs.")
 	if( !isTRUE(all.equal( sum(newPPops),1)) )
 		stop(".mergePopTwDEMC: probabilities of space with merged does not sum to 1")
 	
