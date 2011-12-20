@@ -67,7 +67,7 @@ test.splitMerge <- function(){
 	)
 	mc1 <- mc0
 	mc1$pops <- divideTwDEMCPop(mc0$pops[[1]], spaces1)
-	.getParBoundsPops(mc1$pops)
+	#.getParBoundsPops(mc1$pops)
 	checkEquals( 2, length(mc1$pops) )
 	checkEquals( spaces1$low1, mc1$pops[[1]][ names(spaces1$low1) ]  )
 	checkEquals( 0,  length(mc1$pops[[1]]$lowerParBounds))
@@ -75,7 +75,7 @@ test.splitMerge <- function(){
 	checkEquals( 0,  length(mc1$pops[[2]]$upperParBounds))
 	# merge again
 	.nS <- getNSamples(mc1)
-	c( n0, sum(.nS) )
+	#c( n0, sum(.nS) )
 	pSubs1 <- .nS/sum(.nS)
 	resMerge <- .mergePopTwDEMC( mc1$pops, 1, pSubs1 )
 	checkEquals( 1, length(resMerge$pops) )
@@ -102,25 +102,25 @@ test.splitMerge <- function(){
 	)
 	mc2 <- mc0
 	mc2$pops <- divideTwDEMCPop(mc0$pops[[1]], spaces2)
-	.getParBoundsPops(mc2$pops)
+	#.getParBoundsPops(mc2$pops)
 	checkEquals( 3, length(mc2$pops) )
 	checkEquals( spaces2$low2, mc2$pops[[1]][ names(spaces2$low2) ]  )
 	checkEquals( 0,  length(mc2$pops[[1]]$lowerParBounds))
 	checkEquals( spaces2$upp2Low, mc2$pops[[2]][ names(spaces2$upp2Low) ]  )
 	checkEquals( spaces2$upp2Upp, mc2$pops[[3]][ names(spaces2$upp2Upp) ]  )
 	checkEquals( 0,  length(mc2$pops[[3]]$upperParBounds))
-	# do the same by starting from upp1
+	#-- do the same by starting from upp1
 	mc2b <- mc1
 	newPops <- divideTwDEMCPop(mc1$pops[[2]], spaces2[c("upp2Low","upp2Upp")])
 	mc2b$pops <- c(mc1$pops[-2], newPops )
-	.getParBoundsPops(newPops)
+	#.getParBoundsPops(newPops)
 	checkEquals( .getParBoundsPops(mc2$pops),  .getParBoundsPops(mc2b$pops))
 	# merge first to second pop
 	.nS <- getNSamples(mc2)
-	c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
+	#c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
 	pSubs2 <- .nS/sum(.nS)
 	resMerge <- .mergePopTwDEMC( mc2$pops, 1, pSubs2 )
-	.getParBoundsPops(resMerge$pops)
+	#.getParBoundsPops(resMerge$pops)
 	checkEquals( 2, length(resMerge$pops) )
 	checkEquals( 0,  length(resMerge$pops[[1]]$lowerParBounds))
 	checkEquals( split2,  (resMerge$pops[[1]]$upperParBounds))
@@ -154,20 +154,20 @@ test.splitMerge <- function(){
 	)
 	mc3 <- mc0
 	mc3$pops <- divideTwDEMCPop(mc0$pops[[1]], spaces3)
-	.getParBoundsPops(mc3$pops)
+	#.getParBoundsPops(mc3$pops)
 	checkEquals( 4, length(mc3$pops) )
 	# do the same by starting from upp2Low
 	mc3b <- mc2
 	newPops <- divideTwDEMCPop(mc2$pops[[2]], spaces3[c("upp2Low3Low","upp2Low3Upp")])
-	.getParBoundsPops(newPops)
+	#.getParBoundsPops(newPops)
 	mc3b$pops <- c(mc2$pops[1], newPops, mc2$pops[3] )
 	checkEquals( .getParBoundsPops(mc3$pops),  .getParBoundsPops(mc3b$pops))
-	# merge first to second and third pop
+	#-- merge first to second and third pop
 	.nS <- getNSamples(mc3)
-	c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
+	#c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
 	pSubs3 <- .nS/sum(.nS)
 	resMerge <- .mergePopTwDEMC( mc3$pops, 1, pSubs3 )
-	.getParBoundsPops(resMerge$pops)
+	#.getParBoundsPops(resMerge$pops)
 	checkEquals( 3, length(resMerge$pops) )
 	checkEquals( 0,  length(resMerge$pops[[1]]$lowerParBounds))
 	checkEquals( c(split2,split3),  (resMerge$pops[[1]]$upperParBounds))
@@ -178,5 +178,22 @@ test.splitMerge <- function(){
 	checkEquals( split2,  (resMerge$pops[[3]]$lowerParBounds))
 	checkEquals( 0,  length(resMerge$pops[[3]]$upperParBounds))
 	checkEquals( c(split2),  resMerge$pops[[3]]$splits)
+	#-- merge second to third pop (do not touch split of 1 pop)
+	resMerge <- .mergePopTwDEMC( mc3$pops, 2, pSubs3 )
+	#.getParBoundsPops(resMerge$pops)
+	checkEquals( 3, length(resMerge$pops) )
+	checkEquals( 0,  length(resMerge$pops[[1]]$lowerParBounds))
+	checkEquals( c(split1),  (resMerge$pops[[1]]$upperParBounds))
+	checkEquals( c(split1),  resMerge$pops[[1]]$splits)
+	checkEquals( split1,  (resMerge$pops[[2]]$lowerParBounds))
+	checkEquals( split2,  (resMerge$pops[[2]]$upperParBounds))
+	checkEquals( c(split1,split2),  resMerge$pops[[2]]$splits)
+	checkEquals( split2,  (resMerge$pops[[3]]$lowerParBounds))
+	checkEquals( 0,  length(resMerge$pops[[3]]$upperParBounds))
+	checkEquals( c(split1,split2),  resMerge$pops[[3]]$splits)
+
+
+
+
 }
 

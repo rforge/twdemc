@@ -611,7 +611,14 @@ as.mcmc.list.twDEMCPops <- function(
 		# c(pop$lowerParBounds, pop$upperParBounds )
 		# c(popM$lowerParBounds, popM$upperParBounds )  # a combination of uB and lB should match
 		# mtrace(.combineTwDEMCPops)
-		newPops[[jPop]] <- tmp <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" )$pop
+		resCombine <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" ) 
+		newPops[[jPop]] <-	if( resCombine$popCases[ (.nC <- length(resCombine$popCases))] == 2){
+			# make sure that last entry is from popDest (first pop in .combineTwDEMCPops)
+			iSwitch <- .nC+1- match( 1, rev(resCombine$popCases) ) # position of the last 1
+			.tmp1 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[-iSwitch] )
+			.tmp2 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[iSwitch] )
+			.tmp <- .combineTwDEMCPops( list(.tmp1, .tmp2), mergeMethod="stack" )$pop  			
+		}else .tmp <- resCombine$pop
 		.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
 		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
 		newPPops[jPop] <- newPPops[jPop] + newPPops[iPop]*pSubsSource[ij]   # update the probability of the space
@@ -619,7 +626,7 @@ as.mcmc.list.twDEMCPops <- function(
 		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
 	}
 
-	#-------- remove the split from all non-bordering populations with same split history, also the non-bordering
+	#-------- remove the split from all non-bordering populations with same split history too
 	#rmSplit <-  popSource$splits[ length(popSource$splits) ]
 	#jPop <- jPopsSplitNonBorder[1]
 	for( jPop in jPopsSplitNonBorder ){
@@ -642,8 +649,9 @@ as.mcmc.list.twDEMCPops <- function(
 	
 	##value<<
 	resMerge <- list(	##describe<<
-		pops = c(pops[-iSameSpace], newPops) 	##<< the pops with one population less, that has been merged to the other pops
-		,pPops = c( pPops[-iSameSpace], newPPops ) 
+		pops = c(pops[-iSameSpace], newPops) 	##<< list (nPops): the pops with one population less, that has been merged to the other pops
+		,pPops = c( pPops[-iSameSpace], newPPops )	##<< numeric vector (nPops): the updated proportions of the populations within space
+		,nSubs = length(subsPopSource)	##<< the number of subpopulation thats the population was splitted into
 		)	##end<<
 }
 attr(.mergePopTwDEMC,"ex") <- function(){
