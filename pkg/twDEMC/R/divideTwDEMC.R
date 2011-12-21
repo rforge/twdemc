@@ -224,7 +224,7 @@ divideTwDEMCSteps <- function(
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
-	,nGenBatch=256
+	, nGenBatch=256
 	#, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}
 	, dumpfileBasename="recover"
 	, critSpecVarRatio=20

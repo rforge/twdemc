@@ -1,3 +1,5 @@
+data(twTwoDenEx1)
+
 .denSparce <- function(
 	### density of sparce observations
 	theta
@@ -15,8 +17,9 @@
 	### density of sparce observations
 	theta=theta0
 	,twTwoDenEx=twTwoDenEx1
+	,...
 ){
-	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich)
+	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)
 	misfit <- twTwoDenEx$obs$y2 - pred$y2
 	-1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2)
 }
@@ -26,8 +29,9 @@
 	theta
 	,twTwoDenEx=twTwoDenEx1
 	,weights=c(1,1)			# weights for the two data streams
+	,...
 ){
-	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich)
+	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)
 	misfit <- twTwoDenEx$obs$y1 - pred$y1
 	d1 <- -1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2)
 	misfit <- twTwoDenEx$obs$y2 - pred$y2
@@ -35,7 +39,11 @@
 	db <- c(y1=d1,y2=d2)*weights
 	db
 }
-.denBoth(twTwoDenEx1$thetaTrue)
+attr(.denBoth,"ex") <- function(){
+	data(twTwoDenEx1)
+	.denBoth(twTwoDenEx1$thetaTrue)
+	.denBoth(twTwoDenEx1$thetaTrue, thresholdCovar = 0.3)
+}
 
 .updateTwoDenA <- function( 
 	### update paramter A conditional on observations and b
@@ -76,10 +84,13 @@ attr(.updateTwoDenA,"ex") <- function(){
 	,argsFUpdateBlock=list()	##<< additional information from .updateBlocksTwDEMC
 	,twTwoDenEx=twTwoDenEx1
 ){
+	thresholdCovar <- if( 0 != length(argsFUpdateBlock$argsFLogDen) && 0 != length(argsFUpdateBlock$argsFLogDen$thresholdCovar)){
+		argsFUpdateBlock$argsFLogDen$thresholdCovar
+	} else 0
 	# subtract the effect of parameter b
-	obsOffset <- twTwoDenEx$obs$y2 - theta[1]*twTwoDenEx$xSparce[1]
+	obsOffset <- twTwoDenEx$obs$y2 - theta[1]*pmax(0,twTwoDenEx$xSparce[1])
 	# fit a linear model without offset to obtain mean and sd of the slope, i.e. parameter theta1
-	lm1 <- lm( obsOffset ~ twTwoDenEx$xRich -1 )
+	lm1 <- lm( obsOffset ~ I(twTwoDenEx$xRich-thresholdCovar) -1 )
 	meanB <- coef(lm1)[1]
 	sdB <- sqrt(vcov(lm1)[1,1])
 	# do a random draw
@@ -93,7 +104,8 @@ attr(.updateTwoDenA,"ex") <- function(){
 }
 attr(.updateTwoDenB,"ex") <- function(){
 	data(twTwoDenEx1)
-	.updateTwoDenB( twTwoDenEx1$thetaTrue )
+	#trace(.updateTwoDenB, recover )
+	.updateTwoDenB( twTwoDenEx1$thetaTrue, argsFUpdateBlock=list(argsFLogDen=list(thresholdCovar=0.3)) )
 }
 .tmp.f <- function(){
 	plot( obsOffset ~ twTwoDenEx$xRich )
@@ -103,6 +115,9 @@ attr(.updateTwoDenB,"ex") <- function(){
 }
 
 
+thresholdCovar = 0.3	# the true value
+thresholdCovar = 0		# the effective model that glosses over this threshold
+thetaMean <- twTwoDenEx1$thetaTrue
 
 #--------- fit only a to the long term observations
 .nPop=2
@@ -119,7 +134,7 @@ theta0 <- adrop(ZinitPopsA[nrow(ZinitPopsA),,1 ,drop=FALSE],3)
 
 # with correct b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=2))))
+		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -129,7 +144,7 @@ plot( as.mcmc.list(resa), smooth=FALSE)
 
 # with biased b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=1.6))))
+		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=1.6),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -138,7 +153,6 @@ resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen,
 plot( as.mcmc.list(resa), smooth=FALSE)
 
 #---------  fit only the short term observations to both parameters
-thetaMean <- twTwoDenEx1$thetaTrue
 .nPop=2
 .nChainPop=4
 ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean, diag((thetaMean*0.3)^2), nChainPop=.nChainPop, nPop=.nPop))
@@ -152,7 +166,7 @@ theta0 <- ZinitPops[nrow(ZinitPops),,1]
 #.nGen=16
 #mtrace(twDEMCBlockInt)
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dRich=list(fLogDen=.denRich))
+		dInfos=list(dRich=list(fLogDen=.denRich, argsFLogDen=list(thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -173,7 +187,7 @@ plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # far off
 
 #---------  fit both data streams in one unweighted density
 resa <- resa2 <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dBoth=list(fLogDen=.denBoth))
+		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -197,11 +211,12 @@ plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # still no relation
 #----------- 2b try to infer by weights
 res <- res2
 lDen <- stackChains(res$resLogDen)
-medianDen <- apply(lDen,2,function(lDenI){ median(lDenI - max(lDenI)) })
-weights <- wMedian <- medianDen/min(medianDen)
+#plot(density(lDen[lDen>-1000]))
+madDen <- apply(lDen,2,function(lDenI){ median(abs(lDenI - median(lDenI))) })
+weights <- wMedian <- min(madDen)/madDen
 
 resa <- resa2b <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(weights=weights)))
+		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(weights=weights, thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -224,7 +239,7 @@ plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1) # at least some relation
 #XX check same magnitude of resLogDen
 res <- res2b
 lDen <- stackChains(res$resLogDen)
-lDenDiff <- apply(lDen,2,function(lDenI){ lDenI - max(lDenI) })
+lDenDiff <- apply(lDen,2,function(lDenI){ lDenI - median(lDenI) })
 q10lDenDiff <- apply(lDenDiff,2,quantile,0.1)
 lDenDiffM <- melt(lDenDiff)
 lDenDiffM2 <- lDenDiffM[
@@ -234,16 +249,18 @@ lDenDiffM2 <- lDenDiffM[
 boxplot( value ~ resComp, lDenDiffM2 )
 if( require(ggplot2) ){
 	p1 <- ggplot(lDenDiffM2, aes(y=value, x=resComp)) + geom_boxplot() +
-		opts(axis.title.x=theme_blank())
+		opts(axis.title.x=theme_blank()) + coord_flip()
 }
 
 #----------- fit b to shortterm and a to longterm observations using direct sampling
 # takes quite long
+#untrace(.updateTwoDenB)
+#trace(.updateTwoDenB,recover)
 resa <- resa3a <- concatPops( resBlock <- twDEMCBlock( 
 		res2$parms
 		, nGen=.nGen 
 		,dInfos=list(
-			dBoth=list(fLogDen=.denBoth)
+			dBoth=list(fLogDen=.denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
 			a=list(compPos="a", fUpdateBlock=.updateTwoDenA, requiresUpdatedDen=FALSE)
@@ -271,10 +288,10 @@ plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation exist
 #----------- fit b to shortterm and a to longterm observations using Metropolis
 resa <- resa3 <- concatPops( resBlock <- twDEMCBlock( 
 		res3a$parms
-		, nGen=.nGen 
+		, nGen=.nGen*2 
 		,dInfos=list(
-			dSparce=list(fLogDen=.denSparce)
-			,dRich=list(fLogDen=.denRich)
+			dSparce=list(fLogDen=.denSparce, argsFLogDen=list(thresholdCovar=thresholdCovar))
+			,dRich=list(fLogDen=.denRich, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
 			a=list(dInfoPos="dSparce", compPos="a")
@@ -298,7 +315,7 @@ twTwoDenEx1$thetaTrue
 plot(density(stackChains(res3a)[,"a"]), xlim=c(0.8,1.2))
 lines( density(stackChains(res3)[,"a"]), col="red")
 
-pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich,thresholdCovar=thresholdCovar) )
 plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes clear
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
 
@@ -406,7 +423,7 @@ print(pb + opts(legend.position = "none") , vp = viewport(layout.pos.row=2,layou
 		ssThin <- ss[round(seq(1,nrow(ss),length.out=.nSample)),]
 		#i <- .nSample
 		for( i in 1:.nSample){
-			pred <-  twTwoDenEx1$fModel(ssThin[i,], xSparce=twTwoDenEx1$xSparce, xRich=twTwoDenEx1$xRich) 
+			pred <-  twTwoDenEx1$fModel(ssThin[i,], xSparce=twTwoDenEx1$xSparce, xRich=twTwoDenEx1$xRich, thresholdCovar=thresholdCovar) 
 			y1M[i,,scen] <- pred$y1
 			y2M[i,,scen] <- pred$y2
 		}
@@ -467,14 +484,15 @@ print(pb + opts(legend.position = "none") , vp = viewport(layout.pos.row=2,layou
 	p1
 }
 
-p1 <- ggplot(dfPred, aes(x=median, y=observations, colour=scenario) ) +
+windows(width=7, height=3)
+p2 <- ggplot(dfPred, aes(x=median, y=observations, colour=scenario) ) +
 	#geom_errorbarh(aes(xmax = upper, xmin = lower)) +
 	geom_point() +
 	facet_wrap( ~ variable, scales="free") +
 	opts(axis.title.x=theme_blank() ) +
 	geom_abline(colour="black") +
 	c()
-p1
+p2
 
 
 
