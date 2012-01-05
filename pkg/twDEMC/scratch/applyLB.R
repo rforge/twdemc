@@ -37,7 +37,7 @@ sfApplyMatrixLB <- function(
 	### a list with result of FUN for each row of X1 and X2
 	
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 }
 # mtrace(sfApplyMatrixLB)
 # twUtestF("applyLB","test.sfApplyMatrixLB")
@@ -105,7 +105,7 @@ twSfApply2MatrixLB <- function(
 	### result of \code{\link{.simplifyLBResult}} applied to a list with result of FUN for each row of X1 and X2 
 	
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 }
 # twUtestF("applyLB","test.twSfApply2MatrixLB")
 

@@ -22,7 +22,7 @@
 
 
 #twUtestF(twDEMCBatch,"test.saveAndRestart")
-test.updatedInvocation <- function(){
+tes_XXTODO_t.updatedInvocation <- function(){
 	# testing first fit with internal Metroplis step, and continuing with single Metropolis step
 	.nPops=2
 	argsFLogDen <- list(
@@ -59,7 +59,7 @@ test.updatedInvocation <- function(){
 	#mtrace(twRunDEMC)
 	#mtrace(twDEMCBatch)
 	#mtrace(twDEMC.twDEMC)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	#tmpf <- argsTwDEMCBatch0$fLogDen; mtrace(tmpf); argsTwDEMCBatch0$fLogDen <- tmpf #check if logKikAccept is empty
 	res2 <- NULL; res2 <-do.call( twRunDEMC, list(argsTwDEMCBatch=argsTwDEMCBatch0,Zinit=res,nGen=60+30, intResCompNames=character(0)) )
 	expNSteps <- (60+30)/.thin+1
@@ -70,7 +70,7 @@ test.updatedInvocation <- function(){
 	
 	#mtrace(twRunDEMC)
 	#mtrace(twDEMCBatch)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	#mtrace(twDEMC.twDEMC)
 	#tmpf <- argsTwDEMCBatch0$fLogDen; mtrace(tmpf); argsTwDEMCBatch0$fLogDen <- tmpf #check if logKikAccept has parms
 	#res3 <- NULL; res3 <-do.call( twRunDEMC, list(argsTwDEMCBatch=argsTwDEMCBatch0,Zinit=res,nGen=60+30) )

@@ -5,7 +5,7 @@
 
 
 twDEMCBatchInt <- function(
-	### Calls \code{\link{twDEMCInt}} successively with \code{nBatch} generations.
+	### Calls \code{\link{twDEMCBlockInt}} successively with \code{nBatch} generations.
 	Zinit
 	### the initial population
 	, nGen=10
@@ -40,7 +40,7 @@ twDEMCBatchInt <- function(
 ){
 	# twDEMCBatchInt
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{twDEMCBatch}}
 	##details<< 
 	## Usually invoked by \code{\link{twDEMCBatch}}.
@@ -71,7 +71,7 @@ twDEMCBatchInt <- function(
 		if( iRun >= nGen ) return(res)
 		ctrl$initialAcceptanceRate <- popMeansTwDEMC( res$pAccept[nrow(res$pAccept),],nPops )
 		ctrl$T0 <- T0c <- res$temp[ nrow(res$temp), ,drop=FALSE ]
-		if( length(T0c) != nPops) stop(paste("twDEMCInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
+		if( length(T0c) != nPops) stop(paste("twDEMCBlockInt: encoutered temperature recored with",length(T0c),"columns but argument nPops=",nPops))
 		
 		#calculate optimal end temperature
 		resCols <- match( rownames(res$logDenComp), rownames(res$Y))
@@ -80,7 +80,7 @@ twDEMCBatchInt <- function(
 		nChainPop <- nChains %/% nPops
 		chain2Pop <- rep(1:nPops, each=nChainPop )	#mapping of chain to population
 		
-		diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
+		diffLogDen <- getDiffLogDen.twDEMCPops(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
 		diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 		
 		pAcceptChains <- res$pAccept[ nrow(res$pAccept), ]
@@ -124,7 +124,7 @@ twDEMCBatchInt <- function(
 		## temperature Tend, Tend is also lowered.
 		## }}
 		if( (0<length(ctrl$useMultiT)) ) if( ctrl$useMultiT ){
-				ctrl$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
+				ctrl$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCBlockInt
 				#ctrl$Tend <- pmin( ctrl$Tend, apply(TDiffLogDen,2,max))
 			}
 	}
@@ -247,9 +247,9 @@ twDEMCBatchInt <- function(
 			#construct Temp for results and populations
 			tempResPops <- matrix( rep(T0c, length(resCols)), ncol=length(T0c), byrow=TRUE, dimnames=list(rownames(res$Y)[resCols],NULL))
 			tempResPops[names(ctrl$TFix),] <- matrix( rep(TFix, length(T0c)), ncol=length(T0c) )
-			#mtrace(getDiffLogDen.twDEMCProps)
-			#diffLogDenT <- getDiffLogDen.twDEMCProps(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
-			diffLogDen <- getDiffLogDen.twDEMCProps(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
+			#mtrace(getDiffLogDen.twDEMCPops)
+			#diffLogDenT <- getDiffLogDen.twDEMCPops(res$Y, resCols, temp=tempResPops, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
+			diffLogDen <- getDiffLogDen.twDEMCPops(res$Y, resCols, nLastSteps=ceiling(128/nChainPop)) 	#in twDEMC S3twDEMC.R
 			diffLogDenPops <- popApplyTwDEMC( diffLogDen, nPops=nPops, function(x){ abind(twListArrDim(x),along=2,new.names=dimnames(x)) })	#stack param columns by population
 			#diffLogDenPops[!is.finite(diffLogDenPops)] <- NA
 			#XXTODO: think about criterion for too fast cooling
@@ -277,8 +277,8 @@ twDEMCBatchInt <- function(
 			pTarget=minPCompAcceptTempDecr+0.02
 			if( (0<length(clArgs$controlTwDEMC$useMultiT)) ) if( clArgs$controlTwDEMC$useMultiT ){
 					#mtrace(calcDEMCTempDiffLogDen2)
-					clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCInt
-					#clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- apply( diffLogDenPops, 3, calcDEMCTempDiffLogDen, pTarget=pTarget)  # will be scaled in twDEMCInt
+					clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- sapply( seq_along(T0c), function(i){calcDEMCTempDiffLogDen2(diffLogDenPops[,,i], pTarget=pTarget, TFix=TFix, Tmax=T0c[i])})  # will be scaled in twDEMCBlockInt
+					#clArgs$controlTwDEMC$Tprop <- TDiffLogDen <- apply( diffLogDenPops, 3, calcDEMCTempDiffLogDen, pTarget=pTarget)  # will be scaled in twDEMCBlockInt
 					#clArgs$controlTwDEMC$Tend <- pmin( tempExp, apply(TDiffLogDen,2,max))
 				}
 			
@@ -294,6 +294,6 @@ twDEMCBatchInt <- function(
 	cat(paste(iRun," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
 	res$nGenBurnin <- nGenBurnin
 	res
-	### List of class twDEMC (see \code{\link{twDEMCInt}}) with additional entry nGenBurnin
+	### List of class twDEMC (see \code{\link{twDEMCBlockInt}}) with additional entry nGenBurnin
 }
 

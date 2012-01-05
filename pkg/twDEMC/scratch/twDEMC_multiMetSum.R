@@ -3,7 +3,7 @@
 # better use the version with "all", 
 calcDEMCTempDiffLogDenConst <- function(
 	### Estimate scalar Temperature to obtain given acceptance rate 
-	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCPops}}
 	,pTarget=0.2		##<< overall acceptance rate
 	,TFix=numeric(0)	##<< named numeric vector: components whose Temperate is to be fixed
 	,TCurr=.Machine$double.xmax		##<< current Temperature 

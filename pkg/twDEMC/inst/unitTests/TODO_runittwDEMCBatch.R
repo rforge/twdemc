@@ -21,9 +21,9 @@
 }
 
 
-test.goodStart <- function(){
+test_XXTODO.goodStart <- function(){
 	# nice starting values
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -34,16 +34,16 @@ test.goodStart <- function(){
 	)
 	do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPop=.nPop)
 	dim(Zinit)
 	
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	#mtrace(twDEMCBatchInt)
 	res <-  twDEMCBatch(
 		Zinit=Zinit, nGen=200, nBatch=50,
 		restartFilename=NULL,
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+		nPop=.nPop
 	)
 	str(res)
 	
@@ -71,7 +71,7 @@ test.goodStart <- function(){
 #twUtestF(twDEMCBatch,"test.saveAndRestart")
 test.saveAndRestartTemp <- function(){
 	# testing save and restarting from that file
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
@@ -82,7 +82,7 @@ test.saveAndRestartTemp <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPop=.nPop)
 	dim(Zinit)
 	
 	suppressWarnings(dir.create("tmp"))
@@ -90,13 +90,13 @@ test.saveAndRestartTemp <- function(){
 	unlink(restartFilename)
 	checkTrue( !file.exists(restartFilename) )
 	
-	.nPops=2
+	.nPop=2
 	.thin=5
 	res <-  twDEMCBatch(
 		Zinit=Zinit,  
 		60, 50,
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		
 		controlTwDEMC = list(thin=.thin),
 		T0=20,
@@ -117,7 +117,7 @@ test.saveAndRestartTemp <- function(){
 	#str(resRestart.twDEMC)
 	#mtrace(twDEMCBatch)
 	#mtrace(twDEMCBatchInt)
-	rm(.nPops)	#test if argument values referring to variables have been substituted by their values
+	rm(.nPop)	#test if argument values referring to variables have been substituted by their values
 	#names(res$batchCall)
 	res2 <- twDEMCBatch(resRestart.twDEMC)		#should figure out burnin and nGen by itself 
 	checkEquals(60/.thin+1, nrow(res2$rLogDen) )
@@ -156,7 +156,7 @@ test.saveAndRestartTemp <- function(){
 #twUtestF(twDEMCBatch,"test.badStart")
 test.badStart <- function(){
 	#test burnin with bad starting information
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
@@ -169,7 +169,7 @@ test.badStart <- function(){
 	
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2,1) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
 	dim(Zinit)
@@ -180,7 +180,7 @@ test.badStart <- function(){
 		Zinit=Zinit,  
 		300, 50,
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		#probUpDirBurnin=0.8,		
 		nGenBurnin=200
 	)
@@ -211,7 +211,7 @@ test.badStart <- function(){
 t_est.badStartGelmanCooling <- function(){
 	#test burnin with bad starting information, 
 	# in the meantime became standard argument, and tested with other tests
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with
@@ -224,7 +224,7 @@ t_est.badStartGelmanCooling <- function(){
 	
 	.sdThetaBad <- sdTheta*c(1/10,10)
 	.theta0Bad <- theta0*c(10,1/10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2), nChains=8, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2,1) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(1,2) 
 	dim(Zinit)
@@ -236,7 +236,7 @@ t_est.badStartGelmanCooling <- function(){
 		Zinit=Zinit,  
 		300, 50,
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops
+		nPop=.nPop
 		#,probUpDirBurnin=0.8		
 		,nGenBurnin=200
 		,T0=100
@@ -248,7 +248,7 @@ t_est.badStartGelmanCooling <- function(){
 
 test.probUpDir <- function(){
 	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPops=2
+	.nPop=2
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -259,14 +259,14 @@ test.probUpDir <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=8, nPop=.nPop)
 	dim(Zinit)
 	
 	res <-  twDEMCBatch(
 		200, 50,
 		Zinit=Zinit,  
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
-		nPops=.nPops,
+		nPop=.nPop,
 		
 		nGenBurnin=150,
 		probUpDirBurnin=0.8

@@ -30,6 +30,8 @@
 	
 	twUtestF()
 	
+	twUtestF(twCalcLogDenPar)
+	twUtestF(transOrigPopt)
 	twUtestF("initZ")
 	twUtestF("S3twDEMC")
 	#twUtestF("S3twDEMCPops")
@@ -58,8 +60,9 @@
 	library(inlinedocs)
 	unlink( file.path("man","*.Rd") )	
 	package.skeleton.dx(".")
+	unlink(file.path("man","twDEMC-package.Rd"))   # will be copied from genData 
 	try(file.copy( Sys.glob(file.path("inst","genData","*.Rd")), "man" ), silent=TRUE)	# copy descriptions of data
-	unlink(file.path("man","twDEMC.Rd"))   # else overwrites alias twDEMC to twDEMCInt 
+	unlink(file.path("man","twDEMC.Rd"))   # else overwrites alias twDEMC to twDEMCBlockInt 
 	
 	# generate the HTML  files
 	prevWd <- setwd("..")
@@ -78,6 +81,9 @@
 	
 	# copy to the generated html into working directory
 	#file.copy( htmlRoot, ".", recursive=TRUE)
+	
+	require(twMisc)
+	updateVersionAndDate()
 }
 
 

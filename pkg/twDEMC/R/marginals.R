@@ -41,16 +41,16 @@ marginals1d <- function(
 	,...				##<< further arguments to fAgg
 ){
 	##seealso<<  
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	##details<< 
 	## There are several methods to get calculate marginal densities for multivariate sample. \itemize{
 	## \item{ integrate over all others but 1 column: this method  } 
 	## \item{ integrate over all others but 2 column: \code{\link{marginals2d}}  } 
 	## \item{ integrate over all others but 3 column: \code{\link{marginals3d}}  } 
-	## \item{ plotting a 2D marginal distribution: \code{\link{plotMarginal2D}}  } 
 	## \item{ plotting a 2D kernel density estimate: \code{\link{plot2DKDMarginals}}  } 
 	##}
+	#? \item{ plotting a 2D marginal distribution: \code{\link{plotMarginal2D}}  } 
 	
 	xcuts <- cutQuantiles(x[,vars],g=n, levels.mean=TRUE)
 	tmp <- list(xcuts); names(tmp) <- dimnames	
@@ -79,7 +79,7 @@ marginals2d <- function(
 ){
 	##seealso<<  
 	## \code{\link{marginals1d}}
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	if( length(n)==1 ) n=rep(n,2)
 	xcuts <- cutQuantiles(x[,vars[1] ],g=n[1], levels.mean=TRUE)
@@ -112,7 +112,7 @@ marginals3d <- function(
 ){
 	##seealso<<  
 	## \code{\link{marginals1d}}
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	if( length(n)==1 ) n=rep(n,3)
 	xcuts <- cutQuantiles(x[,vars[1] ],g=n[1], levels.mean=TRUE)

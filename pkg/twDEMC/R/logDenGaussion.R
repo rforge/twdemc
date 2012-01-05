@@ -18,7 +18,7 @@ logDenGaussian <- function(
 ){
 	# logDenGaussian
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{dummyTwDEMCModel}}
 	if( !is.null(namesTheta ))
 		names(theta) <- namesTheta	##details<<
@@ -71,7 +71,7 @@ dummyTwDEMCModel <- function(
 ){ 
 	# dummyTwDEMCModel
 	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{logDenGaussian}}
 	theta["a"] + theta["b"]*xval 
 }

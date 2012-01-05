@@ -46,7 +46,7 @@ attr(den2dCor,"ex") <- function(){
 	(.expCovTheta <- diag(c(a=2,b=2)) )		
 	.nPops=2
 	Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	
 	den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
 	den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)

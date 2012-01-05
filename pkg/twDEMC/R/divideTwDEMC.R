@@ -22,7 +22,7 @@ divideTwDEMCStep <- function(
 	iPopsSpace <- lapply(1:nSpace, function(iSpace){ which(spacesPop==iSpace)}) # pops in flat version per space 
 	nSamplePop <- getNSamples(aTwDEMC)
 	
-	#----  calculating initial quantiles and number of genrations
+	#----  calculating initial quantiles and number of generations
 	if( 0 == length(qPop) ){
 		#iSpace=nSpace
 		qPopSpace <- lapply( 1:nSpace, function(iSpace){

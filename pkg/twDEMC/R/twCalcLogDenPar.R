@@ -15,7 +15,7 @@ twCalcLogDenPar <- function(
 	...						##<< further arguments passed to fLogDen
 ){
 	##seealso<< 
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	#if( (0 == length(logDenCompX)) ) logDenCompX=xProp[,FALSE,drop=FALSE]
 	if( {tmp<-list(...); any(""==names(tmp)) || length(names(tmp))!=length(tmp)} )
 		("twCalcLogDenPar: encountered unnamed argument in ... Check for <- and ,, in list()")

@@ -47,10 +47,10 @@ twDEMC <- function(
 	Zinit,...
 ){	
 	##details<< 
-	## calls correct initializer of \code{\link{twDEMCInt}} depending on the class of Zinit
+	## calls correct initializer of \code{\link{twDEMCBlockInt}} depending on the class of Zinit
 	UseMethod("twDEMC"
 	##seealso<< 
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{twDEMC.default}}
 	## \code{\link{twDEMC.twDEMC}}
 	)}
@@ -307,13 +307,13 @@ setMethodS3("transOrigPopt","twDEMC", function(
 
 # link on ?twDEMC, better delete resulting twDEMC.Rd
 setMethodS3("twDEMC","default", function( 
-		### Initialize and call \code{\link{twDEMCInt}}. 
+		### Initialize and call \code{\link{twDEMCBlockInt}}. 
 		Zinit, ##<< initial population: a numeric array (d x M0 x Npop) or an object of class twDEMC  
-		...	   ##<< further arguments to \code{\link{twDEMCInt}}
+		...	   ##<< further arguments to \code{\link{twDEMCBlockInt}}
 	){
 		stop("unknown type of initialization argument Zinit")
 		##seealso<< 
-		## \code{\link{twDEMCInt}}
+		## \code{\link{twDEMCBlockInt}}
 		## \code{\link{twDEMC.array}}
 		## \code{\link{twDEMC.twDEMC}}
 	})

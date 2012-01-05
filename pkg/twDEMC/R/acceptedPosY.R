@@ -27,7 +27,7 @@ getAcceptedPos.twDEMCProps <- function(
 	### the first step is NA because there is no previous accepted state
 }
 
-getDiffLogDen.twDEMCProps <- function(
+getDiffLogDen.twDEMCPops <- function(
 	### Extract the Differences in LogDensity between accepted states and proposals.
 	Y					##<< matrix of proposals with row "accepted" and first step (column) initial state, rows: results components of fLogDen and third dimension chains.
 	,resCols			##<< the rows of Y with result components, either names or positions
@@ -53,7 +53,7 @@ getDiffLogDen.twDEMCProps <- function(
 
 replaceNonFiniteDiffLogDens <- function(
 	### For each component replace NAs by sample of others and non-Finite values by minimum of others  
-	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCPops}}
 	,doConstrainNeg=FALSE	##<< if given, density of accepted jumps (positive) is constrained to 0
 ){
 	d <- t(apply( diffLogDen,1,function(ds){
@@ -77,7 +77,7 @@ replaceNonFiniteDiffLogDens <- function(
 
 sampleAcceptedFixedTempDiffLogDens <- function(
 	### Calculate diffLogDen for fixed temperature components and return subset of accepted ones 
-	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCProps}}
+	diffLogDen			##<< array( streams x steps) Lp-La see \code{\link{getDiffLogDen.twDEMCPops}}
 	,TFix=numeric(0)
 ){
 	dTFix <- colSums( diffLogDen[names(TFix),,drop=FALSE]/TFix )

@@ -3,7 +3,13 @@
 }
 
 ### Distribution supported by transScale
-twVarDistrLevels <- as.factor( c("norm","lognorm","logitnorm") )
+##describe<< 
+twVarDistrLevels <- as.factor( c(
+		norm="norm"				##<< normal distribution
+		,lognorm="lognorm"		##<< log-normal distribution
+		,logitnorm="logitnorm")	##<< logit-normal distribution
+)
+##end<<
 
 twVarDistrVec <- function(
 	### create a factor level with given variable names
@@ -15,18 +21,18 @@ twVarDistrVec <- function(
 
 setMethodS3("transOrigPopt","default", function( 
 		### Transform vectors from normal to original scale.
-	normpopt, 
-		### numerical vector/array with values at transformed, i.e. normal, scale
-	poptDistr=eval(parse(text="parDistr$trans[names(normpopt)]")),
+	normpopt	##<< numerical vector/array with values at transformed, i.e. normal, scale
+	,poptDistr=eval(parse(text="parDistr$trans[names(normpopt)]")),
 		### character vector/array of kind of transformation ("lognorm"/"logitnorm")
 		### values with other characters indicate no transformation
-		### default assumes vector parDistr$trans in environement 
+		### default assumes vector \code{parDistr$trans} in environement 
 	...
 ){
 	# transOrigPopt.default
 	
-	##seealso<<   
-	## \code{\link{twDEMCInt}}
+	##seealso<<
+	## \code{\link{twVarDistrLevels}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{transNormPopt.default}}
 	
 	##details<< 
@@ -42,10 +48,11 @@ setMethodS3("transOrigPopt","default", function(
 	## \item{ transforming from original to normal scale: \code{\link{transNormPopt.default}}  } 
 	## \item{ calculating mu and sigma at normal scale from quantiles: \code{\link{twQuantiles2Coef}}  } 
 	## \item{ constraing the result list of \code{\link{twQuantiles2Coef}}, and adding variance-covariance matrix: \code{\link{twConstrainPoptDistr}}  }
+	## \item{ calculating the density based on the distribution arguments \code{\link{dDistr}} }
 	##}
 	
 	##details<< 
-	## Argument \code{poptDistr} should have the same dimensions as normpopt. However, it is recycled
+	## Argument \code{poptDistr} should have the same dimensions as normpopt. However, it is recycled.
 	## By this way it is possible to specify only one value, or vector corresponding to the rows of a matrix.
 	popt <- normpopt	#default no transformation  already normal
 	bo <- (!is.na(poptDistr) & poptDistr == "lognorm"); popt[bo] <- exp(normpopt[bo])
@@ -54,6 +61,45 @@ setMethodS3("transOrigPopt","default", function(
 	### Normpopt with some values transformed by exp (poptDist=="lognorm") or plogis (poptDistr=="logitnorm").
 })	
 #mtrace(transOrigPopt)
+attr(transOrigPopt.default,"ex") <- function(){
+	upperBoundProb = 0.99	# quantile of the upper boundary
+	parmsBounds = list(		# mode and upper bound
+		A0 = c(10,15)		
+		,D0 = c(10, 100)
+		,C0 = c(0.6,0.8)
+	)
+	varDistr <- twVarDistrVec( names(parmsBounds) )	# by default assumed normal
+	varDistr["D0"] <- "lognorm"
+	varDistr["C0"] <- "logitnorm"
+	parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb, useMedian=FALSE )
+	parDistr
+	all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr$mu["A0"], parDistr$sigmaDiag["A0"] ) )
+	
+	# transform entire parameter vectors between scales
+	pOrig <- transOrigPopt( parDistr$mu, parDistr$trans[names(parDistr$mu)] )
+	# note that transform of mu slighly differs from the mode for lognormal and logitnormal 
+	pOrig
+	# back-transform to normal scale
+	pBack <- transNormPopt( pOrig, parDistr$trans[names(pOrig)] )	
+	all.equal( parDistr$mu, pBack )
+	
+	# plot quantiles for given distributions
+	pGrid <- seq(0.01,0.99,length.out=31)
+	plot( qnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid)
+	plot( qlnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid); abline(h=parmsBounds[["D0"]][1], col="grey")
+	
+	# plot densities for D0 parameter ranges
+	dGrid <- seq(3, 80, length.out=100)
+	denOrig1 <- dlnorm(dGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) 
+	plot( denOrig1 ~ dGrid, type="l"); abline(v=parmsBounds[["D0"]][1], col="grey")
+	
+	# now plot the same using a grid on normal scale, transforming them to original scale
+	dNormGrid <- seq( parDistr$mu["D0"]-2*parDistr$sigmaDiag["D0"], parDistr$mu["D0"]+2*parDistr$sigmaDiag["D0"], length.out=100)
+	dOrigGrid <- transOrigPopt(dNormGrid, parDistr$trans["D0"])
+	all.equal( dNormGrid, transNormPopt(dOrigGrid, parDistr$trans["D0"]) )
+	denOrig2 <- dDistr( dOrigGrid, parDistr$mu["D0"],parDistr$sigmaDiag["D0"],trans=parDistr$trans["D0"] )
+	points( denOrig2 ~ dOrigGrid, col="blue" )
+}
 
 setMethodS3("transNormPopt","default", function( 
 		### Transform vectors from original to normal scale.
@@ -69,7 +115,7 @@ setMethodS3("transNormPopt","default", function(
 		
 		##seealso<<   
 		## \code{\link{transOrigPopt.default}}
-		## \code{\link{twDEMCInt}}
+		## \code{\link{twDEMCBlockInt}}
 		
 		##details<< 
 		## Argument \code{poptDistr} should have the same dimensions as normpopt. However, it is recycled
@@ -108,7 +154,7 @@ setMethodS3("transOrigPopt","matrix", function(
 })
 
 setMethodS3("transOrigPopt","array", function( 
-		### Applies \code{\link{transOrigPopt.default}} to each row of \code{normopt}.
+		### Applies \code{\link{transOrigPopt.default}} to each column, i.e. variable, of \code{normopt}.
 		normpopt, 
 		### numerical matrx with values at transformed, i.e. normal, scale
 		poptDistr=eval(parse(text="parDistr$trans[rownames(normpopt)]")),
@@ -122,12 +168,12 @@ setMethodS3("transOrigPopt","array", function(
 		## either poptDistr has names for each column name
 		## or poptDistr has the same length as colnames(normpopt)
 		if( !is.null(names(poptDistr)) )
-			if( all(rownames(normpopt) %in% names(poptDistr)) )
-				poptDistr=poptDistr[ rownames(normpopt) ]
-		if( length(poptDistr) != nrow(normpopt) )
-			stop("names of poptDistr must have entries for each row or poptDistr has no names but is of the same length as rownames(normpopt).")
-		for( vi in seq(along.with=rownames(normpopt)) ){
-			popt[vi,,] <- transOrigPopt.default( normpopt[vi,,], poptDistr[vi] )
+			if( all(colnames(normpopt) %in% names(poptDistr)) )
+				poptDistr=poptDistr[ colnames(normpopt) ]
+		if( length(poptDistr) != ncol(normpopt) )
+			stop("names of poptDistr must have entries for each column or poptDistr has no names but is of the same length as colnames(normpopt).")
+		for( vi in seq(along.with=colnames(normpopt)) ){
+			popt[,vi,] <- transOrigPopt.default( normpopt[,vi,], poptDistr[vi] )
 		}
 		popt
 	})
@@ -150,7 +196,7 @@ setMethodS3("transOrigPopt","mcmc.list", function(
 
 setMethodS3("transOrigPopt","twDEMC", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.
-	vtwdemc, 
+	normpopt, 
 		### list of class twDEMC with $parms in transformed scale 
 	poptDistr=eval(parse(text="parDistr$trans")),
 		### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
@@ -158,11 +204,12 @@ setMethodS3("transOrigPopt","twDEMC", function(
 ){
 	##seealso<<   
 	## \code{\link{transOrigPopt.default}}
-	res <- vtwdemc
-	res$parms <- transOrigPopt.array(vtwdemc$parms, poptDistr=poptDistr)
-	if( 0<length(vtwdemc$Y) ){
-		varNames <- rownames(res$parms)
-		res$Y[varNames,,] <- transOrigPopt.array(vtwdemc$Y[varNames,, ,drop=FALSE], poptDistr=poptDistr)
+	res <- normpopt
+	res$parms <- transOrigPopt.array(normpopt$parms, poptDistr=poptDistr)
+	# in addition transform parameters in Y
+	if( 0<length(normpopt$Y) ){
+		varNames <- colnames(res$parms)
+		res$Y[,varNames,] <- transOrigPopt.array(normpopt$Y[,varNames, ,drop=FALSE], poptDistr=poptDistr)
 	}
 	res
 })
@@ -172,7 +219,11 @@ twCoefLnorm <- function(
 	median	##<< geometric mu (median at the original exponential scale)
 	,quant	##<< value at the upper quantile, i.e. practical maximum
 	,sigmaFac=qnorm(0.99) 	##<< sigmaFac=2 is 95% sigmaFac=2.6 is 99% interval 
-){	
+){
+	##seealso<< 
+	## \code{\link{twQuantiles2Coef}}
+	## \code{\link{transOrigPopt.default}}
+	
 	# twCoefLognorm
 	# mu_geo = exp(mu); sigma_geo = exp(sigma)
 	# logSpace cf-Interval: mu +- n sigma (n=1.96 for cf95)
@@ -183,12 +234,45 @@ twCoefLnorm <- function(
 	### named numeric vector: mu and sigma parameter of the lognormal distribution.
 }
 
+twCoefLnormCi <- function( 
+	### Calculates mu and sigma of the lognormal distribution from lower and upper quantile, i.e. conidence interval.
+	lower	##<< value at the lower quantile, i.e. practical minimum
+	,upper	##<< value at the upper quantile, i.e. practical maximum
+	,sigmaFac=qnorm(0.99) 	##<< sigmaFac=2 is 95% sigmaFac=2.6 is 99% interval
+	,isTransScale = FALSE ##<< if true lower and upper are already on log scale
+){	
+	##seealso<< 
+	## \code{\link{twQuantiles2Coef}}
+	## \code{\link{transOrigPopt.default}}
+	if( !isTRUE(isTransScale) ){
+		lower <- log(lower)
+		upper <- log(upper)
+	}
+	sigma <- (upper-lower)/2/sigmaFac
+	cbind( mu=upper-sigmaFac*sigma, sigma=sigma )
+	### named numeric vector: mu and sigma parameter of the lognormal distribution.
+}
+attr(twCoefLnormCi,"ex") <- function(){
+	mu=2
+	sd=c(1,0.8)
+	p=0.99
+	lower <- l <- qlnorm(1-p, mu, sd )		# p-confidence interval
+	upper <- u <- qlnorm(p, mu, sd )		# p-confidence interval
+	cf <- twCoefLnormCi(lower,upper)	
+	all.equal( cf[,"mu"] , c(mu,mu) )
+	all.equal( cf[,"sigma"] , sd )
+}
+
 twCoefLnormMLE <- function( 
 	### Calculates mu and sigma of the lognormal distribution from mode and upper quantile.
 	mle			##<< numeric vector: mode at the original scale
 	,quant		##<< numeric vector: value at the upper quantile, i.e. practical maximum
 	,sigmaFac=qnorm(0.99) 	##<< sigmaFac=2 is 95% sigmaFac=2.6 is 99% interval 
 ){	
+	##seealso<< 
+	## \code{\link{twQuantiles2Coef}}
+	## \code{\link{transOrigPopt.default}}
+	
 	# twCoefLognormMLE
 	# solution of 
 	# (1) mle=exp(mu-sigma^2)
@@ -274,11 +358,19 @@ attr(twCoefLnormMLE,"ex") <- function(){
 
 twQuantiles2Coef <- function(
 	### Calculating coefficients of transformed normal distributions from quantiles.
-	parmsBounds		##<< list parameters, each entry a numeric vector of length 2 specifying mode and upper quantile value
+	parmsBounds		##<< list parameters, each entry a numeric vector of length 2 specifying mode/median/lower quantile and upper quantile value
 	,varDistr		##<< character vector identifying the distribution, i.e. transformation to normal, for each parameter
 	,upperBoundProb=0.99	##<< probability for upper quantile in parmsBounds
 	,useMedian=FALSE	##<< if TRUE, the first entry of parmsBounds specifies the median, insted of the mode 
+	,useCi=FALSE		##<< if TRUE, the first entry of parmsBounds specifies the lower quantile, insted of the mode 
 ){
+	##seealso<<   
+	## \code{\link{twCoefLnorm}}
+	## \code{\link{twCoefLnormCi}}
+	## \code{\link{twCoefLnormMLE}}
+	## \code{\link{transOrigPopt.default}}
+	## \code{\link{twDEMCBlockInt}}
+	
 	#check arguments
 	varNames <- names(parmsBounds)
 	varDistr <- varDistr[varNames]		#make them the same order
@@ -299,14 +391,23 @@ twQuantiles2Coef <- function(
 
 	if( any(boNorm)){
 		quantTmp <- quant[boNorm,,drop=FALSE]
-		mu[boNorm] <- quantTmp[,i_qMedian]
-		sigmaDiag[boNorm] <- (quantTmp[,i_qUpper]-quantTmp[,i_qMedian])/upperBoundSigmaFac
+		if( useCi ){
+			#sigma*sigmaFac is halv the ci
+			halfWidth <- (quantTmp[,i_qUpper]-quantTmp[,i_qMedian])/2
+			mu[boNorm] <- quantTmp[,i_qMedian] + halfWidth 
+			sigmaDiag[boNorm] <- halfWidth/upperBoundSigmaFac						
+		}else{
+			mu[boNorm] <- quantTmp[,i_qMedian]
+			sigmaDiag[boNorm] <- (quantTmp[,i_qUpper]-quantTmp[,i_qMedian])/upperBoundSigmaFac
+		}
 	}
 	
 	if( any(boLognorm)){
 		quantTmp <- quant[boLognorm,,drop=FALSE]
 		coefs <- if( useMedian )
 			twCoefLnorm(median=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],sigmaFac=upperBoundSigmaFac)
+		else if( useCi )
+			twCoefLnormCi(lower=quantTmp[,i_qMedian], upper=quantTmp[,i_qUpper],sigmaFac=upperBoundSigmaFac)
 		else
 			twCoefLnormMLE(mle=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],sigmaFac=upperBoundSigmaFac)
 		mu[boLognorm] <- coefs[,1]
@@ -317,6 +418,8 @@ twQuantiles2Coef <- function(
 		quantTmp <- quant[boLogitnorm,,drop=FALSE]
 		coefs <- if( useMedian )
 				twCoefLogitnorm(median=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],perc=upperBoundProb)
+			else if (useCi)
+				twCoefLogitnormCi(lower=quantTmp[,i_qMedian], upper=quantTmp[,i_qUpper],sigmaFac=upperBoundSigmaFac)
 			else
 				twCoefLogitnormMLE(mle=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],perc=upperBoundProb)
 		mu[boLogitnorm] <- coefs[,1]
@@ -332,7 +435,7 @@ twQuantiles2Coef <- function(
 	### parameter distribution information, list entries \describe{
 	### \item{trans}{character vector: type of distribtution (norm,lognorm,logitnorm)}
 	### \item{mu}{numeric vector: distribution parameter mu, i.e. expected values at normal scale}
-	### \item{sigmaDiag}{numeric vector: standard deviation for each parameter, i.e. diagonal of ,matrix parameter sigma multivariate distrubtion without correlations.}
+	### \item{sigmaDiag}{numeric vector: standard deviation for each parameter, i.e. sqrt(diagonal of matrix parameter sigma) multivariate distrubtion without correlations.}
 	### %\item{invsigma}{numeric matrix: inverse of the distribution parameter sigma on multivariate (transformed) normal distribution}
 	### }
 }
@@ -364,6 +467,10 @@ dDistr <- function(
 	,sigma		##<< numeric vector (recycled)
 	,trans		##<< factor  vector: the Transformation to use levels (norm,lognorm,logitnorm)
 ){
+	##seealso<<   
+	## \code{\link{transOrigPopt.default}}
+	## \code{\link{twDEMCBlockInt}}
+	
 	##details<< 
 	## To evaluate density at original, i.e. lognormal, logitnormal, scale
 	## the density at transformed normal scale has to be multiplied with the 

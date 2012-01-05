@@ -20,6 +20,8 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{getNChains.twDEMCPops}}
 		## \code{\link{getNChainsPop.twDEMCPops}}
 		## \code{\link{getNParms.twDEMCPops}}
+		## \code{\link{getNSpaces.twDEMCPops}}
+		## \code{\link{getSpacesPop.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCBlockInt}}
 		#mtrace(getNSamples.twDEMCPops)
@@ -116,11 +118,27 @@ setMethodS3("getSpacesPop","twDEMCPops", function(
 	){
 		# spacesPop.twDEMCPops
 		##seealso<<   
+		## \code{\link{getNSpaces.twDEMCPops}}
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCBlockInt}}
 		sapply( x$pops, "[[" ,"spaceInd" )
 		### integer vector (nPop): index of the replicated space.
+	})
+
+setMethodS3("getNSpaces","twDEMCPops", function( 
+		### Extracts the number of space replicates.
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getNSpaces.twDEMCPops
+		##seealso<<   
+		## \code{\link{getSpacesPop.twDEMCPops}}
+		## \code{\link{getNGen.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		## ,\code{\link{twDEMCBlockInt}}
+		length(unique(getSpacesPop.twDEMCPops(x)))
+		### scalar integer: the number of spaces
 	})
 
 
@@ -210,6 +228,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 	x$upperParBoundsPop = lapply( pops, "[[", "upperParBounds" )
 	x$lowerParBoundsPop = lapply( pops, "[[", "lowerParBounds" )
 	class(x) <- c("list","twDEMC")
+	### An object of class twDEMC
 	x
 })
 attr(concatPops,"ex") <- function(){
@@ -271,21 +290,23 @@ setMethodS3("subset","twDEMCPops", function(
 	## \item{ select chains or sub-populations: this method  } 
 	## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
 	## \item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
-	## \item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combinePops.twDEMCPops}}  }
-	## \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
+	## \item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combineTwDEMCPops}}  }
 	##}
 	##
 	## There are several methods utilize the functions of the coda package. \itemize{
 	## \item{ convert an twDEMCPops to a coda mcmc.list \code{\link{as.mcmc.list.twDEMCPops}}  } 
 	## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
 	## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
-	## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
 	## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
 	##}
+	#? \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
+	#? \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
+
 	
 	# To help re-initializing the arguments to fLogDen \itemize{
 	# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
-	
+
+
 	nSamplesPop <- getNSamples(x)
 	iKeep <- if( is.numeric(boKeep)) boKeep else which(boKeep)
 	maxStep <- max(iKeep)
@@ -342,6 +363,9 @@ setMethodS3("squeeze","twDEMCPops", function(
 	dropShortPops=FALSE				##<< if set to TRUE, pops with less samples than length.out[1] are dropped
 ){
 	# squeeze.twDEMCPops
+	##seealso<<   
+	## \code{\link{subset.twDEMCPops}}
+	
 	nPop <- getNPops(x)
 	nSamplesPop <- getNSamples(x)
 	if( 1==length(length.out)){
@@ -377,6 +401,20 @@ attr(squeeze.twDEMCPops,"ex") <- function(){
 		getNSamples( squeeze(tmp,length.out=10, dropShortPops=TRUE) )	# should produce error
 	} 
 }
+
+setMethodS3("stackChains","twDEMCPops", function( 
+		### Combine logLik and parms of MarkovChains of a twDEMCPops object to one matrix. 
+		x
+		,...				##<< not used 
+	){
+		# thin.twDEMCPops
+		##seealso<<   
+		## \code{\link{stackPopsInSpace}}, \code{\link{subset.twDEMCPops}} 
+		cPop <- combineTwDEMCPops(x$pops)$pop
+		cArr <- abind( cPop$logDen, cPop$parms, along=2)
+		res <- stackChains.array( cArr )
+		### Matrix with first nDen columns the logDensity logDen and the remaining columns the variables.
+	})
 
 setMethodS3("thin","twDEMCPops", function( 
 		### Reduces the rows of an twDEMCPops object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.
@@ -450,7 +488,7 @@ attr(thin.twDEMCPops,"ex") <- function(){
 
 #setMethodS3("as.mcmc.list","twDEMCPops", function( 
 as.mcmc.list.twDEMCPops <- function( 
-	### Converts list of type twDEMCPops (result of \code{\link{twDEMCPops}}) to coda's \code{mcmc.list}. 
+	### Converts list of type twDEMCPops (result of \code{\link{twDEMCBlockInt}}) to coda's \code{mcmc.list}. 
 	x				##<< the output of \code{\link{twDEMCBlockInt}}) run
 	,...
 	,useThinning=TRUE	##<< if TRUE thinning is used to make populations the same length, if FALSE they are cut to shortest population
@@ -462,7 +500,7 @@ as.mcmc.list.twDEMCPops <- function(
 
 
 .unstackPopsTwDEMCPops <- function(
-	### unstacks a stacked population (by \cdoe{.combineTwDEMCPops(mergeMethod="stack")})
+	### unstacks a stacked population (by \code{combineTwDEMCPops(mergeMethod="stack")})
 	pop	##<< stacked population
 	,nChain
 ){
@@ -610,14 +648,14 @@ as.mcmc.list.twDEMCPops <- function(
 		subPopSource <- subsPopSource[[ij]]
 		# c(pop$lowerParBounds, pop$upperParBounds )
 		# c(popM$lowerParBounds, popM$upperParBounds )  # a combination of uB and lB should match
-		# mtrace(.combineTwDEMCPops)
-		resCombine <- .combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" ) 
+		# mtrace(combineTwDEMCPops)
+		resCombine <- combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" ) 
 		newPops[[jPop]] <-	if( resCombine$popCases[ (.nC <- length(resCombine$popCases))] == 2){
-			# make sure that last entry is from popDest (first pop in .combineTwDEMCPops)
+			# make sure that last entry is from popDest (first pop in combineTwDEMCPops)
 			iSwitch <- .nC+1- match( 1, rev(resCombine$popCases) ) # position of the last 1
 			.tmp1 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[-iSwitch] )
 			.tmp2 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[iSwitch] )
-			.tmp <- .combineTwDEMCPops( list(.tmp1, .tmp2), mergeMethod="stack" )$pop  			
+			.tmp <- combineTwDEMCPops( list(.tmp1, .tmp2), mergeMethod="stack" )$pop  			
 		}else .tmp <- resCombine$pop
 		.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
 		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
@@ -698,12 +736,12 @@ attr(.mergePopTwDEMC,"ex") <- function(){
 }
 
 
-.combineTwDEMCPops <- function(
+combineTwDEMCPops <- function(
 	### combine given populations to one big chain with more cases
-	pops
+	pops					##<< list of population objects
 	,popCases=integer(0)	##<< integer vector (sum(getNSamples(pops))): specifying for each case (row) from which population it is filled
 	,mergeMethod="random"	##<< method of merging the pops, see \code{\link{twMergeSequences}}
-	,nInSlice=4		##<< sequence length from each population
+	,nInSlice=4		##<< sequence length from each population (only for mergeMethod \code{slice}
 ){
 	nPop <- length(pops)
 	newPop <- pop1 <- pops[[1]]
@@ -713,7 +751,7 @@ attr(.mergePopTwDEMC,"ex") <- function(){
 		if( 0 == length(popCases))
 			popCases <- twMergeSequences(nSamplePop, mergeMethod=mergeMethod, nInSlice=nInSlice )
 		if( nSample != length(popCases) )
-			stop(".combineTwDEMCPops: length of argument popCases must equal sum of samples of all populations")
+			stop("combineTwDEMCPops: length of argument popCases must equal sum of samples of all populations")
 		
 		#----  initialize entries
 		tmp <- "parms"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
@@ -749,17 +787,17 @@ attr(.mergePopTwDEMC,"ex") <- function(){
 		,popCases=popCases 	##<< integer vector (nSample): population that case is taken from
 	)
 }
-attr(.combineTwDEMCPops,"ex") <- function(){
+attr(combineTwDEMCPops,"ex") <- function(){
 	data(den2dCorEx)
 	runs0 <- subPops(den2dCorEx$mcSubspaces0, iSpaces=c(1))
 	getSpacesPop(runs0)	# all populatins belonging to space replicate 1
 	#pops <- runs0$pops
-	#mtrace(.combineTwDEMCPops)
-	res <- .combineTwDEMCPops(runs0$pops) 
+	#mtrace(combineTwDEMCPops)
+	res <- combineTwDEMCPops(runs0$pops) 
 	#str(res)
 	head(res$pop$parms[,,1])
 	
-	res <- .combineTwDEMCPops(runs0$pops[3:4])
+	res <- combineTwDEMCPops(runs0$pops[3:4])
 	#str(res)
 	
 }
@@ -767,18 +805,21 @@ attr(.combineTwDEMCPops,"ex") <- function(){
 setMethodS3("stackPopsInSpace","twDEMCPops", function( 
 		### Combine populations for subspaces to bigger populations 
 		x
-		,...	##<< arguments passed \code{\link{.combineTwDEMCPops}} such as \code{mergeMethod}=stack/slice/random
+		,...	##<< arguments passed \code{\link{combineTwDEMCPops}} such as \code{mergeMethod=stack/slice/random}
 		,spacePop = getSpacesPop(x)
 	){
 		# stackPopsInSpace.twDEMCPops
 		##seealso<<   
-		## \code{\link{subChains.twDEMC}}
+		## \code{\link{combineTwDEMCPops}}
+		## \code{\link{stackChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
 		#iSpace=1
 		resComb <- lapply( unique(spacePop), function(iSpace){
 			iPops <- which(spacePop == iSpace)
-			.combineTwDEMCPops(x$pops[iPops], ...) 
+			combineTwDEMCPops(x$pops[iPops], ...) 
 		})
 		x$pops <- lapply( resComb, "[[", "pop" )
+		### twDEMCPops object with nSpace populations
 		x
 	})
 attr(stackPopsInSpace.twDEMCPops,"ex") <- function(){

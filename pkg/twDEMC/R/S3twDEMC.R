@@ -8,10 +8,10 @@ setMethodS3("subChains","twDEMC", function(
 		, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 ){
 		##seealso<<   
-		## \code{\link{twDEMCInt}}
+		## \code{\link{twDEMCBlockInt}}
 		
 		##details<< 
-		## There are several methods access properties a result of an \code{\link{twDEMCInt}}, i.e.
+		## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.
 		## an object of class \code{twDEMC} \itemize{
 		## \item{ number of generations: \code{\link{getNGen.twDEMC}}  } 
 		## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMC}}  } 
@@ -22,7 +22,7 @@ setMethodS3("subChains","twDEMC", function(
 		## \item{ thinning interval: \code{res$thin}  } 
 		##}
 		##
-		## There are several methods to transform or subset the results of an \code{\link{twDEMCInt}} run. \itemize{
+		## There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
 		## \item{ select chains or sub-populations: this method  } 
 		## \item{ thin all the chains: \code{\link{thin.twDEMC}}  } 
 		## \item{ select subset of cases: \code{\link{subset.twDEMC}}  }
@@ -34,9 +34,10 @@ setMethodS3("subChains","twDEMC", function(
 		## \item{ convert an twDEMC to a coda mcmc.list \code{\link{as.mcmc.list.twDEMC}}  } 
 		## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
 		## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
-		## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
 		## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
 		##}
+		#? 		## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
+
 
 		# To help re-initializing the arguments to fLogDen \itemize{
 		# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
@@ -66,7 +67,7 @@ setMethodS3("subChains","twDEMC", function(
 		res$thin <- x$thin
 		if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
 		res
-		### a list of class twDEMC (see \code{\link{twDEMCInt}})
+		### a list of class twDEMC (see \code{\link{twDEMCBlockInt}})
 	})
 #mtrace(subChains.twDEMC)
 
@@ -79,7 +80,7 @@ iSample2time <- function(
 	## \code{\link{time2iSample}}
 	## \code{\link{getNGen.twDEMC}}
 	## ,\code{\link{subChains.twDEMC}}
-	## ,\code{\link{twDEMCInt}}
+	## ,\code{\link{twDEMCBlockInt}}
 	
 	##details<<
 	## Sample 1 corresponds to time zero
@@ -110,7 +111,7 @@ time2iSample <- function(
 	## \code{\link{iSample2time}}
 	## \code{\link{getNGen.twDEMC}}
 	## ,\code{\link{subChains.twDEMC}}
-	## ,\code{\link{twDEMCInt}}
+	## ,\code{\link{twDEMCBlockInt}}
 	x <- (time/thin)+1
 	match=match.arg(match)
 	switch(match
@@ -154,7 +155,7 @@ setMethodS3("getNGen","twDEMC", function(
 		## \code{\link{getNChainsPop.twDEMC}}
 		## \code{\link{getNParms.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		(nrow(res$logDen)-1)*res$thin
 		### integer, number of completed generations
 	})
@@ -179,7 +180,7 @@ setMethodS3("getNBlocks","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## ,\code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		ncol(x$logDen)
 		### integer, number of blocks in twDEMC
 	})
@@ -194,7 +195,7 @@ setMethodS3("getNPops","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## ,\code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		ncol(res$temp)
 		### integer, number of populations in twDEMC
 	})
@@ -208,7 +209,7 @@ setMethodS3("getNChains","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		dim(res$parms)[3]
 		### integer, number of chains in twDEMC
 	})
@@ -222,7 +223,7 @@ setMethodS3("getNChainsPop","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		dim(res$parms)[3]/ncol(res$temp)
 		### integer, number of chains per population in twDEMC
 	})
@@ -236,7 +237,7 @@ setMethodS3("getNParms","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		ncol(res$parms)
 		### integer, number of parameters in twDEMC
 	})
@@ -251,7 +252,7 @@ setMethodS3("getNSamples","twDEMC", function(
 		##seealso<<   
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
-		## ,\code{\link{twDEMCInt}}
+		## ,\code{\link{twDEMCBlockInt}}
 		nrow(res$parms)
 		### integer, number of samples in twDEMC
 	})
@@ -312,7 +313,7 @@ setMethodS3("subset","twDEMC", function(
 #mtrace(subset.twDEMC)
 
 setMethodS3("thin","twDEMC", function( 
-	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCInt}}) to correspond to a thinning of \code{newThin}.
+	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.
 	x, ##<< the twDEMC list to thin 
 	newThin=x$thin, ##<< finite numeric scalar: the target thinning factor, must be positive multiple of x$thin 
 	start=0,  
@@ -633,7 +634,7 @@ setMethodS3("thinN","mcmc.list", function(
 		){
 			##seealso<<   
 			## \code{\link{subChains.twDEMC}}
-			## ,\code{\link{twDEMCInt}}
+			## ,\code{\link{twDEMCBlockInt}}
 			
 			nPop=ncol(x$temp)
 			nPopNew = ncol(xNew$temp)
@@ -655,7 +656,7 @@ setMethodS3("thinN","mcmc.list", function(
 			if( 0 < length(x$Y))
 				res$Y[,,iChains] <- xN$Y
 			res
-			### a list of class twDEMC (see \code{\link{twDEMCInt}})
+			### a list of class twDEMC (see \code{\link{twDEMCBlockInt}})
 		})
 #mtrace(subChains.twDEMC)
 }

@@ -1,5 +1,10 @@
 .setUp <- function(){
 	data(twdemcEx1)
+	suppressWarnings({
+		rm( parDistr )
+		rm( parmsBounds )
+		rm( varDistr )
+	})
 	.setUpDf <- within( list(),{
 		parDistrNamed = list( trans=c(b="norm", a="lognorm", c="someweired"))
 		parDistr = list( trans=c("lognorm","norm"))
@@ -48,28 +53,42 @@ test.transCoda <- function(){
 	checkEquals( .tmp, .tmp2)
 }
 
-test.transTwDEMC <- function(){
-	#mtrace(transOrigPopt.twDEMC)
-	.tmp <- transOrigPopt(twdemcEx1, parDistr$trans)
+test.transMatrix <- function(){
+	#mtrace(transOrigPopt.array)
+	ss <- stackChains(twdemcEx1)[,-1]
+	.tmp <- transOrigPopt(ss, parDistr$trans)
 	
-	checkTrue( is(.tmp,"twDEMC"))
-	.tmpexp <- twdemcEx1
-	.tmpexp$parms["a",,] <- exp(twdemcEx1$parms["a",,])
-	.tmpexp$Y["a",,] <- exp(twdemcEx1$Y["a",,])
+	checkTrue( is(.tmp,"array"))
+	.tmpexp <- ss
+	.tmpexp[,"a"] <- exp(ss[,"a"])
 	checkEquals( .tmpexp, .tmp )
-	
-	.tmp2 <- transOrigPopt(twdemcEx1 )	#check default automatically accessing parDistr$trans
-	checkEquals( .tmp, .tmp2)
 }
 
 test.transArray <- function(){
 	#mtrace(transOrigPopt.array)
-	.tmp <- transOrigPopt(twdemcEx1$parms, parDistr$trans)
+	ss <- twdemcEx1$pops[[1]]$parms
+	.tmp <- transOrigPopt(ss, parDistr$trans)
 	
 	checkTrue( is(.tmp,"array"))
-	.tmpexp <- twdemcEx1
-	.tmpexp$parms["a",,] <- exp(twdemcEx1$parms["a",,])
-	checkEquals( .tmpexp$parms, .tmp )
+	.tmpexp <- ss
+	.tmpexp[,"a",] <- exp(ss[,"a",])
+	checkEquals( .tmpexp, .tmp )
+}
+
+
+test.transTwDEMC <- function(){
+	#mtrace(transOrigPopt.twDEMC)
+	mc1 <- concatPops(twdemcEx1)
+	.tmp <- transOrigPopt(mc1, parDistr$trans)
+	
+	checkTrue( is(.tmp,"twDEMC"))
+	.tmpexp <- mc1
+	.tmpexp$parms[,"a",] <- exp(mc1$parms[,"a",])
+	.tmpexp$Y[,"a",] <- exp(mc1$Y[,"a",])
+	checkEquals( .tmpexp, .tmp )
+	
+	.tmp2 <- transOrigPopt(mc1 )	#check default automatically accessing parDistr$trans
+	checkEquals( .tmp, .tmp2)
 }
 
 test.twCoefLnorm <- function(){
@@ -171,7 +190,7 @@ test.twCoefLnormMLE <- function(){
 	#thetaPrior=theta0[1];covarTheta=theta0[2]
 	#mtrace(initZtwDEMCNormal)
 	Zinit <- exp(initZtwDEMCNormal( theta0[1], theta0[2] ))
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	resMC4 <- twDEMCBatch( Zinit, nGen=800, nPops=2
 		, fLogDen=fLogDenLNorm, argsFLogDen=list(theta0=theta0)
 	)
@@ -198,7 +217,7 @@ test.twCoefLnormMLE <- function(){
 	}
 	
 	Zinit <- initZtwDEMCNormal( theta0[1], theta0[2] )
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	resMC5 <- twDEMCBatch( Zinit, nGen=800, nPops=2
 		, fLogDen=fLogDenLNormLog, argsFLogDen=list(theta0=theta0)
 	)

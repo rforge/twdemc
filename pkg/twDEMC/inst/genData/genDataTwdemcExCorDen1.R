@@ -4,7 +4,7 @@
 (.expCovTheta <- diag(c(a=2,b=2)) )		
 .nPop=2
 Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
-#mtrace(twDEMCInt)
+#mtrace(twDEMCBlockInt)
 
 argsFLogDen = list()
 do.call( den2dCor, c(list(theta=Zinit[,1,1]),argsFLogDen))

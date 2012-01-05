@@ -26,7 +26,7 @@
 	mtrace(.generateXProb)
 	mtrace(.generateXPropChains)
 	mtrace(.xStepSnooker)
-	mtrace(twDEMCInt)
+	mtrace(twDEMCBlockInt)
 	mtrace(.generateXPropThin)
 	mtrace(.xStepParallel)
 	twUtestF(twDEMC,"test.probUpDir")
@@ -272,14 +272,14 @@ test.badStartSeqData1D <- function(){
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
 	for( .pop in seq(along.with=.popsd) ){
-		checkMagnitude( .expSdTheta, .popsd[[.pop]] )
+		checkMagnitude( .expSdTheta, .popsd[[.pop]], msg="wrong magnitude of standard deviation" )
 	}
 	
 	# check that thetaTrue is in 95% interval 
 	.pthetaTrue <- sapply(1:2, function(.pop){
 			pnorm(.expTheta, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
-	checkInterval( .pthetaTrue ) 
+	checkInterval( .pthetaTrue, 0.005, 0.995, "thetaTrue outside 0.99% confidence interval." ) 
 }
 
 test.goodStartPrior <- function(){
@@ -710,7 +710,7 @@ test.twoStepMetropolis <- function(){
 	.nGen=100
 	.thin=5
 	#mtrace(sfRemoteWrapper)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	#mtrace(.doDEMCSteps )
 	#mtrace(logDenGaussian)
 	#mtrace(.doDEMCStep)
@@ -856,7 +856,7 @@ t_est.goodStartSeqMultiTemp <- function(){
 	#mtrace(.doDEMCSteps )
 	#mtrace(logDenGaussian)
 	#mtrace(twCalcLogDenPar)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		fLogDen=logDenGaussian, argsFLogDen=argsFLogDen,
 		nPop=.nPop,
@@ -918,7 +918,7 @@ test.fLogDenScale <- function(){
 	#mtrace(.doDEMCSteps )
 	#mtrace(logDenGaussian)
 	#mtrace(twCalcLogDenPar)
-	#mtrace(twDEMCInt)
+	#mtrace(twDEMCBlockInt)
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen
 			,fLogDenScale=-1/2		# here apply the scale in twDEMCBlock

@@ -1,6 +1,6 @@
 #save code before adapting to differential Temp for different data streams.
 
-twDEMCInt <- function(
+twDEMCBlockInt <- function(
 	### Differential Evolution Markov Chain
 	Zinit
 	### initial population: a matrix of number of parameters by number of individuals (d x m0 x nChains) see details
@@ -205,7 +205,7 @@ twDEMCInt <- function(
 	
 	.dots <- list(...)
 	if( 0<length(.dots))
-		if( any(is.null(names(.dots)))) stop("twDEMCInt: encountered \\dots without name. Check ',' after last list entries. Check for using '<-' instead of '='")
+		if( any(is.null(names(.dots)))) stop("twDEMCBlockInt: encountered \\dots without name. Check ',' after last list entries. Check for using '<-' instead of '='")
 	argsDEMCStep = list(
 		fDiscrProp=fDiscrProp, argsFDiscrProp=argsFDiscrProp,
 		fLogDen=fLogDen,
@@ -319,7 +319,7 @@ twDEMCInt <- function(
 	,doRecordProposals=FALSE	##<< if TRUE then proposals and results of rLogDen are recorded in result$Y.
 ){
 	##seealso<< 
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{.doDEMCStep}}
 	
 	##details<< 
@@ -412,7 +412,7 @@ twDEMCInt <- function(
 ){
 	#.doDEMCStep
 	##seealso<< 
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{.doDEMCSteps}}
 	boResFLogDenX <- (length(logDenCompX) > 0)
 	with( argsDEMCStep, {

@@ -186,8 +186,8 @@ updateSigma2 <- function(
 ### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
 ### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
 ### \item{ctrl$DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
-### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
-### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCInt}}  }
+### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
+### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
 ### \item{fCalcComponentTemp}{ functiont to calculate temperature of result components, (way of transporting calcComponentTemp to remote process) }
 ### }
 ){
