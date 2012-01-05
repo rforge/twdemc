@@ -85,19 +85,19 @@ attr(transOrigPopt.default,"ex") <- function(){
 	
 	# plot quantiles for given distributions
 	pGrid <- seq(0.01,0.99,length.out=31)
-	plot( qnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid)
-	plot( qlnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid); abline(h=parmsBounds[["D0"]][1], col="grey")
+	plot( qnorm(pGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) ~ pGrid)
+	plot( qlnorm(pGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) ~ pGrid); abline(h=parmsBounds[["D0"]][1], col="grey")
 	
 	# plot densities for D0 parameter ranges
 	dGrid <- seq(3, 80, length.out=100)
-	denOrig1 <- dlnorm(dGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) 
+	denOrig1 <- dlnorm(dGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) 
 	plot( denOrig1 ~ dGrid, type="l"); abline(v=parmsBounds[["D0"]][1], col="grey")
 	
 	# now plot the same using a grid on normal scale, transforming them to original scale
-	dNormGrid <- seq( parDistr$mu["D0"]-2*parDistr$sigmaDiag["D0"], parDistr$mu["D0"]+2*parDistr$sigmaDiag["D0"], length.out=100)
-	dOrigGrid <- transOrigPopt(dNormGrid, parDistr$trans["D0"])
-	all.equal( dNormGrid, transNormPopt(dOrigGrid, parDistr$trans["D0"]) )
-	denOrig2 <- dDistr( dOrigGrid, parDistr$mu["D0"],parDistr$sigmaDiag["D0"],trans=parDistr$trans["D0"] )
+	dNormGrid <- seq( parDistr["D0","mu"]-2*parDistr["D0","sigmaDiag"], parDistr["D0","mu"]+2*parDistr["D0","sigmaDiag"], length.out=100)
+	dOrigGrid <- transOrigPopt(dNormGrid, parDistr["D0","trans"])
+	all.equal( dNormGrid, transNormPopt(dOrigGrid, parDistr["D0","trans"]) )
+	denOrig2 <- dDistr( dOrigGrid, parDistr["D0","mu"],parDistr["D0","sigmaDiag"],trans=parDistr["D0","trans"] )
 	points( denOrig2 ~ dOrigGrid, col="blue" )
 }
 
@@ -358,7 +358,9 @@ attr(twCoefLnormMLE,"ex") <- function(){
 
 twQuantiles2Coef <- function(
 	### Calculating coefficients of transformed normal distributions from quantiles.
-	parmsBounds		##<< list parameters, each entry a numeric vector of length 2 specifying mode/median/lower quantile and upper quantile value
+	parmsBounds		##<< numeric matrix (nParm x 2), each row a numeric vector of length 2 specifying mode/median/lower quantile and upper quantile value. 
+		## rownames must give the variabes.
+		## Alternatively a list of parameters, each entry a numeric vector of length 2 specifying mode/median/lower quantile and upper quantile value.
 	,varDistr		##<< character vector identifying the distribution, i.e. transformation to normal, for each parameter
 	,upperBoundProb=0.99	##<< probability for upper quantile in parmsBounds
 	,useMedian=FALSE	##<< if TRUE, the first entry of parmsBounds specifies the median, insted of the mode 
@@ -372,7 +374,10 @@ twQuantiles2Coef <- function(
 	## \code{\link{twDEMCBlockInt}}
 	
 	#check arguments
-	varNames <- names(parmsBounds)
+	quant <- if( is.list(parmsBounds) ){
+		do.call( rbind, parmsBounds)
+	} else parmsBounds
+	varNames <- rownames(quant)
 	varDistr <- varDistr[varNames]		#make them the same order
 	n <- length(varNames)
 	if( length(varDistr) != n) 
@@ -382,15 +387,14 @@ twQuantiles2Coef <- function(
 	boLogitnorm <- varDistr=="logitnorm"
 	if( (sum(boNorm)+sum(boLognorm)+sum(boLogitnorm)) != n)
 		stop("unknown distribution for some variables. Supported are norm, lognorm, and logitnorm")
-	
-	tmp <- as.data.frame(parmsBounds)
-	quant = cbind(qMedian = unlist(tmp[1,]), qUpper = unlist(tmp[2,])); i_qMedian=1L; i_qUpper=2L 
+	# row indices	
+	i_qMedian=1L; i_qUpper=2L 
 	#twEnumNames(quant,FALSE)  # gives problems with check, define variables by hand.
 	upperBoundSigmaFac = qnorm(upperBoundProb)		
 	mu=structure(numeric(n),names=varNames); sigmaDiag=structure(numeric(n), names=varNames)
 
 	if( any(boNorm)){
-		quantTmp <- quant[boNorm,,drop=FALSE]
+		quantTmp <- quant[boNorm, ,drop=FALSE]
 		if( useCi ){
 			#sigma*sigmaFac is halv the ci
 			halfWidth <- (quantTmp[,i_qUpper]-quantTmp[,i_qMedian])/2
@@ -403,7 +407,7 @@ twQuantiles2Coef <- function(
 	}
 	
 	if( any(boLognorm)){
-		quantTmp <- quant[boLognorm,,drop=FALSE]
+		quantTmp <- quant[boLognorm, ,drop=FALSE]
 		coefs <- if( useMedian )
 			twCoefLnorm(median=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],sigmaFac=upperBoundSigmaFac)
 		else if( useCi )
@@ -415,7 +419,7 @@ twQuantiles2Coef <- function(
 	}
 	
 	if( any(boLogitnorm) ){
-		quantTmp <- quant[boLogitnorm,,drop=FALSE]
+		quantTmp <- quant[boLogitnorm, ,drop=FALSE]
 		coefs <- if( useMedian )
 				twCoefLogitnorm(median=quantTmp[,i_qMedian], quant=quantTmp[,i_qUpper],perc=upperBoundProb)
 			else if (useCi)
@@ -426,13 +430,13 @@ twQuantiles2Coef <- function(
 		sigmaDiag[boLogitnorm] <- coefs[,2]
 	}
 	
-	parDistr <- list(
+	parDistr <- data.frame(
 		trans = varDistr
 		,mu = mu
 		,sigmaDiag = sigmaDiag
 		#,invsigma = diag()
 	)
-	### parameter distribution information, list entries \describe{
+	### parameter distribution information, dataframe with columns \describe{
 	### \item{trans}{character vector: type of distribtution (norm,lognorm,logitnorm)}
 	### \item{mu}{numeric vector: distribution parameter mu, i.e. expected values at normal scale}
 	### \item{sigmaDiag}{numeric vector: standard deviation for each parameter, i.e. sqrt(diagonal of matrix parameter sigma) multivariate distrubtion without correlations.}

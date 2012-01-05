@@ -5,14 +5,14 @@
 
 .tmp.f <- function(){
 	pkg<-"twDEMC"
-	library(twMiscRgl)
+	#library(twMiscRgl)
 	library(twSnowfall)
 	library(coda)
 	library(mvtnorm)
 	library(logitnorm)
-	library(ggplot2)
-	library(np)
-	library(MASS)	#cov.rob
+	#library(ggplot2)
+	#library(np)
+	library(MASS)	#cov.rob in normConstLaplace
 	
 	library(debug)
 	library(lattice)
