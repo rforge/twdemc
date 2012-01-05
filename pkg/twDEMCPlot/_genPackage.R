@@ -20,7 +20,7 @@ htmlRoot <- file.path( installDir, pkg, "html" )  # may work only after the firs
 
 
 
-.tmp.loadPackages <- function(){
+#.tmp.loadPackages <- function(){
 	# loading libraries, sourcing the code and loading data
 	# usually done on startup library(MyPackage)
 	
@@ -40,7 +40,11 @@ htmlRoot <- file.path( installDir, pkg, "html" )  # may work only after the firs
 	library(ggplot2)
 	tmp <- sapply(Sys.glob(file.path("R","*.R")), source)		# load all the R code in file in dir R
 	data( list=twStripFileExt(basename(Sys.glob(file.path("data","*.RData")))))	# load all the .RData files in dir data
-}
+#}
+
+
+
+
 
 #######################################   build package     ####################################
 .tmp.inlinedocs <- function(){
@@ -66,10 +70,8 @@ htmlRoot <- file.path( installDir, pkg, "html" )  # may work only after the firs
 	# show in Browser
 	html_viewer(file.path(htmlRoot,"00Index.html"))
   
-  # generate pdf file
-	prevWd <- setwd("..")
-	system(	paste('R CMD Rd2pdf ',pkg, sep="") )
-	setwd(prevWd)
+	require(twMisc)
+	updateVersionAndDate()
 }
 
 #######################################   build package     ####################################

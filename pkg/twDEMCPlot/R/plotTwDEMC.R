@@ -1,111 +1,3 @@
-plotMarginal2D <- function(
-	### Plot the 2D marginal Density of a sample
-	smp			##<< numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}
-	,xCol=2		##<< index (column number or column name) of column for x ordinate
-	,yCol=3		##<< index (column number or column name) of column for y ordinate
-	, intCol=1  ##<< index (column number or column name) of column of LogDensity values
-	, grains=18 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
-	, FUN=mean	 ##<< the function applied over logDensitys in the classes
-	, argsFUN=list(na.rm=TRUE)	##<< additional arguments to FUN 
-	, col=rev(heat.colors(20))	##<< vector of colors
-	, minN=7	##<< minimum number of items in classpixel to be plotted
-	, ...		##<< additional arguments to twPlot2D
-){
-	##details<< 
-	## The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
-	## Within the bin the values are aggregated. By default the mean is calculated.
-	
-	##seealso<<  
-	## \code{\link{twDEMCInt}}
-	
-	##details<< 
-	## There are several plotting methods related to twDEMC run. \itemize{
-	## \item{ TODO: link methods  } 
-	## \item{ the Gelman criterion: this method  } 
-	## \item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
-	##}
-	
-	if( length(grains)==1) grains=c(grains,grains)	
-	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol,drop=FALSE])
-	smpGrained[,1] <- {tmp<-cutQuantiles( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	smpGrained[,2] <- {tmp<-cutQuantiles( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	tmpGrp <- (as.factor(smpGrained[,1])):(as.factor(smpGrained[,2]))
-	xs <- as.numeric(levels(as.factor(smpGrained[,1])))
-	ys <- as.numeric(levels(as.factor(smpGrained[,2])))
-	smp2 <- data.frame(
-		x=rep(xs, each=grains[1])
-		,y=rep(ys, grains[2])
-		,marginalLogDen = do.call( tapply, c(list(smpGrained[,3], tmpGrp, FUN),argsFUN)  )
-		,n=as.vector(table(tmpGrp))
-	)
-	names(smp2)[1:2] <- colnames(smpGrained)[1:2]
-	smp3 <- smp2
-	smp3[ smp2[,"n"]<minN, 3] <- NA
-	#plot( tmp <- twApply2DMesh(xs, ys, FUN=smp3$marginalLogDen, knotSpacing="all"), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col )
-	#plot.twApply2DMesh(smp3$marginalLogDen, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], col=col ) 
-	twPlot2D(xs, ys, z=matrix(smp3$marginalLogDen,nrow=length(xs)), xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2], zlab=colnames(smpGrained)[3], col=col, ... ) 
-	return(invisible(smp2))
-}
-attr(plotMarginal2D,"ex") <- function(){
-	data(twdemcEx1)
-	sample <- stackChains(twdemcEx1)
-	sample0 <- sample[ sample[,1] >= quantile(sample[,1],0.05), ]
-	#simple plot
-	#mtrace(plotMarginal2D)
-	plotMarginal2D( sample0, "a", "b", minN=1 )	# actually not a marginal
-}
-
-.plotMarginal2D.levelplot <- function(
-	### Plot the 2D marginal Density of a sample
-	smp			##<< numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}
-	,xCol=2		##<< index (column number or column name) of column for x ordinate
-	,yCol=3		##<< index (column number or column name) of column for y ordinate
-	, intCol=1  ##<< index (column number or column name) of column of LogDensity values
-	, ...		##<< additional arguments to FUN 
-	, grains=20	 ##<< vector of length 1 or 2 giving the number of groups for x and y classes respectively
-	, FUN=mean	 ##<< the function applied over logDensitys in the classes
-	, col=rev(heat.colors(100))	##<< vector of colors
-){
-	##details<< 
-	## The entire sample is split into bins of about equal number of observations and all observations regarding x and y.
-	## Within the bin the values are aggregated. By default the mean is calculated.
-	
-	##seealso<<  
-	## \code{\link{twDEMCInt}}
-	
-	##details<< 
-	## There are several plotting methods related to twDEMC run. \itemize{
-	## \item{ TODO: link methods  } 
-	## \item{ the Gelman criterion: this method  } 
-	## \item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
-	##}
-	
-	if( length(grains)==1) grains=c(grains,grains)	
-	smpGrained <- cbind(smp[,c(xCol,yCol)],smp[,intCol])
-	smpGrained[,1] <- {tmp<-cutQuantiles( smpGrained[,1],g=grains[1],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	smpGrained[,2] <- {tmp<-cutQuantiles( smpGrained[,2],g=grains[2],levels.mean=TRUE); as.numeric(levels(tmp))[tmp]}
-	#smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN )
-	smpMarginal <- aggregate(smpGrained[,3], as.data.frame(smpGrained[,1:2]), FUN=FUN, ... )
-	names(smpMarginal) <- c("x","y","z")
-	levelplot(z~x*y, data=smpMarginal, col.regions=col, xlab=colnames(smpGrained)[1], ylab=colnames(smpGrained)[2])
-}
-
-
-plotConditional2D <- function(
-	### Plot the 2D conditional profile-Density of a sample: calling \code{\link{plotMarginal2D}} with aggregating function max.
-	smp			
-	,xCol=2
-	,yCol=3
-	,intCol=1
-	,...
-){
-	##seealso<<  
-	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
-	
-	plotMarginal2D(smp,xCol,yCol,intCol,FUN=max,...)
-}
-
 
 ggplotChainPopMoves <- function(
 	### Plot boxplots of the distribution of first and last fifth of steps for each population 
@@ -159,35 +51,6 @@ ggplotChainPopMoves <- function(
 	)##end<< 
 }
 
-plotChainPopMoves <-function(	
-	### Plot boxplots of the distribution of first and last fifth of steps for each population 
-	resB			##<< the twDEMC to examine
-	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogDen)%/%ncol(resB$temp))
-	### mapping from chain to population
-	, doSort=TRUE	##<< if TRUE result $rLogDen is sorted
-	,...			##<< further arguements passed to matplot
-	, xlab="Chains"
-	, ylab="LogDensity"
-){
-	##details<< 
-	## \code{\link{ggplotChainPopMoves}} gives nicer results, but this functions i faster.
-	
-	##seealso<<  
-	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
-	
-	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
-	#iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogDen1 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,1],],ncol(resB$temp)))
-	rLogDen2 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,2],],ncol(resB$temp)))
-	
-	matplot( cbind(rLogDen1,rLogDen2), pch=c(as.character(1:9),LETTERS), type="n", xlab=xlab, ylab=ylab, ... )
-	points(rLogDen1, pch=c(as.character(1:9),LETTERS))
-	points(rLogDen2, pch=c(as.character(1:9),LETTERS), col="red")
-	arrows( 1:length(rLogDen1),rLogDen1,1:length(rLogDen1),rLogDen2, length=0.1)
-	if( doSort) sort(rLogDen2, decr=TRUE) else rLogDen2
-	
-}
 
 .tmp.f <- function(){
 	matplot( cbind(rLogDen1,rLogDen2), pch=c(as.character(1:9),LETTERS), type="n", ... )
@@ -220,44 +83,7 @@ plotChainPopMoves <-function(
 	#p3 <- p2 + ylim( min(dfMed$q25), max(dfLogDen2$value) )
 	p3 <- p2 + coord_cartesian(ylim = {tmp<-c(min(dfMed$q25), max(dfLogDen2$value));tmp+diff(tmp)*0.05*c(-1,-1)},  )+
 		p3	
-	
-	
 }
-
-plotThinned <- function (
-	### Thin dataset before plotting.
-	x, ...
-	) UseMethod("plotThinned")
-
-plotThinned.mcmc.list <- function(
-	### Plot of thinned coda's \code{mcmc.list}.
-	x,
-	maxVars=3,	##<< maximum number of variable to put in one plot window
-	vars=1:min(maxVars,ncol(x[[1]])), ##<< index of variables to plot
-	maxN=500, 	##<< maximum number of cases to plot, (thin before)
-	suppressPlotWarnings=TRUE,	##<< if true, plot command is executed with suppressWarnings
-	...
-){
-	# plotThinned.mcmc.list
-	
-	##seealso<<  
-	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
-	
-	##details<< 
-	## default coda plot for mcmc.list squeezes all variables in one window
-	
-	# before plotting, take only up to maxVars variables and thin so that each chain has no more than maxN entries
-	# may specify vars: the columns of x to plot
-	thinFac <- max(1, ceiling(nrow(x[[1]]) / maxN )) 
-	tmp.post <- window( x[,vars], thin=thin(x)*thinFac )
-	if( suppressPlotWarnings )
-		suppressWarnings(plot(tmp.post))
-	else
-		plot(tmp.post)
-}
-
-
 
 
 
@@ -267,21 +93,21 @@ StatPrior <- StatDensity$proto( calculate<- function(.,data, scales, poptDistr, 
 	range <- scales$x$output_set()
 	xGrid <- seq(range[1], range[2], length = 100)
 	#mtrace(dDistr)
-	if( (parname %in% names(poptDistr$mu)) ){
+	if( (parname %in% rownames(poptDistr)) ){
 		if( doTransOrig )
-			prior <- dDistr(xGrid, mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname], trans=poptDistr$trans[parname])
+			prior <- dDistr(xGrid, mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"], trans=poptDistr[parname,"trans"])
 		else
-			prior <- dnorm(xGrid, mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname])
+			prior <- dnorm(xGrid, mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"])
 		densdf <- data.frame(x=xGrid,prior=prior)
 		densdf$priorScaled <- densdf$prior/max(densdf$prior, na.rm = TRUE)
-		#xgrid <- seq( poptDistr$mu[parname]-sqrt(poptDistr$sigmaDiag[parname]), poptDistr$mu[parname]+sqrt(poptDistr$sigmaDiag[parname]), length.out=100)	
-		#plot( dnorm(xgrid, mean=poptDistr$mu[parname], sd=sqrt(poptDistr$sigmaDiag[parname])) )
-		#densdf$priorScaledOpt <- densdf$prior/ dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=sqrt(poptDistr$sigmaDiag[parname]))
-		maxDen <- if( doTransOrig ) switch(as.character(poptDistr$trans[parname])
-			,logitnorm = dlogitnorm(modeLogitnorm(mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname]),mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname])
-			,lognorm = dlnorm(exp(poptDistr$mu[parname]-poptDistr$sigmaDiag[parname]^2), meanlog=poptDistr$mu[parname], sdlog=poptDistr$sigmaDiag[parname])
-			,norm = dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname])
-		) else dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname]) 
+		#xgrid <- seq( poptDistr[parname,"mu"]-sqrt(poptDistr[parname,"sigmaDiag"]), poptDistr[parname,"mu"]+sqrt(poptDistr[parname,"sigmaDiag"]), length.out=100)	
+		#plot( dnorm(xgrid, mean=poptDistr[parname,"mu"], sd=sqrt(poptDistr[parname,"sigmaDiag"])) )
+		#densdf$priorScaledOpt <- densdf$prior/ dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=sqrt(poptDistr[parname,"sigmaDiag"]))
+		maxDen <- if( doTransOrig ) switch( as.character(poptDistr[parname,"trans"])
+			,logitnorm = dlogitnorm(modeLogitnorm(mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"]),mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"])
+			,lognorm = dlnorm(exp(poptDistr[parname,"mu"]-poptDistr[parname,"sigmaDiag"]^2), meanlog=poptDistr[parname,"mu"], sdlog=poptDistr[parname,"sigmaDiag"])
+			,norm = dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"])
+		) else dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"]) 
 		densdf$priorScaledOpt <- densdf$prior/ maxDen
 	}else{
 		densdf <- data.frame(x=xGrid,prior=0,priorScaled=0,priorScaledOpt=0)
@@ -289,7 +115,7 @@ StatPrior <- StatDensity$proto( calculate<- function(.,data, scales, poptDistr, 
 	#qqplot( x, priorScaledOpt, data=densdf )
 	#plot(densdf$x, densdf$priorScaledOpt )
 	#if( doTransOrig ) 
-	#	densdf$x <- transOrigPopt(xgrid,poptDistr$trans[parname])
+	#	densdf$x <- transOrigPopt(xgrid,poptDistr[parname,"trans"])
 	densdf
 }, required_aes=c("x","parName"))
 #with(StatPrior, mtrace(calculate)) 
@@ -374,11 +200,9 @@ ggplotDensity.twDEMC <- function(
 
 ggplotDensity.poptDistr <- function(
 	### Plotting the densities for each parameter.
-	poptDistr		##<< parameter Distributions for the prior, usually \code{poptDistr <- twConstrainPoptDistr(poptNames,HamerParameterPriors$parDistr )}
+	parDistr		##<< data.frame (nParm x c(mu, sigmaDiag)): parameter Distributions for the prior, usually \code{poptDistr <- twConstrainPoptDistr(poptNames,HamerParameterPriors$parDistr )}
 	,pMin=0.005		##<< range of the distribution from pMin to 1-pMin
-	,parmsBounds=NULL	##<< list parName <- c(mode, upperQuantile)
-	#,upperBoundProb = 0.99	##<< percentile of the upper bound
-	,plotUpperQuantile=TRUE	##<< wheter to include upper quantile (set to FALSE if this inflates the displayed domain)
+	,parmsBounds=NULL	##<< numeric vector (nParm x nLines) to be plottes as lines
 	,doTransOrig=TRUE		##<< set to FALSE to display transform to normal scale
 ){
 	##seealso<<  
@@ -386,11 +210,11 @@ ggplotDensity.poptDistr <- function(
 	## \code{\link{twDEMCInt}}
 	
 	pRange = c(pMin,1-pMin)
-	pNames <- names(poptDistr$mu) 
+	pNames <- rownames(parDistr) 
 	#iPar=1
-	qRange <- t(sapply( seq_along(poptDistr$mu), function(iPar){
-			qNorm <- qnorm(pRange,mean=poptDistr$mu[iPar],sd=poptDistr$sigmaDiag[iPar])
-			if(doTransOrig) transOrigPopt(qNorm, poptDistr$trans[iPar]) else qNorm
+	qRange <- t(sapply( seq_along(parDistr$mu), function(iPar){
+			qNorm <- qnorm(pRange,mean=parDistr$mu[iPar],sd=parDistr$sigmaDiag[iPar])
+			if(doTransOrig) transOrigPopt(qNorm, parDistr$trans[iPar]) else qNorm
 		}))
 	dimnames(qRange)<-list(parms=pNames, iRec=NULL)
 	tmpDs4 <- melt(qRange)
@@ -398,18 +222,32 @@ ggplotDensity.poptDistr <- function(
 		opts(axis.title.x = theme_blank())
 	p2 <- p1 + facet_wrap(~parms, scales="free_x") 
 	#p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
-	p4 <- p2 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
+	p4 <- p2 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=parDistr,doTransOrig=doTransOrig)
 	p5 <- p6 <- p4 + xlab("Parameter") + ylab("Scaled density")
-	if( is.list(parmsBounds)){
-		tmpDs5 <- if(plotUpperQuantile)
-			melt(parmsBounds[names(poptDistr$mu)])
-		else
-			melt(lapply(parmsBounds[names(poptDistr$mu)],"[",1,drop=FALSE))
-		colnames(tmpDs5) <- c("value","parms")
-		if( !doTransOrig ) tmpDs5$value <- transNormPopt(tmpDs5$value, poptDistr$trans[tmpDs5$parms])
+	if( 0 < length(parmsBounds) ){
+		tmpDs5 <- melt(parmsBounds[pNames,])
+		colnames(tmpDs5) <- c("parms","quantile","value")
+		if( !doTransOrig ) tmpDs5$value <- transNormPopt(tmpDs5$value, parDistr[as.character(tmpDs5$parms),"trans"])
 		p6 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color="blue") 
 	}
 	p6
+}
+attr(ggplotDensity.poptDistr,"ex") <- function(){
+	parmsBounds = do.call( rbind,list(		# mode and upper bound
+		A0 = c(10,15)		
+		,D0 = c(10, 100)
+		,C0 = c(0.6,0.8)
+	))
+	colnames(parmsBounds) <- c("mode","upper")
+	varDistr <- twVarDistrVec( rownames(parmsBounds) )	# by default assumed normal
+	varDistr["D0"] <- "lognorm"
+	varDistr["C0"] <- "logitnorm"
+	parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=0.975 )
+
+	#mtrace(ggplotDensity.poptDistr)
+	ggplotDensity.poptDistr( parDistr, parmsBounds=parmsBounds )	
+	ggplotDensity.poptDistr( parDistr, parmsBounds=parmsBounds, doTransOrig=FALSE )	
+	
 }
 
 
