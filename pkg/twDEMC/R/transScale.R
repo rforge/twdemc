@@ -73,6 +73,7 @@ attr(transOrigPopt.default,"ex") <- function(){
 	varDistr["C0"] <- "logitnorm"
 	parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb, useMedian=FALSE )
 	parDistr
+	poptDistr <- twConstrainPoptDistr(c("A0","C0"), parDistr)
 	all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr$mu["A0"], parDistr$sigmaDiag["A0"] ) )
 	
 	# transform entire parameter vectors between scales
@@ -447,20 +448,20 @@ twQuantiles2Coef <- function(
 twConstrainPoptDistr <- function(
 	### Constrain the information on parameters to selected parameters and add variance-covariance matrix and its inverse.
 	parNames		##<< subsets of parameters: either character string, or indices, or boolean vector
-	,parDistr		##<< the information for all possible parameters
+	,parDistr		##<< dataframe with columns trans, mu, and sigmaDiag, as returned by \code{link{twQuantiles2Coef}}
 	,corrMat=NULL	##<< correlations between parameters
 ){
-	#parName
-	poptDistr <- list(
-		trans=parDistr$trans[parNames]
-		,mu= parDistr$mu[parNames]
-		,sigmaDiag=parDistr$sigmaDiag[parNames]
-	)
+	if( !all(is.finite(match( parNames, rownames(parDistr) ))))
+		warning("twConstrainPoptDistr: not all parNames in rowNames(parDistr).")
+	if( is.matrix(corrMat))
+		stop("correlations not implemented yet.")
+	poptDistr <- lapply( colnames(parDistr), function(colName){ structure(parDistr[parNames,colName], names=parNames) })
+	names(poptDistr) <- colnames(parDistr)
 	var <- poptDistr$sigmaDiag^2
 	poptDistr$sigma <- diag(var, nrow=length(var))
 	poptDistr$invSigma <- diag(1/var, nrow=length(var))
-	if( is.matrix(corrMat))
-		stop("correlations not implemented yet.")
+	rownames(poptDistr$sigma) <- colnames(poptDistr$sigma) <- rownames(poptDistr$invSigma) <- colnames(poptDistr$invSigma) <- parNames
+	### list with entries trans, mu, sigmaDiag, sigma, and sigmaInv 
 	poptDistr
 }
 
