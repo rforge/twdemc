@@ -53,6 +53,7 @@ twDEMCBlockInt <- function(
 		))
 		##end<<
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
+	, TEnd = integer(0)			##<< numeric vector (nPop): end temperature, if given, overwrites information given pops 
 	, spacePop = 1:nPop			##<< the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops 
 	, controlTwDEMC = list()	##<< control parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
@@ -111,6 +112,12 @@ twDEMCBlockInt <- function(
 			if( length(nGen)==1) nGen=rep(nGen[1],nPop)
 			if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
 			lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=spacePop[iPop])}) # fill in default values for missing entries 
+		}
+	if( 0 != length(TEnd) ) for( iPop in iPops ){
+			if( 1 == length(TEnd)) TEnd <- rep(TEnd, nPop)
+			if( nPop != length(TEnd))
+				stop("twDEMCBlockInt: provided argument TEnd with lenght differeing from nPop")
+			pops[[iPop]]$TEnd <- TEnd[iPop]
 		}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])

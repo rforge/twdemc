@@ -37,7 +37,7 @@ plotThinned.mcmc.list <- function(
 plotChainPopMoves <-function(	
 	### Plot boxplots of the distribution of first and last fifth of steps for each population 
 	resB			##<< the twDEMC to examine
-	, iChains = rep(1:ncol(resB$temp), each=ncol(resB$rLogDen)%/%ncol(resB$temp))
+	, iChains = rep(1:getNPops(resB), each=getNChainsPop(resB))
 	### mapping from chain to population
 	, doSort=TRUE	##<< if TRUE result $rLogDen is sorted
 	,...			##<< further arguements passed to matplot
@@ -50,18 +50,19 @@ plotChainPopMoves <-function(
 	##seealso<<  
 	## \code{\link{plotThinned.mcmc.list}}
 	## \code{\link{twDEMC}}
-	
-	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
+	nPop <- getNPops(resB)
+	nSamp <- getNSamples(resB) 
+	iGen <- cbind( floor(c(0,1/5)*nSamp)+1, floor(c(4/5,1)*nSamp) )
 	#iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	rLogDen1 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,1],],ncol(resB$temp)))
-	rLogDen2 <- colMeans(popMeansTwDEMC(resB$rLogDen[iGen[,2],],ncol(resB$temp)))
+	rLogDen1 <- colMeans(popMeansTwDEMC(resB$logDen[iGen[,1],1,],nPop))
+	rLogDen2 <- colMeans(popMeansTwDEMC(resB$logDen[iGen[,2],1,],nPop))
 	
 	matplot( cbind(rLogDen1,rLogDen2), pch=c(as.character(1:9),LETTERS), type="n", xlab=xlab, ylab=ylab, ... )
 	points(rLogDen1, pch=c(as.character(1:9),LETTERS))
 	points(rLogDen2, pch=c(as.character(1:9),LETTERS), col="red")
 	arrows( 1:length(rLogDen1),rLogDen1,1:length(rLogDen1),rLogDen2, length=0.1)
+	### the logDensity of the last fifth of all the populations
 	if( doSort) sort(rLogDen2, decr=TRUE) else rLogDen2
-	
 }
 
 .tmp.f <- function(){
