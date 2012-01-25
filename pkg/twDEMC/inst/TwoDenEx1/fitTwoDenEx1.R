@@ -1,49 +1,8 @@
 data(twTwoDenEx1)
 
-.denSparce <- function(
-	### density of sparce observations
-	theta
-	,twTwoDenEx=twTwoDenEx1
-	,theta0=twTwoDenEx$thetaTrue
-	,...
-){
-	theta0[names(theta)] <- theta
-	pred <- twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...)
-	misfit <- twTwoDenEx$obs$y1 - pred$y1
-	-1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2)
-}
+# moved densities to denSparceRichBoth.R
 
-.denRich <- function(
-	### density of sparce observations
-	theta=theta0
-	,twTwoDenEx=twTwoDenEx1
-	,...
-){
-	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)
-	misfit <- twTwoDenEx$obs$y2 - pred$y2
-	-1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2)
-}
 
-.denBoth <- function(
-	### density of sparce observations
-	theta
-	,twTwoDenEx=twTwoDenEx1
-	,weights=c(1,1)			# weights for the two data streams
-	,...
-){
-	pred <- twTwoDenEx$fModel(theta, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)
-	misfit <- twTwoDenEx$obs$y1 - pred$y1
-	d1 <- -1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2)
-	misfit <- twTwoDenEx$obs$y2 - pred$y2
-	d2 <- -1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2)
-	db <- c(y1=d1,y2=d2)*weights
-	db
-}
-attr(.denBoth,"ex") <- function(){
-	data(twTwoDenEx1)
-	.denBoth(twTwoDenEx1$thetaTrue)
-	.denBoth(twTwoDenEx1$thetaTrue, thresholdCovar = 0.3)
-}
 
 .updateTwoDenA <- function( 
 	### update paramter A conditional on observations and b
@@ -134,7 +93,7 @@ theta0 <- adrop(ZinitPopsA[nrow(ZinitPopsA),,1 ,drop=FALSE],3)
 
 # with correct b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
+		dInfos=list(dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -144,7 +103,7 @@ plot( as.mcmc.list(resa), smooth=FALSE)
 
 # with biased b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=.denSparce, argsFLogDen=list(theta0=c(a=1,b=1.6),thresholdCovar=thresholdCovar)))
+		dInfos=list(dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=1.6),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -166,7 +125,7 @@ theta0 <- ZinitPops[nrow(ZinitPops),,1]
 #.nGen=16
 #mtrace(twDEMCBlockInt)
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dRich=list(fLogDen=.denRich, argsFLogDen=list(thresholdCovar=thresholdCovar)))
+		dInfos=list(dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -187,7 +146,7 @@ plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # far off
 
 #---------  fit both data streams in one unweighted density
 resa <- resa2 <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar)))
+		dInfos=list(dBoth=list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -216,7 +175,7 @@ madDen <- apply(lDen,2,function(lDenI){ median(abs(lDenI - median(lDenI))) })
 weights <- wMedian <- min(madDen)/madDen
 
 resa <- resa2b <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
-		dInfos=list(dBoth=list(fLogDen=.denBoth, argsFLogDen=list(weights=weights, thresholdCovar=thresholdCovar)))
+		dInfos=list(dBoth=list(fLogDen=denBoth, argsFLogDen=list(weights=weights, thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -260,7 +219,7 @@ resa <- resa3a <- concatPops( resBlock <- twDEMCBlock(
 		res2$parms
 		, nGen=.nGen 
 		,dInfos=list(
-			dBoth=list(fLogDen=.denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar))
+			dBoth=list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
 			a=list(compPos="a", fUpdateBlock=.updateTwoDenA, requiresUpdatedDen=FALSE)
@@ -290,8 +249,8 @@ resa <- resa3 <- concatPops( resBlock <- twDEMCBlock(
 		res3a$parms
 		, nGen=.nGen*2 
 		,dInfos=list(
-			dSparce=list(fLogDen=.denSparce, argsFLogDen=list(thresholdCovar=thresholdCovar))
-			,dRich=list(fLogDen=.denRich, argsFLogDen=list(thresholdCovar=thresholdCovar))
+			dSparce=list(fLogDen=denSparce, argsFLogDen=list(thresholdCovar=thresholdCovar))
+			,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
 			a=list(dInfoPos="dSparce", compPos="a")

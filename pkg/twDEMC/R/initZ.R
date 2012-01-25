@@ -1,17 +1,12 @@
 initZtwDEMCNormal <- function(
 	### Generate an initial population of states for \code{\link{twDEMCBlockInt}}.
-	thetaPrior,	
-	### vector of parameters, point estimate
-	covarTheta, 
-	### the a prior covariance of parameters 
-	nChainPop=4, 
-	### number of chains to run
-	nPop=2, 
-	### number of independent populations among the chains 
-	m0=ceiling(calcM0twDEMC(length(thetaPrior),nChainPop)/(m0FiniteFac))
+	thetaPrior		##<< vector of parameters, point estimate
+	,covarTheta 	##<< the a prior covariance of parameters 
+	,nChainPop=4 	##<< number of chains to run
+	,nPop=2 		##<< number of independent populations among the chains 
+	,m0=ceiling(calcM0twDEMC(length(thetaPrior),nChainPop)/(m0FiniteFac))
 	### number of initial states for each chain
-	,m0FiniteFac=1
-	### use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities
+	,m0FiniteFac=1	##<< use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities
 	,doIncludePrior=TRUE
 	### If TRUE, then set last sample of chain 1 to the prior estimate, 
 	### which might be already a kind of best estimates by an optimization. 

@@ -56,7 +56,6 @@
 	# generate documentation
 	
 	# generate RD Files
-	pkg<-"twDEMC"
 	library(inlinedocs)
 	unlink( file.path("man","*.Rd") )	
 	package.skeleton.dx(".")
@@ -65,6 +64,7 @@
 	unlink(file.path("man","twDEMC.Rd"))   # else overwrites alias twDEMC to twDEMCBlockInt 
 	
 	# generate the HTML  files
+	pkg<-"twDEMC"
 	prevWd <- setwd("..")
 	system(	paste("R CMD INSTALL --html ",pkg, sep="") )
 	setwd(prevWd)
