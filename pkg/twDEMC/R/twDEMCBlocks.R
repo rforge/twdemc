@@ -4,8 +4,6 @@ twDEMCBlockInt <- function(
 			##describe<< 
 			parms		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
 			, nGen = 12	##<< number of generations, i.e. steps to proceed
-			, T0=1		##<< initial temperature
-			, TEnd=1	##<< end temperature
 			, TProp=NULL	##<< numeric vector (nResComp) temperature proportions of result components
 			## can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
 			, X=NULL		##<< numeric matrix (nParm x nChainPop) initial state
@@ -37,7 +35,7 @@ twDEMCBlockInt <- function(
 			, fLogDenScale=1 
 			### scalar multiplied to the result of fLogDen 
 			### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
-			, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
+			#, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
 		)) 
 		##end<< 
 	, blocks = list( list( ##<< list of parameter blocks, each block is a list with entries
@@ -52,8 +50,10 @@ twDEMCBlockInt <- function(
 			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
 		))
 		##end<<
+	, TSpec = matrix(1, ncol=2, nrow=1, dimnames=list(NULL, c("T0","TEnd")) )
+		### numeric matrix (nResComp x 2): specifying Initial and End Temperature of each fLogDen result component.
+		### If only one row is specified, the Temperature is taken for all result components
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
-	, TEnd = integer(0)			##<< numeric vector (nPop): end temperature, if given, overwrites information given pops 
 	, spacePop = 1:nPop			##<< the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops 
 	, controlTwDEMC = list()	##<< control parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
@@ -97,7 +97,7 @@ twDEMCBlockInt <- function(
 		,minPCompAcceptTempDecr=0.15  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
 		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population
-		,useMultiT = FALSE	##<< whether to downscale Temperature of result components during burnin
+		#,useMultiT = FALSE	##<< whether to downscale Temperature of result components during burnin
 		#moved to block,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change		
 	)  
 	##details<< }}
@@ -112,12 +112,6 @@ twDEMCBlockInt <- function(
 			if( length(nGen)==1) nGen=rep(nGen[1],nPop)
 			if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
 			lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=spacePop[iPop])}) # fill in default values for missing entries 
-		}
-	if( 0 != length(TEnd) ) for( iPop in iPops ){
-			if( 1 == length(TEnd)) TEnd <- rep(TEnd, nPop)
-			if( nPop != length(TEnd))
-				stop("twDEMCBlockInt: provided argument TEnd with lenght differeing from nPop")
-			pops[[iPop]]$TEnd <- TEnd[iPop]
 		}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
@@ -268,12 +262,12 @@ twDEMCBlockInt <- function(
 	#-- get indices of internal components and TFix (dInfo$ intResCompPosWithin, intResCompPos, posTFix) 
 	# depends on proper resCompNames (inferred from invoking fLogDen with initial states)
 	intResCompDen <- vector("list",nDen)
-	.TFixL <- vector("list", nDen )
-	.posTFixL <- vector("list", nDen )
+	#.TFixL <- vector("list", nDen )
+	#.posTFixL <- vector("list", nDen )
 	for( iDen in iDens ){
 		dInfo = dInfos[[iDen]]
-		.TFixL[[iDen]] <- dInfo$TFix
-		.posTFixL[[iDen]] <- dInfos[[iDen]]$posTFix <- dInfo$resCompPos[ match( names(dInfo$TFix), dInfo$resCompNames ) ] # positions in concatenated result components
+		#.TFixL[[iDen]] <- dInfo$TFix
+		#.posTFixL[[iDen]] <- dInfos[[iDen]]$posTFix <- dInfo$resCompPos[ match( names(dInfo$TFix), dInfo$resCompNames ) ] # positions in concatenated result components
 		intResCompI <- dInfo$intResComp
 		iPosW <- if( is.character(intResCompI) ){
 				iPosW <- match(intResCompI, dInfo$resCompNames )				
@@ -284,35 +278,23 @@ twDEMCBlockInt <- function(
 		dInfos[[iDen]]$intResCompPosWithin <- iPosW
 		intResCompDen[[iDen]] <- dInfos[[iDen]]$intResCompPos <- dInfo$resCompPos[iPosW] # position in concatenation of all result components
 	} #iDen
-	TFixAll <- do.call(c, .TFixL )
-	posTFixAll <- do.call(c, .posTFixL )
+	#TFixAll <- do.call(c, .TFixL )
+	#posTFixAll <- do.call(c, .posTFixL )	# position in concatenation of all resComp
 	
-	#-- Temperature 
-	# TProp: proportions of temperature numeric matrix (nResComp x nPop) 
-	#    for temperature varying across data streams
-	TPropPops <- matrix( NA_real_, nrow=nResComp, ncol=nPop, dimnames=list(resComp=resCompNamesUFlat,pop=NULL) )
-	# numeric vector (nGen): temperature steps : exponentially decreasing from T0 to TEnd
-	#   for T0 and then for each (unthinned) generation
-	tempGlobalPops <- vector("list", nDen )
-	# numeric matrix (nGen x nResComp)
-	tempResCompPops <- vector("list", nDen )
-	for( iPop in iPops){
-		pop <- pops[[iPop]]
-		# TProp
-		if( is.character(pop$TProp) )
-			pop$TProp <- match(pop$TProp, resCompNamesUFlat )	# take care when different logDensities have same names then this goes wrong
-		lTp <- length(pop$TProp)
-		if( 0 ==  lTp) pop$TProp <- rep(1, nResComp)
-		else if( 1 == lTp) pop$TProp <- rep(pop$TProp, nResComp)
-		else if( nResComp != lTp ) stop("twDEMCBlockInt: pops[[i]]$TProp must have the same length as the result components.")
-		TPropPops[,iPop] <- pop$TProp
-		# tempGlobal
-		tempGlobalPops[[iPop]] <- .tempG <- pmax(1,c( pops[[iPop]]$T0, calcDEMCTemp( pops[[iPop]]$T0, pops[[iPop]]$TEnd, nGenPops[iPop] )))
-		# tempResComp
-		#mtrace(calcComponentTempMat)
-		tempResCompPops[[iPop]] <- calcComponentTempMat( temp=.tempG, TFix=TFixAll, TProp=TPropPops[,iPop], useMultiT=ctrl$useMultiT, posTFix=posTFixAll)
+	#-- Temperature of result components, i.e. data streams
+	if( nrow(TSpec) == 1 ){
+		TSpec <- do.call( rbind, lapply(1:nResComp,function(i){TSpec[1,]}) )
+		rownames(TSpec) <- resCompNamesUFlat
 	}
-	
+	tempResCompPops <- vector("list", nPop )
+	for( iPop in iPops){
+		.tempResL <- lapply( 1:nResComp, function(iResComp){
+			.tempG <- pmax(1,c( TSpec[iResComp,"T0"], 
+				calcDEMCTemp( TSpec[iResComp,"T0"], TSpec[iResComp,"TEnd"], nGenPops[iPop] )))
+		})
+		tempResCompPops[[iPop]] <- do.call( cbind, .tempResL)
+		colnames(tempResCompPops[[iPop]]) <- resCompNamesUFlat
+	}
 	
 	#-- setup acceptance rate recording
 	# number of requried independent generations to choose from (10*d independent states: TerBraak06 TerBraak08) devided by number of chains
@@ -399,7 +381,7 @@ twDEMCBlockInt <- function(
 		,fDiscrProp=fDiscrProp
 		,argsFDiscrProp=argsFDiscrProp
 	)
-	# construct an list for each block that includes compPos, TFix and intResCompPos
+	# construct an list for each block that includes compPos, and intResCompPos
 	argsFUpdateBlocks <- lapply( blocks, function(block){ 
 			dInfo <- dInfos[[block$dInfoPos]]
 			c( argsFUpdateDefault, dInfo, block
@@ -482,8 +464,8 @@ twDEMCBlockInt <- function(
 		isRecordProposalsPop = ((iThin0 >= nThinOmitRecordPops))[isPops]	# only record the last proposals after nThinOmitRecord
 		
 		# numeric matrix (nGenThin x nPop)
-		tempGlobalThinStepsL <- lapply( iPops[isPops], function(iPop){ tempGlobalPops[[iPop]][ 1+iGen ] })
-		tempGlobalThinSteps <- structure( do.call( cbind,tempGlobalThinStepsL ), dimnames=list(steps=NULL,pops=NULL) )	
+		#tempGlobalThinStepsL <- lapply( iPops[isPops], function(iPop){ tempGlobalPops[[iPop]][ 1+iGen ] })
+		#tempGlobalThinSteps <- structure( do.call( cbind,tempGlobalThinStepsL ), dimnames=list(steps=NULL,pops=NULL) )	
 		# numeric array (nGenThin x nResComp x nPop)		
 		tempDenCompThinStepsL <- lapply( iPops[isPops], function(iPop){ tempResCompPops[[iPop]][1+iGen, ,drop=FALSE] })
 		tempDenCompThinSteps <- structure( abind( tempDenCompThinStepsL, along=3 ), dimnames=list(steps=NULL,resComp=resCompNamesUFlat, pops=NULL) )	
@@ -493,7 +475,7 @@ twDEMCBlockInt <- function(
 		#-- do the steps of next thinning interval in load balanced way
 		resUpdate <- .updateIntervalTwDEMCPar( X=chainState$X, logDenCompX=chainState$logDenCompX, parUpdateDen=chainState$parUpdateDen
 			,xStep=genPropRes$xStep, rExtra=genPropRes$rExtra
-			, tempGlobalSteps=tempGlobalThinSteps
+			#, tempGlobalSteps=tempGlobalThinSteps
 			, tempDenCompSteps=tempDenCompThinSteps		
 			, nsPop=length(isPops), pAcceptPar=pAcceptPops[,isPops ,drop=FALSE]
 			,remoteFunArgs=remoteArgsFUpdateBlocksTwDEMC
@@ -599,7 +581,7 @@ twDEMCBlockInt <- function(
 					,splits=pops[[iPop]]$splits		##<< named numeric vector: splitting history
 					,spaceInd = spacesPop[iPop]		##<< the space replicate that the population belongs to
 					,parms = ZPops[[iPop]][ M0Pops[iPop]:nrow(ZPops[[iPop]]),, ,drop=FALSE]	##<< numeric array (steps x parms x chains): collected states, including the initial states
-					,temp = tempGlobalPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin) ] ##<< numeric vector (nSample+1): global temperature, i.e. cost reduction factor
+					,temp = tempResCompPops[[iPop]][seq(1,nGenPops[iPop]+1,by=ctrl$thin), ,drop=FALSE] ##<< numeric array (nSample+1, nResComp): temperature, i.e. cost reduction factor in each step for each datastream
 					,pAccept= pAccept[[iPop]]	##<< acceptance rate of chains (nStep x nChainPop)
 					,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
 					,logDen = logDen[[iPop]]	##<< numberic array (steps x iDen x chains): results summed over blocks
@@ -626,7 +608,6 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		pop2 <- list(
 			Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 			,nGen=15
-			,T0=10
 		)
 	)
 	#tmp <- .checkPop(pops[[1]])
@@ -635,7 +616,6 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	blockDefault <- list(
 		fLogDen=logDenGaussian
 		,resCompNames=c("obs","parms")
-		,TFix=c(parms=1)
 		,argsFLogDen = list(
 			fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 			obs=obs,				### vector of data to compare with
@@ -737,8 +717,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	if( 0 == length(pop$spaceInd) ) pop$spaceInd = spaceInd
 	if( (1 != length(pop$spaceInd)) )	
 		stop(".checkPop: scalar integer spaceInd must be given as entry nGen in population or in invocation of twDEMCBlockInt.")
-	if( 0==length(pop$T0) ) pop$T0 <- 1
-	if( 0==length(pop$TEnd) ) pop$TEnd <- 1
+	# if( 0==length(pop$T0) ) pop$T0 <- 1
+	# if( 0==length(pop$TEnd) ) pop$TEnd <- 1
 	if( 0==length(pop$X) ){
 		pop$X <- adrop( pop$parms[nrow(pop$parms),, ,drop=FALSE],1)
 	}else{
@@ -751,7 +731,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		stop(".checkPop: encountered NA in lowerParBounds")
 	
 	
-	### pop with entries nGen, T0, TEnd and X defined 
+	### pop with entries nGen, and X defined 
 	pop	
 }
 
@@ -770,9 +750,10 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	}
 	if( 0==length(dInfo$intResComp) ) dInfo$intResComp <- vector("character",0)
 	if( 0==length(dInfo$fLogDenScale) ) dInfo$fLogDenScale <- 1
-	if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
+	#if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
+	if( 0!=length(dInfo$TFix) ) warning("Usage of TFix is deprecated. Use TSpec with T0 and TEnd of one for given components.")
 	
-	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale, TFix defined
+	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale defined
 	dInfo
 }
 
@@ -1025,12 +1006,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
 	,xStep 			##<< array rows: difference vectors in parameter space, cols: steps, zdim: chains
 	,rExtra			##<< numeric matrix: row: step within thinning interval, col: chain
-	,tempGlobalSteps	##<< numeric matrix: (nGenThin x nsPop)
 	,tempDenCompSteps	##<< numeric array:  (nGenThin x nResComp x nsPop)
-	#,TFixAll		##<< named numeric vector (nResComp): components with fixed Temperature}
-	#,posTFixAll		##<< integer vector (nResComp): =match(TFix, compNames) within DInfo: positions of TFix within comp provided for performance reasons}
-	#,useMultiT		##<< boolean wheter to scale temperature for different data streams}
-	#,TPropPops		##<< numeric matrix (nResComp x nsPop): proportions of temperature for different data streams}
 	,nsPop			##<< the number of populations that take part in this step
 	,pAcceptPar		##<< numeric matrix: current acceptance rate for each (block x population)
 	#argsUpdateBlocksTwDEMC, ##<< list of arguments to updateBlocksTwDEMC
@@ -1085,7 +1061,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		args <-c( prevRes[1:3] 
 			,list( step=xStep[,1+iStep0,1+iChain0 ,drop=TRUE]
 				, rExtra=rExtra[1+iStep0,1+iChain0 ,drop=TRUE]
-				, tempGlobalC=tempGlobalSteps[iStep0+1,isPop ,drop=TRUE]
+				#, tempGlobalC=tempGlobalSteps[iStep0+1,isPop ,drop=TRUE]
 				, tempDenCompC=tempDenCompSteps[iStep0+1,,isPop ,drop=TRUE]
 				, pAccept=pAcceptPar[,isPop]
 				, isPop=isPop
@@ -1156,7 +1132,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	,parUpdateDenC	##<< for each parameter/density combination: is the density up to date from previous step
 	,step			##<< proposed step
 	,rExtra			##<< adjustment of Metropolis state
-	,tempGlobalC			##<< current global temperature for given population
+	#,tempGlobalC			##<< current global temperature for given population
 	,tempDenCompC	##<< numeric vector of length(logDenCompC): current temperature for each result component
 	,pAcceptC		##<< numeric vector (nBlock) current acceptance rates of the blocks
 	,isPop			##<< index of population in array of populations of current generation
@@ -1193,7 +1169,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 				step=step
 				, rExtra=rExtra
 				, logDenCompC=logDenCompC[ dInfo$resCompPos  ]
-				, tempC=tempGlobalC
+				#, tempC=tempGlobalC
 				, tempDenCompC=tempDenCompC[ dInfo$resCompPos ]	
 				, pAccept=pAcceptC
 				, upperParBounds=a$upperParBoundsPop[[iPop]]
@@ -1246,7 +1222,6 @@ updateBlockTwDEMC <- function(
 ### \item{step}{proposed jump}
 ### \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
 ### \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
-### \item{tempC}{global temperature}
 ### \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
 ### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
 ### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
@@ -1429,9 +1404,7 @@ setMethodS3("twDEMCBlock","array", function(
 		x ##<< initial population: a numeric array (M0 x d x nChain) see details in \code{\link{twDEMCBlockInt}}  
 		,...	##<< further arguments to \code{\link{twDEMCBlockInt}}
 		,nPop = 1	##<< number of populations in x
-		,T0   = 1	##<< numeric vector: initial temperatures for each population. If of length1 then applies to all populations
-		,TEnd = 1	##<< numeric vector: end temperatures for each population. If of length1 then applies to all populations
-		,TProp = NULL	##<< numeric vector (nResComp): proportions of temperature for result components: equal for all populations
+		#,TProp = NULL	##<< numeric vector (nResComp): proportions of temperature for result components: equal for all populations
 		, X=NULL		##<< initial state (nParm x nChain)
 		, logDenCompX = NULL ##<< numeric matrix (nResComp x nChains) initial state
 		, upperParBounds = vector("list",nPop)
@@ -1442,28 +1415,28 @@ setMethodS3("twDEMCBlock","array", function(
 	### similar to upperParBounds
 	){
 		#twDEMC.array
-		if( 1 == length(T0) ) T0 <- rep(T0,nPop)
-		if( 1 == length(TEnd) ) TEnd <- rep(TEnd,nPop)
+		#if( 1 == length(T0) ) T0 <- rep(T0,nPop)
+		#if( 1 == length(TEnd) ) TEnd <- rep(TEnd,nPop)
 		if( is.numeric(upperParBounds) ) upperParBounds <- lapply(1:nPop, function(iPop) upperParBounds )
 		if( is.numeric(lowerParBounds) ) lowerParBounds <- lapply(1:nPop, function(iPop) lowerParBounds )
 		nChains <- dim(x)[3]
 		nChainPop <- nChains %/% nPop
 		isX <- (0 != length(X))
 		isLogDenCompX <- (0 != length(logDenCompX))
-		isTProp <- (0 != length(TProp))
-		if( isTProp && !is.matrix(TProp) ) TProp <- matrix( TProp, nrow=length(TProp), ncol=nPop, dimnames=list(resComp=names(TProp),pop=NULL) )
+		#isTProp <- (0 != length(TProp))
+		#if( isTProp && !is.matrix(TProp) ) TProp <- matrix( TProp, nrow=length(TProp), ncol=nPop, dimnames=list(resComp=names(TProp),pop=NULL) )
 		pops <- lapply( 1:nPop, function(iPop){
 				chainsPopI <- (iPop-1)*nChainPop + 1:nChainPop
 				pop <- list( 
 					parms=x[,,chainsPopI, drop=FALSE]
-					,T0=T0[iPop]
-					,TEnd=TEnd[iPop]
+					#,T0=T0[iPop]
+					#,TEnd=TEnd[iPop]
 					,upperParBounds=upperParBounds[[iPop]]
 					,lowerParBounds=lowerParBounds[[iPop]]
 				)
 				if( isX ) pop$X <- X[,chainsPopI , drop=FALSE]
 				if( isLogDenCompX ) pop$logDenCompX <- logDenCompX[,chainsPopI ,drop=FALSE]
-				if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
+				#if( isTProp ) pop$TProp <- TProp[,iPop ,drop=TRUE]
 				#pop$spaceInd <- spacePop[iPop]
 				pop
 			})
@@ -1501,7 +1474,7 @@ attr(twDEMCBlock.array,"ex") <- function(){
 		,nGen=.nGen 
 	)
 	plot( as.mcmc.list(tmp), smooth=FALSE )
-	tmp2 <- tmp <- twDEMCBlock( tmp1, .nGen=200 )
+	tmp2 <- tmp <- twDEMCBlock( tmp1, nGen=200 )
 	
 	str(tmp)
 	
@@ -1519,19 +1492,24 @@ attr(twDEMCBlock.array,"ex") <- function(){
 	for( iPop in 1:length(x$pops) ){
 		xPop <- x$pops[[iPop]]
 		resPop <- res$pops[[iPop]]
-		res$pops[[iPop]]$parms <- abind(xPop$parms, resPop$parms[-1,, ,drop=FALSE], along=1)
-		res$pops[[iPop]]$temp <- abind(xPop$temp, resPop$temp[-1], along=1 )
-		res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
-		res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
-		res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
-		nrY <- nrow(resPop$Y)
-		if( doRecordProposals || (nrY < 128) ){
-			# if new Y has less than 128 rows append previous Y
-			res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
-			nrY <- nrow(res$pops[[iPop]]$Y)	# rows did change
-			if( !doRecordProposals && (nrY > 1) )
-				res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrY),, ,drop=FALSE] 	# cut to 128 cases
-		}
+		if( nrow(resPop$parms) < 2){
+			# no samples to append
+			res$pops[[iPop]] <- xPop	
+		}else{
+			res$pops[[iPop]]$parms <- abind(xPop$parms, resPop$parms[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$temp <- abind(xPop$temp, resPop$temp[-1, ,drop=FALSE], along=1 )
+			res$pops[[iPop]]$pAccept <- abind(xPop$pAccept, resPop$pAccept[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$resLogDen <- abind( xPop$resLogDen, resPop$resLogDen[-1,, ,drop=FALSE], along=1)
+			res$pops[[iPop]]$logDen <- abind( xPop$logDen, resPop$logDen[-1,, ,drop=FALSE], along=1)
+			nrY <- nrow(resPop$Y)
+			if( doRecordProposals || (nrY < 128) ){
+				# if new Y has less than 128 rows append previous Y
+				res$pops[[iPop]]$Y <- abind( xPop$Y, resPop$Y, along=1)
+				nrY <- nrow(res$pops[[iPop]]$Y)	# rows did change
+				if( !doRecordProposals && (nrY > 1) )
+					res$pops[[iPop]]$Y <- res$pops[[iPop]]$Y[ 1:min(128,nrY),, ,drop=FALSE] 	# cut to 128 cases
+			}
+		} # if res has samples 
 	}
 	res
 }
@@ -1540,6 +1518,7 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 		### initialize \code{\link{twDEMCBlockInt}} by former run and append results to former run
 		x, ##<< list of class twDEMC, result of \code{\link{twDEMCBlockInt}}
 		... ##<< further arguments to \code{\link{twDEMCBlockInt}}
+		, TEnd=numeric(0)		##<< numeric vector (nResComp) of end temperatures for each result component, if not given stays at current temperature, if in addition TSpec is specified, it has no effect 
 		, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 		, extendRun=TRUE				##<< if set to FALSE then only the new samples are returned
 	){
@@ -1555,11 +1534,18 @@ setMethodS3("twDEMCBlock","twDEMCPops", function(
 			argsList$dInfos <- x$dInfos
 		if( 0 == length(.dots$blocks) )		 
 			argsList$blocks <- x$blocks
-		for( iPop in seq_along(x$pops) ){
-			if( 0 == length(argsList$pops[[iPop]]$T0) )
-				argsList$pops[[iPop]]$T0 <- 
-					x$pops[[iPop]]$temp[ nSamplePop[iPop] ]
+		#for( iPop in seq_along(x$pops) ){
+		#	if( 0 == length(argsList$pops[[iPop]]$T0) )
+		#		argsList$pops[[iPop]]$T0 <- 
+		#			x$pops[[iPop]]$temp[ nSamplePop[iPop] ]
+		#}
+		if( 0 == length(argsList$TSpec) ){
+			TCurr <- x$pops[[1]]$temp[ nrow(x$pops[[1]]$temp), ]
+			if( 0 == length(TEnd) ) TEnd <- TCurr
+			if( 1 == length(TEnd) ) TEnd <- rep(TEnd, length(TCurr) )
+			argsList$TSpec <- cbind( T0=TCurr, TEnd=TEnd )
 		}
+		
 		if( 0 == length(.dots$controlTwDEMC) )		 
 			argsList$controlTwDEMC <- list()
 		if( 0 == length(argsList$controlTwDEMC$initialAcceptanceRate) ){

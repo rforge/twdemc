@@ -87,9 +87,10 @@ test.constrainCfStack <- function(){
 	checkMagnitude( expN, nrow(pss2) )
 	checkTrue( nrow(pss2) <= ceiling(expN))
 	
+	#mtrace(constrainCfStack)
 	pss2 <- constrainCfStack(pss, thetaPrior=normpoptBest[c("a")], alpha=.alpha)
 	checkMagnitude( expN, nrow(pss2) )
-	checkTrue( nrow(pss2) <= ceiling(expN))
+	checkTrue( nrow(pss2) <= ceiling(expN)+2)
 	plot(density(pss[,"a"]))
 	lines(density(pss2[,"a"]),col="red")
 	

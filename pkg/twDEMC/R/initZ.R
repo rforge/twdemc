@@ -287,7 +287,7 @@ constrainCfStack <- function(
 	tmp.d <- sapply(vars, function(var){ pss1[,var] - (thetaPrior[var])})
 	tmp.mahalanobis <- apply( tmp.d, 1, function(tmp.d){ t(tmp.d) %*% .invCovarTheta %*% tmp.d })
 	tmp.chisq = qchisq( p=alpha, df=length(vars) )
-	psc <- pss1[ tmp.mahalanobis <= tmp.chisq, ]
+	psc <- pss1[ tmp.mahalanobis < tmp.chisq, ]
 	if( nrow(psc) < 10 )
 		stop(paste("constrained too strong, selected nRows=",nrow(psc)))
 	psc

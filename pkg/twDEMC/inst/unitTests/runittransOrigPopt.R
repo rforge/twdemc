@@ -30,8 +30,8 @@ test.trans <- function(){
 	res <- NULL; res <- twConstrainPoptDistr(parNames,parDistr )
 	checkTrue( all(sapply(res, length)==1))
 	checkTrue( all(c(names(parDistr),"sigma","invSigma") %in% names(res)) )
-	checkEqualsNumeric( parDistr$sigmaDiag[parNames]^2, diag(res$sigma) )
-	checkEqualsNumeric( 1/parDistr$sigmaDiag[parNames]^2, diag(res$invSigma) )
+	checkEqualsNumeric( parDistr[parNames,"sigmaDiag"]^2, diag(res$sigma) )
+	checkEqualsNumeric( 1/parDistr[parNames,"sigmaDiag"]^2, diag(res$invSigma) )
 }
 
 

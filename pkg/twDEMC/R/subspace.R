@@ -650,6 +650,7 @@ divideTwDEMCPop <- function(
 	,subSpaces	##<< a list (nPop): each entry listing subspaces for the given population with entries lowerParBounds, upperParBounds, and splits
 	,isCheckBorderConsistency = TRUE	##<< if FALSE the check for border consistency is omitted.
 ){
+	#recover()
 	nSub <- length(subSpaces)
 	if( nSub < 2){ 
 		warning("divideTwDEMCPop: called with less than 2 subspaces.")
@@ -678,7 +679,6 @@ divideTwDEMCPop <- function(
 			}
 			#.getParBoundsPops(list(pop, subSpace))
 		}
-		
 		#iChain <- nChainPop
 		.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
 			aSample <- aSampleChain[[iChain]]

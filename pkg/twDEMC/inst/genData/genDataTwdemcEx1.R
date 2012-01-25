@@ -30,7 +30,7 @@ twdemcEx1 <-  twDEMCBlock( Zinit, nGen=.nGen
 	,nPop=.nPop
 	,controlTwDEMC=list(thin=.thin)
 	#,nGenBurnin=.nGenBurnin
-	, T0=.T0
+	, TSpec=cbind( T0=c(obs=.T0, parms=1), TEnd=1)
 	#fLogDenScale=1		#default scale of logDenGaussian is already -1/2
 	,doRecordProposals = TRUE
 )
@@ -38,7 +38,9 @@ str(twdemcEx1)
 
 .tmp.f <- function(){
 	rescoda <- as.mcmc.list(twdemcEx1)
-	plot(rescoda, smooth=FALSE)
+	plot(rescoda, smooth=FALSE)^
+	d1 <- concatPops(twdemcEx1)
+	matplot( d1$temp, type="l" )
 }
 save(twdemcEx1,file="data/twdemcEx1.RData")
 

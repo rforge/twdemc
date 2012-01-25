@@ -257,7 +257,7 @@ test.badStartSeqData1D <- function(){
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	matplot( resa$parms[,1,],type="l")
 	
-	res <- thin(resa, start=180)
+	res <- thin(resa, start=110)
 	matplot( res$parms[,1,],type="l")
 	
 	#gelman.diag(rescoda)
@@ -794,17 +794,17 @@ test.twoStepMetropolisTemp <- function(){
 		,nPop=.nPop
 		,X = X, logDenCompX=t(XLogDen$logDenComp) 
 		,debugSequential=TRUE
-		,T0=10, TEnd=1/10
+		,TSpec = cbind( T0=c(obs=10,parms=1), TEnd=1/10)
 		,controlTwDEMC = list(thin=.thin)
 	))
 	#str(resa)
-	plot(resa$temp[,1])
-	checkTrue( all(resa$temp[1:10,] > 1) )
+	matplot(resa$temp, type="l")
+	checkTrue( all(resa$temp[1:10,1] > 1) )
 	
 	rescoda <- as.mcmc.list(resa) 
 	plot(rescoda, smooth=FALSE) #decreasing amplitude
 	
-	res <- thin(resa, start=70)
+	res <- thin(resa, start=60)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
 	

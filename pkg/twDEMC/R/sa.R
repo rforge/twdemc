@@ -46,7 +46,7 @@ twDEMCSA <- function(
 	
 	
 }
-attr(,"ex") <- function(){
+attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
 	
 	thetaPrior <- twTwoDenEx1$thetaTrue
@@ -66,3 +66,4 @@ attr(,"ex") <- function(){
 	do.call( dInfos$dSparce$fLogDen, c(list(theta=twLinreg1$theta0),dInfos$dSparce$argsFLogDen))
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twLinreg1$theta0),dInfos$dRich$argsFLogDen))
 }
+

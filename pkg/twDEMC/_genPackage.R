@@ -33,13 +33,19 @@
 	twUtestF(twCalcLogDenPar)
 	twUtestF(transOrigPopt)
 	twUtestF("initZ")
-	twUtestF("S3twDEMC")
 	#twUtestF("S3twDEMCPops")
+	twUtestF("S3twDEMC")
 	twUtestF("twDEMC")
 	twUtestF("twDEMCPops")
 	twUtestF("getSubSpaces")
+	twUtestF("findSplit")
+	twUtestF("divideTwDEMC")
+
+	twUtestF("twDEMC","test.badStartSeqData1D")
+	twUtestF("findSplit","test.findSplit")
+	twUtestF("divideTwDEMC","divideTwDEMC")
 	
-	twUtestF(transOrigPopt)
+	
 	twUtestF(twDEMCBatch,"test.goodStart")
 	twUtestF(twDEMCBatch,"test.badStart")
 	twUtestF(twDEMCBatch,"test.saveAndRestart")

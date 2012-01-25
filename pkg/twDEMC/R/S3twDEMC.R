@@ -3,7 +3,7 @@
 setMethodS3("subChains","twDEMC", function( 
 		### Condenses an twDEMC List to the chains iChains e.g \code{1:4}.
 		x, iChains=NULL, iPops=NULL, 
-		nPop=NULL, ##<< number of populations in x, if not specified then taken from ncol(x$temp)
+		nPop=NULL, ##<< number of populations in x
 		... 
 		, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 ){
@@ -50,11 +50,11 @@ setMethodS3("subChains","twDEMC", function(
 		res <- x
 		if( !is.null(iPops)){
 			iChains = unlist( lapply( iPops, function(iPop){ (iPop-1)*nChainPop + (1:nChainPop) }))
-			res$temp <- x$temp[,iPops, drop=FALSE]	#by nPop
+			#same across all populations   res$temp <- x$temp[,iPops ,drop=FALSE]	#by nPop
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- x$nGenBurnin[iPops]
 		}else{
 			# no populatios given: reduce to one population
-			res$temp <- matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1, dimnames=dimnames(x$temp) )
+			#res$temp <- matrix( x$temp[,1], nrow=nrow(x$temp), ncol=1, dimnames=dimnames(x$temp) )
 			if( !is.null(x$nGenBurnin) ) res$nGenBurnin <- max(x$nGenBurnin)
 		}
 		res$parms <- x$parms[,,iChains, drop=FALSE]
@@ -196,7 +196,13 @@ setMethodS3("getNPops","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## ,\code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCBlockInt}}
-		ncol(res$temp)
+		if( 0==length(res$nPop) ){
+			warning("getNPops.twDEMC: mssing $nPop, returning 1")
+			1
+		}else{
+			res$nPop
+		}
+		#ncol(res$temp)
 		### integer, number of populations in twDEMC
 	})
 
@@ -224,7 +230,7 @@ setMethodS3("getNChainsPop","twDEMC", function(
 		## \code{\link{getNGen.twDEMC}}
 		## \code{\link{subChains.twDEMC}}
 		## ,\code{\link{twDEMCBlockInt}}
-		dim(res$parms)[3]/ncol(res$temp)
+		dim(res$parms)[3]/res$nPop
 		### integer, number of chains per population in twDEMC
 	})
 
@@ -304,7 +310,7 @@ setMethodS3("subset","twDEMC", function(
 	x$logDen <- x$logDen[boKeep,,, drop=FALSE] 
 	x$logDenComp <- x$logDenComp[boKeep,,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,,, drop=FALSE]
-	x$temp <- x$temp[boKeep,, drop=FALSE]
+	x$temp <- x$temp[boKeep, ,drop=FALSE]
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
 	x
@@ -375,7 +381,7 @@ attr(thin.twDEMC,"ex") <- function(){
 
 
 setMethodS3("combinePops","twDEMC", function( 
-	### Combine several populations to one big population.
+	### Combine several populations to one big population consiting of more chains.
 	x		##<< first twDEMC object
 	, ...	##<< more twDEMC objects
 	, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
@@ -384,6 +390,7 @@ setMethodS3("combinePops","twDEMC", function(
 	## \code{\link{subChains.twDEMC}}
 	##details<< 
 	## All arguments must be of type twDEMC and of same thinning interval and length.
+	## Temperature is taken from the first population - it assumes that all populations have the same Temperature in their steps
 	res <- x
 	.pops <- c( list(res), list(...))
 	if( !all(sapply(.pops, is, "twDEMC")) )
@@ -405,7 +412,8 @@ setMethodS3("combinePops","twDEMC", function(
 		res$nGenBurnin <- NULL
 	res$pAccept <- abind( lapply(.pops, function(psr){psr$pAccept}) )
 	res$thin <- x$thin
-	res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
+	#res$temp <- abind( lapply(.pops, function(psr){psr$temp}), along=2 )
+	res$temp <- x$temp
 	for( i in c("parms","logDen","logDenComp","pAccept","temp") )
 		dimnames(res[[i]]) <- dimnames(x[[i]])
 	if( !doKeepBatchCall ) attr(res,"batchCall") <- NULL	#keep the 
@@ -636,8 +644,8 @@ setMethodS3("thinN","mcmc.list", function(
 			## \code{\link{subChains.twDEMC}}
 			## ,\code{\link{twDEMCBlockInt}}
 			
-			nPop=ncol(x$temp)
-			nPopNew = ncol(xNew$temp)
+			nPop=getNPops(x)
+			nPopNew = getNPops(xNew)
 			nChains = ncol(x$logDen)
 			nChainPop = nChains %/% nPop
 			if( length(iPops) != nPopNew) stop("replacePops.twDEMC: replacing population has number of populations that differs from length of iPop.")
@@ -648,7 +656,7 @@ setMethodS3("thinN","mcmc.list", function(
 			
 			res <- x
 			iChains <- matrix(1:nChains, nrow=nChainPop)[,iPops]
-			res$temp[,iPops] <- xN$temp
+			#now no differenc ein T by populations res$temp[,iPops] <- xN$temp  
 			res$parms[,,iChains] <- xN$parms
 			res$logDenComp[,,iChains] <- xN$logDenComp
 			res$logDen[,iChains] <- xN$logDen 

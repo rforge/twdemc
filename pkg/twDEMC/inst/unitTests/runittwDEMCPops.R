@@ -55,8 +55,6 @@ test.distinctLogDen <- function(){
 		,pop2 <- list(
 			parms = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 			,nGen=100
-			,T0=20
-			,Tend=5
 		)
 		,pop3 <- list(
 			parms = ZinitPops[,,9:12,drop=FALSE]	# the first population with less initial conditions
@@ -68,7 +66,7 @@ test.distinctLogDen <- function(){
 	dInfoDefault <- list(
 		fLogDen=logDenGaussian
 		,resCompNames=c("obs","parms")
-		,TFix=c(parms=1)
+		#,TFix=c(parms=1)
 		,argsFLogDen = list(
 			fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 			obs=obs,				### vector of data to compare with
@@ -109,7 +107,7 @@ test.distinctLogDen <- function(){
 	for( iPop in seq_along(res$pops) ){
 		resPop <- res$pops[[iPop]]
 		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
-		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$temp), msg="number of states in temp mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
@@ -122,8 +120,6 @@ test.distinctLogDen <- function(){
 		checkTrue( all(is.finite(resPop$resLogDen)), msg="found non-finite values in resLogDen")	
 	}
 	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
-	checkEquals( pops0[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
-	
 	
 	.nGen=100
 	#.thin=4
@@ -146,7 +142,7 @@ test.distinctLogDen <- function(){
 	for( iPop in seq_along(res$pops) ){
 		resPop <- res$pops[[iPop]]
 		checkEquals( .nGenThinned[iPop], nrow(resPop$parms), msg="number of states in parms mismatch" )
-		checkEquals( .nGenThinned[iPop], length(resPop$temp), msg="number of states in temp mismatch" )
+		checkEquals( .nGenThinned[iPop], nrow(resPop$temp), msg="number of states in temp mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$pAccept), msg="number of states in pAccept mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$resLogDen), msg="number of states in resLogDen mismatch" )
 		checkEquals( .nGenThinned[iPop], nrow(resPop$logDen), msg="number of states in logDen mismatch" )
@@ -155,7 +151,6 @@ test.distinctLogDen <- function(){
 		checkEquals( 1, resPop$temp[.nGenThinned[iPop] ], , msg="end temperature need to be 1" )		
 	}
 	checkEquals( 1, res$pops[[1]]$temp[1], "first row of temperature of first population must be 1" )
-	checkEquals( pops0[[2]]$T0, res$pops[[2]]$temp[1], "first row of temperature of second population must correspond correspond to prescribed argument" )
 	
 	.tmp.f <- function(){
 		pop <- resB$pops[[1]]

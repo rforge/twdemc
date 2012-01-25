@@ -216,7 +216,8 @@ setMethodS3("concatPops","twDEMCPops", function(
 	p1 <- pops[[1]]
 	x$pops <- NULL
 	x$parms <- structure( abind( lapply(pops,"[[","parms"), along=3), dimnames=dimnames(p1$parms))
-	x$temp <- structure( abind( lapply(pops,"[[","temp"), along=2), dimnames=list(steps=NULL,pops=NULL) )
+	#x$temp <- structure( abind( lapply(pops,"[[","temp"), along=3), dimnames=dimnames(p1$temp))
+	x$temp <- p1$temp	# temperature of all population and chains have equal start and end
 	x$pAccept <- structure( abind( lapply(pops,"[[","pAccept"), along=3), dimnames=dimnames(p1$pAccept))
 	x$resLogDen <- structure( abind( lapply(pops,"[[","resLogDen"), along=3), dimnames=dimnames(p1$resLogDen))
 	x$logDen <- structure( abind( lapply(pops,"[[","logDen"), along=3), dimnames=dimnames(p1$logDen))
@@ -227,6 +228,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 	x$Y <- structure( abind(YLs, along=3), dimnames=dimnames(p1$Y))
 	x$upperParBoundsPop = lapply( pops, "[[", "upperParBounds" )
 	x$lowerParBoundsPop = lapply( pops, "[[", "lowerParBounds" )
+	x$nPop <- length(pops)
 	class(x) <- c("list","twDEMC")
 	### An object of class twDEMC
 	x
@@ -252,11 +254,11 @@ attr(concatPops,"ex") <- function(){
 ){
 	##details<< no checking of bounds performed
 	newPop <- pop	# keep entries upperParBounds, lowerParBounds, splits
-	newPop$parms <- pop$parms[iKeep,,iChain, drop=FALSE] 
-	newPop$logDen <- pop$logDen[iKeep,,iChain, drop=FALSE] 
-	newPop$resLogDen <- pop$resLogDen[iKeep,,iChain, drop=FALSE] 
-	newPop$pAccept <- pop$pAccept[iKeep,,iChain, drop=FALSE]
-	newPop$temp <- pop$temp[iKeep, drop=FALSE]
+	newPop$parms <- pop$parms[iKeep,,iChain  ,drop=FALSE] 
+	newPop$logDen <- pop$logDen[iKeep,,iChain ,drop=FALSE] 
+	newPop$resLogDen <- pop$resLogDen[iKeep,,iChain ,drop=FALSE] 
+	newPop$pAccept <- pop$pAccept[iKeep,,iChain ,drop=FALSE]
+	newPop$temp <- pop$temp[iKeep, ,drop=FALSE]
 	newPop
 }
 
@@ -380,11 +382,11 @@ setMethodS3("squeeze","twDEMCPops", function(
 	## all populations with 
 	for( iPop in seq_along(x$pops) ){
 		iKeep <- seq(1,nSamplesPop[iPop],length.out=length.out[iPop]) 
-		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,,, drop=FALSE] 
-		x$pops[[iPop]]$pAccept <- x$pops[[iPop]]$pAccept[iKeep,,, drop=FALSE]
-		x$pops[[iPop]]$temp <- x$pops[[iPop]]$temp[iKeep, drop=FALSE]
+		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,, ,drop=FALSE] 
+		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,, ,drop=FALSE] 
+		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,, ,drop=FALSE] 
+		x$pops[[iPop]]$pAccept <- x$pops[[iPop]]$pAccept[iKeep,, ,drop=FALSE]
+		x$pops[[iPop]]$temp <- x$pops[[iPop]]$temp[iKeep, ,drop=FALSE]
 	}
 	##details<<
 	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
@@ -514,7 +516,7 @@ as.mcmc.list.twDEMCPops <- function(
 		pops[[iChain]]$logDen <- pop$logDen[cases,, ,drop=FALSE] 
 		pops[[iChain]]$resLogDen <- pop$resLogDen[cases,, ,drop=FALSE] 
 		pops[[iChain]]$pAccept <- pop$pAccept[cases,, ,drop=FALSE] 
-		pops[[iChain]]$temp <- pop$temp[cases] 
+		pops[[iChain]]$temp <- pop$temp[cases, ,drop=FALSE] 
 	}
 	pops
 	### list of subsets (by rows)
@@ -531,7 +533,7 @@ as.mcmc.list.twDEMCPops <- function(
 		newPop$logDen <- abind( lapply(pops,"[[","logDen"), along=along )
 		newPop$resLogDen <- abind( lapply(pops,"[[","resLogDen"), along=along )
 		newPop$pAccept <- abind( lapply(pops,"[[","pAccept"), along=along )
-		#newPop$temp <- abind( lapply(pops,"[[","temp"), along=2 ) # only one temperature per population
+		#only one temp for all chain and pops newPop$temp <- abind( lapply(pops,"[[","temp"), along=2 ) 
 		
 		#---- update the parameter bounds
 		pB <- .parBoundsEnvelope(pops)
@@ -758,7 +760,7 @@ combineTwDEMCPops <- function(
 		tmp <- "logDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "resLogDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "pAccept"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
-		tmp <- "temp"; newPop[[tmp]] <- vector( "numeric", length =nSample) 
+		tmp <- "temp"; newPop[[tmp]] <- matrix( NA_real_, nrow=nSample, ncol=ncol(pop1[[tmp]]),dimnames=dimnames(pop1[[tmp]])) 
 
 		#---- copy the entries
 		for( iPop in 1:nPop){
@@ -842,7 +844,7 @@ attr(stackPopsInSpace.twDEMCPops,"ex") <- function(){
 	newPop$logDen <- abind( lapply( 1:nc, function(iChain){ pop$logDen[,,iChain ,drop=FALSE]}), along=1 )
 	newPop$resLogDen <-abind( lapply( 1:nc, function(iChain){ pop$resLogDen[,,iChain ,drop=FALSE]}), along=1 )
 	newPop$pAccept <- abind( lapply( 1:nc, function(iChain){ pop$pAccept[,,iChain ,drop=FALSE]}), along=1 )
-	newPop$temp <- rep( pop$temp, dim(pop$parms)[3] )
+	newPop$temp <- abind( lapply( 1:nc, function(iChain){ pop$temp }), along=1 )  # repeat the temperature
 	newPop$Y <- abind( lapply( 1:nc, function(iChain){ pop$Y[,,iChain ,drop=FALSE]}), along=1 )
 	newPop
 }
