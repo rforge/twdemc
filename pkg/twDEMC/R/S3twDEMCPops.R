@@ -1,3 +1,87 @@
+#----------------------------------- subset ---------------
+setMethodS3("subset","twDEMCPops", function( 
+		### Condenses an twDEMCPops result object to the cases boKeep.
+		x 			##<< twDEMCPops object
+		,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
+		,...
+		,iPops=seq_along(x$pops)	##<< integer vector: only these populations are subset, others are kept
+		,dropShortPops=FALSE		##<< if set to TRUE, pops in iPops with less samples than to what \code{boKeep} refers to are dropped
+	){
+		# subset.twDEMCPops 
+		
+		##seealso<<   
+		## \code{\link{twDEMCBlockInt}}
+		
+		##details<< 
+		## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.
+		## an object of class \code{twDEMCPops} \itemize{
+		## \item{ number of generations: \code{\link{getNGen.twDEMCPops}}  } 
+		## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMCPops}}  } 
+		## \item{ number of chains: \code{\link{getNChains.twDEMCPops}}  } 
+		## \item{ number of populations: \code{\link{getNPops.twDEMCPops}}  } 
+		## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
+		## \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
+		## \item{ thinning interval: \code{res$thin}  } 
+		## \item{ space replicate that the poplation belongs to: \code{\link{spacesPop.twDEMCPops}}  } 
+		## \item{ number of space replicates: \code{\link{getNSpaces.twDEMCPops}}  } 
+		## \item{ number of blocks: \code{\link{getNBlocks.twDEMCPops}}  } 
+		## \item{ parameter bounds: \code{\link{getParBoundsPop.twDEMCPops}}  } 
+		## \item{ parameter bounds: \code{\link{getCurrentTemp.twDEMCPops}}  } 
+		##}
+		##
+		## There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
+		## \item{ transforming to array representation across populations of type \code{twDEMC}: code{\link{concatPops.twDEMCPops}}  }
+		## \item{ select sub-populations: \code{\link{subPops.twDEMCPops}}  } 
+		## \item{ select subset of cases: \code{\link{subset.twDEMCPops}} (this function) }
+		## \item{ make populations the same length: \code{\link{squeeze.twDEMCPops}}  }
+		## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.twDEMCPops}}  } 
+		## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
+		## \item{ combine several twDEMCPops results to a bigger set of populations: \code{\link{combineTwDEMCPops}}  }
+		## \item{ combine populations for subspaces to bigger populations: \code{\link{stackPopsInSpace.twDEMCPops}}  }
+		## \item{ combine MarkovChains of each population of a twDEMC to a single chain: \code{\link{stackChainsPop.twDEMCPops}}  }
+		##}
+		##
+		## There are several methods utilize the functions of the coda package. \itemize{
+		## \item{ convert an twDEMCPops to a coda mcmc.list \code{\link{as.mcmc.list.twDEMCPops}}  } 
+		## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
+		## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
+		## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
+		##}
+		#? \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
+		#? \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
+		
+		
+		# To help re-initializing the arguments to fLogDen \itemize{
+		# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
+		
+		
+		nSamplesPop <- getNSamples(x)
+		iKeep <- if( is.numeric(boKeep)) boKeep else which(boKeep)
+		maxStep <- max(iKeep)
+		if( dropShortPops ){
+			x <- subPops( x, which( (1:seq_along(x$pops) == iPops) && (nSamplesPop >= maxStep)) )
+		}else if( maxStep > min(nSamplesPop[iPops])) stop(
+				"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use dropShortPops=TRUE to drop shorter populations before.")
+		for( iPop in iPops ){
+			#mtrace(.subsetTwDEMCPop)
+			x$pops[[iPop]] <- tmp <- .subsetTwDEMCPop(x$pops[[iPop]], iKeep)
+		}
+		##details<<
+		## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
+		x
+		### list of class twDEMCPops with subset of cases in parsm, logDen, pAccept, and temp
+	})
+#mtrace(subset.twDEMCPops)
+attr(subset.twDEMCPops,"ex") <- function(){
+	if( FALSE){
+		tmp <- subset(res,1:3)
+		str(tmp)
+		tmp <- subset(res,1:10)  # should produce an error
+		#mtrace(subset.twDEMCPops)
+		tmp <- subset(res,1:10,dropShortPops=TRUE)  
+	} 
+}
+
 
 
 setMethodS3("getNGen","twDEMCPops", function( 
@@ -147,7 +231,7 @@ setMethodS3("getNBlocks","twDEMCPops", function(
 		x	##<< object of class twDEMCPops
 		,... 
 	){
-		# getNSamples.twDEMCPops
+		# getNBlocks.twDEMCPops
 		##seealso<<   
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
@@ -156,6 +240,23 @@ setMethodS3("getNBlocks","twDEMCPops", function(
 		length(x$blocks)
 		### integer vector: number of samples in each population of twDEMCPops
 	})
+
+setMethodS3("getCurrentTemp","twDEMCPops", function( 
+		### Get the Temperature, i.e. cost reduction factor of the last sample
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getCurrentTemp.twDEMCPops
+		##seealso<<   
+		## \code{\link{getNGen.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		## ,\code{\link{twDEMCBlockInt}}
+		##details<< There is only one sample per thinning interval of length \code{x$thin}.
+		x$pops[[1]]$temp[ nrow(x$pops[[1]]$temp), ]
+		### numeric vector: Temperature for each result component for the last sample
+	})
+
+
 
 .getParBoundsPops <- function(
 	pops
@@ -197,6 +298,7 @@ setMethodS3("concatPops","twDEMCPops", function(
 	#concatPops.twDEMCPops
 	##seealso<<   
 	## \code{\link{subset.twDEMCPops}}
+	## ,\code{\link{subset.twDEMC}}
 	## ,\code{\link{twDEMCBlockInt}}
 	nStepsPop <- getNSamples(x)
 	if( 1 == length(minPopLength) ){
@@ -262,80 +364,6 @@ attr(concatPops,"ex") <- function(){
 	newPop
 }
 
-#----------------------------------- subset ---------------
-setMethodS3("subset","twDEMCPops", function( 
-	### Condenses an twDEMCPops result object to the cases boKeep.
-	x 			##<< twDEMCPops object
-	,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
-	,...
-	,iPops=seq_along(x$pops)	##<< integer vector: only these populations are subset, others are kept
-	,dropShortPops=FALSE		##<< if set to TRUE, pops in iPops with less samples than to what \code{boKeep} refers to are dropped
-){
-	# subset.twDEMCPops 
-		
-	##seealso<<   
-	## \code{\link{twDEMCBlockInt}}
-	
-	##details<< 
-	## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.
-	## an object of class \code{twDEMCPops} \itemize{
-	## \item{ number of generations: \code{\link{getNGen.twDEMCPops}}  } 
-	## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMCPops}}  } 
-	## \item{ number of chains: \code{\link{getNChains.twDEMCPops}}  } 
-	## \item{ number of populations: \code{\link{getNPops.twDEMCPops}}  } 
-	## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
-	## \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
-	## \item{ thinning interval: \code{res$thin}  } 
-	##}
-	##
-	## There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
-	## \item{ select chains or sub-populations: this method  } 
-	## \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
-	## \item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
-	## \item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combineTwDEMCPops}}  }
-	##}
-	##
-	## There are several methods utilize the functions of the coda package. \itemize{
-	## \item{ convert an twDEMCPops to a coda mcmc.list \code{\link{as.mcmc.list.twDEMCPops}}  } 
-	## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
-	## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
-	## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
-	##}
-	#? \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMCPops}}  } 
-	#? \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
-
-	
-	# To help re-initializing the arguments to fLogDen \itemize{
-	# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
-
-
-	nSamplesPop <- getNSamples(x)
-	iKeep <- if( is.numeric(boKeep)) boKeep else which(boKeep)
-	maxStep <- max(iKeep)
-	if( dropShortPops ){
-		x <- subPops( x, which( (1:seq_along(x$pops) == iPops) && (nSamplesPop >= maxStep)) )
-	}else if( maxStep > min(nSamplesPop[iPops])) stop(
-			"subset.twDEMCPops: provided indices outside the steps of the smalles population. Use dropShortPops=TRUE to drop shorter populations before.")
-	for( iPop in iPops ){
-		#mtrace(.subsetTwDEMCPop)
-		x$pops[[iPop]] <- tmp <- .subsetTwDEMCPop(x$pops[[iPop]], iKeep)
-	}
-	##details<<
-	## components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.
-	x
-	### list of class twDEMCPops with subset of cases in parsm, logDen, pAccept, and temp
-})
-#mtrace(subset.twDEMCPops)
-attr(subset.twDEMCPops,"ex") <- function(){
-	if( FALSE){
-		tmp <- subset(res,1:3)
-		str(tmp)
-		tmp <- subset(res,1:10)  # should produce an error
-		#mtrace(subset.twDEMCPops)
-		tmp <- subset(res,1:10,dropShortPops=TRUE)  
-	} 
-}
-
 setMethodS3("subPops","twDEMCPops", function( 
 		### Condenses an twDEMCPops List to given population indices or space replicates
 		x
@@ -367,7 +395,6 @@ setMethodS3("squeeze","twDEMCPops", function(
 	# squeeze.twDEMCPops
 	##seealso<<   
 	## \code{\link{subset.twDEMCPops}}
-	
 	nPop <- getNPops(x)
 	nSamplesPop <- getNSamples(x)
 	if( 1==length(length.out)){
@@ -376,8 +403,11 @@ setMethodS3("squeeze","twDEMCPops", function(
 		}else if( length.out > min(nSamplesPop)) stop(
 				"squeeze.twDEMCPops: specified a length that is longer than the shortest population. Use dropShortPops=TRUE to drop shorter populations.")
 		length.out = rep( length.out, nPop)
-	} 
+	}
 	if( nPop != length(length.out)) stop("squeeze.twDEMCPops: length.out must specify a length for each population.")
+	length.out <- pmin( length.out, nSamplesPop ) # avoid lengthening the pops
+	if( all( length.out == nSamplesPop) )
+		return(x)
 	##details<< 
 	## all populations with 
 	for( iPop in seq_along(x$pops) ){
@@ -409,7 +439,7 @@ setMethodS3("stackChains","twDEMCPops", function(
 		x
 		,...				##<< not used 
 	){
-		# thin.twDEMCPops
+		# stackChains.twDEMCPops
 		##seealso<<   
 		## \code{\link{stackPopsInSpace}}, \code{\link{subset.twDEMCPops}} 
 		cPop <- combineTwDEMCPops(x$pops)$pop
@@ -754,23 +784,22 @@ combineTwDEMCPops <- function(
 			popCases <- twMergeSequences(nSamplePop, mergeMethod=mergeMethod, nInSlice=nInSlice )
 		if( nSample != length(popCases) )
 			stop("combineTwDEMCPops: length of argument popCases must equal sum of samples of all populations")
-		
 		#----  initialize entries
 		tmp <- "parms"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "logDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "resLogDen"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "pAccept"; newPop[[tmp]] <- array( NA_real_, dim=c(nSample,dim(pop1[[tmp]])[2:3]), dimnames=dimnames(pop1[[tmp]])) 
 		tmp <- "temp"; newPop[[tmp]] <- matrix( NA_real_, nrow=nSample, ncol=ncol(pop1[[tmp]]),dimnames=dimnames(pop1[[tmp]])) 
-
 		#---- copy the entries
+		#iPop=1
 		for( iPop in 1:nPop){
 			pop <- pops[[iPop]]
 			is <- which(popCases==iPop)
-			tmp <- "parms"; newPop[[tmp]][is,,] <- pop[[tmp]][,,]
-			tmp <- "logDen"; newPop[[tmp]][is,,] <- pop[[tmp]][,,]  
-			tmp <- "resLogDen"; newPop[[tmp]][is,,] <- pop[[tmp]][,,]  
-			tmp <- "pAccept"; newPop[[tmp]][is,,] <- pop[[tmp]][,,]  
-			tmp <- "temp"; newPop[[tmp]][is] <- pop[[tmp]]  
+			tmp <- "parms"; newPop[[tmp]][is,,] <- pop[[tmp]]
+			tmp <- "logDen"; newPop[[tmp]][is,,] <- pop[[tmp]]  
+			tmp <- "resLogDen"; newPop[[tmp]][is,,] <- pop[[tmp]]  
+			tmp <- "pAccept"; newPop[[tmp]][is,,] <- pop[[tmp]]  
+			tmp <- "temp"; newPop[[tmp]][is,] <- pop[[tmp]]  
 		} # iPop
 		# newPop$parms[,1,1]
 		

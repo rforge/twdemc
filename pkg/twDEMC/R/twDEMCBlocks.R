@@ -249,10 +249,10 @@ twDEMCBlockInt <- function(
 	nResComp <- length(resCompNamesUFlat)
 	resCompPosPops <- { # list: for each dInfo: position of resCompNames in resCompNamesUFlat
 		tmp.length <- sapply(resCompNamesU, length)
-		tmp.start <- cumsum(tmp.length)-tmp.length[1]
+		tmp.end <- cumsum(tmp.length)
 		tmp.i <- vector("list",nDen)
 		for( iDen in iDens ){ 
-			tmp.i[[iDen]] <- dInfos[[iDen]]$resCompPos <- tmp.start[iDen]+1:tmp.length[iDen] 
+			tmp.i[[iDen]] <- dInfos[[iDen]]$resCompPos <- tmp.end[iDen]+1-(tmp.length[iDen]:1) 
 		}
 		tmp.i
 	}
@@ -1147,6 +1147,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	xP <- xC		# place for recording proposal
 	logDenCompP <- logDenCompC # place for recording density results for proposal
 	
+	#iBlock<-2
+	#dInfo1 <- a$argsFUpdateBlocks[[1]]
 	for( iBlock in seq_along(a$argsFUpdateBlocks)){
 		#block <- blocks[[iBlock]]
 		dInfo <- block <- a$argsFUpdateBlocks[[iBlock]] #merged the information in argsFUpdateBlocks
@@ -1156,7 +1158,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		##details<< \describe{}{\item{Recalculating logDensity of accepted state.}{
 		## If one of the components used by the current density function has been
 		## updated against another density function, then the current density of  
-		## of the accepted state is out of date, and needs to be recalculated.
+		## the accepted state is out of date, and needs to be recalculated.
 		##}}
 		if( block$requiresUpdatedDen && !all( parUpdateDenC[block$dInfoPos,cd] ) ){	
 			# here do not allow for internal rejection 
