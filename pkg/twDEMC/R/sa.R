@@ -9,12 +9,13 @@ twDEMCSA <- function(
 	,doIncludePrior=TRUE	##<< should the prior be part of initial population
 	#
 	,dInfos				##<< argument to \code{\link{twDEMCBlockInt}}
-	,qTempInit=c(0.4,0.05)	##<< quantile of logDensities used to calculate initial beginning and end temperature
+	,qTempInit=0.75		##<< quantile of logDensities used to calculate initial beginning and end temperature, with default 0.75 - 1/4 of the space is accepted 
 	#
-	,expLogDenBest		##<< numeric vector (nResComp) specifying the expected logDen of the best model
-	,nGen0=1024			##<< number of generations in the initial batch
-	
-	
+	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
+	,nGen=512			##<< number of generations in the initial batch
+	,TFix=c(1,NA,NA)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
+	,nBatch=4			##<< number of batches with recalculated Temperature
+	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, the algorithm can finish
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 ){
 	#mtrace(initZtwDEMCNormal)
@@ -33,22 +34,26 @@ twDEMCSA <- function(
 	}
 	Zinit <- Zinit0
 	
-	#------ intial temperatures: 0.4 percentile of rLogDen
+	#------ intial temperatures: 
 	#sapply( seq_along(expLogDenBest), function(i){ max(logDenDS[,i]) })
-	temp0 <- sapply( seq_along(expLogDenBest), function(iResComp){
-		pmax(1, quantile( (expLogDenBest[iResComp] - logDenDS[,iResComp]),c(qTempInit) ))
+	#iResComp <- 
+	temp0 <- sapply( seq_along(nObs), function(iResComp){
+			pmax(1, -2/nObs[iResComp]* quantile( logDenDS[,iResComp],c(qTempInit) ))
 	})
-	colnames(temp0) <- colnames(logDenDS)
-	temp0[,"parmsSparce"] <- 1
+	names(temp0) <- colnames(logDenDS)
+	iFixTemp <- which( is.finite(TFix) )
+	temp0[iFixTemp] <- TFix[iFixTemp]
+	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
 	
 	res0 <-  res <- twDEMCBlock( Zinit
 		, nGen=nGen0
 		#,nGen=16, debugSequential=TRUE
 		, dInfos=dInfos
-		, TSpec=cbind( T0=temp0[1,], TEnd=temp0[2,] )
+		, TSpec=cbind( T0=temp0, TEnd=temp0 )
 		, nPop=.nPop
 		# XXTODO: replace lines below later on by ...
-		, blocks = blocks
+		#, blocks = blocks
+		,...
 	)
 	.tmp.f <- function(){
 		mc0 <- concatPops(res)
@@ -57,53 +62,45 @@ twDEMCSA <- function(
 		matplot( mc0$pAccept[,2,], type="l" )
 		plot( as.mcmc.list(mc0), smooth=FALSE )
 	}
-	resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
-	ssc <- stackChainsPop(resEnd)	# combine all chains of one population
-	mcl <- as.mcmc.list(ssc)
-	#plot( mcl, smooth=FALSE )
-	#plot( mc0$parms[,"b",1] ~ mc0$parms[,"a",1], col=rainbow(255)[round(twRescale(-mc0$resLogDen[,"logDen1",1],c(10,200)))] )
-	#plot( mc0$parms[,"b",1] ~ mc0$parms[,"a",1], col=rainbow(255)[round(twRescale(-mc0$resLogDen[,"obsSparce",1],c(10,200)))] )
-	#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
-	#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"obsSparce",1],c(10,200)))] )
-	TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
-			.tmp.estimateLMax.Raftery <- function(){
-				# estimate lmax according to Raftery07: l_{max} = \bar{l} + Var{l}
-				# does not work out, varL is much too high for strongly skewed distr.
-				# need to thin because of autocorrlation before estimating the variance
-				sscT <- squeeze( ssc, length.out=effectiveSize(mcl) )
-				logDen <- stackChains(concatPops(sscT)$logDen)
-				varL <- apply(logDen,2,var)
-				meanL <- apply(logDen,2,mean)
-				lMax1 <- meanL + varL
+	TCurr <- getCurrentTemp(res)
+	print(paste("finished ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=" "),"    ", date(), sep="") )
+	
+	if( nBatch == 1 ) return(res0)
+	#iBatch=2
+	for(iBatch in (2:nBatch)){
+		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
+		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
+		mcl <- as.mcmc.list(ssc)
+		#plot( as.mcmc.list(mcl), smooth=FALSE )
+		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
+		TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
+				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
+				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
+				maxLogDenT <- logDenT[iBest, ]
+				TEnd <- pmax(1, -2*maxLogDenT/nObs )
+				TEnd[iFixTemp] <- TFix[iFixTemp]
+				relTChange <- abs(TEnd - TCurr)/TEnd
+				if( max(relTChange) <= maxRelTChange ){
+					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"%. Finishing early.",sep=""))
+					break
+				}
+				TEnd
+			}else{
+				TEnd <-TCurr
 			}
-			#logDen0 <- stackChains(concatPops(res0)$resLogDen); sapply( seq_along(expLogDenBest), function(i){ max(logDen0[,i]) })
-			logDen <- stackChains(concatPops(ssc)$resLogDen)
-			#iResComp <- 3
-			#sapply( seq_along(expLogDenBest), function(i){ max(logDen[,i]) })
-			#sapply( seq_along(expLogDenBest), function(i){ max(logDen[,i]) })
-			#mc0$temp[ nrow(mc0$temp), ]
-			TEnd <- sapply( seq_along(expLogDenBest), function(iResComp){
-					pmax(1, (expLogDenBest[iResComp] - max(logDen[,iResComp])) )
-				})
-			names(TEnd) <- colnames(logDen)
-			TEnd
-		}else{
-			# stay at given Temperature
-			TEnd <-getCurrentTemp(ssc)
-		}
-	
-	res1 <- res <- twDEMCBlock( resEnd
-		, nGen=nGen0
-		#, debugSequential=TRUE
-		, dInfos=dInfos
-		, TEnd=TEnd
-		# XXTODO: replace lines below later on by ...
-		, blocks = blocks
-	)
-	
-
-	
-	
+		res1 <- res <- twDEMCBlock( resEnd
+			, nGen=nGen0
+			#, debugSequential=TRUE
+			, dInfos=dInfos
+			, TEnd=TEnd
+			# replace lines below later on by ...
+			#, blocks = blocks
+			,...
+		)
+		TCurr <- getCurrentTemp(res)
+		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
+	}
+	res
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -128,34 +125,39 @@ attr(twDEMCSA,"ex") <- function(){
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 	
 	#str(twTwoDenEx1)
-	expLogDenBest <- -1/2 * c( parmsSparce=0, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
+	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
 	
 	
-	#SADEMC(
+	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, nBatch=8 )
 	
+	(TCurr <- getCurrentTemp(resPops))
+	mc0 <- concatPops(res)
+	logDenT <- calcTemperatedLogDen(stackChains(mc0$resLogDen), TCurr)
+	iBest <- getBestModelIndex( logDenT, res$dInfos )
+	maxLogDenT <- logDenT[iBest, ]
+	ss <- stackChains(mc0$parms)
+	(thetaBest <- ss[iBest, ])
+	(.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparce"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"logDen1"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rgb(
+			twRescale(logDenT[,"obsSparce"]),0, twRescale(logDenT[,"logDen1"]) ))
+	apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
 
-	res <- res1
-	logDen <- stackChains(concatPops(res)$resLogDen)
-	TCurr <- getCurrentTemp(res)
-	logDenT <- apply( logDen, 1, function(logDenRow){ sum(logDenRow / TCurr)} )
-	iDen <- 1:getNBlocks(res1)
+	# density of parameters
+	plot( density(ss[,"a"])); abline(v=thetaPrior["a"]); abline(v=thetaBest["a"], col="blue")
+	plot( density(ss[,"b"])); abline(v=thetaPrior["b"]); abline(v=thetaBest["b"], col="blue")
 	
-	ss <- stackChains(res1)
-	(thetaBest <- thetaBest1 <- ss[ which.max(sLogDen), -iDen])		# sum of logDen
-	(thetaBest <- thetaBest1 <- ss[ which.max(ss[,2]), -iDen])		# par b
-	(thetaBest <- thetaBest1 <- ss[ which.max(logDenT), -iDen])		# Temperated sum of lodDen
-	(.qq <- apply(ss[,-iDen],2,quantile, probs=c(0.025,0.5,0.975) ))
-	
+	# predictive posterior (best model only)
 	pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
-	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
 	plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1)
-	
-	plot( density(ss[,"b"])); abline(v=thetaPrior["b"])
+	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
 	
 }
 
-.tmp.f <- function(){
-	mc0 <- concatPops(res1)
+.tmp.ggplotResults <- function(){
+	mc0 <- concatPops(res)
 	.nSample <- 128
 	dfDen <- rbind(
 		cbind( data.frame( scenario="S1", {tmp <- stackChains(res1)[,-(1:2)]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
@@ -253,5 +255,34 @@ attr(twDEMCSA,"ex") <- function(){
 	p1
 	
 	
+}
+
+getBestModelIndex <- function(
+	### select the best model based on (temperated) logDensity components
+	logDenT		##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
+	, dInfos 	##<< list of lists with entry resCompPos (integer vector) specifying the position of result components for each density 
+){
+	iBest <- if( length(dInfos) > 1){
+		# with several densities, each parameter vector is ranked differently
+		# select the case where the maximum of all the ranks across densities is lowest
+		logDenTDens <- do.call( cbind, 	lapply( seq_along(dInfos), function(iDen){
+					dInfo <- dInfos[[iDen]]
+					logDenInfoT <- rowSums(logDenT[,dInfo$resCompPos ,drop=FALSE])	
+				}))
+		rankDen <- apply( -logDenTDens,2, rank) # starting with the highest density
+		rankDenMax <- apply( rankDen, 1, max )   
+		iBest <- which.min(rankDenMax)
+	}else{
+		iBest <- which.max( rowSums(logDenT) )
+	}
+	### the index within logDenT with the best rank
+	iBest
+}
+attr(getBestModelIndex,"ex") <- function(){
+	logDenT <- cbind( -sample(5)/2, -sample(5), -sample(5) )
+	#dInfos <- list( d1=list(resCompPos=1:2), d2=list(resCompPos=3) )
+	dInfos <- list( d1=list(resCompPos=2), d2=list(resCompPos=3) )
+	getBestModelIndex(logDenT, dInfos)
+	-logDenT
 }
 

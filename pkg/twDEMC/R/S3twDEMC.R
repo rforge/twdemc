@@ -8,7 +8,7 @@ setMethodS3("subChains","twDEMC", function(
 		, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 ){
 		##seealso<<   
-		## \code{\link{twDEMCBlockInt}}
+		## \code{\link{twDEMC}}
 		
 		##details<< 
 		## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.

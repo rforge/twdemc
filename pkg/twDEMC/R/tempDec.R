@@ -1,3 +1,57 @@
+
+setMethodS3("calcTemperatedLogDen","default", function(
+	### Rescale Log-Densities by given Temperatures
+	x	##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
+	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
+	,...
+	,maxLogDen=apply(x,2,max)	##<< best achievable log-Density
+){
+	##seealso<<   
+	## \code{\link{twDEMC}}
+	
+	##details<< 
+	## There are several function to help with temperating log-Densities
+	## \itemize{
+	## \item{ Rescale Log-Densities by given Temperatures: this function  } 
+	## \item{ Generating exponential T-series: \code{\link{calcDEMCTemp}}  }
+	##}
+	## Others functions that deal with TProp are deprecated. 
+	##
+	
+	
+	##details<< 
+	## Only the difference of the log-Density to the best achievable Log-Density 
+	## is important for comparison.
+	## Hence, first the best logDen is subtracted, then the difference is multiplied by given temperatue.
+	ldiff <- t(x)-maxLogDen 
+	### numeric matrix (nStep x nResComp), rescaled logDen
+	lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +maxLogDen) 
+})
+attr(calcTemperatedLogDen,"ex") <- function(){
+	data(twdemcEx1)
+	logDen0 <- stackChains(concatPops(twdemcEx1)$resLogDen)
+	maxLogDen <- apply(logDen0,2,max)
+	temp = c(obs=20, parms=1)
+	logDen <- t( (t(logDen0)-maxLogDen)*temp +maxLogDen )
+	
+	logDenT <- calcTemperatedLogDen(logDen,temp)
+	.exp <- logDen0
+	names(dimnames(.exp)) <- NULL 
+	names(dimnames(logDenT)) <- NULL 
+	all.equal( .exp, logDenT )
+}
+
+setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
+	### Rescale Log-Densities by given Temperatures
+	x	##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
+	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
+	,...
+){
+	logDen <- stackChains(concatPops(x)$resLogDen)
+	calcTemperatedLogDen(logDen,temp,...)
+})
+
+
 calcDEMCTemp <- function( 
 	### Calculates the temperature for an exponential decrease from \code{T0} to \code{Tend} after \code{nGen} steps. 	
 	T0			##<< the initial temperature (before the first step at iGen=0)
@@ -7,7 +61,8 @@ calcDEMCTemp <- function(
 ){
 	# calcDEMCTemp
 	##seealso<< 
-	## \code{\link{twDEMCBlockInt}}
+	## \code{\link{calcTemperatedLogDen.default}}
+	## \code{\link{twDEMC}}
 	if( nGen < 1) return( numeric(0) )
 	b = T0
 	a = log(Tend/T0)/nGen
@@ -1030,6 +1085,4 @@ calcDEMCTempProp <- function(
 		### }
 	}
 }
-
-
 
