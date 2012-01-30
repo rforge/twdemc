@@ -21,7 +21,6 @@ twDEMCSA <- function(
 	#mtrace(initZtwDEMCNormal)
 	Zinit0 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior)
 	ss <- stackChains(Zinit0)
-	
 	logDenL <- lapply( dInfos, function(dInfo){
 		resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss, argsFLogDen=dInfo$argsFLogDen)$logDenComp
 	})
@@ -33,7 +32,7 @@ twDEMCSA <- function(
 		## XXTODO extend Zinit0
 	}
 	Zinit <- Zinit0
-	
+	#
 	#------ intial temperatures: 
 	#sapply( seq_along(expLogDenBest), function(i){ max(logDenDS[,i]) })
 	#iResComp <- 
@@ -44,13 +43,13 @@ twDEMCSA <- function(
 	iFixTemp <- which( is.finite(TFix) )
 	temp0[iFixTemp] <- TFix[iFixTemp]
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
-	
+	#
 	res0 <-  res <- twDEMCBlock( Zinit
-		, nGen=nGen0
+		, nGen=nGen
 		#,nGen=16, debugSequential=TRUE
 		, dInfos=dInfos
 		, TSpec=cbind( T0=temp0, TEnd=temp0 )
-		, nPop=.nPop
+		, nPop=nPop
 		# XXTODO: replace lines below later on by ...
 		#, blocks = blocks
 		,...
@@ -61,12 +60,24 @@ twDEMCSA <- function(
 		matplot( mc0$pAccept[,1,], type="l" )
 		matplot( mc0$pAccept[,2,], type="l" )
 		plot( as.mcmc.list(mc0), smooth=FALSE )
+		tmp <- calcTemperatedLogDen(res$pops[[1]]$resLogDen[,,1], getCurrentTemp(res) )
+		matplot( tmp, type="l" )
+		plot(rowSums(tmp))
+		
+		matplot( mc0$resLogDen[,3,], type="l" )
+		matplot( mc0$parms[,"a",], type="l" )
+		matplot( mc0$parms[1:20,"b",], type="l" )
+		bo <- 1:10; iPop=1
+		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
+		
+		
+		
 	}
 	TCurr <- getCurrentTemp(res)
 	print(paste("finished ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=" "),"    ", date(), sep="") )
-	
+	#
 	if( nBatch == 1 ) return(res0)
-	#iBatch=2
+	iBatch=2
 	for(iBatch in (2:nBatch)){
 		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
 		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
@@ -75,12 +86,14 @@ twDEMCSA <- function(
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
 		TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
 				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
+				#mtrace(getBestModelIndex)
 				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
 				maxLogDenT <- logDenT[iBest, ]
 				TEnd <- pmax(1, -2*maxLogDenT/nObs )
 				TEnd[iFixTemp] <- TFix[iFixTemp]
 				relTChange <- abs(TEnd - TCurr)/TEnd
-				if( max(relTChange) <= maxRelTChange ){
+				if( (max(relTChange) <= maxRelTChange) && !isLogDenDrift(logDenT, resEnd$dInfos) ){
+					res <- resEnd
 					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"%. Finishing early.",sep=""))
 					break
 				}
@@ -89,7 +102,7 @@ twDEMCSA <- function(
 				TEnd <-TCurr
 			}
 		res1 <- res <- twDEMCBlock( resEnd
-			, nGen=nGen0
+			, nGen=nGen
 			#, debugSequential=TRUE
 			, dInfos=dInfos
 			, TEnd=TEnd
@@ -129,9 +142,11 @@ attr(twDEMCSA,"ex") <- function(){
 	
 	
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, nBatch=8 )
-	
+
 	(TCurr <- getCurrentTemp(resPops))
 	mc0 <- concatPops(res)
+	plot( as.mcmc.list(mc0) , smooth=FALSE )
+	matplot( mc0$temp, type="l" )
 	logDenT <- calcTemperatedLogDen(stackChains(mc0$resLogDen), TCurr)
 	iBest <- getBestModelIndex( logDenT, res$dInfos )
 	maxLogDenT <- logDenT[iBest, ]
@@ -144,7 +159,7 @@ attr(twDEMCSA,"ex") <- function(){
 	plot( ss[,"a"], ss[,"b"], col=rgb(
 			twRescale(logDenT[,"obsSparce"]),0, twRescale(logDenT[,"logDen1"]) ))
 	apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
-
+	
 	# density of parameters
 	plot( density(ss[,"a"])); abline(v=thetaPrior["a"]); abline(v=thetaBest["a"], col="blue")
 	plot( density(ss[,"b"])); abline(v=thetaPrior["b"]); abline(v=thetaBest["b"], col="blue")
@@ -257,6 +272,166 @@ attr(twDEMCSA,"ex") <- function(){
 	
 }
 
+.tmp.AllDensities <- function(){
+	# same as example but with each parameter updated against both densities
+	data(twTwoDenEx1)
+	
+	thetaPrior <- twTwoDenEx1$thetaTrue
+	covarTheta <- diag((thetaPrior*0.3)^2)
+	invCovarTheta <- (thetaPrior*0.3)^2		# given as independent variances for faster calculation
+	
+	thresholdCovar = 0.3	# the true value
+	thresholdCovar = 0		# the effective model that glosses over this threshold
+	
+	# for updating each in turn against both densities
+	dInfos=list(
+		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
+	)
+	blocks = list(
+		bSparce=list(dInfoPos="dSparce", compPos=c("a","b") )
+		,bRich=list(dInfoPos="dRich", compPos=c("a","b") )
+	)
+	
+	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
+	
+	#str(twTwoDenEx1)
+	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
+	
+	#trace(twDEMCSA, recover )
+	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, nBatch=5, debugSequential=TRUE )
+	
+	(TCurr <- getCurrentTemp(resPops))
+	mc0 <- concatPops(res)
+	logDenT <- calcTemperatedLogDen(stackChains(mc0$resLogDen), TCurr)
+	iBest <- getBestModelIndex( logDenT, res$dInfos )
+	maxLogDenT <- logDenT[iBest, ]
+	ss <- stackChains(mc0$parms)
+	(thetaBest <- ss[iBest, ])
+	(.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparce"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"logDen1"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rgb(
+			twRescale(logDenT[,"obsSparce"]),0, twRescale(logDenT[,"logDen1"]) ))
+	apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
+	
+	# density of parameters
+	plot( density(ss[,"a"])); abline(v=thetaPrior["a"]); abline(v=thetaBest["a"], col="blue")
+	plot( density(ss[,"b"])); abline(v=thetaPrior["b"]); abline(v=thetaBest["b"], col="blue")
+	
+	# predictive posterior (best model only)
+	pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+	plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1)
+	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
+	
+}
+
+.tmp.2DenSwitched <- function(){
+	# same as example but with each parameter b updated against sparce
+	data(twTwoDenEx1)
+	
+	thetaPrior <- twTwoDenEx1$thetaTrue
+	covarTheta <- diag((thetaPrior*0.3)^2)
+	invCovarTheta <- (thetaPrior*0.3)^2		# given as independent variances for faster calculation
+	
+	thresholdCovar = 0.3	# the true value
+	thresholdCovar = 0		# the effective model that glosses over this threshold
+	
+	# for updating each in turn against both densities
+	dInfos=list(
+		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
+	)
+	blocks = list(
+		bSparce=list(dInfoPos="dSparce", compPos=c("b") )
+		,bRich=list(dInfoPos="dRich", compPos=c("a") )
+	)
+	
+	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
+	
+	#str(twTwoDenEx1)
+	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
+	
+	#untrace(twDEMCSA )
+	#trace(twDEMCSA, recover )
+	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, nBatch=5, debugSequential=TRUE )
+	
+	(TCurr <- getCurrentTemp(resPops))
+	mc0 <- concatPops(res)
+	logDenT <- calcTemperatedLogDen(stackChains(mc0$resLogDen), TCurr)
+	iBest <- getBestModelIndex( logDenT, res$dInfos )
+	maxLogDenT <- logDenT[iBest, ]
+	ss <- stackChains(mc0$parms)
+	(thetaBest <- ss[iBest, ])
+	(.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparce"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"logDen1"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rgb(
+			twRescale(logDenT[,"obsSparce"]),0, twRescale(logDenT[,"logDen1"]) ))
+	apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
+	
+	# density of parameters
+	plot( density(ss[,"a"])); abline(v=thetaPrior["a"]); abline(v=thetaBest["a"], col="blue")
+	plot( density(ss[,"b"])); abline(v=thetaPrior["b"]); abline(v=thetaBest["b"], col="blue")
+	
+	# predictive posterior (best model only)
+	pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+	plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1)
+	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
+	
+}
+
+
+.tmp.oneDensity <- function(){
+	# same as example but with only one combined density for both parameters
+	data(twTwoDenEx1)
+	
+	thetaPrior <- twTwoDenEx1$thetaTrue
+	covarTheta <- diag((thetaPrior*0.3)^2)
+	invCovarTheta <- (thetaPrior*0.3)^2		# given as independent variances for faster calculation
+	
+	thresholdCovar = 0.3	# the true value
+	thresholdCovar = 0		# the effective model that glosses over this threshold
+	
+	# for only one logDensity - Temperature of the strongest component goes to zero and other increase according to mismatch
+	 dInfos=list( list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)) )
+	
+	do.call( dInfos[[1]]$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos[[1]]$argsFLogDen))
+	
+	#str(twTwoDenEx1)
+	nObs <- c( parmsSparce=1, y1=length(twTwoDenEx1$obs$y1), y2=length(twTwoDenEx1$obs$y2) )
+	
+	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, nObs=nObs, nBatch=8 )
+	
+	(TCurr <- getCurrentTemp(res))
+	mc0 <- concatPops(res)
+	logDenT <- calcTemperatedLogDen(stackChains(mc0$resLogDen), TCurr)
+	iBest <- getBestModelIndex( logDenT, res$dInfos )
+	maxLogDenT <- logDenT[iBest, ]
+	ss <- stackChains(mc0$parms)
+	(thetaBest <- ss[iBest, ])
+	(.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"y1"],c(10,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"y2"],c(10,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rgb(
+			twRescale(logDenT[,"y1"]),0, twRescale(logDenT[,"y2"]) ))
+	apply( apply( logDenT, 2, quantile, probs=c(0.2,0.8) ),2, diff )
+	
+	# density of parameters
+	plot( density(ss[,"a"])); abline(v=thetaPrior["a"]); abline(v=thetaBest["a"], col="blue")
+	plot( density(ss[,"b"])); abline(v=thetaPrior["b"]); abline(v=thetaBest["b"], col="blue")
+	
+	# predictive posterior (best model only)
+	pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+	plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1)
+	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
+}
+
 getBestModelIndex <- function(
 	### select the best model based on (temperated) logDensity components
 	logDenT		##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
@@ -285,4 +460,31 @@ attr(getBestModelIndex,"ex") <- function(){
 	getBestModelIndex(logDenT, dInfos)
 	-logDenT
 }
+
+isLogDenDrift <- function(
+	### check whether last quartile all the logDensities is significantly different from first quartile 
+	logDenT		##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
+	, dInfos 	##<< list of lists with entry resCompPos (integer vector) specifying the position of result components for each density
+	, alpha=0.05	##<< the significance level for a difference
+){
+	nr <- nrow(logDenT)
+	nr4 <- nr %/% 4
+	#iDen <- 1
+	boL <- sapply( seq_along(dInfos), function(iDen){
+			dInfo <- dInfos[[iDen]]
+			rs1 <- rowSums(logDenT[1:nr4,  dInfo$resCompPos ,drop=FALSE])
+			rs4 <- rowSums(logDenT[(nr+1-nr4):nr, dInfo$resCompPos ,drop=FALSE])
+			resTTest <- t.test(rs4,rs1,"greater")
+			resTTest$p.value <= alpha 
+		})
+	any( boL )
+	### TRUE if any of the logDensities are a significantly greater in the fourth quantile compared to the first quantile of the samples
+}
+attr(isLogDenDrift,"ex") <- function(){
+	data(twdemcEx1)
+	logDenT <- calcTemperatedLogDen( twdemcEx1, getCurrentTemp(twdemcEx1))
+	isLogDenDrift(logDenT, twdemcEx1$dInfos )
+}
+
+
 
