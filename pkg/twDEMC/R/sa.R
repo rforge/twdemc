@@ -16,8 +16,9 @@ twDEMCSA <- function(
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, we do not need further batches because of Temperature
-	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity  
-	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
+	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
+	,restartFilename	##<< filename to write intermediate results to 
+	,... 				##<< further argument to \code{\link{twDEMCSA}}
 ){
 	#mtrace(initZtwDEMCNormal)
 	Zinit0 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior)
@@ -81,7 +82,7 @@ twDEMCSA <- function(
 	print(paste("finished initial ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(temp0,2),collapse=" "),"    ", date(), sep="") )
 	#
 	if( nBatch == 1 ) return(res0)
-	twDEMCSACont( mc=res0, dInfos=dInfos, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift, ...)
+	twDEMCSACont( mc=res0, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift, restartFilename=restartFilename, ...)
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -108,12 +109,12 @@ attr(twDEMCSA,"ex") <- function(){
 	#str(twTwoDenEx1)
 	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
 	
-	
+	#trace(twDEMCSACont, recover )
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
 		, TFix=c(1,NA,NA)
-		#, TMax=c(NA,2,NA)
 		, nGen=256
-		, nBatch=8 
+		, nBatch=5 
+		, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 	)
 
 	(TCurr <- getCurrentTemp(resPops))
@@ -146,22 +147,25 @@ attr(twDEMCSA,"ex") <- function(){
 
 twDEMCSACont <- function(
 	### continuing simulated annealing DEMC based on previous reslt
-	mc				##<< result of twDEMCBlock
-	,dInfos				##<< argument to \code{\link{twDEMCBlockInt}}
+	mc					##<< result of twDEMCBlock
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
-	,nGen=512			##<< number of generations in the initial batch
+	,nGen=512			##<< number of generations in the initial batch, default 512
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
-	#,TMaxInc=numeric(0)	##<< when increase Temperature again (to compensate better fit in other density), do not increase further than specified value
 	,nBatch=4			##<< number of batches with recalculated Temperature
-	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, the algorithm can finish
-	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity  
+	,maxRelTChange=0.025 ##<< if Temperature of the components changes less than specified value, the algorithm can finish
+	,maxLogDenDrift=0.3		##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
+	,restartFilename=NULL	##<< filename to write intermediate results to 
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 ){
+	# save calling arguments to allow an continuing an interrupted run
+	args <- c( list( nObs=nObs, nGen=nGen, TFix=TFix, maxRelTChange=maxRelTChange, maxLogDenDrift=maxLogDenDrift,  restartFilename=restartFilename), list(...) )
+	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
 	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
 	iFixTemp <- which( is.finite(TFix) )
-	
+	#
+	res <- mc
 	.tmp.f <- function(){
 		mc0 <- concatPops(res)
 		matplot( mc0$temp, type="l" )
@@ -178,7 +182,6 @@ twDEMCSACont <- function(
 		bo <- 1:10; iPop=1
 		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
 	}
-	
 	# sum nObs within density
 	iDens <- seq_along(mc$dInfos)
 	#iDen=1
@@ -187,10 +190,17 @@ twDEMCSACont <- function(
 			irc <- irc[ !(irc %in% iFixTemp) ]
 		})
 	nObsDen <- sapply( iDens, function(iDen){ sum( nObs[iCompsNonFixDen[[iDen]] ]) })
-	resEnd <- thin(mc, start=getNGen(mc)%/%2 )	
 	TCurr <- getCurrentTemp(mc)
 	iBatch=1
 	for(iBatch in (1:nBatch)){
+		if((0 < length(restartFilename)) && is.character(restartFilename) && restartFilename!=""){
+			resRestart.twDEMCSA = res #avoid variable confusion on load by giving a longer name
+			resRestart.twDEMCSA$iBatch <- iBatch	# also store updated calculation of burnin time
+			resRestart.twDEMCSA$args <- args		# also store updated calculation of burnin time
+			save(resRestart.twDEMCSA, file=restartFilename)
+			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
+		}
+		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
 		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
 		mcl <- as.mcmc.list(ssc)
 		#plot( as.mcmc.list(mcl), smooth=FALSE )
@@ -241,7 +251,6 @@ twDEMCSACont <- function(
 			,...
 		)
 		TCurr <- getCurrentTemp(res)
-		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
 		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
 	}
 	res
@@ -627,6 +636,37 @@ attr(isLogDenDrift,"ex") <- function(){
 	logDenT <- calcTemperatedLogDen( twdemcEx1, getCurrentTemp(twdemcEx1))
 	isLogDenDrift(logDenT, twdemcEx1$dInfos )
 }
+
+
+twRunDEMCSA <- function(
+	### wrapper to twDEMCSA compliant to runCluster.R
+	argsTwDEMCSA	 
+	### Arguments passed to twDEMCSA -> twDEMCBlockInt
+	### It is updated by \dots.
+	,...				 	##<< further arguments passed to twDEMCSA -> twDEMCBlockInt
+	,prevResRunCluster=NULL	##<< results of call to twRunDEMCSA, argument required to be called from runCluster.R
+	,restartFilename=NULL	##<< name of the file to store restart information, argument required to be called from runCluster.R 
+){
+	#update argsDEMC to args given 
+	argsDEMC <- argsTwDEMCSA
+	# update the restartFilename argument
+	.dots <- list(...)
+	argsDEMC[ names(.dots) ] <- .dots
+	#for( argName in names(.dots) ) argsDEMC[argName] <- .dots[argName]
+	if( 0 != length(restartFilename)) argsDEMC$restartFilename <- restartFilename
+	
+	# do the actual call
+	res <- do.call( twDEMCSA, argsDEMC )
+}
+tmp.testRestart <- function(){
+	rFileName <- file.path("tmp","example_twDEMCSA.RData")
+	load(rFileName)	# resRestart.twDEMCSA
+	#untrace(twDEMCSACont)
+	#trace(twDEMCSACont, recover )
+	res1 <- do.call( twDEMCSACont, c( list(mc=resRestart.twDEMCSA), resRestart.twDEMCSA$args ))
+}
+
+
 
 
 
