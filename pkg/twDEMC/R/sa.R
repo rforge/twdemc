@@ -14,9 +14,9 @@ twDEMCSA <- function(
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,nGen=512			##<< number of generations in the initial batch
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
-	#,TMaxInc=numeric(0)	##<< when increase Temperature again (to compensate better fit in other density), do not increase further than specified value
 	,nBatch=4			##<< number of batches with recalculated Temperature
-	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, the algorithm can finish
+	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, we do not need further batches because of Temperature
+	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity  
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 ){
 	#mtrace(initZtwDEMCNormal)
@@ -45,7 +45,7 @@ twDEMCSA <- function(
 	#------ intial temperatures: 
 	#sapply( seq_along(expLogDenBest), function(i){ max(logDenDS[,i]) })
 	#iResComp <- 
-	TMin <- temp0 <- sapply( seq_along(nObs), function(iResComp){
+	temp0 <- sapply( seq_along(nObs), function(iResComp){
 			pmax(1, -2/nObs[iResComp]* quantile( logDenDS[,iResComp],c(qTempInit) ))
 	})
 	names(temp0) <- colnames(logDenDS)
@@ -71,63 +71,17 @@ twDEMCSA <- function(
 		tmp <- calcTemperatedLogDen(res$pops[[1]]$resLogDen[,,1], getCurrentTemp(res) )
 		matplot( tmp, type="l" )
 		plot(rowSums(tmp))
-		
+		#
 		matplot( mc0$resLogDen[,3,], type="l" )
 		matplot( mc0$parms[,"a",], type="l" )
 		matplot( mc0$parms[1:20,"b",], type="l" )
 		bo <- 1:10; iPop=1
 		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
-		
-		
-		
 	}
-	print(paste("finished ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=" "),"    ", date(), sep="") )
+	print(paste("finished initial ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(temp0,2),collapse=" "),"    ", date(), sep="") )
 	#
 	if( nBatch == 1 ) return(res0)
-	iBatch=2
-	resEnd <- thin(res0, start=getNGen(res0)%/%2 )	# here take all argument of the initial single Temp run
-	TCurr <- getCurrentTemp(res0)
-	for(iBatch in (2:nBatch)){
-		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
-		mcl <- as.mcmc.list(ssc)
-		#plot( as.mcmc.list(mcl), smooth=FALSE )
-		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
-		TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
-				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
-				#mtrace(getBestModelIndex)
-				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
-				maxLogDenT <- logDenT[iBest, ]
-				#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
-				#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
-
-				TEnd <- pmax(1, -2*maxLogDenT/nObs )
-				TEnd[iFixTemp] <- TFix[iFixTemp]
-				#TEnd[iMaxIncTemp] <- ifelse( TCurr[iMaxIncTemp] < TMaxInc[iMaxIncTemp], pmin(TMaxInc[iMaxIncTemp], TEnd[iMaxIncTemp]), TEnd[iMaxIncTemp])	# do not increase again over TMax
-				relTChange <- abs(TEnd - TCurr)/TEnd
-				if( (max(relTChange) <= maxRelTChange) && !isLogDenDrift(logDenT, resEnd$dInfos) ){
-					res <- resEnd
-					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"%. Finishing early.",sep=""))
-					break
-				}
-				TEnd
-			}else{
-				TEnd <-TCurr
-			}
-		TMin <- pmin(TMin, TEnd)
-		res1 <- res <- twDEMCBlock( resEnd
-			, nGen=nGen
-			#, debugSequential=TRUE
-			, dInfos=dInfos
-			, TEnd=TEnd
-			# replace lines below later on by ...
-			#, blocks = blocks
-			,...
-		)
-		TCurr <- getCurrentTemp(res)
-		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
-		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
-	}
-	res
+	twDEMCSACont( mc=res0, dInfos=dInfos, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift, ...)
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -158,6 +112,7 @@ attr(twDEMCSA,"ex") <- function(){
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
 		, TFix=c(1,NA,NA)
 		#, TMax=c(NA,2,NA)
+		, nGen=256
 		, nBatch=8 
 	)
 
@@ -189,15 +144,117 @@ attr(twDEMCSA,"ex") <- function(){
 	
 }
 
+twDEMCSACont <- function(
+	### continuing simulated annealing DEMC based on previous reslt
+	mc				##<< result of twDEMCBlock
+	,dInfos				##<< argument to \code{\link{twDEMCBlockInt}}
+	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
+	,nGen=512			##<< number of generations in the initial batch
+	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
+	#,TMaxInc=numeric(0)	##<< when increase Temperature again (to compensate better fit in other density), do not increase further than specified value
+	,nBatch=4			##<< number of batches with recalculated Temperature
+	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, the algorithm can finish
+	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity  
+	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
+){
+	nResComp <- ncol(mc$pops[[1]]$resLogDen)
+	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
+	iFixTemp <- which( is.finite(TFix) )
+	
+	.tmp.f <- function(){
+		mc0 <- concatPops(res)
+		matplot( mc0$temp, type="l" )
+		matplot( mc0$pAccept[,1,], type="l" )
+		matplot( mc0$pAccept[,2,], type="l" )
+		plot( as.mcmc.list(mc0), smooth=FALSE )
+		tmp <- calcTemperatedLogDen(res$pops[[1]]$resLogDen[,,1], getCurrentTemp(res) )
+		matplot( tmp, type="l" )
+		plot(rowSums(tmp))
+		#
+		matplot( mc0$resLogDen[,3,], type="l" )
+		matplot( mc0$parms[,"a",], type="l" )
+		matplot( mc0$parms[1:20,"b",], type="l" )
+		bo <- 1:10; iPop=1
+		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
+	}
+	
+	# sum nObs within density
+	iDens <- seq_along(mc$dInfos)
+	#iDen=1
+	iCompsNonFixDen <- lapply( iDens, function(iDen){ 
+			irc <-  mc$dInfos[[iDen]]$resCompPos
+			irc <- irc[ !(irc %in% iFixTemp) ]
+		})
+	nObsDen <- sapply( iDens, function(iDen){ sum( nObs[iCompsNonFixDen[[iDen]] ]) })
+	resEnd <- thin(mc, start=getNGen(mc)%/%2 )	
+	TCurr <- getCurrentTemp(mc)
+	iBatch=1
+	for(iBatch in (1:nBatch)){
+		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
+		mcl <- as.mcmc.list(ssc)
+		#plot( as.mcmc.list(mcl), smooth=FALSE )
+		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
+		TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
+				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
+				#mtrace(getBestModelIndex)
+				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
+				maxLogDenT <- logDenT[iBest, ]
+				#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
+				#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
+				#sum logDenT within density
+				#logDenTDen <- lapply( iDens, function(iDen){
+				#			rcpos <- iCompsNonFixDen[[iDen]]
+				#			if( length(rcpos)==1) logDenT[,rcpos ,drop=TRUE] else						
+				#				rowSums( logDenT[ ,rcpos ,drop=FALSE])
+				#		})
+				maxLogDenTDen <- sapply(iDens, function(iDen){ 
+						sum(maxLogDenT[iCompsNonFixDen[[iDen]] ])
+					})
+				#TEnd0 <- pmax(1, -2*maxLogDenT/nObs )
+				TEndDen <- pmax(1, -2*maxLogDenTDen/nObsDen )
+				TEnd <- TCurr
+				for( iDen in iDens){
+					TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
+				} 
+				TEnd[iFixTemp] <- TFix[iFixTemp]
+				relTChange <- abs(TEnd - TCurr)/TEnd
+				#if( (max(relTChange) <= maxRelTChange) ) recover()
+				#trace(isLogDenDrift, recover )
+				if( (max(relTChange) <= maxRelTChange) && !isLogDenDrift(logDenT, resEnd$dInfos, maxDrift=maxLogDenDrift) ){
+					res <- resEnd
+					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"% and no drift in logDensity. Finishing early.",sep=""))
+					break
+				}
+				TEnd
+			}else{
+				TEnd <-TCurr
+			}
+		#TMin <- pmin(TMin, TEnd)
+		res1 <- res <- twDEMCBlock( resEnd
+			, nGen=nGen
+			#, debugSequential=TRUE
+			, dInfos=dInfos
+			, TEnd=TEnd
+			# replace lines below later on by ...
+			#, blocks = blocks
+			,...
+		)
+		TCurr <- getCurrentTemp(res)
+		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
+		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
+	}
+	res
+}
+
 .tmp.ggplotResults <- function(){
 	mc0 <- concatPops(res)
 	.nSample <- 128
 	dfDen <- rbind(
-		cbind( data.frame( scenario="S1", {tmp <- stackChains(res1)[,-(1:2)]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
+		cbind( data.frame( scenario="S1", {tmp <- stackChains(mc0)[,-(1:getNBlocks(mc0))]; tmp[ seq(1,nrow(tmp),length.out=.nSample),] }))
 	)
 	dfDenM <- melt(dfDen)
-	str(dfDenM)
-	
+	#str(dfDenM)
 	require(ggplot2)
 	StatDensityNonZero <- StatDensity$proto( calculate<- function(.,data, scales, dMin=0.001, ...){
 			res <- StatDensity$calculate(data,scales,...)
@@ -246,7 +303,7 @@ attr(twDEMCSA,"ex") <- function(){
 	y1M <- array( NA_real_, dim=c(.nSample, length(twTwoDenEx1$obs$y1),nScen), dimnames=list(sample=NULL,iObs=NULL,scenario=scenarios)  )
 	y2M <- array( NA_real_, dim=c(.nSample, length(twTwoDenEx1$obs$y2),nScen), dimnames=list(sample=NULL,iObs=NULL,scenario=scenarios) )
 	resScen <- #list( res1, res2, res2b, res3a, res3 ); names(resScen) <- scenarios
-	resScen <- list( res1 ); names(resScen) <- scenarios
+	resScen <- list( mc0 ); names(resScen) <- scenarios
 	#scen <- "R"
 	for( scen in scenarios ){
 		ss <- stackChains(resScen[[scen]])[,-(1:getNBlocks(resScen[[scen]]))]
@@ -482,8 +539,10 @@ attr(twDEMCSA,"ex") <- function(){
 	#trace(twDEMCSA, recover)
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, nObs=nObs
 		,TFix = c(1,NA,NA)
+		,nGen=256
 		#,TMax = c(NA,1.2,NA)	# do not increase sparce observations again too much
-		, nBatch=8 
+		, nBatch=5 
+		, debugSequential=TRUE
 	)
 	
 	(TCurr <- getCurrentTemp(res))
@@ -541,11 +600,15 @@ attr(getBestModelIndex,"ex") <- function(){
 }
 
 isLogDenDrift <- function(
-	### check whether last quartile all the logDensities is significantly different from first quartile 
+	### check whether first quartile all the logDensities is significantly smaller than last quartile 
 	logDenT		##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
 	, dInfos 	##<< list of lists with entry resCompPos (integer vector) specifying the position of result components for each density
 	, alpha=0.05	##<< the significance level for a difference
+	, maxDrift=0.3	##<< difference in LogDensity, below which no drift is signalled
 ){
+	##details<<
+	## Because of large sample sizes, very small differences may be significantly different.
+	## Use argument minDiff to specify below which difference a significant difference is not regarded as drift.
 	nr <- nrow(logDenT)
 	nr4 <- nr %/% 4
 	#iDen <- 1
@@ -553,8 +616,8 @@ isLogDenDrift <- function(
 			dInfo <- dInfos[[iDen]]
 			rs1 <- rowSums(logDenT[1:nr4,  dInfo$resCompPos ,drop=FALSE])
 			rs4 <- rowSums(logDenT[(nr+1-nr4):nr, dInfo$resCompPos ,drop=FALSE])
-			resTTest <- t.test(rs4,rs1,"greater")
-			resTTest$p.value <= alpha 
+			resTTest <- t.test(rs1,rs4,"less")
+			bo <- (diff(resTTest$estimate) >= maxDrift ) && (resTTest$p.value <= alpha) 
 		})
 	any( boL )
 	### TRUE if any of the logDensities are a significantly greater in the fourth quantile compared to the first quantile of the samples
