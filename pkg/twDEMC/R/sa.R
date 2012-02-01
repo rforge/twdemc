@@ -28,12 +28,42 @@ twDEMCSA <- function(
 	})
 	# replace missing cases
 	logDenDS <- abind( logDenL )
+	# logDenDS[1,1] <- NA		# testing replacement of non-finite cases
+	# logDenDS[1:round(nrow(logDenDS)/1.8),1] <- NA		# testing replacement of non-finite cases
 	boFinite <- apply(is.finite(logDenDS), 1, all )
 	m0FiniteFac <- sum(boFinite) / nrow(logDenDS)
-	if( m0FiniteFac < 0.9 ){
-		## XXTODO extend Zinit0
-	}
-	Zinit <- Zinit0
+	Zinit <- if( m0FiniteFac == 1){
+			Zinit <- Zinit0
+		}else if( m0FiniteFac > 0.9 ){
+			Zinit <- replaceZinitNonFiniteLogDens( Zinit0, rowSums(logDenDS) ) 
+		}else{
+			# generate more proposals and concatenate finite cases from both
+			Zinit1 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior
+				,m0FiniteFac=min(1,2*m0FiniteFac)		
+			)
+			ss1 <- stackChains(Zinit1)
+			logDenL <- lapply( dInfos, function(dInfo){
+					resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss1, argsFLogDen=dInfo$argsFLogDen)$logDenComp
+				})
+			# replace missing cases
+			logDenDS <- abind( logDenL )
+			# logDenDS[ 1:round(nrow(logDenDS)/1.7),1] <- NA		# testing replacement of non-finite cases
+			boFinite1 <- apply(is.finite(logDenDS), 1, all )
+			ss12 <- rbind( ss[boFinite, ,drop=FALSE], ss1[boFinite1, ,drop=FALSE] )
+			nDiff <- nrow(ss) - nrow(ss12)
+			if( nDiff/nrow(ss) > 0.1 ){
+				stop("twDEMCSA: too many states yielding non-finite logDensities.")
+			}else if( nDiff > 0 ){
+				# duplicate missings to refill 
+				ss12 <- rbind( ss12, ss12[ sample( nrow(ss12), size=nDiff ), ] )
+			}else if(nDiff < 0){
+				ss12 <- ss12[ sample( nrow(ss12), size=nrow(ss)), ]
+			}  
+			## reshape to chains
+			ncolZ <- dim(Zinit0)[3]
+			tmp <- matrix(1:nrow(ss12), ncol=ncolZ)
+			Zinit <- abind( lapply( 1:ncolZ, function(i){ ss12[ tmp[,i], ,drop=FALSE]}), rev.along=0 )
+		} # end generating nonfinite Zinit
 	# now the legnth of resComp is known (colnames(logDenDS)), so check the TFix and TMax parameters
 	nResComp <- ncol(logDenDS)
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
@@ -110,11 +140,12 @@ attr(twDEMCSA,"ex") <- function(){
 	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
 	
 	#trace(twDEMCSACont, recover )
+	#trace(twDEMCSA, recover )
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
 		, TFix=c(1,NA,NA)
 		, nGen=256
 		, nBatch=5 
-		, restartFilename=file.path("tmp","example_twDEMCSA.RData")
+		#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 	)
 
 	(TCurr <- getCurrentTemp(resPops))
@@ -658,7 +689,7 @@ twRunDEMCSA <- function(
 	# do the actual call
 	res <- do.call( twDEMCSA, argsDEMC )
 }
-tmp.testRestart <- function(){
+.tmp.testRestart <- function(){
 	rFileName <- file.path("tmp","example_twDEMCSA.RData")
 	load(rFileName)	# resRestart.twDEMCSA
 	#untrace(twDEMCSACont)

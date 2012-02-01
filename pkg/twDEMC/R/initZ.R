@@ -333,7 +333,7 @@ replaceZinitCases <- function(
 replaceZinitNonFiniteLogDens <- function( 
 	### Replaces states of Zinit that yield non-finite rLogDen by sampling other states.
 	Zinit, ##<< initial states see InitDEMCzsp 
-	logDen ##<< numeric matrix (nCases x nParms): calculated logDensitys for all the states in Zinit. If it is a vector then it is reshaped.  
+	logDen ##<< numeric matrix (nCases x nChains): calculated logDensitys for all the states in Zinit. If it is a vector then it is reshaped.  
 ){
 	##seealso<<   
 	## \code{\link{initZtwDEMCNormal}}
