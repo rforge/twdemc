@@ -6,6 +6,7 @@ setMethodS3("calcTemperatedLogDen","default", function(
 	,...
 	,maxLogDen=apply(x,2,max)	##<< best achievable log-Density
 ){
+	# calcTemperatedLogDen.default
 	##seealso<<   
 	## \code{\link{twDEMC}}
 	
@@ -23,9 +24,14 @@ setMethodS3("calcTemperatedLogDen","default", function(
 	## Only the difference of the log-Density to the best achievable Log-Density 
 	## is important for comparison.
 	## Hence, first the best logDen is subtracted, then the difference is multiplied by given temperatue.
-	ldiff <- t(x)-maxLogDen 
-	### numeric matrix (nStep x nResComp), rescaled logDen
-	lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +maxLogDen) 
+	if( ncol(x) == 1){
+		ldiff <- x - maxLogDen	
+		ldiff/temp + maxLogDen
+	}else{
+		ldiff <- t(x)-maxLogDen 
+		### numeric matrix (nStep x nResComp), rescaled logDen
+		lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +maxLogDen)
+	}
 })
 attr(calcTemperatedLogDen,"ex") <- function(){
 	data(twdemcEx1)

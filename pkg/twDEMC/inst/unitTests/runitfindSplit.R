@@ -32,7 +32,7 @@ test.findSplit <- function(){
 	(res <- res1 <- findSplit(ss1, rVarCrit=Inf))
 	checkEquals(res$varName, "b", msg="expected to find split in variable a")
 	#checkEquals( res$perc, 0.6, msg="split in b in a not in expected percentile" )	
-	checkTrue( res$resD$dAlphaSlope[2] > 1.1, msg="expected high angle between slopes" )	
+	checkTrue( res$resD$dAlphaSlope[2] > 1.0, msg="expected high angle between slopes" )	
 }
 
 test.findSplitBreakEarly <- function(){

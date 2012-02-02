@@ -1,7 +1,8 @@
 initZtwDEMCNormal <- function(
 	### Generate an initial population of states for \code{\link{twDEMCBlockInt}}.
-	thetaPrior		##<< vector of parameters, point estimate
-	,covarTheta 	##<< the a prior covariance of parameters 
+	thetaPrior		##<< numeric vector (nParm) of point estimate of the mean
+	,covarTheta 	##<< numeric matrix (nParm x nParm) the covariance of parameters.
+		##<< Alternatively, can be given as vector (nParm) of the diagonal, i.e. variances, if all dimensions are independent
 	,nChainPop=4 	##<< number of chains to run
 	,nPop=2 		##<< number of independent populations among the chains 
 	,m0=ceiling(calcM0twDEMC(length(thetaPrior),nChainPop)/(m0FiniteFac))
@@ -39,7 +40,16 @@ initZtwDEMCNormal <- function(
 	Zinit <- if( length(thetaPrior)==1 ){
 		abind( lapply( 1:nChains, function(i){ matrix(rnorm( m0, mean=thetaPrior, sd=covarTheta), dimnames=list(NULL,names(thetaPrior)) ) }), along=3 )
 	}else{
-		abind( lapply( 1:nChains, function(i){ rmvnorm( m0, mean=thetaPrior, sigma=covarTheta ) }), along=3 )
+		if( is.matrix(covarTheta))
+			abind( lapply( 1:nChains, function(i){ rmvnorm( m0, mean=thetaPrior, sigma=covarTheta ) }), along=3 )
+		else
+			# independent dimenstions, can sample each from rnorm
+			abind( lapply( 1:nChains, function(i){
+						#iComp=1
+						sapply( seq_along(thetaPrior), function(iComp){
+								rnorm(m0, mean=thetaPrior[iComp], sd=covarTheta[iComp])
+							})
+					}), along=3 )
 	}
 	# Set the last sample of chain 1 to the prior estimate, which might be already a kind of best estimates by an optimization.
 	if( doIncludePrior )

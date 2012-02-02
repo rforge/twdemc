@@ -6,8 +6,8 @@ twDEMCSA <- function(
 	,covarTheta			##<< the a prior covariance of parameters 
 	,nChainPop=4		##<< number of chains within population
 	,nPop=2				##<< number of populations
-	,doIncludePrior=TRUE	##<< should the prior be part of initial population
-	#
+	,doIncludePrior=FALSE	##<< should the prior be part of initial population 
+		##<< Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1
 	,dInfos				##<< argument to \code{\link{twDEMCBlockInt}}
 	,qTempInit=0.75		##<< quantile of logDensities used to calculate initial beginning and end temperature, with default 0.75 - 1/4 of the space is accepted 
 	#
@@ -101,7 +101,8 @@ twDEMCSA <- function(
 		matplot( mc0$pAccept[,1,], type="l" )
 		matplot( mc0$pAccept[,2,], type="l" )
 		plot( as.mcmc.list(mc0), smooth=FALSE )
-		tmp <- calcTemperatedLogDen(res$pops[[1]]$resLogDen[,,1], getCurrentTemp(res) )
+		#trace(calcTemperatedLogDen.default, recover)
+		tmp <- calcTemperatedLogDen(adrop(res$pops[[1]]$resLogDen[,,1 ,drop=FALSE],3), getCurrentTemp(res) )
 		matplot( tmp, type="l" )
 		plot(rowSums(tmp))
 		#
@@ -208,7 +209,8 @@ twDEMCSACont <- function(
 	#
 	res <- mc
 	.tmp.f <- function(){
-		mc0 <- concatPops(res)
+		mc0 <- concatPops(resEnd)
+		#mc0 <- concatPops(res)
 		matplot( mc0$temp, type="l" )
 		matplot( mc0$pAccept[,1,], type="l" )
 		matplot( mc0$pAccept[,2,], type="l" )
@@ -244,13 +246,14 @@ twDEMCSACont <- function(
 		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
 		#----- check for high autocorrelation wihin spaces
 		mcEnd <- concatPops(stackChainsPop(resEnd))
+		#plot( as.mcmc.list(mcEnd), smooth=FALSE )
 		specVarRatio <- apply( mcEnd$parms, 3, function(aSamplePurePop){
 				spec <- spectrum0.ar(aSamplePurePop)$spec
 				varSample <- apply(aSamplePurePop, 2, var)
 				spec/varSample
 			})	
 		if( any(specVarRatio > critSpecVarRatio) ){
-			stop("twDEMCSACont: too much autocorrelation.")
+			stop("twDEMCSACont: too much autocorrelation. Try using divideTwDEMC")
 		} 
 		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
 		mcl <- as.mcmc.list(ssc)
@@ -305,6 +308,7 @@ twDEMCSACont <- function(
 		TCurr <- getCurrentTemp(res)
 		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
 	}
+	res$args <- args
 	res
 }
 
@@ -578,7 +582,6 @@ twDEMCSACont <- function(
 	
 }
 
-
 .tmp.oneDensity <- function(){
 	# same as example but with only one combined density for both parameters
 	data(twTwoDenEx1)
@@ -591,7 +594,7 @@ twDEMCSACont <- function(
 	thresholdCovar = 0		# the effective model that glosses over this threshold
 	
 	# for only one logDensity - Temperature of the strongest component goes to zero and other increase according to mismatch
-	 dInfos=list( list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)) )
+	dInfos=list( list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)) )
 	
 	do.call( dInfos[[1]]$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos[[1]]$argsFLogDen))
 	#str(twTwoDenEx1)
@@ -615,7 +618,7 @@ twDEMCSACont <- function(
 		save(runClusterParms, file=file.path("..","..","projects","asom","parms","saOneDensity.RData"))
 		# from galactica home directory run ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 paramFile="parms/saOneDenstiy.RData"
 		# from asom directory run:   R CMD BATCH --vanilla '--args iproc=0 nprocSingle=1 'paramFile="parms/saOneDenstiy.RData"' runCluster.R 
-	
+		
 		
 	}
 	
@@ -642,6 +645,51 @@ twDEMCSACont <- function(
 	pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
 	plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1)
 	plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) 
+}
+
+
+.tmp.den2dCor <- function(){
+	# fitting the den2dCor model
+	data(den2dCorEx)
+	#str3(den2dCorEx)
+	
+	thetaPrior <- den2dCorEx$thetaPrior
+	covarTheta <- diag(den2dCorEx$covarTheta)
+	#solve(den2dCorEx$covarTheta)
+	invCovarTheta <- 1/covarTheta		# given as independent variances for faster calculation
+	
+	# for only one logDensity - Temperature of the strongest component goes to zero and other increase according to mismatch
+	 dInfos=list( list(fLogDen=den2dCorEx$den2dCor) )
+	
+	do.call( dInfos[[1]]$fLogDen, c(list(theta=thetaPrior), dInfos[[1]]$argsFLogDen) )
+	#str(den2CorEx)
+	nObs <- 1
+	
+	#trace(twDEMCSA, recover)
+	argsTwDEMCSA <- list( thetaPrior=thetaPrior, covarTheta=covarTheta, dInfos=dInfos, nObs=nObs
+		#,TFix = c(1,NA,NA)
+		,nGen=256
+		#,TMax = c(NA,1.2,NA)	# do not increase sparce observations again too much
+		, nBatch=5 
+		, debugSequential=TRUE
+		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed lenght
+	)
+	resPops <- res <- do.call( twDEMCSA, argsTwDEMCSA )
+	res2 <- do.call( twDEMCSACont, c(list(mc=res), res$args) )
+	# no mixing, stays at a given Temperature
+	# detects autocorrelation
+	TCurr <- getCurrentTemp(resPops)
+	set.seed(0815)
+	resd <- divideTwDEMCSteps(resPops
+		, nGen=256*5
+		, nGenBatch=256
+		, dInfos=dInfos
+		, debugSequential=TRUE
+		, controlTwDEMC=list(DRgamma=0.1)
+		, minPSub=0.05
+		, TSpec=cbind( T0=TCurr, TEnd=TCurr )
+	)
+	str3(resd)
 }
 
 getBestModelIndex <- function(

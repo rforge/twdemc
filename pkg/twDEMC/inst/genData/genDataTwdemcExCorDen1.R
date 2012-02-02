@@ -1,5 +1,7 @@
 #generating a twDEMC result with den2dCor
 
+set.seed(0815)
+
 (.expTheta <- c(a=0,b=0) )
 (.expCovTheta <- diag(c(a=2,b=2)) )		
 .nPop=2
@@ -54,6 +56,8 @@ getSpacesPop(den2dCorTwDEMCSpaces)
 # save only the 1000 generations run, it can be easily extended
 den2dCorEx <- list(
 	den2dCor = den2dCor				##<< the density function
+	,thetaPrior=.expTheta
+	,covarTheta=.expCovTheta
 	,mcBulk = den2dCorTwDEMCPops	##<< DEMC run (class twDEMCPops) without subspaces
 	,subspaces0 = den2dCorSubSpaces	##<< subspaces inferred on a subsample of mcBulk
 	,mcSubspaces0 = den2dCorTwDEMCSpaces ##<< DEMC run using a single step with subspaces 

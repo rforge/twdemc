@@ -28,7 +28,7 @@ test.divideTwDEMCStep <- function(){
 		ss <- stackChains(subPops(mc1, iPops=iPop ))
 		imax <- which.max(ss[,1])
 		thetaHat <- ss[imax,]			
-		checkInterval(thetaHat["a"], -0.8, +0.8,msg="wrong thetaHat[a]")
+		checkInterval(thetaHat["a"], -0.8, +1.5,msg=paste("wrong thetaHat[a]=",thetaHat["a"],sep="") )
 		checkInterval(thetaHat["b"], -20, +20,msg=" wrong thetaHat[b]")
 		checkTrue( mean(ss[,"a"]) > -0.8, msg="did not shift means(a) towards narrow part." )
 	})	

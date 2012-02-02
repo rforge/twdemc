@@ -53,6 +53,7 @@ twDEMCBlockInt <- function(
 	, TSpec = matrix(1, ncol=2, nrow=1, dimnames=list(NULL, c("T0","TEnd")) )
 		### numeric matrix (nResComp x 2): specifying Initial and End Temperature of each fLogDen result component.
 		### If only one row is specified, the Temperature is taken for all result components
+	, m0 = numeric(0)			##<< scalar integer: number of samples in initial population, if length==0 will be calculated from number of chains and number of parameters
 	, nGen = integer(0)			##<< scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}
 	, spacePop = 1:nPop			##<< the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops 
 	, controlTwDEMC = list()	##<< control parameters influencing the update and the convergens of the chains (see details)	
@@ -120,7 +121,7 @@ twDEMCBlockInt <- function(
 	nChain <- nChainPop*nPop 
 	popChain <- rep(1:nPop,each=nChainPop)	# population for chain at given index
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
-	m0 <- calcM0twDEMC(nParm,nChainPop)
+	if( 0 == length(m0) ) m0 = calcM0twDEMC(nParm,nChainPop)
 	M0Pops <- sapply( ZinitPops, nrow )
 	if( any(M0Pops < m0) ) warning(paste("twDEMCBlockInt: too few initial cases for populations",paste(which(M0Pops < m0),collapse=",")) )
 	nGenPops <- sapply( pops, "[[", "nGen")

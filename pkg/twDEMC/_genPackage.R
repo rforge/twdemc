@@ -43,6 +43,7 @@
 
 	twUtestF("twDEMC","test.badStartSeqData1D")
 	twUtestF("findSplit","test.findSplit")
+	twUtestF("divideTwDEMC","divideTwDEMCStep")
 	twUtestF("divideTwDEMC","divideTwDEMC")
 	
 	
