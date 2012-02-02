@@ -505,7 +505,7 @@ checkProblemsSpectral <- function(
 	aTwDEMC
 	, critSpecVarRatio=50
 ){
-	aSamplePure <- stackChainsPop(aTwDEMC)[,-1,,drop=FALSE] 
+	aSamplePure <- stackChainsPop(aTwDEMC)[,-(1:getNBlocks(aTwDEMC)), ,drop=FALSE] 
 	specVarRatio <- apply( aSamplePure, 3, function(aSamplePurePop){
 			spec <- spectrum0.ar(aSamplePurePop)$spec
 			varSample <- apply(aSamplePurePop, 2, var)

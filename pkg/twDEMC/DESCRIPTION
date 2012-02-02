@@ -1,7 +1,7 @@
 Package: twDEMC
 Title: parallel DEMC 
-Version: 0.9.151
-Date: 2012-01-06
+Version: 0.9.160
+Date: 2012-02-01
 Author: Thomas Wutzler
 Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
 Description: Parallel version of a DEMC differential evolution markov chain. DEMC is a variant of MCMC monte carlo markov chain.

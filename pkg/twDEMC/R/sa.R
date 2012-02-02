@@ -17,7 +17,9 @@ twDEMCSA <- function(
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, we do not need further batches because of Temperature
 	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
-	,restartFilename	##<< filename to write intermediate results to 
+	,restartFilename=NULL	##<< filename to write intermediate results to
+	,TDecProp=0.8		##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams) 
+	,critSpecVarRatio=20	##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces 
 	,... 				##<< further argument to \code{\link{twDEMCSA}}
 ){
 	#mtrace(initZtwDEMCNormal)
@@ -112,7 +114,12 @@ twDEMCSA <- function(
 	print(paste("finished initial ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(temp0,2),collapse=" "),"    ", date(), sep="") )
 	#
 	if( nBatch == 1 ) return(res0)
-	twDEMCSACont( mc=res0, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift, restartFilename=restartFilename, ...)
+	twDEMCSACont( mc=res0, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1
+		, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift
+		, restartFilename=restartFilename, TDecProp=TDecProp
+		, critSpecVarRatio=critSpecVarRatio
+		, ...
+		)
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -144,7 +151,8 @@ attr(twDEMCSA,"ex") <- function(){
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
 		, TFix=c(1,NA,NA)
 		, nGen=256
-		, nBatch=5 
+		, nBatch=7
+		, debugSequential=TRUE
 		#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 	)
 
@@ -185,11 +193,13 @@ twDEMCSACont <- function(
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025 ##<< if Temperature of the components changes less than specified value, the algorithm can finish
 	,maxLogDenDrift=0.3		##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
+	,TDecProp=0.9		##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams) 
+	,critSpecVarRatio=20	##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces 
 	,restartFilename=NULL	##<< filename to write intermediate results to 
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 ){
 	# save calling arguments to allow an continuing an interrupted run
-	args <- c( list( nObs=nObs, nGen=nGen, TFix=TFix, maxRelTChange=maxRelTChange, maxLogDenDrift=maxLogDenDrift,  restartFilename=restartFilename), list(...) )
+	args <- c( list( nObs=nObs, nGen=nGen, TFix=TFix, maxRelTChange=maxRelTChange, maxLogDenDrift=maxLogDenDrift,  TDecProp=TDecProp, restartFilename=restartFilename), list(...) )
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
@@ -232,6 +242,16 @@ twDEMCSACont <- function(
 			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
 		}
 		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
+		#----- check for high autocorrelation wihin spaces
+		mcEnd <- concatPops(stackChainsPop(resEnd))
+		specVarRatio <- apply( mcEnd$parms, 3, function(aSamplePurePop){
+				spec <- spectrum0.ar(aSamplePurePop)$spec
+				varSample <- apply(aSamplePurePop, 2, var)
+				spec/varSample
+			})	
+		if( any(specVarRatio > critSpecVarRatio) ){
+			stop("twDEMCSACont: too much autocorrelation.")
+		} 
 		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
 		mcl <- as.mcmc.list(ssc)
 		#plot( as.mcmc.list(mcl), smooth=FALSE )
@@ -267,7 +287,8 @@ twDEMCSACont <- function(
 					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"% and no drift in logDensity. Finishing early.",sep=""))
 					break
 				}
-				TEnd
+				# slower TDecrease to avoid Temperatues that are not supported by other datastreams
+				TEnd <- TCurr - TDecProp*(TCurr-TEnd)
 			}else{
 				TEnd <-TCurr
 			}
@@ -275,7 +296,7 @@ twDEMCSACont <- function(
 		res1 <- res <- twDEMCBlock( resEnd
 			, nGen=nGen
 			#, debugSequential=TRUE
-			, dInfos=dInfos
+			#, dInfos=resEnd$dInfos
 			, TEnd=TEnd
 			# replace lines below later on by ...
 			#, blocks = blocks
@@ -577,13 +598,26 @@ twDEMCSACont <- function(
 	nObs <- c( parmsSparce=1, y1=length(twTwoDenEx1$obs$y1), y2=length(twTwoDenEx1$obs$y2) )
 	
 	#trace(twDEMCSA, recover)
-	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, nObs=nObs
+	argsTwDEMCSA <- list( thetaPrior=thetaPrior, covarTheta=covarTheta, dInfos=dInfos, nObs=nObs
 		,TFix = c(1,NA,NA)
 		,nGen=256
 		#,TMax = c(NA,1.2,NA)	# do not increase sparce observations again too much
 		, nBatch=5 
 		, debugSequential=TRUE
 	)
+	resPops <- res <- do.call( twDEMCSA, argsTwDEMCSA )
+	.tmp.byCluster <- function(){
+		runClusterParms <- list(
+			fSetupCluster = function(){library(twDEMC)}
+			,fRun = twDEMCSA
+			,argsFRun = argsTwDEMCSA
+		)
+		save(runClusterParms, file=file.path("..","..","projects","asom","parms","saOneDensity.RData"))
+		# from galactica home directory run ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 paramFile="parms/saOneDenstiy.RData"
+		# from asom directory run:   R CMD BATCH --vanilla '--args iproc=0 nprocSingle=1 'paramFile="parms/saOneDenstiy.RData"' runCluster.R 
+	
+		
+	}
 	
 	(TCurr <- getCurrentTemp(res))
 	mc0 <- concatPops(res)
@@ -678,6 +712,7 @@ twRunDEMCSA <- function(
 	,prevResRunCluster=NULL	##<< results of call to twRunDEMCSA, argument required to be called from runCluster.R
 	,restartFilename=NULL	##<< name of the file to store restart information, argument required to be called from runCluster.R 
 ){
+	require(twDEMC)
 	#update argsDEMC to args given 
 	argsDEMC <- argsTwDEMCSA
 	# update the restartFilename argument
@@ -696,6 +731,7 @@ twRunDEMCSA <- function(
 	#trace(twDEMCSACont, recover )
 	res1 <- do.call( twDEMCSACont, c( list(mc=resRestart.twDEMCSA), resRestart.twDEMCSA$args ))
 }
+
 
 
 
