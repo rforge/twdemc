@@ -14,6 +14,7 @@ twDEMCSA <- function(
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,nGen=512			##<< number of generations in the initial batch
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
+		##<< Alternatively a named numeric vector specifying the fixed temperature only for certain components. Note this breaks if result components (possibly of different logDensity functions) have same names
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, we do not need further batches because of Temperature
 	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
@@ -29,15 +30,20 @@ twDEMCSA <- function(
 		resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss, argsFLogDen=dInfo$argsFLogDen)$logDenComp
 	})
 	# replace missing cases
-	logDenDS <- abind( logDenL )
-	# logDenDS[1,1] <- NA		# testing replacement of non-finite cases
-	# logDenDS[1:round(nrow(logDenDS)/1.8),1] <- NA		# testing replacement of non-finite cases
-	boFinite <- apply(is.finite(logDenDS), 1, all )
-	m0FiniteFac <- sum(boFinite) / nrow(logDenDS)
-	Zinit <- if( m0FiniteFac == 1){
+	logDenDS0 <- abind( logDenL )
+	# logDenDS0[1,1] <- NA		# testing replacement of non-finite cases
+	# logDenDS0[1:round(nrow(logDenDS0)/1.8),1] <- NA		# testing replacement of non-finite cases
+	boFinite <- apply(is.finite(logDenDS0), 1, all )
+	m0FiniteFac <- sum(boFinite) / nrow(logDenDS0)
+	if( m0FiniteFac == 1){
 			Zinit <- Zinit0
+			logDenDS <- logDenDS0
 		}else if( m0FiniteFac > 0.9 ){
-			Zinit <- replaceZinitNonFiniteLogDens( Zinit0, rowSums(logDenDS) ) 
+			sumLogDen0 <- rowSums(logDenDS0)
+			Zinit <- replaceZinitNonFiniteLogDens( Zinit0, sumLogDen0 )
+			logDenDS <- logDenDS0
+			#XXTODO: adjust logDen by actual replacement state
+			logDenDS[!boFinite,] <- logDenDS[which.min(sumLogDen0),]
 		}else{
 			# generate more proposals and concatenate finite cases from both
 			Zinit1 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior
@@ -48,29 +54,43 @@ twDEMCSA <- function(
 					resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss1, argsFLogDen=dInfo$argsFLogDen)$logDenComp
 				})
 			# replace missing cases
-			logDenDS <- abind( logDenL )
-			# logDenDS[ 1:round(nrow(logDenDS)/1.7),1] <- NA		# testing replacement of non-finite cases
-			boFinite1 <- apply(is.finite(logDenDS), 1, all )
+			logDenDS1 <- abind( logDenL )
+			# logDenDS1[ 1:round(nrow(logDenDS1)/1.7),1] <- NA		# testing replacement of non-finite cases
+			boFinite1 <- apply(is.finite(logDenDS1), 1, all )
 			ss12 <- rbind( ss[boFinite, ,drop=FALSE], ss1[boFinite1, ,drop=FALSE] )
+			logDenDS12 <- rbind( logDenDS0[boFinite, ,drop=FALSE], logDenDS1[boFinite1, ,drop=FALSE])
 			nDiff <- nrow(ss) - nrow(ss12)
 			if( nDiff/nrow(ss) > 0.1 ){
 				stop("twDEMCSA: too many states yielding non-finite logDensities.")
 			}else if( nDiff > 0 ){
-				# duplicate missings to refill 
-				ss12 <- rbind( ss12, ss12[ sample( nrow(ss12), size=nDiff ), ] )
+				# duplicate missings to refill
+				iSample <- sample( nrow(ss12), size=nDiff )
+				ss12 <- rbind( ss12, ss12[ iSample, ] )
+				logDenDS12 <- rbind( logDenDS12, logDenDS12[iSample,] )
 			}else if(nDiff < 0){
-				ss12 <- ss12[ sample( nrow(ss12), size=nrow(ss)), ]
+				iSample <- sample( nrow(ss12), size=nrow(ss))
+				ss12 <- ss12[ iSample, ]
+				logDenDS12 <- logDenDS12[iSample,]
 			}  
 			## reshape to chains
 			ncolZ <- dim(Zinit0)[3]
 			tmp <- matrix(1:nrow(ss12), ncol=ncolZ)
 			Zinit <- abind( lapply( 1:ncolZ, function(i){ ss12[ tmp[,i], ,drop=FALSE]}), rev.along=0 )
+			logDenDS <- logDenDS12
 		} # end generating nonfinite Zinit
 	# now the legnth of resComp is known (colnames(logDenDS)), so check the TFix and TMax parameters
 	nResComp <- ncol(logDenDS)
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
-	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
-	iFixTemp <- which( is.finite(TFix) )
+	if( nResComp != length( TFix) ){
+		#stop("twDEMCSA: TFix must be of the same length as number of result Components.")
+		iFixTemp <- sapply( names(TFix), match, colnames(logDenDS) )
+		if( any(is.na(iFixTemp))) stop("twDEMCSA: TFix must be of the same length as number of result Components or all its names must correspond to resultComponent names.")
+		TFixAll <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+		TFixAll[iFixTemp] <- TFix
+		TFix <- TFixAll
+		#still need to sort out non-finite values in TFix for iFixTemp below 
+	}
+	iFixTemp <- which( is.finite(TFix) )	
 	#if( 0 == length( TMaxInc) ) TMaxInc <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
 	#if( nResComp != length( TMaxInc) ) stop("twDEMCSA: TMaxInc must be of the same length as number of result Components.")
 	#iMaxIncTemp <- which( is.finite(TMaxInc) )
@@ -79,7 +99,9 @@ twDEMCSA <- function(
 	#sapply( seq_along(expLogDenBest), function(i){ max(logDenDS[,i]) })
 	#iResComp <- 
 	temp0 <- sapply( seq_along(nObs), function(iResComp){
-			pmax(1, -2/nObs[iResComp]* quantile( logDenDS[,iResComp],c(qTempInit) ))
+			logDenComp <- logDenDS[,iResComp]
+			logDenComp[!is.finite(logDenComp)] <- min(logDenComp, na.rm=TRUE)
+			pmax(1, -2/nObs[iResComp]* quantile( logDenComp,c(qTempInit) ))
 	})
 	names(temp0) <- colnames(logDenDS)
 	temp0[iFixTemp] <- TFix[iFixTemp]
@@ -150,7 +172,7 @@ attr(twDEMCSA,"ex") <- function(){
 	#trace(twDEMCSACont, recover )
 	#trace(twDEMCSA, recover )
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
-		, TFix=c(1,NA,NA)
+		, TFix=c(parmsSparce=1)
 		, nGen=256
 		, nBatch=7
 		, debugSequential=TRUE
@@ -259,7 +281,8 @@ twDEMCSACont <- function(
 		mcl <- as.mcmc.list(ssc)
 		#plot( as.mcmc.list(mcl), smooth=FALSE )
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
-		TEnd <- if( gelman.diag(mcl)$mpsrf <= 1.2 ){
+		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
+		TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= 1.2 ){
 				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
 				#mtrace(getBestModelIndex)
 				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
@@ -582,7 +605,7 @@ twDEMCSACont <- function(
 	
 }
 
-.tmp.oneDensity <- function(){
+.tmp.oneDensity_andCluster <- function(){
 	# same as example but with only one combined density for both parameters
 	data(twTwoDenEx1)
 	
