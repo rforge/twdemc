@@ -431,30 +431,32 @@ twQuantiles2Coef <- function(
 		sigmaDiag[boLogitnorm] <- coefs[,2]
 	}
 	
+	##value<< parameter distribution information, dataframe with columns
 	parDistr <- data.frame(
-		trans = varDistr
-		,mu = mu
-		,sigmaDiag = sigmaDiag
-		#,invsigma = diag()
-	)
-	### parameter distribution information, dataframe with columns \describe{
-	### \item{trans}{character vector: type of distribtution (norm,lognorm,logitnorm)}
-	### \item{mu}{numeric vector: distribution parameter mu, i.e. expected values at normal scale}
-	### \item{sigmaDiag}{numeric vector: standard deviation for each parameter, i.e. sqrt(diagonal of matrix parameter sigma) multivariate distrubtion without correlations.}
-	### %\item{invsigma}{numeric matrix: inverse of the distribution parameter sigma on multivariate (transformed) normal distribution}
-	### }
+		##describe<<
+		#varName = varNames		##<< character vector: type of distribtution (norm,lognorm,logitnorm)
+		trans = varDistr		##<< character vector: type of distribtution (norm,lognorm,logitnorm)
+		,mu = mu				##<< numeric vector: distribution parameter mu, i.e. expected values at normal scale
+		,sigmaDiag = sigmaDiag	##<< numeric vector: standard deviation for each parameter, i.e. sqrt(diagonal of matrix parameter sigma) multivariate distrubtion without correlations.
+		#,invsigma = diag()		##<< numeric matrix: inverse of the distribution parameter sigma on multivariate (transformed) normal distribution
+		)
+		##end<<
+		##<< and rownames corresponding to the parameters
+	rownames(parDistr) <- varNames
+	parDistr
 }
 
 twConstrainPoptDistr <- function(
 	### Constrain the information on parameters to selected parameters and add variance-covariance matrix and its inverse.
 	parNames		##<< subsets of parameters: either character string, or indices, or boolean vector
-	,parDistr		##<< dataframe with columns trans, mu, and sigmaDiag, as returned by \code{link{twQuantiles2Coef}}
+	,parDistr		##<< dataframe with columns trans, mu, and sigmaDiag, and variable names in rownames as returned by \code{link{twQuantiles2Coef}}
 	,corrMat=NULL	##<< correlations between parameters
 ){
 	if( !all(is.finite(match( parNames, rownames(parDistr) ))))
-		warning("twConstrainPoptDistr: not all parNames in rowNames(parDistr).")
+		warning("twConstrainPoptDistr: not all parNames in rownames(parDistr).")
 	if( is.matrix(corrMat))
 		stop("correlations not implemented yet.")
+	#colName <- colnames(parDistr)[2]
 	poptDistr <- lapply( colnames(parDistr), function(colName){ structure(parDistr[parNames,colName], names=parNames) })
 	names(poptDistr) <- colnames(parDistr)
 	var <- poptDistr$sigmaDiag^2

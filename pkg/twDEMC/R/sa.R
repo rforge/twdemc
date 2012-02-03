@@ -613,13 +613,16 @@ twDEMCSACont <- function(
 		runClusterParms <- list(
 			fSetupCluster = function(){library(twDEMC)}
 			,fRun = twDEMCSA
-			,argsFRun = argsTwDEMCSA
+			,argsFRun = within( argsTwDEMCSA, debugSequential<-FALSE )
 		)
 		save(runClusterParms, file=file.path("..","..","projects","asom","parms","saOneDensity.RData"))
-		# from galactica home directory run ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 paramFile="parms/saOneDenstiy.RData"
-		# from asom directory run:   R CMD BATCH --vanilla '--args iproc=0 nprocSingle=1 'paramFile="parms/saOneDenstiy.RData"' runCluster.R 
-		
-		
+		# from asom directory run: 
+		#   R CMD BATCH --vanilla '--args paramFile="parms/saOneDensity.RData"' runCluster.R Rout/runCluster_0.rout 
+		# or from libra home directory run 
+		#   ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 'paramFile="parms/saOneDensity.RData"'
+		# or
+		#    bsub -q SLES -n 4 ./bsubr_i.sh runCluster.R  nprocSingle=4 'paramFile="parms/saOneDensity.RData"'
+		load("parms/res_saOneDensity_1.RData")
 	}
 	
 	(TCurr <- getCurrentTemp(res))
@@ -690,6 +693,9 @@ twDEMCSACont <- function(
 		, TSpec=cbind( T0=TCurr, TEnd=TCurr )
 	)
 	str3(resd)
+	plot( as.mcmc.list(stackPopsInSpace(resd$resTwDEMC)), smooth=FALSE )
+	plot( as.mcmc.list(stackChainsPop(stackPopsInSpace(resd$resTwDEMC))), smooth=FALSE )
+	resd$subPercChange
 }
 
 getBestModelIndex <- function(
