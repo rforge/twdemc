@@ -143,12 +143,19 @@ setMethodS3("transOrigPopt","matrix", function(
 	##details<< 
 	## either poptDistr has names for each column name
 	## or poptDistr has the same length as colnames(normpopt)
-	if( !is.null(names(poptDistr)) )
-		if( all(colnames(normpopt) %in% names(poptDistr)) )
-			poptDistr=poptDistr[ colnames(normpopt) ]
-	if( length(poptDistr) != ncol(normpopt) )
-		stop("names of poptDistr must have entries for each column or poptDistr has no names but is of the same length as colnames(normpopt).")
-	for( vi in seq(along.with=colnames(normpopt)) ){
+	if( 0==length(colnames(normpopt)) ){
+		if( length(poptDistr) == 1) poptDistr <- rep(poptDistr, ncol(normpopt) )
+		if( length(poptDistr) != ncol(normpopt) )
+			stop("poptDistr must be of length 1 or same length as ncol(normpopt).")
+	}else{ 
+		if( !is.null(names(poptDistr)) )
+			if( all(colnames(normpopt) %in% names(poptDistr)) )
+				poptDistr=poptDistr[ colnames(normpopt) ]
+		if( length(poptDistr) != ncol(normpopt) )
+			stop("names of poptDistr must have entries for each column or poptDistr has no names but is of the same length as colnames(normpopt).")
+	}
+	#vi <- 1
+	for( vi in 1:ncol(normpopt) ){
 		popt[,vi] <- transOrigPopt.default( normpopt[,vi], poptDistr[vi] )
 	}
 	popt

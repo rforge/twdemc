@@ -1,7 +1,7 @@
 
 setMethodS3("calcTemperatedLogDen","default", function(
 	### Rescale Log-Densities by given Temperatures
-	x	##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
+	x			##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
 	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
 	,...
 	,maxLogDen=apply(x,2,max)	##<< best achievable log-Density
@@ -49,8 +49,8 @@ attr(calcTemperatedLogDen,"ex") <- function(){
 
 setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
 	### Rescale Log-Densities by given Temperatures
-	x	##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
-	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
+	x							##<< object of class twDEMCPops
+	,temp=getCurrentTemp(x)		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
 	,...
 ){
 	logDen <- stackChains(concatPops(x)$resLogDen)
