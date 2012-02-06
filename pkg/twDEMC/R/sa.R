@@ -9,12 +9,14 @@ twDEMCSA <- function(
 	,doIncludePrior=FALSE	##<< should the prior be part of initial population 
 		##<< Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1
 	,dInfos				##<< argument to \code{\link{twDEMCBlockInt}}
-	,qTempInit=0.75		##<< quantile of logDensities used to calculate initial beginning and end temperature, with default 0.75 - 1/4 of the space is accepted 
+	,qTempInit=0.4		##<< quantile of logDensities used to calculate initial beginning and end temperature, with default 0.4: 40% of the space is accepted 
 	#
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,nGen=512			##<< number of generations in the initial batch
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
 		##<< Alternatively a named numeric vector specifying the fixed temperature only for certain components. Note this breaks if result components (possibly of different logDensity functions) have same names
+	,TMax=numeric(0)	##<< numeric vector (nResComp) specifying a maximum temperature for result components.
+		##<< Alternatively a named numeric vector specifying the maximum temperature only for certain components. Note this breaks if result components (possibly of different logDensity functions) have same names
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025	##<< if Temperature of the components changes less than specified value, we do not need further batches because of Temperature
 	,maxLogDenDrift=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
@@ -23,6 +25,10 @@ twDEMCSA <- function(
 	,critSpecVarRatio=20	##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces 
 	,... 				##<< further argument to \code{\link{twDEMCSA}}
 ){
+	# in order to continue a previous result, supply it as a first argument and add entry args
+	if( inherits(thetaPrior,"twDEMCPops") && 0 != length(thetaPrior$args) ){
+		return( do.call(twDEMCSACont,c(list(thetaPrior),thetaPrior$args)) )
+	}
 	#mtrace(initZtwDEMCNormal)
 	Zinit0 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior)
 	ss <- stackChains(Zinit0)
@@ -90,21 +96,41 @@ twDEMCSA <- function(
 		TFix <- TFixAll
 		#still need to sort out non-finite values in TFix for iFixTemp below 
 	}
-	iFixTemp <- which( is.finite(TFix) )	
+	iFixTemp <- which( is.finite(TFix) )
+	#
+	if( 0 == length( TMax) ) TMax <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+	if( nResComp != length( TMax) ){
+		#stop("twDEMCSA: TMax must be of the same length as number of result Components.")
+		iMaxTemp <- sapply( names(TMax), match, colnames(logDenDS) )
+		if( any(is.na(iMaxTemp))) stop("twDEMCSA: TMax must be of the same length as number of result Components or all its names must correspond to resultComponent names.")
+		TMaxAll <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+		TMaxAll[iMaxTemp] <- TMax
+		TMax <- TMaxAll
+		#still need to sort out non-finite values in TMax for iMaxTemp below 
+	}
+	iMaxTemp <- which( is.finite(TMax) )	
+	#
 	#if( 0 == length( TMaxInc) ) TMaxInc <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
 	#if( nResComp != length( TMaxInc) ) stop("twDEMCSA: TMaxInc must be of the same length as number of result Components.")
 	#iMaxIncTemp <- which( is.finite(TMaxInc) )
 	#
 	#------ intial temperatures: 
 	#sapply( seq_along(expLogDenBest), function(i){ max(logDenDS[,i]) })
-	#iResComp <- 
-	temp0 <- sapply( seq_along(nObs), function(iResComp){
-			logDenComp <- logDenDS[,iResComp]
-			logDenComp[!is.finite(logDenComp)] <- min(logDenComp, na.rm=TRUE)
-			pmax(1, -2/nObs[iResComp]* quantile( logDenComp,c(qTempInit) ))
-	})
-	names(temp0) <- colnames(logDenDS)
+	##details<< \describe{\item{initial temperature}{
+	## Initial parameters are ranked according to their maximum log-Density across components.
+	## The parameters at rank positions defined by qTempInit are selected.
+	## The minimum log-Density or each datastream is used obtain initial temperature as: T =  -2/nObs logDen
+	##}}
+	rankLogDenDS <- apply(-logDenDS, 2, rank)	# highest logDen first
+	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
+	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp],1,max)	
+	iQuant <- which( maxRankLogDen == round(quantile(maxRankLogDen, qTempInit)) )
+	qLogDenDS <- apply( logDenDS[iQuant,], 2, min )
+	temp0 <- tempQ <- -2/nObs* qLogDenDS
+	#names(temp0) <- colnames(logDenDS)
+	TMax[iNonFixTemp] <- pmin(ifelse(is.finite(TMax),Tmax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	temp0[iFixTemp] <- TFix[iFixTemp]
+	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
 	#
 	res0 <-  res <- twDEMCBlock( Zinit
@@ -134,10 +160,10 @@ twDEMCSA <- function(
 		bo <- 1:10; iPop=1
 		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
 	}
-	print(paste("finished initial ",1*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(temp0,2),collapse=" "),"    ", date(), sep="") )
+	print(paste("finished initial ",1*nGen," out of ",nBatch*nGen," gens.    ", date(), sep="") )
 	#
 	if( nBatch == 1 ) return(res0)
-	twDEMCSACont( mc=res0, nObs=nObs, nGen=nGen, TFix=TFix, nBatch=nBatch-1
+	twDEMCSACont( mc=res0, nObs=nObs, nGen=nGen, TFix=TFix, TMax=TMax, nBatch=nBatch-1
 		, maxRelTChange = maxRelTChange, maxLogDenDrift=maxLogDenDrift
 		, restartFilename=restartFilename, TDecProp=TDecProp
 		, critSpecVarRatio=critSpecVarRatio
@@ -174,7 +200,8 @@ attr(twDEMCSA,"ex") <- function(){
 	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
 		, TFix=c(parmsSparce=1)
 		, nGen=256
-		, nBatch=7
+		#, nBatch=2
+		, nBatch=8
 		, debugSequential=TRUE
 		#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 	)
@@ -189,9 +216,9 @@ attr(twDEMCSA,"ex") <- function(){
 	ss <- stackChains(mc0$parms)
 	(thetaBest <- ss[iBest, ])
 	(.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
-	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(1,100))] )
-	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparce"],c(1,100))] )
-	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"logDen1"],c(1,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(10,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparce"],c(10,100))] )
+	plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"logDen1"],c(10,100))] )
 	plot( ss[,"a"], ss[,"b"], col=rgb(
 			twRescale(logDenT[,"obsSparce"]),0, twRescale(logDenT[,"logDen1"]) ))
 	apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
@@ -213,6 +240,7 @@ twDEMCSACont <- function(
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,nGen=512			##<< number of generations in the initial batch, default 512
 	,TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
+	,TMax=numeric(0)	##<< numeric vector (nResComp) specifying a maximum temperature for result components.
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025 ##<< if Temperature of the components changes less than specified value, the algorithm can finish
 	,maxLogDenDrift=0.3		##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
@@ -228,6 +256,9 @@ twDEMCSACont <- function(
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
 	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
 	iFixTemp <- which( is.finite(TFix) )
+	if( 0 == length( TMax) ) TMax <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+	if( nResComp != length( TMax) ) stop("twDEMCSA: TMax must be of the same length as number of result Components.")
+	iMaxTemp <- which( is.finite(TMax) )
 	#
 	res <- mc
 	.tmp.f <- function(){
@@ -305,6 +336,7 @@ twDEMCSACont <- function(
 					TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
 				} 
 				TEnd[iFixTemp] <- TFix[iFixTemp]
+				TEnd[iMaxTemp] <- pmin(TEnd[iMaxTemp], TMax[iMaxTemp])	# do not increase T above TMax
 				relTChange <- abs(TEnd - TCurr)/TEnd
 				#if( (max(relTChange) <= maxRelTChange) ) recover()
 				#trace(isLogDenDrift, recover )
@@ -319,6 +351,7 @@ twDEMCSACont <- function(
 				TEnd <-TCurr
 			}
 		#TMin <- pmin(TMin, TEnd)
+		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","), sep="") )
 		res1 <- res <- twDEMCBlock( resEnd
 			, nGen=nGen
 			#, debugSequential=TRUE
@@ -329,7 +362,7 @@ twDEMCSACont <- function(
 			,...
 		)
 		TCurr <- getCurrentTemp(res)
-		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens. T=",paste(signif(TCurr,2),collapse=","),"    ", date(), sep="") )
+		print(paste("finished ",iBatch*nGen," out of ",nBatch*nGen," gens.   ", date(), sep="") )
 	}
 	res$args <- args
 	res
