@@ -32,6 +32,7 @@
 	
 	twUtestF(twCalcLogDenPar)
 	twUtestF(transOrigPopt)
+	twUtestF("constrainNStack")
 	twUtestF("initZ")
 	#twUtestF("S3twDEMCPops")
 	twUtestF("S3twDEMC")

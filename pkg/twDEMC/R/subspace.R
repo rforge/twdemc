@@ -410,7 +410,7 @@ getSubSpaces <- function(
 	}
 	# we have to make sure, that there are enough samples in subspaces
 	# because there may be long repetitions, taking all values less than a quantile might actually give very few cases instead of the quantile
-	minNSample <- ceiling(nrow(aSample)/pSub*minPSub)
+	minNSample <- round(nrow(aSample)/pSub*minPSub)
 	if( nrow(aSample) < minNSample ) stop("getSubSpaces: encountered aSample with too few rows"); 
 	##details<< 
 	# uses interval: lower < val <= upper

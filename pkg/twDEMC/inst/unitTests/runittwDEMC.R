@@ -7,8 +7,10 @@
 .setUp <- function(){
 	data(twLinreg1)
 	data(twdemcEx1)
+	suppressWarnings( rm( list=names(twLinreg1) ) )
 	attach(twLinreg1)
 	ex1c <- concatPops(twdemcEx1)
+	suppressWarnings( rm( list=names(ex1c) ) )
 	attach(ex1c)
 }
 

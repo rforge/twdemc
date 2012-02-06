@@ -1,6 +1,8 @@
 .setUp <- function(){
 	data(twdemcEx1)
 	data(twLinreg1)
+	suppressWarnings( rm( list=names(twLinreg1) ) )
+	suppressWarnings( rm( list=names(twdemcEx1) ) )
 	attach( twLinreg1 )
 	attach( twdemcEx1 )
 }
@@ -21,7 +23,7 @@ test.allVars <- function(){
 	#checkEquals( length(.thetaPrior), ncol(.res1))	#.thetaPrior only to constrain output
 	checkEquals( ncol(.pss1), ncol(.res1))
 	checkEquals( .n, nrow(.res1))
-
+	#
 	.res2 <- constrainNStack( .pss1, .thetaPrior, invCovarTheta=.invCovarTheta, n=.n )
 	checkTrue( is.matrix(.res2) )
 	#checkEquals( length(.thetaPrior), ncol(.res1))	#.thetaPrior only to constrain output
