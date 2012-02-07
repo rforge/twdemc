@@ -57,6 +57,20 @@ setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
 	calcTemperatedLogDen(logDen,temp,...)
 })
 
+setMethodS3("calcTemperatedLogDenChains","twDEMC", function(
+		### Rescale Log-Densities by given Temperatures within chains
+		x							##<< object of class twDEMC
+		,temp=getCurrentTemp(x)		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
+		,...
+	){
+		maxLogDen=apply(x$resLogDen,2,max)		# same minimum across all chains
+		#iChain <- 1
+		rL <- lapply( 1:dim(x$resLogDen)[3], function(iChain){ 
+			calcTemperatedLogDen.default( adrop(x$resLogDen[,,iChain ,drop=FALSE],3), temp, maxLogDen=maxLogDen )
+		})
+		logDenT <- abind(rL, rev.along=0)
+	})
+
 
 calcDEMCTemp <- function( 
 	### Calculates the temperature for an exponential decrease from \code{T0} to \code{Tend} after \code{nGen} steps. 	

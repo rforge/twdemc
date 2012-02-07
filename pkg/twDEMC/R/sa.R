@@ -253,10 +253,10 @@ twDEMCSACont <- function(
 	args <- c( list( nObs=nObs, nGen=nGen, TFix=TFix, maxRelTChange=maxRelTChange, maxLogDenDrift=maxLogDenDrift,  TDecProp=TDecProp, restartFilename=restartFilename), list(...) )
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
-	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
 	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
 	iFixTemp <- which( is.finite(TFix) )
-	if( 0 == length( TMax) ) TMax <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
+	if( 0 == length( TMax) ) TMax <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
 	if( nResComp != length( TMax) ) stop("twDEMCSA: TMax must be of the same length as number of result Components.")
 	iMaxTemp <- which( is.finite(TMax) )
 	#

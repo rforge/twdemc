@@ -263,6 +263,23 @@ setMethodS3("getNSamples","twDEMC", function(
 		### integer, number of samples in twDEMC
 	})
 
+setMethodS3("getCurrentTemp","twDEMC", function( 
+		### Get the Temperature, i.e. cost reduction factor of the last sample
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getCurrentTemp.twDEMCPops
+		##seealso<<   
+		## \code{\link{getNGen.twDEMC}}
+		## \code{\link{subChains.twDEMC}}
+		## \link{twDEMC}
+		##details<< There is only one sample per thinning interval of length \code{x$thin}.
+		x$temp[ nrow(x$temp), ]
+		### numeric vector: Temperature for each result component for the last sample
+	})
+
+
+
 
 #setMethodS3("as.mcmc.list","twDEMC", function( 
 as.mcmc.list.twDEMC <- function( 
@@ -668,4 +685,6 @@ setMethodS3("thinN","mcmc.list", function(
 		})
 #mtrace(subChains.twDEMC)
 }
+
+
 

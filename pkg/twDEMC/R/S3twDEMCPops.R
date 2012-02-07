@@ -347,11 +347,49 @@ attr(concatPops,"ex") <- function(){
 	}
 }
 
+setMethodS3("subsetF","twDEMCPops", function( 
+		### keeps only cases within population which evaluate to TRUE for a given function.
+		x		##<< object of class twDEMCPops
+		,fKeep	##<< function(pop) returning an boolean matrix (nStep x nChain) of cases to keep
+		,... 
+	){
+		#subsetF.twDEMCPops
+		##details<< The samples are redistributed across chains
+		xNew <- x
+		nChainPop <- getNChainsPop(x)
+		xNew$pops <- lapply(x$pops, function(pop){
+				boKeep <- fKeep(pop)
+				# create a subset population for each chain
+				.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
+					.subsetTwDEMCPop(pop, boKeep[,iChain], iChain)
+				})
+				# combine all the populations to a common population of one chain
+				ss <- combineTwDEMCPops(.subSamplesChain)			
+				# split into pops, of equal length
+				ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose or gain a few samples due to not a multiple of nChains
+				# combine the pops of the chains into one populatin again
+				newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
+			})
+		### twDEMCPops with each population with some cases removed.
+		xNew
+	})
+attr(subsetF.twDEMCPops,"ex") <- function(){
+	data(twdemcEx1)
+	range(concatPops(twdemcEx1)$parms[,"a",]) # spanning 9 to 11
+	#pop <- twdemcEx1$pops[[1]]
+	fKeep <- function(pop){ tmp <- (pop$parms[,"a",] < 10) }
+	res <- subsetF(twdemcEx1, fKeep )
+	plot( as.mcmc.list(res), smooth=FALSE )
+	getNSamples(res)
+}
+
+
+
 #mtrace(concatPops.twDEMCPops)
 .subsetTwDEMCPop <- function(
 	### subset all items of a twDEMCPops population
 	pop		##<< single populatin of a twDEMCPops object
-	,iKeep	##<< indices to keep
+	,iKeep	##<< indices to keep (integer vector or boolean)
 	,iChain=TRUE	##<< indices of chains to keep
 ){
 	##details<< no checking of bounds performed
@@ -918,6 +956,33 @@ attr(stackChainsPop.twDEMCPops,"ex") <- function(){
 	getNChainsPop(res)			# only 1 chains
 	getNSamples(res)			# but with 26*4=104 samples
 	str(concatPops(res))
+}
+
+
+sumLogDenComp <- function(
+	### sum LogDen components within density
+	resLogDen		##<< numeric matrix (nStep x nResComp x nChain): of log-Densities
+	,dInfos=NULL	##<< list of densities each a list with entry resCompPos: integer vector, specifying the result components within density
+		##<< If dInfos is of length 0, all components are summed and a matrix instead of a array is returned
+){
+	if( 0 == length(dInfos) ){
+		# sum sum within chain
+		sumD <- apply(resLogDen, c(1,3), sum )
+		dimnames(sumD) <- dimnames(resLogDen)[c(1,3)]
+		sumD
+	}else{
+		#iInfo <- 1
+		logDenSumL <- lapply( seq_along(dInfos), function(iInfo){
+			resCompPos <- dInfos[[iInfo]]$resCompPos
+			if( 0 == length(resCompPos)) stop("sumLogDenComp: each entry of dInfos must provide entry resCompPos of length > 0")
+			if( 1 == length(resCompPos)) adrop( resLogDen[,resCompPos, ,drop=FALSE],2) 
+			tmp <- apply(resLogDen[,resCompPos, ,drop=FALSE], c(1,3), sum )
+		})
+		logDenSumArr1 <- abind(logDenSumL, rev.along=0)
+		dimnames(logDenSumArr1)[3] <- names(dInfos)
+		### numeric array (nStep x nDensities x nChain )
+		sumD <- aperm(logDenSumArr1, c(1,3,2))
+	}
 }
 
 
