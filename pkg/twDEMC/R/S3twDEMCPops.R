@@ -109,7 +109,8 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCBlockInt}}
 		#mtrace(getNSamples.twDEMCPops)
-		(getNSamples(x)-1)*x$thin
+		nS <- getNSamples(x)
+		ifelse( nS == 0, 0, (nS-1)*x$thin )
 		### integer vector, number of completed generations
 	})
 attr( getNGen.twDEMCPops, "ex") <- function(){
@@ -405,7 +406,7 @@ attr(subsetF.twDEMCPops,"ex") <- function(){
 setMethodS3("subPops","twDEMCPops", function( 
 		### Condenses an twDEMCPops List to given population indices or space replicates
 		x
-		, iPops 		##<< populations to keep
+		, iPops 		##<< integer vector listing those spaceInd to keep
 		, iSpaces=NULL	##<< alternatively specifying the space replicates for which to keep populations
 		,... 
 	#, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x

@@ -123,9 +123,9 @@ twDEMCSA <- function(
 	##}}
 	rankLogDenDS <- apply(-logDenDS, 2, rank)	# highest logDen first
 	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
-	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp],1,max)	
+	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	
 	iQuant <- which( maxRankLogDen == round(quantile(maxRankLogDen, qTempInit)) )
-	qLogDenDS <- apply( logDenDS[iQuant,], 2, min )
+	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
 	temp0 <- tempQ <- -2/nObs* qLogDenDS
 	#names(temp0) <- colnames(logDenDS)
 	TMax[iNonFixTemp] <- pmin(ifelse(is.finite(TMax),Tmax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
@@ -244,7 +244,8 @@ twDEMCSACont <- function(
 	,nBatch=4			##<< number of batches with recalculated Temperature
 	,maxRelTChange=0.025 ##<< if Temperature of the components changes less than specified value, the algorithm can finish
 	,maxLogDenDrift=0.3		##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
-	,TDecProp=0.9		##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams) 
+	,TDecProp=0.9		##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams)
+	,gelmanCrit=1.4		##<< do not decrease Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 	,critSpecVarRatio=20	##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces 
 	,restartFilename=NULL	##<< filename to write intermediate results to 
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
@@ -254,10 +255,10 @@ twDEMCSACont <- function(
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
 	if( 0 == length( TFix) ) TFix <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
-	if( nResComp != length( TFix) ) stop("twDEMCSA: TFix must be of the same length as number of result Components.")
+	if( nResComp != length( TFix) ) stop("twDEMCSACont: TFix must be of the same length as number of result Components.")
 	iFixTemp <- which( is.finite(TFix) )
 	if( 0 == length( TMax) ) TMax <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
-	if( nResComp != length( TMax) ) stop("twDEMCSA: TMax must be of the same length as number of result Components.")
+	if( nResComp != length( TMax) ) stop("twDEMCSACont: TMax must be of the same length as number of result Components.")
 	iMaxTemp <- which( is.finite(TMax) )
 	#
 	res <- mc
@@ -313,7 +314,7 @@ twDEMCSACont <- function(
 		#plot( as.mcmc.list(mcl), smooth=FALSE )
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
 		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
-		TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= 1.2 ){
+		TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= gelmanCrit ){
 				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
 				#mtrace(getBestModelIndex)
 				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
@@ -661,10 +662,15 @@ twDEMCSACont <- function(
 		,TFix = c(1,NA,NA)
 		,nGen=256
 		#,TMax = c(NA,1.2,NA)	# do not increase sparce observations again too much
-		, nBatch=5 
+		, nBatch=3 
 		, debugSequential=TRUE
 	)
 	resPops <- res <- do.call( twDEMCSA, argsTwDEMCSA )
+	
+	.tmp.continueRun <- function(){
+		res$pops[[2]]$spaceInd <- 4		# test spaces different from 1:nSpace
+		res2 <- twDEMCSA(res)
+	}
 	.tmp.byCluster <- function(){
 		runClusterParms <- list(
 			fSetupCluster = function(){library(twDEMC)}
