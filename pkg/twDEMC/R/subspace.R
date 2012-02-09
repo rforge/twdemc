@@ -54,10 +54,10 @@ findSplit <- function(
 		#iSub <- 1
 		#iSub <- nSub
 		ssSubLeft[[i]] <- ssiSubLeft <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- aSample[ (p <= qp[iSplit]),]
+				ssSub <- aSample[ (p <= qp[iSplit]), ,drop=FALSE]
 			})
 		ssSubRight[[i]] <- ssiSubRight <- lapply( 1:(nSplit), function(iSplit){
-				ssSub <- aSample[ (p >= qp[iSplit]),]
+				ssSub <- aSample[ (p >= qp[iSplit]), ,drop=FALSE]
 			})
 	}
 	#
@@ -80,7 +80,7 @@ findSplit <- function(
 		parVarRight[i,,] <- resVarI$parVarRight
 		pVars[i,,] <- resVarI$pVars
 		#pVars[i,(colnames(pVars) == cNames[i]),"val"] <- NA  # variance ratio for splitting variable does not make sense and confuses selection of highest pVar	
-		
+		#
 		jmax <- which.max( pVars[i,,"val"])	
 		if( 0 != length(jmax) ){		# maybe integer(0) if all pVars is NA
 			resD[i,"jPVar"] <- jVarsVar[jmax]
@@ -410,7 +410,9 @@ getSubSpaces <- function(
 	}
 	# we have to make sure, that there are enough samples in subspaces
 	# because there may be long repetitions, taking all values less than a quantile might actually give very few cases instead of the quantile
-	minNSample <- round(nrow(aSample)/pSub*minPSub)
+	#print("getSubSpaces: before minNSample"); recover()
+	#minNSample <- round(nrow(aSample)/pSub*minPSub)
+	minNSample <- ceiling(signif( nrow(aSample)/pSub*minPSub ,2))	# avoid taking 2 for 1.00001, take 2 for 1.1
 	if( nrow(aSample) < minNSample ) stop("getSubSpaces: encountered aSample with too few rows"); 
 	##details<< 
 	# uses interval: lower < val <= upper
@@ -448,8 +450,8 @@ getSubSpaces <- function(
 		#argsFSplit$iVars <- resSplit$iVars
 		#argsFSplit$jVarsVar <- resSplit$jVarsVar
 		boLeft <- (aSample[,resSplit$varName] <= resSplit$split)
-		sampleLeft <- aSample[boLeft, ]
-		sampleRight <- aSample[!boLeft,]
+		sampleLeft <- aSample[boLeft, ,drop=FALSE]
+		sampleRight <- aSample[!boLeft, ,drop=FALSE]
 		pSubLeft <- pSub*resSplit$perc
 		pSubRight <- pSub*(1-resSplit$perc)
 		upperParBoundsLeft <- upperParBounds;  vectorElements(upperParBoundsLeft) <- resSplit$split

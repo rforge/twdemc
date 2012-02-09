@@ -359,17 +359,23 @@ setMethodS3("subsetF","twDEMCPops", function(
 		xNew <- x
 		nChainPop <- getNChainsPop(x)
 		xNew$pops <- lapply(x$pops, function(pop){
-				boKeep <- fKeep(pop)
-				# create a subset population for each chain
-				.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
-					.subsetTwDEMCPop(pop, boKeep[,iChain], iChain)
-				})
-				# combine all the populations to a common population of one chain
-				ss <- combineTwDEMCPops(.subSamplesChain)			
-				# split into pops, of equal length
-				ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose or gain a few samples due to not a multiple of nChains
-				# combine the pops of the chains into one populatin again
-				newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
+				if( nrow(pop$parms) == 0){
+					pop # no rows to apply fKeep to
+				}else{		
+					boKeep <- fKeep(pop)
+					# create a subset population for each chain
+					.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
+						.subsetTwDEMCPop(pop, boKeep[,iChain], iChain)
+					})
+					# combine all the populations to a common population of one chain
+					ss <- combineTwDEMCPops(.subSamplesChain)			
+					# split into pops, of equal length
+					ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose or gain a few samples due to not a multiple of nChains
+					# combine the pops of the chains into one populatin again
+					newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
+					newPop$splits <- pop$splits
+					newPop
+				}# nrow(parms) != 0
 			})
 		### twDEMCPops with each population with some cases removed.
 		xNew
@@ -383,6 +389,36 @@ attr(subsetF.twDEMCPops,"ex") <- function(){
 	plot( as.mcmc.list(res), smooth=FALSE )
 	getNSamples(res)
 }
+
+setMethodS3("subsetTail","twDEMCPops", function( 
+		### discards the first part of all the chains
+		x		##<< object of class twDEMCPops
+		,pKeep=0.5	##<< the percentage of the samples to keep 
+		,... 
+	){
+		fKeep <- function(pop){
+			nR <- nrow(pop$parms)
+			nDrop <- round(nR*(1-pKeep))
+			ret <- matrix(TRUE, nrow=nR, ncol=dim(pop$parms)[3] )
+			if( 0 != nDrop ){
+				#ret will have at least on row because of subsetF
+				ret[1:nDrop, ] <- FALSE
+			}
+			ret
+		}
+		subsetF(x,fKeep)
+	})
+attr(subsetF.twDEMCPops,"ex") <- function(){
+	data(twdemcEx1)
+	res <- subsetTail(twdemcEx1)
+	plot( as.mcmc.list(res), smooth=FALSE )
+	getNSamples(twdemcEx1)
+	getNSamples(res)
+	
+	# special case: no rows in one pop of twdemcEx1
+	twdemcEx1$pops[[2]] <- .subsetTwDEMCPop
+}
+
 
 
 

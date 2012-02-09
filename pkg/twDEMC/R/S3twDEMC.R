@@ -325,7 +325,7 @@ setMethodS3("subset","twDEMC", function(
 		boKeep <- rep(boKeep,length.out=nrow(x$logDen) )
 	x$parms <- x$parms[boKeep,,, drop=FALSE] 
 	x$logDen <- x$logDen[boKeep,,, drop=FALSE] 
-	x$logDenComp <- x$logDenComp[boKeep,,, drop=FALSE] 
+	x$resLogDen <- x$resLogDen[boKeep,,, drop=FALSE] 
 	x$pAccept <- x$pAccept[boKeep,,, drop=FALSE]
 	x$temp <- x$temp[boKeep, ,drop=FALSE]
 	##details<<
