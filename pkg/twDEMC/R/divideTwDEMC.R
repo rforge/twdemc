@@ -6,7 +6,7 @@ divideTwDEMCStep <- function(
 	,qPop=numeric(0)		##<< numeric vector (nPop): probability of samples in subspace within entire space 
 	,nGen=512				##<< the number of generations for twDEMCBlock
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
-	, nSampleMin=16			##<< minimum number of samples in each population so that calculation of average density is stable
+	, nSampleMin=round(32/getNChainsPop(aTwDEMC))			##<< minimum number of samples in each population so that calculation of average density is stable
 	, m0 = calcM0twDEMC(getNParms(aTwDEMC),getNChainsPop(aTwDEMC))		# minimum number of samples in step for extending runs
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
 ){
@@ -301,7 +301,7 @@ divideTwDEMCSACont <- function(
 	nSamplesSpace <- structure( sapply(spaceInds, function(spaceInd){ sum(nSamplesPop[spacePop==spaceInd])}), names=spaceInds)
 	#
 	# the following updated variables are required in each cycle
-	#mcNew <- mc		# new samples within batch
+	mcNew <- mc		# new samples within batch
 	mcApp <- mc		# concatenation of thinned past and new samples
 	pSubs <- nSamplesPop/nSamplesSpace[ as.character(spacePop) ]
 	subPercChange=numeric(length(pSubs))	# initialized to zero
@@ -313,7 +313,7 @@ divideTwDEMCSACont <- function(
 		#mcApp<-mcApp0; pSubs<-pSubs0
 		.saveRestartFile( restartFilename, mcApp=mcApp, args=args )
 		#
-		#-- can decrease Temperature be decreased?
+		#-- can Temperature be decreased?
 		TCurr <- getCurrentTemp(mcApp) 
 		mcSpace <- stackPopsInSpace(mcApp, mergeMethod="random")	
 		mcSpaceEnd <- thin(mcSpace, start=getNGen(mcSpace) %/% 2)
@@ -326,7 +326,7 @@ divideTwDEMCSACont <- function(
 		#
 		#-- split pops that changed poportion a lot or pops with high spectralDensity ratio into smaller pops
 		iPopsSplit <- union( iPopsDoSplit, which( (pSubs/2 > minPSub) & ((subPercChange >= subPercChangeCrit) | (specVarRatioPop > 0.8*critSpecVarRatio)) ))
-		mcAppRecent <- subsetTail(mcApp, 0.5)	# base splitting only on recent samples
+		mcAppRecent <- mcNew #subsetTail(mcApp, 0.5)	# base splitting only on recent samples
 		#.getParBoundsPops(mcApp$pops)
 		#.getParBoundsPops(mcAppRecent$pops)
 		#trace(.splitPops, recover )
@@ -337,13 +337,24 @@ divideTwDEMCSACont <- function(
 			,minPSub=minPSub, maxNSample=maxNSample, m0=m0, nChainPop=nChainPop, spaceInds=spaceInds
 			,argsFSplit=argsFSplit	##<< further arguments to \code{\link{findSplit}}
 		)
-		if( any(getNSamples(resSplitPops$mcApp)<m0)) stop("divideTwDEMCSteps (afterSplit): encountered too few samples in population.")
+		#if( any(getNSamples(resSplitPops$mcApp)<m0)) stop("divideTwDEMCSteps (afterSplit): encountered too few samples in population.")
 		mcApp <- mcApp1 <- resSplitPops$mcApp
 		pSubs <- pSubs1 <- resSplitPops$pSubs
 		iPopsDoSplit <- integer(0)
-		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","),"   nPops=",paste(table(getSpacesPop(mcApp)),collapse=","), sep="") )
+		#
+		#-- merge subspaces that contain less samples than minPSub/2
+		#print("divideTwDEMCSACont: before merge"); recover()
+		#trace(.mergePops, recover)	#untrace(.mergePops)
+		resMergePops <- .mergePops(mcApp=mcApp, pSubs=pSubs, minPSub=minPSub, nChainPop=nChainPop, m0=m0, spaceInds=spaceInds)
+		mcApp <- mcApp3 <- resMergePops$mcApp
+		pSubs <- pSubs3 <- resMergePops$pSubs
+		mcNew <- mcNew3 <- resMergePops$mcNew
+		subPercChange <- subPercChange[resMergePops$iPopsBefore]
+		specVarRatioPop <- specVarRatioPop[resMergePops$iPopsBefore]
 		#
 		#-- sample the next batch
+		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","),"   nPops=",paste(table(getSpacesPop(mcApp)),collapse=","), sep="") )
+		if( any(getNSamples(mcApp) < m0) ){ print("divideTwDEMCSACont: Too few samples, recover"); recover() }
 		nGenStep <- min(nGenBatch, nGen-iGen)
 		#mtrace(divideTwDEMCStep)
 		resStep <- divideTwDEMCStep(mcApp, nGen=nGenStep, doRecordProposals=doRecordProposals, m0=m0, TEnd=TEnd, ... )
@@ -372,22 +383,16 @@ divideTwDEMCSACont <- function(
 		#if( nGenStep/thin >= 64){  # only check and split populations, if enough samples in batch
 		#iPop=length(mcNew$pops)
 		#
-		#-- merge subspaces that contain less samples than minPSub/2
-		#print("divideTwDEMCSACont: before merge"); recover()
-		#trace(.mergePops, recover)	#untrace(.mergePops)
-		resMergePops <- .mergePops(mcApp=mcApp, pSubs=pSubs, minPSub=minPSub, nChainPop=nChainPop, m0=m0, spaceInds=spaceInds)
-		mcApp <- mcApp3 <- resMergePops$mcApp
-		pSubs <- pSubs3 <- resMergePops$pSubs
-		mcNew <- mcNew3 <- resMergePops$mcNew
-		subPercChange <- subPercChange[resMergePops$iPopsBefore]
-		specVarRatioPop <- specVarRatioPop[resMergePops$iPopsBefore]
-		#
-		if( any(getNSamples(mcApp) < m0) ){ print("divideTwDEMCSACont: Too few samples, recover"); recover() }
 		#} # enough new samples for checking/splitting
 		#
 		iGen <- iGen + nGenStep
 		#cat(paste(iGen," out of ",nGen," generations completed. T=",paste({T<-res$temp[nrow(res$temp),];round(T,digits=ifelse(T>20,0,1))},collapse="  "),"     ",date(),"\n",sep=""))
-		cat(paste(iGen," out of ",nGen," gens completed. ,max(subPercChange)=",signif(max(subPercChange),2),"   nPops=",paste(table(getSpacesPop(mcApp)),collapse=","),"     ",date(),"\n",sep=""))
+		iPopsLarge <- which( pSubs >= quantile(pSubs,0.4))	# neglect the small populations in subPercChange calculation 
+		maxSubPercChange <- max(subPercChange[iPopsLarge])
+		cat(paste(iGen," out of ",nGen," gens completed. ,max(subPercChange)=",signif(maxSubPercChange,2),"     ",date(),"\n",sep=""))
+		#
+		#-- check for convergence, maybe break
+		# XXTODO
 	}	# while iGen < nGenBatch
 	resStep$resTwDEMC <- mcApp
 	resStep
@@ -422,23 +427,24 @@ divideTwDEMCSACont <- function(
 		, argsFSplit=list(debugSequential=TRUE)	# run findSplit non-remote
 		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed length
 		, iPopsDoSplit=1:2		# definitely split the populations
-		, critSpecVarRatio=8		
+		, critSpecVarRatio=20		
 	)
-	resDiv <- res3Div <- divideTwDEMCSACont( resDiv$resTwDEMC, nObs=nObs, nGen=2048 
+	resDiv <- res3Div <- divideTwDEMCSACont( resDiv$resTwDEMC, nObs=nObs, nGen=1024 
 		, debugSequential=TRUE
 		, argsFSplit=list(debugSequential=TRUE)	# run findSplit non-remote
 		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed length
-		, critSpecVarRatio=8		
+		, critSpecVarRatio=20		
 	)
 	resDiv$pSubs
 	resDiv$subPercChange
 	getNSamples(resDiv$resTwDEMC)
+	res1 <- resDiv$resTwDEMC
 	res2 <- stackChainsPop(tmp <- stackPopsInSpace(resDiv$resTwDEMC, mergeMethod="random", nInSlice = 1))
-	plot( tmp$pops[[1]]$temp )
+	#plot( tail(tmp$pops[[1]]$temp) )
 	#plot( res2$pops[[1]]$temp )
-	getCurrentTemp(res2)
+	getCurrentTemp(res1)
 	plot( as.mcmc.list(res2), smooth=FALSE )
-	.getParBoundsPops(resDiv$resTwDEMC$pops)
+	#.getParBoundsPops(resDiv$resTwDEMC$pops)
 	#trace(subset.twDEMC,recover)	#untrace(subset.twDEMC)
 	mc <- thin(concatPops(res2), start=256)
 	matplot( mc$pAccept[,1,], type="l" )
@@ -725,7 +731,11 @@ divideTwDEMCSACont <- function(
 ){
 	mcApp0 <- mcApp; pSubs0 <- pSubs	# remeber state before merging
 	#mcApp <- mcApp0;	pSubs <- pSubs0	# reset to initial for debugging
-	iPopsMerge <- iPopsMerge0 <- which( pSubs < minPSub/2 | getNSamples(mcApp) < m0 )
+	fIPopsMerge <- function(mcApp,pSubs){	# make it a function to avoid replication and inconsitencies
+		#which( pSubs < minPSub/2 | getNSamples(mcApp) < m0 )
+		which( getNSamples(mcApp) < m0 )
+	}
+	iPopsMerge <- iPopsMerge0 <- fIPopsMerge(mcApp,pSubs)
 	iExitMerge <- getNPops(mcApp0)	# prevent infinite runs
 	.nSplits <- 0
 	#if( 0 != length(iPopsMerge) ) recover()
@@ -774,7 +784,7 @@ divideTwDEMCSACont <- function(
 		iExitMerge <- iExitMerge -1 
 		#
 		#-- reevaluate the populations to merge
-		iPopsMerge <- which( pSubs < minPSub/2 | getNSamples(mcApp) < m0)
+		iPopsMerge <- fIPopsMerge(mcApp,pSubs)
 		#
 		#-- check consistency
 		tmp <- lapply( mcApp$pops, .checkPop, nGen=12 )		

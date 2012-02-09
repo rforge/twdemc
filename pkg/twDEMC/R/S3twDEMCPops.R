@@ -252,8 +252,9 @@ setMethodS3("getCurrentTemp","twDEMCPops", function(
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCBlockInt}}
-		##details<< There is only one sample per thinning interval of length \code{x$thin}.
-		x$pops[[1]]$temp[ nrow(x$pops[[1]]$temp), ]
+		##details<< 
+		iPop <- which.max(getNSamples(x))	# very short pops may have not sampled low temperature
+		x$pops[[iPop]]$temp[ nrow(x$pops[[iPop]]$temp), ]
 		### numeric vector: Temperature for each result component for the last sample
 	})
 
