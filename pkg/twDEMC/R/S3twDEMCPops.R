@@ -620,7 +620,8 @@ as.mcmc.list.twDEMCPops <- function(
 	### merge population iPop to other populations
 	pops	##<< list of populations with entries upperParBounds, lowerParBounds, spaceInd, splits
 	,iPop	##<< index of the population that should be merged to other ones
-	,pPops	##<< the initial proabilities of the subspaces 
+	,pPops	##<< the initial proabilities of the subspaces
+	,mergeMethod="random"	##<< the mergeMethod of \code{\link{combineTwDEMCPops}}
 ){
 	#print(".mergePopTwDEMC"); recover()
 	#stop(".mergePopTwDEMC: not implemented yet.")
@@ -631,21 +632,20 @@ as.mcmc.list.twDEMCPops <- function(
 	iPop0 <- iPop	# index of population in all populations of all space replicates
 	popSource <- pops[[iPop]]	# the population to merge from
 	spacesPop <- tmp <- sapply( pops, "[[", "spaceInd" )
-	iSameSpace <- which(spacesPop == popSource$spaceInd)
-	popsS <- pops[ iSameSpace]	# possible populations to merge to of same space replicate
+	iSameSpace <- which(spacesPop == popSource$spaceInd)	
+	iOtherSpace <- which(spacesPop != popSource$spaceInd)
+	newPops <- pops[ iSameSpace]	# possible populations to merge to of same space replicate
+	newPPops <- pPops[iSameSpace]
 	# translate iPop0 in all populations into iPop index within same space 
-	nPop <- length(popsS)
+	nPop <- length(newPops)
 	tmp[iSameSpace] <- 1:nPop
 	tmp[-iSameSpace] <- NA	# for detecting errors
 	iPop <- tmp[iPop0]
 	#determine neighbouring pops with same first part of splits
 	#pop <- popsS[-iPop][1]
-	jPops <- (1:nPop)[-iPop][ sapply( popsS[-iPop], function(pop){ 
+	jPops <- (1:nPop)[-iPop][ sapply( newPops[-iPop], function(pop){ 
 			(length(pop$splits) >= length(popSource$splits)) && all(pop$splits[ 1:length(popSource$splits)] == popSource$splits)
 		})]
-	# adjust the parBounds and add merge the samples
-	newPops <- popsS
-	newPPops <- pPopsS <- pPops[iSameSpace]
 	# j = jPops[1]
 	if( 1 != length(jPops) ){
 		# need to split the population to merge
@@ -699,7 +699,10 @@ as.mcmc.list.twDEMCPops <- function(
 		jPopsSplitNonBorder <- integer(0) 
 	} 
 	#	
-	# jPops indicates position of subspaces in newPops
+	# jPops indicates position of subspaces in newPops, i.e those populations that share a common splitting history with the merge pop
+	# jPopsSplitBorder is the subset of jPops that have a common border
+	# jPopsSplitNonBorder is complementing subset of jPops that have no common border
+	#
 	pSubsSource <- 1
 	subsPopSource <- if( length(jPopsSplitBorder) > 1 ){
 		# must merge this population to several other populations, need to split before
@@ -725,7 +728,7 @@ as.mcmc.list.twDEMCPops <- function(
 		# c(popDest$lowerParBounds, popDest$upperParBounds )
 		# c(subPopSource$lowerParBounds, subPopSource$upperParBounds )  # a combination of uB and lB should match
 		# mtrace(combineTwDEMCPops)
-		resCombine <- combineTwDEMCPops( list(popDest, subPopSource), mergeMethod="random" ) 
+		resCombine <- combineTwDEMCPops( list(popDest, subPopSource), mergeMethod=mergeMethod ) 
 		newPops[[jPop]] <-	if( resCombine$popCases[ (.nC <- length(resCombine$popCases))] == 2){
 			# make sure that last entry is from popDest (first pop in combineTwDEMCPops) to continue with current state
 			# so switch the last entry from popDest with last entry of the combined pop
@@ -752,13 +755,19 @@ if( nrow(newPops[[jPop]]$parms) != (nrow(popDest$parms) + nrow(subPopSource$parm
 	}
 	#
 	# ------- delete the merged source population 
-	# only after merging so that indices hold true		
+	# only after merging so that indices hold true
 	newPops[[iPop]] <- NULL	
 	newPPops <- newPPops[-iPop]
+	iSameSpace0 <- iSameSpace
+	iSameSpace <- iSameSpace[ iSameSpace != iPop0 ]
+	# newPops has changed, update the position indices
+	bo <- jPops > iPop; jPops[bo] <- jPops[bo]-1 
+	bo <- jPopsSplitBorder > iPop; jPopsSplitBorder[bo] <- jPopsSplitBorder[bo]-1 
+	bo <- jPopsSplitNonBorder > iPop; jPopsSplitNonBorder[bo] <- jPopsSplitNonBorder[bo]-1 
 	#
 	#-------- check consistency
 	# may have lost some samples during splitting because all chains in one pop need to have the same lenght
-	.nS0 <- sapply( pops[ iSameSpace ], function(pop){ nrow(pop$parms)})
+	.nS0 <- sapply( pops[ iSameSpace0 ], function(pop){ nrow(pop$parms)})
 	.nS <- sapply( newPops, function(pop){ nrow(pop$parms)})
 	if( sum(.nS) > sum(.nS0)  ){
 		stop(".mergePopTwDEMC: sample number in merged populations is larger than original.")
@@ -768,12 +777,17 @@ if( nrow(newPops[[jPop]]$parms) != (nrow(popDest$parms) + nrow(subPopSource$parm
 	if( !isTRUE(all.equal( sum(newPPops),1)) )
 		stop(".mergePopTwDEMC: probabilities of space with merged does not sum to 1")
 	#
-	##value<<
-	resMerge <- list(	##describe<<
-		pops = c(pops[-iSameSpace], newPops) 	##<< list (nPops): the pops with one population less, that has been merged to the other pops
-		,pPops = c( pPops[-iSameSpace], newPPops )	##<< numeric vector (nPops): the updated proportions of the populations within space
-		,nSubs = length(subsPopSource)	##<< the number of subpopulation thats the population was splitted into
-		)	##end<<
+	##value<< list with entries
+	resMerge <- list(	
+		##describe<<
+		pops = c(pops[iOtherSpace], newPops) 		##<< list (nPops): the pops with one population less, that has been merged to the other pops
+		,pPops = c( pPops[iOtherSpace], newPPops )	##<< numeric vector (nPops): the updated proportions of the populations within space
+		#,nSub = length(subsPopSource)				##<< the number of subpopulation thats the population was splitted into
+		,iPopsBefore = c(iOtherSpace, iSameSpace) 	##<< integer vector (nPops): index of the population in original set of populations
+		,iPopsModified = length(iOtherSpace) + seq_along(newPops)[jPopsSplitBorder]	##<< integer vector (nPopSameBorder): index of the populations that comprise a part of the merged population
+		,pPopsSource = pSubsSource					##<< numeric vector (nPopSameBorder): proportion of the merged population that is part of the new population. Indices correspond to iPopsNew 
+		)	
+		##end<<
 	# lapply(pops[-iSameSpace], "[[", "splits")
 	# sapply(pops[-iSameSpace], "[[", "spaceInd")
 	# lapply(newPops, "[[", "splits")

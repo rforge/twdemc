@@ -52,7 +52,6 @@ test.getSubSpacesOfSubspace <- function(){
 test.splitMerge <- function(){
 	mc0 <- subPops(den2dCorEx$mcBulk,iSpace=1)	# one population
 	n0 <- getNSamples(mc0)
-	
 	#------- split the single population along a
 	split1 <- c(a=-2)
 	spaces1 <- list(
@@ -81,7 +80,10 @@ test.splitMerge <- function(){
 	checkEquals( 1, length(resMerge$pops) )
 	checkEquals( 0,  length(resMerge$pops[[1]]$upperParBounds))
 	checkEquals( 0,  length(resMerge$pops[[1]]$lowerParBounds))
-	
+	checkEquals( c(1), resMerge$pPops )
+	checkEquals( c(2), resMerge$iPopsBefore )
+	checkEquals( c(1), resMerge$iPopsModified )
+	checkEquals( c(1), resMerge$pPopsSource )
 	#----- split the upper population along a again 
 	# merge pop 1 with pop2 only
 	split2 <- c(a=-1)
@@ -128,7 +130,10 @@ test.splitMerge <- function(){
 	checkEquals( split2,  (resMerge$pops[[2]]$lowerParBounds))
 	checkEquals( 0,  length(resMerge$pops[[2]]$upperParBounds))
 	checkEquals( split2,  resMerge$pops[[2]]$splits)
-	
+	checkEquals( c(2,3), resMerge$iPopsBefore )
+	checkEquals( c(1), resMerge$iPopsModified )
+	checkEquals( c(1), resMerge$pPopsSource )
+	#
 	#----- split the upp2low population along b again
 	# merge splitted pop1 with 2 and 3, but not with 4
 	split3 <- c(b=0)
@@ -162,6 +167,7 @@ test.splitMerge <- function(){
 	#.getParBoundsPops(newPops)
 	mc3b$pops <- c(mc2$pops[1], newPops, mc2$pops[3] )
 	checkEquals( .getParBoundsPops(mc3$pops),  .getParBoundsPops(mc3b$pops))
+	#
 	#-- merge first to second and third pop
 	.nS <- getNSamples(mc3)
 	#c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
@@ -178,7 +184,13 @@ test.splitMerge <- function(){
 	checkEquals( split2,  (resMerge$pops[[3]]$lowerParBounds))
 	checkEquals( 0,  length(resMerge$pops[[3]]$upperParBounds))
 	checkEquals( c(split2),  resMerge$pops[[3]]$splits)
+	checkEquals( c(2,3,4), resMerge$iPopsBefore )
+	checkEquals( c(1,2), resMerge$iPopsModified )
+	checkEquals( 2, length(resMerge$pPopsSource) )
+	checkEquals( 1, sum(resMerge$pPopsSource) )
+	#
 	#-- merge second to third pop (do not touch split of 1 pop)
+	#trace(.mergePopTwDEMC, recover)  # untrace(.mergePopTwDEMC) 
 	resMerge <- .mergePopTwDEMC( mc3$pops, 2, pSubs3 )
 	#.getParBoundsPops(resMerge$pops)
 	checkEquals( 3, length(resMerge$pops) )
@@ -191,9 +203,35 @@ test.splitMerge <- function(){
 	checkEquals( split2,  (resMerge$pops[[3]]$lowerParBounds))
 	checkEquals( 0,  length(resMerge$pops[[3]]$upperParBounds))
 	checkEquals( c(split1,split2),  resMerge$pops[[3]]$splits)
-
-
-
-
+	checkEquals( c(1,3,4), resMerge$iPopsBefore )
+	checkEquals( c(2), resMerge$iPopsModified )
+	checkEquals( c(1), resMerge$pPopsSource )
+	#
+	#
+	#--- add another space to the splitted population and check that indices are still valied
+	mc4 <- mc3
+	popS2 <- within(mc0$pops[[1]], spaceInd <- 4)
+	mc4$pops <- c(mc3$pops, list(popS2))
+	#-- merge first to second and third pop
+	.nS <- getNSamples(mc4)
+	#c(n0, sum(.nS) )		# may have lost a few samples in subSpacing
+	.nSspace1 <- .nS[-length(.nS)]
+	pSubs4 <- c(.nSspace1/sum(.nSspace1), 1)
+	resMerge <- .mergePopTwDEMC( mc4$pops, 1, pSubs4 )
+	#.getParBoundsPops(resMerge$pops)
+	checkEquals( 1+3, length(resMerge$pops) )
+	checkEquals( 0,  length(resMerge$pops[[1+1]]$lowerParBounds))
+	checkEquals( c(split2,split3),  (resMerge$pops[[1+1]]$upperParBounds))
+	checkEquals( c(split2,split3),  resMerge$pops[[1+1]]$splits)
+	checkEquals( split3,  (resMerge$pops[[1+2]]$lowerParBounds))
+	checkEquals( split2,  (resMerge$pops[[1+2]]$upperParBounds))
+	checkEquals( c(split2,split3),  resMerge$pops[[1+2]]$splits)
+	checkEquals( split2,  (resMerge$pops[[1+3]]$lowerParBounds))
+	checkEquals( 0,  length(resMerge$pops[[1+3]]$upperParBounds))
+	checkEquals( c(split2),  resMerge$pops[[1+3]]$splits)
+	checkEquals( c(5,2,3,4), resMerge$iPopsBefore )
+	checkEquals( 1+c(1,2), resMerge$iPopsModified )
+	checkEquals( 2, length(resMerge$pPopsSource) )
+	checkEquals( 1, sum(resMerge$pPopsSource) )
 }
 
