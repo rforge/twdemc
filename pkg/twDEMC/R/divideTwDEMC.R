@@ -254,11 +254,11 @@ divideTwDEMCSACont <- function(
 	#
 	, dumpfileBasename="recover"##<< what to do on errors
 	, minPSub = 0.1				##<< minimal quantile of a sub-population
-	, subPercChangeCrit=1.6		##<< if all subPercChange of all sub-populations are below this value in two last batches, may assume convergence and skip further batches
+	, maxSubPercChangeCrit=1.6		##<< if all subPercChange of all sub-populations are below this value in two last batches, may assume convergence and skip further batches
 	, maxNSample=256			##<< if given a value, then looking for subspaces is done on a subsample of given length for efficiency (see \code{\link{getSubSpaces}})
 	, pThinPast=0.5				##<< in each step thin the past to given fraction before appending it
-	, maxRelTChange=0.025 		##<< if Temperature of the components changes less than specified value, the algorithm can finish
-	, maxLogDenDrift=0.3		##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
+	, maxRelTChangeCrit=0.025 	##<< if Temperature of the components changes less than specified value, the algorithm can finish
+	, maxLogDenDriftCrit=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
 	, TDecProp=0.9				##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams)
 	, gelmanCrit=1.4			##<< do not decrease Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 	, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces
@@ -267,7 +267,7 @@ divideTwDEMCSACont <- function(
 	, restartFilename=NULL		##<< filename to write intermediate results to
 	, iPopsDoSplit=integer(0)	##<< populations given here will definitely be splitted (no matter of other criteria)
 ){
-	args <- c( list( nObs=nObs, TFix=TFix, maxRelTChange=maxRelTChange, maxLogDenDrift=maxLogDenDrift,  TDecProp=TDecProp, restartFilename=restartFilename)
+	args <- c( list( nObs=nObs, TFix=TFix, maxRelTChange=maxRelTChangeCrit, maxLogDenDrift=maxLogDenDriftCrit,  TDecProp=TDecProp, restartFilename=restartFilename)
 		, list(controlTwDEMC=controlTwDEMC, doRecordProposals=doRecordProposals, m0=m0, nGenBatch=nGenBatch) 
 		, list(...) 
 	)
@@ -282,7 +282,7 @@ divideTwDEMCSACont <- function(
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
 	if( nGenBatch%/%thin < 64) 
-		stop("not enough sample per batch. Increase nGenBatch to at least 64*thin or decreaste ctrolTwDEMC$thin")
+		stop("divideTwDEMCSACont: not enough sample per batch. Increase nGenBatch to at least 64*thin or decreaste ctrolTwDEMC$thin")
 	nGenBatch = (nGenBatch%/%thin)*thin		# make nGen multiple of thin
 	boPopsDidConverge <- FALSE
 	iGen = 0
@@ -304,8 +304,8 @@ divideTwDEMCSACont <- function(
 	mcNew <- mc		# new samples within batch
 	mcApp <- mc		# concatenation of thinned past and new samples
 	pSubs <- nSamplesPop/nSamplesSpace[ as.character(spacePop) ]
-	subPercChange=numeric(length(pSubs))	# initialized to zero
-	specVarRatioPop <- .checkConvergenceProblems(mcApp, critSpecVarRatio=Inf, pCheckSkipPart=pCheckSkipPart)
+	subPercChange=rep(maxSubPercChangeCrit, length(pSubs))	# at this value, convergence check is false but pops are splitted (< and >=)	specVarRatioPop <- .checkConvergenceProblems(mcApp, critSpecVarRatio=Inf, pCheckSkipPart=pCheckSkipPart)
+	specVarRatioPop <- .checkConvergenceProblems(mcNew, pSubs=pSubs, minPSub=Inf, nChainPop=nChainPop, pCheckSkipPart=pCheckSkipPart)
 	#
 	while( (iGen < nGen) && !boPopsDidConverge){
 		iBatch <- iGen/nGenBatch+1
@@ -323,9 +323,31 @@ divideTwDEMCSACont <- function(
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
 		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
 		TEnd <- .calcTEnd(gelmanDiagRes=gelmanDiagRes, resEnd=mcSpaceEnd, TCurr=TCurr, nObsDen=nObsDen, TFix=TFix, iFixTemp=iFixTemp, iNonFixTempDens=iNonFixTempDens, TMax=TMax, iMaxTemp=iMaxTemp, gelmanCrit=gelmanCrit, TDecProp=TDecProp)
+		relTChange <- abs(TEnd - TCurr)/TEnd
+		#
+		#-- check for convergence maybe break
+		#print("divideTwDEMCSACont: before checking converge"); recover()
+		logDenT <- calcTemperatedLogDen(mcSpaceEnd, TCurr)
+		if( 
+			gelmanDiagRes <= gelmanCrit &&		
+			(maxRelTChange <- max(relTChange)) <= maxRelTChangeCrit && 
+			(maxspecVarRatioPop <- max(specVarRatioPop)) < critSpecVarRatio &&		
+			(maxSubPerChange <- max(subPercChange)) < maxSubPercChangeCrit &&	# important not <= because of initialization (do not break before first batch where subPercChange is unknown)
+			!isLogDenDrift(logDenT, mcSpaceEnd$dInfos, maxDrift=maxLogDenDriftCrit)  
+		){
+			cat(paste("divideTwDEMCSACont: Finishing early."
+						,"\n  gelman.diag =",signif(gelmanDiagRes,2)
+						,"\n  max spectral density to variance ratio =",signif(maxspecVarRatioPop,2)
+						,"\n  max change of subspaces proportions=",signif(maxSubPerChange,2)
+						,"\n  max Temperture change =",signif(maxRelTChange*100,2),"%"
+						,"\n  and no drift in logDensity"
+						,"\n",sep=""))
+			break
+		}
 		#
 		#-- split pops that changed poportion a lot or pops with high spectralDensity ratio into smaller pops
-		iPopsSplit <- union( iPopsDoSplit, which( (pSubs/2 > minPSub) & ((subPercChange >= subPercChangeCrit) | (specVarRatioPop > 0.8*critSpecVarRatio)) ))
+		# important > instead of >= maxSubPercChangeCrit; because of initialization: subPercChange is unknown
+		iPopsSplit <- union( iPopsDoSplit, which( (pSubs/2 > minPSub) & ((subPercChange > maxSubPercChangeCrit) | (specVarRatioPop > 0.8*critSpecVarRatio)) ))
 		mcAppRecent <- mcNew #subsetTail(mcApp, 0.5)	# base splitting only on recent samples
 		#.getParBoundsPops(mcApp$pops)
 		#.getParBoundsPops(mcAppRecent$pops)
@@ -390,12 +412,18 @@ divideTwDEMCSACont <- function(
 		iPopsLarge <- which( pSubs >= quantile(pSubs,0.4))	# neglect the small populations in subPercChange calculation 
 		maxSubPercChange <- max(subPercChange[iPopsLarge])
 		cat(paste(iGen," out of ",nGen," gens completed. ,max(subPercChange)=",signif(maxSubPercChange,2),"     ",date(),"\n",sep=""))
-		#
-		#-- check for convergence, maybe break
-		# XXTODO
 	}	# while iGen < nGenBatch
-	resStep$resTwDEMC <- mcApp
-	resStep
+	##value<< list with entries
+	list(
+		##describe<<
+		resTwDEMC = mcApp	##<< twDEMCPop object 
+		,nGen = iGen		##<< scalar integer: number of completed generations
+		,pSubs = pSubs		##<< numeric vector (nPop): proportion of the populations within space during last batch
+		,subPercChange = subPercChange	##<< numeric vector(nPop): relative change of proportions during last batch 
+		,relTChange =  relTChange	##<< numeric vector (nDen): calculated relative change of calculated new temperature for the next batch 
+		,specVarRatioPop = specVarRatioPop	##<< numeric vector (nPop): ratio of spectral density to variance
+		##end<<
+	)
 }
 .tmp.den2dCor <- function(){
 	# fitting the den2dCor model
@@ -429,7 +457,7 @@ divideTwDEMCSACont <- function(
 		, iPopsDoSplit=1:2		# definitely split the populations
 		, critSpecVarRatio=20		
 	)
-	resDiv <- res3Div <- divideTwDEMCSACont( resDiv$resTwDEMC, nObs=nObs, nGen=1024 
+	resDiv <- res3Div <- divideTwDEMCSACont( resDiv$resTwDEMC, nObs=nObs, nGen=4*1024 
 		, debugSequential=TRUE
 		, argsFSplit=list(debugSequential=TRUE)	# run findSplit non-remote
 		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed length
@@ -440,16 +468,16 @@ divideTwDEMCSACont <- function(
 	getNSamples(resDiv$resTwDEMC)
 	res1 <- resDiv$resTwDEMC
 	res2 <- stackChainsPop(tmp <- stackPopsInSpace(resDiv$resTwDEMC, mergeMethod="random", nInSlice = 1))
+	mc <- thin(concatPops(res2), start=256)
 	#plot( tail(tmp$pops[[1]]$temp) )
 	#plot( res2$pops[[1]]$temp )
 	getCurrentTemp(res1)
 	plot( as.mcmc.list(res2), smooth=FALSE )
 	#.getParBoundsPops(resDiv$resTwDEMC$pops)
 	#trace(subset.twDEMC,recover)	#untrace(subset.twDEMC)
-	mc <- thin(concatPops(res2), start=256)
 	matplot( mc$pAccept[,1,], type="l" )
 	matplot( mc$resLogDen[,1,], type="l" )
-	iSpace=1; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.5,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
+	iSpace=2; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.8,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
 	gelman.diag(as.mcmc.list(res2))
 	#trace(.checkProblemsSpectralPop,recover)	#untrace(.checkProblemsSpectralPop)
 	.checkProblemsSpectralPop(resDiv$resTwDEMC$pops[[1]])
