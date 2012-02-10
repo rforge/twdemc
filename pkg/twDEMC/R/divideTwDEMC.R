@@ -285,17 +285,22 @@ divideTwDEMCSACont <- function(
 		##end<<
 	)
 ){
-	# store call arguments 
+	#-- store call arguments 
 	# trace(ftest, at=3, recover)
 	# to come past this point as it does not work from within browser	argsF <- as.list(sys.call())[-1]
 	argsF <- as.list(sys.call())[-1]	# do not store the file name and the first two arguments
 	argsF <- argsF[ !(names(argsF) %in% c("","nGen","mc","iPopsDoSplit")) ]  # remove positional arguments and arguments mc and nGen
 	#
 	#-- fill in default argument values
-	ctrlBatch <- .checkCtrlBatch_divideTwDEMCSACont(ctrlT)
-	ctrlT <- .checkCtrlT_divideTwDEMCSACont(ctrlT)
-	ctrlConvergence <- .checkCtrlConvergence_divideTwDEMCSACont(ctrlConvergence, debugSequential=debugSequential)
-	ctrlSubspaces <- .checkCtrlSubspaces_divideTwDEMCSACont(ctrlSubspaces, debugSequential=debugSequential)
+	frm <- formals()
+	ctrlBatch <- if( hasArg(ctrlBatch) ) twMergeLists( eval(frm[["ctrlBatch"]]), ctrlBatch ) else ctrlBatch
+	ctrlT <- if( hasArg(ctrlT) ) twMergeLists( eval(frm[["ctrlT"]]), ctrlT ) else ctrlT
+	ctrlConvergence <- if( hasArg(ctrlConvergence) ) twMergeLists( eval(frm[["ctrlConvergence"]]), ctrlConvergence ) else ctrlConvergence
+	ctrlSubspaces <- if( hasArg(ctrlSubspaces) ) twMergeLists( eval(frm[["ctrlSubspaces"]]), ctrlSubspaces ) else ctrlSubspaces
+	if( debugSequential ){
+		if( 0==length(ctrlConvergence$dumpfileBasename) ) ctrlConvergence$dumpfileBasename <- "recover"
+		if( 0==length(ctrlSubspaces$argsFSplit$debugSequential) ) ctrlSubspaces$argsFSplit$debugSequential <- TRUE 
+	}
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
 	if( 0 == length( ctrlT$TFix) ) ctrlT$TFix <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
@@ -485,6 +490,7 @@ divideTwDEMCSACont <- function(
 		, debugSequential=TRUE
 		, controlTwDEMC=list(DRgamma=0.1)		    # DR step of 1/10 of the proposed length
 		, iPopsDoSplit=1:2			# definitely split the populations
+		, ctrlSubspaces=list(maxNSample=250)
 	)
 	#str(resDiv$args)
 	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( resDiv, 4*1024), resDiv$args) )
@@ -526,68 +532,6 @@ divideTwDEMCSACont <- function(
 	plot( as.mcmc.list(stackPopsInSpace(resd$resTwDEMC)), smooth=FALSE )
 	plot( as.mcmc.list(stackChainsPop(stackPopsInSpace(resd$resTwDEMC))), smooth=FALSE )
 	resd$subPercChange
-}
-
-.checkCtrlBatch_divideTwDEMCSACont <- function(ctrl,
-	nGenBatch=512				##<< number of generations for one call to twDEMCStep
-	, pThinPast=0.5				##<< in each step thin the past to given fraction before appending it
-	, restartFilename=NULL		##<< filename to write intermediate results to
-){
-	if( 0==length(ctrl) ) ctrl <- list()
-	frm <- formals()[-1]
-	iMissing <- !(names(frm) %in% names(ctrl))
-	ctrl[ names(frm)[iMissing] ] <- lapply(frm[iMissing], eval)
-	ctrl
-}
-
-.checkCtrlT_divideTwDEMCSACont <- function(ctrl,
-	TFix=numeric(0)	##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
-	, TMax=numeric(0)	##<< numeric vector (nResComp) specifying a maximum temperature for result components.
-	, TDecProp=0.9		##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams)
-){
-	if( 0==length(ctrl) ) ctrl <- list()
-	frm <- formals()[-1]
-	iMissing <- !(names(frm) %in% names(ctrl))
-	ctrl[ names(frm)[iMissing] ] <- lapply(frm[iMissing], eval)
-	ctrl
-}
-
-.checkCtrlConvergence_divideTwDEMCSACont <- function( ctrl, 
-	maxSubPercChangeCrit=1.6	##<< if all subPercChange of all sub-populations are below this value in two last batches, may assume convergence and skip further batches
-	, maxRelTChangeCrit=0.025 	##<< if Temperature of the components changes less than specified value, the algorithm can finish
-	, maxLogDenDriftCrit=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
-	, gelmanCrit=1.4			##<< do not decrease Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
-	, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces
-	, pCheckSkipPart=0.5		##<< when checking each population for convergence problems, skip this proportion (kind of burnin) 
-	, minNSampleCheck=32		##<< if a population has less samples across chains, skip the check because it is too uncertaint
-	, dumpfileBasename=NULL		##<< scalar string: filename to dump stack before stopping. May set to "recover"
-	, debugSequential=FALSE		##<< if set to true, then default value of dumpfileBasename will be "recover" 
-){
-	if( 0==length(ctrl) ) ctrl <- list()
-	frm <- formals()[-1]
-	iMissing <- !(names(frm) %in% names(ctrl))
-	ctrl[ names(frm)[iMissing] ] <- lapply(frm[iMissing], eval)
-	#
-	if( debugSequential && 0==length(dumpfileBasename)) ctrl$dumpfileBasename="recover" 
-	ctrl$debugSequential <- NULL
-	ctrl
-}
-
-.checkCtrlSubspaces_divideTwDEMCSACont <- function( ctrl,
-	minPSub = 0.1				##<< minimal proportion of a sub-population
-	, maxNSample=256			##<< if given a value, then looking for subspaces is done on a subsample of given length for efficiency (see \code{\link{getSubSpaces}})
-	, argsFSplit=list()			##<< further arguments to \code{\link{findSplit}}
-	, iPopsDoSplit=integer(0)	##<< populations given here will definitely be splitted (no matter of other criteria)
-	, debugSequential=FALSE		##<< if set to true, also argsFSplit$debugSequential will be set to true
-){
-	if( 0==length(ctrl) ) ctrl <- list()
-	frm <- formals()[-1]
-	iMissing <- !(names(frm) %in% names(ctrl))
-	ctrl[ names(frm)[iMissing] ] <- lapply(frm[iMissing], eval)
-	#
-	if( debugSequential ) ctrl$argsFSplit$debugSequential <- TRUE
-	ctrl$debugSequential <- NULL
-	ctrl
 }
 
 .saveRestartFile <- function(
