@@ -2,10 +2,7 @@
 \alias{stackChainsPop.twDEMCPops}
 \title{stackChainsPop twDEMCPops}
 \description{Combine MarkovChains of each population of a twDEMC to a single chain.}
-\usage{
-\method{stackChainsPop}{twDEMCPops}(x,
-...)
-}
+\usage{\method{stackChainsPop}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{
 }

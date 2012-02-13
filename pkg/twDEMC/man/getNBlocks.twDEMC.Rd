@@ -2,10 +2,7 @@
 \alias{getNBlocks.twDEMC}
 \title{getNBlocks twDEMC}
 \description{Extracts the number of blocks }
-\usage{
-\method{getNBlocks}{twDEMC}(x,
-...)
-}
+\usage{\method{getNBlocks}{twDEMC}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMC}
   \item{\dots}{

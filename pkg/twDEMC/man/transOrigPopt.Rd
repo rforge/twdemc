@@ -2,9 +2,7 @@
 \alias{transOrigPopt}
 \title{transOrigPopt}
 \description{Generic method behind \code{\link{transOrigPopt.default}}}
-\usage{
-transOrigPopt(...)
-}
+\usage{transOrigPopt(...)}
 \arguments{
   \item{\dots}{
 }

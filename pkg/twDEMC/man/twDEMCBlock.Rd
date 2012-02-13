@@ -2,9 +2,7 @@
 \alias{twDEMCBlock}
 \title{twDEMCBlock}
 \description{Generic method behind \code{\link{twDEMCBlock.array}}}
-\usage{
-twDEMCBlock(...)
-}
+\usage{twDEMCBlock(...)}
 \arguments{
   \item{\dots}{
 }

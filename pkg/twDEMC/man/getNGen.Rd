@@ -2,9 +2,7 @@
 \alias{getNGen}
 \title{getNGen}
 \description{Generic method behind \code{\link{getNGen.twDEMC}}}
-\usage{
-getNGen(...)
-}
+\usage{getNGen(...)}
 \arguments{
   \item{\dots}{
 }

@@ -2,10 +2,7 @@
 \alias{getNSamples.twDEMCPops}
 \title{getNSamples twDEMCPops}
 \description{Extracts the number of samples}
-\usage{
-\method{getNSamples}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNSamples}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

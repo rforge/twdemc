@@ -2,9 +2,7 @@
 \alias{transNormPopt}
 \title{transNormPopt}
 \description{Generic method behind \code{\link{transNormPopt.default}}}
-\usage{
-transNormPopt(...)
-}
+\usage{transNormPopt(...)}
 \arguments{
   \item{\dots}{
 }

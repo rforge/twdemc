@@ -2,9 +2,7 @@
 \alias{getParBoundsPop}
 \title{getParBoundsPop}
 \description{Generic method behind \code{\link{getParBoundsPop.twDEMCPops}}}
-\usage{
-getParBoundsPop(...)
-}
+\usage{getParBoundsPop(...)}
 \arguments{
   \item{\dots}{
 }

@@ -17,8 +17,8 @@
 	library(debug)
 	library(lattice)
 	
-	sfInit(parallel=TRUE, cpus=4)
-	#sfInit(parallel=TRUE, cpus=2)
+	#sfInit(parallel=TRUE, cpus=4)
+	sfInit(parallel=TRUE, cpus=2)
 	
 	for(filename in Sys.glob(file.path("R","*.R")) ){
 		print(filename)
@@ -38,8 +38,8 @@
 	twUtestF("S3twDEMC")
 	twUtestF("twDEMC")
 	twUtestF("twDEMCPops")
-	twUtestF("getSubSpaces")
 	twUtestF("findSplit")
+	twUtestF("getSubSpaces")
 	twUtestF("divideTwDEMC")
 
 	twUtestF("twDEMC","test.badStartSeqData1D")

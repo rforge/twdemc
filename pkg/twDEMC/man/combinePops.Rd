@@ -2,9 +2,7 @@
 \alias{combinePops}
 \title{combinePops}
 \description{Generic method behind \code{\link{combinePops.twDEMC}}}
-\usage{
-combinePops(...)
-}
+\usage{combinePops(...)}
 \arguments{
   \item{\dots}{
 }

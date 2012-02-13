@@ -8,7 +8,7 @@ divideTwDEMCStep <- function(
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, nSampleMin=round(32/getNChainsPop(aTwDEMC))			##<< minimum number of samples in each population so that calculation of average density is stable
 	, m0 = calcM0twDEMC(getNParms(aTwDEMC),getNChainsPop(aTwDEMC))		# minimum number of samples in step for extending runs
-	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
+	, ...					##<< further arguments to \code{\link{twDEMCBlock}}, such as TEnd
 ){
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
@@ -35,7 +35,9 @@ divideTwDEMCStep <- function(
 	}
 	#nGen0 <- pmax(m0*thin, ceiling(minNSamplesSub*thin/nChainPop), nGen*qPop)		# at minimum m0*thin generations to keep sufficient samples for extending the run
 	nGen0Pops <- nGen*qPop
-	nGen0PopsThin <- pmax( m0, nSampleMin, ceiling(nGen0Pops/thin))*thin	# must have at least m0 samples in order to be able to extend the sample	 
+	#nGen0PopsThin <- pmax( m0, nSampleMin, ceiling(nGen0Pops/thin))*thin	# must have at least m0 samples in order to be able to extend the sample
+	nRowsMin <- max( 2*m0, nSampleMin )		# minimum number of rows in population 
+	nGen0PopsThin <- nRowsMin*thin		 
 	#
 	#----- initial run based on current quantiles
 	#trace("twDEMCBlockInt")
@@ -102,11 +104,11 @@ divideTwDEMCStep <- function(
 	nSamples0 <- getNSamples(resTwDEMC0)
 	nSamplesAdd <- pmax(0, nSamplesSubsReq-nSamples0)
 	resTwDEMC <- resTwDEMC1 <- if( max(nSamplesAdd) == 0) resTwDEMC0 else{
-			# stay at current temperature (we are alreay at the prescribed end temperature)
-			for( iPop in seq_along(resTwDEMC0$pops) ){
-				resTwDEMC0$pops[[iPop]]$TEnd <- 
-					resTwDEMC0$pops[[iPop]]$temp[ nSamples0[iPop] ]
-			}
+			# stay at current temperature (we are already at the prescribed end temperature)
+			#for( iPop in seq_along(resTwDEMC0$pops) ){
+			#	resTwDEMC0$pops[[iPop]]$TEnd <- 
+			#		resTwDEMC0$pops[[iPop]]$temp[ nSamples0[iPop] ]
+			#}
 			#mtrace(twDEMCBlock.twDEMCPops)
 			#mtrace(twDEMCBlockInt)
 			resTwDEMC <- twDEMCBlock( resTwDEMC0, nGen=nSamplesAdd*thin, controlTwDEMC=controlTwDEMC,  m0=m0, ...  )
@@ -119,19 +121,25 @@ divideTwDEMCStep <- function(
 	resTwDEMC <- resTwDEMC2 <- squeeze.twDEMCPops(resTwDEMC1, length.out=nSamplesSubsReq)
 	#getNSamples(resTwDEMC2)
 
-	#----- append to former run
-	#resTwDEMC <- .concatTwDEMCRuns(aTwDEMC,resTwDEMC2,doRecordProposals=doRecordProposals)
-	#getNSamples(resTwDEMC)
+	#----- also provide unthinned last 2*m0 samples of each population
+	# when providing only the thinned sample, some subs may have too few samples to split and restart
+	# assumes integer nRowsMin > 0
+	print("divideTwDEMCStep: before subsetting last nRowsMin"); recover()
+	fKeep <- function(pop){ ### last 2*m0 rows of each chain 
+		nR <- nrow(pop$parms)
+		ret <- max(1, nR+1-nRowsMin):nR
+	}
+	#trace(subsetF.twDEMCPops, recover) 	#untrace(subsetF.twDEMCPops)
+	resTwDEMCMinN <- subsetF.twDEMCPops(resTwDEMC1, fKeep)
+	#tail(resTwDEMCMinN$pops[[4]]$temp)
 
-	#------ check for consistency
-	#lapply( )
-	
 	##value<< 
 	## For each population, a list with entries
 	res <- list(	##describe<<
 		resTwDEMC = resTwDEMC	##<< the runs with new samples of class twDEMCPops
 		,pSubs = pPops			##<< the quantiles of samples within given subspace
-		,subPercChange = subPercChange	##<< ##<< numeric vector: ratio of estimated proportion in limiting distribution to proportion of initial proportion
+		,subPercChange = subPercChange	##<< numeric vector: ratio of estimated proportion in limiting distribution to proportion of initial proportion
+		,resTwDEMCMinN = resTwDEMCMinN	##<< twDEMCPops with last (nRowsMin <- max( 2*m0, nSampleMin )) rows
 		)
 	##end<<
 }
@@ -449,7 +457,6 @@ divideTwDEMCSACont <- function(
 	}	# while iGen < nGenBatch
 	##value<< twDEMC with additional list entries
 	resAdd <- list(
-		##describe<<
 		nGen = iGen						##<< scalar integer: number of completed generations
 		,pSubsBatch = pSubs					##<< numeric vector (nPop): proportion of the populations within space during last batch
 		,subPercChange = subPercChange		##<< numeric vector(nPop): relative change of proportions during last batch 
@@ -493,6 +500,7 @@ divideTwDEMCSACont <- function(
 		, ctrlSubspaces=list(maxNSample=250)
 	)
 	#str(resDiv$args)
+	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( res2Div, 1*1024), resDiv$args) )
 	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( resDiv, 4*1024), resDiv$args) )
 	#
 	resDiv$pSubs

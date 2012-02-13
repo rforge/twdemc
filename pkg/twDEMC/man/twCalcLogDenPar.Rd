@@ -2,17 +2,9 @@
 \alias{twCalcLogDenPar}
 \title{twCalcLogDenPar}
 \description{Invokes fLogDen with proposal in a parallel load balanced way.}
-\usage{
-twCalcLogDenPar(fLogDen,
-xProp,
-logDenCompX = NULL,
-intResComp = character(0),
-argsFLogDen = list(),
-fLogDenScale = 1,
-debugSequential = FALSE,
-remoteDumpfileBasename = NULL,
-...)
-}
+\usage{twCalcLogDenPar(fLogDen, xProp, logDenCompX = NULL, intResComp = character(0), 
+    argsFLogDen = list(), fLogDenScale = 1, debugSequential = FALSE, 
+    remoteDumpfileBasename = NULL, ...)}
 \arguments{
   \item{fLogDen}{the objective function}
   \item{xProp}{numeric matrix (nCases x nParm) of proposals}

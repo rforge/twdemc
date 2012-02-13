@@ -2,10 +2,7 @@
 \alias{getNParms.twDEMCPops}
 \title{getNParms twDEMCPops}
 \description{Extracts the number of parameters, i.e. the dimension of the parameter vector}
-\usage{
-\method{getNParms}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNParms}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

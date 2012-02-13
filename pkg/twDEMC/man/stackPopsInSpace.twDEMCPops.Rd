@@ -2,11 +2,7 @@
 \alias{stackPopsInSpace.twDEMCPops}
 \title{stackPopsInSpace twDEMCPops}
 \description{Combine populations for subspaces to bigger populations }
-\usage{
-\method{stackPopsInSpace}{twDEMCPops}(x,
-...,
-spacePop = getSpacesPop(x))
-}
+\usage{\method{stackPopsInSpace}{twDEMCPops}(x, ..., spacePop = getSpacesPop(x))}
 \arguments{
   \item{x}{
 }

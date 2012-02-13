@@ -2,13 +2,10 @@
 \alias{replaceZinitNonFiniteLogDens}
 \title{replaceZinitNonFiniteLogDens}
 \description{Replaces states of Zinit that yield non-finite rLogDen by sampling other states.}
-\usage{
-replaceZinitNonFiniteLogDens(Zinit,
-logDen)
-}
+\usage{replaceZinitNonFiniteLogDens(Zinit, logDen)}
 \arguments{
   \item{Zinit}{initial states see InitDEMCzsp}
-  \item{logDen}{numeric matrix (nCases x nParms): calculated logDensitys for all the states in Zinit. If it is a vector then it is reshaped.}
+  \item{logDen}{numeric matrix (nCases x nChains): calculated logDensitys for all the states in Zinit. If it is a vector then it is reshaped.}
 }
 \details{In order for twDEMC to start up effectively, it is important that chains start from values, where the logDensity is finite}
 \value{Zinit, with several cols (parameter vectors) replaced by other cols}

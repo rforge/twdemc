@@ -2,14 +2,8 @@
 \alias{subChains.twDEMC}
 \title{subChains twDEMC}
 \description{Condenses an twDEMC List to the chains iChains e.g \code{1:4}.}
-\usage{
-\method{subChains}{twDEMC}(x,
-iChains = NULL,
-iPops = NULL,
-nPop = NULL,
-...,
-doKeepBatchCall = FALSE)
-}
+\usage{\method{subChains}{twDEMC}(x, iChains = NULL, iPops = NULL, nPop = NULL, 
+    ..., doKeepBatchCall = FALSE)}
 \arguments{
   \item{x}{
 }
@@ -17,7 +11,7 @@ doKeepBatchCall = FALSE)
 }
   \item{iPops}{
 }
-  \item{nPop}{number of populations in x, if not specified then taken from ncol(x$temp)}
+  \item{nPop}{number of populations in x}
   \item{\dots}{
 }
   \item{doKeepBatchCall}{wheter to retain the batch call attribute of x}
@@ -55,5 +49,5 @@ Alternatively to specification of iChains, one can specify a vector of populatio
 
 
 
-\seealso{\code{\link{twDEMCBlockInt}}}
+\seealso{\code{\link{twDEMC}}}
 

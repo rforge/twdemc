@@ -1,12 +1,8 @@
 \name{divideTwDEMCPop}
 \alias{divideTwDEMCPop}
 \title{divideTwDEMCPop}
-\description{splits a specific populations of x into subpopulations for given subSpaces }
-\usage{
-divideTwDEMCPop(pop,
-subSpaces,
-isCheckBorderConsistency = TRUE)
-}
+\description{Splits a specific populations of x into subpopulations for given subSpaces. }
+\usage{divideTwDEMCPop(pop, subSpaces, isCheckBorderConsistency = TRUE)}
 \arguments{
   \item{pop}{numeric array (nStep, nParm, nChain): an object of class aTwDEMCPops returned by \code{\link{twDEMCBlockInt}}}
   \item{subSpaces}{a list (nPop): each entry listing subspaces for the given population with entries lowerParBounds, upperParBounds, and splits}

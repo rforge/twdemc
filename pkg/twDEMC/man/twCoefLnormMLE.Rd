@@ -2,11 +2,7 @@
 \alias{twCoefLnormMLE}
 \title{twCoefLnormMLE}
 \description{Calculates mu and sigma of the lognormal distribution from mode and upper quantile.}
-\usage{
-twCoefLnormMLE(mle,
-quant,
-sigmaFac = qnorm(0.99))
-}
+\usage{twCoefLnormMLE(mle, quant, sigmaFac = qnorm(0.99))}
 \arguments{
   \item{mle}{numeric vector: mode at the original scale}
   \item{quant}{numeric vector: value at the upper quantile, i.e. practical maximum}

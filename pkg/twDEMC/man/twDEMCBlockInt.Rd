@@ -2,49 +2,22 @@
 \alias{twDEMCBlockInt}
 \title{twDEMCBlockInt}
 \description{Differential Evolution Markov Chain with blocked parameter update}
-\usage{
-twDEMCBlockInt(pops = list(list(parms,
-nGen = 12,
-T0 = 1,
-TEnd = 1,
-TProp = NULL,
-X = NULL,
-logDenCompX = NULL,
-spaceInd = 1,
-upperParBounds = numeric(0),
-lowerParBounds = numeric(0),
-splits = numeric(0))),
-dInfos = list(list(fLogDen = NULL,
-xC = xC,
-logDenCompC = logDenCompC,
-parUpdateDenC = parUpdateDenC,
-compPosDen = 1:nrow(pops[[1]]$parms),
-argsFLogDen = list(),
-intResComp = vector("integer",
-0),
-fLogDenScale = 1,
-TFix = vector("numeric",
-0))),
-blocks = list(list(dInfoPos = 1,
-compPos = dInfos[[1]]$compPosDen,
-fUpdateBlock = updateBlockTwDEMC,
-argsFUpdate = list(),
-requiresUpdatedDen = TRUE)),
-nGen = integer(0),
-spacePop = 1:nPop,
-controlTwDEMC = list(),
-debugSequential = FALSE,
-remoteDumpfileBasename = NULL,
-fDiscrProp = NULL,
-argsFDiscrProp = list(),
-doRecordProposals = FALSE)
-}
+\usage{twDEMCBlockInt(pops = list(list(parms, nGen = 12, TProp = NULL, 
+    X = NULL, logDenCompX = NULL, spaceInd = 1, upperParBounds = numeric(0), 
+    lowerParBounds = numeric(0), splits = numeric(0))), dInfos = list(list(fLogDen = NULL, 
+    xC = xC, logDenCompC = logDenCompC, parUpdateDenC = parUpdateDenC, 
+    compPosDen = 1:nrow(pops[[1]]$parms), argsFLogDen = list(), 
+    intResComp = vector("integer", 0), fLogDenScale = 1)), blocks = list(list(dInfoPos = 1, 
+    compPos = dInfos[[1]]$compPosDen, fUpdateBlock = updateBlockTwDEMC, 
+    argsFUpdate = list(), requiresUpdatedDen = TRUE)), TSpec = matrix(1, 
+    ncol = 2, nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), 
+    m0 = numeric(0), nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
+    debugSequential = FALSE, remoteDumpfileBasename = NULL, fDiscrProp = NULL, 
+    argsFDiscrProp = list(), doRecordProposals = FALSE)}
 \arguments{
   \item{pops}{list of population infos for each population, each info is a list with components\describe{
 \item{parms}{list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.}
 \item{nGen}{scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}}
-\item{T0}{initial temperature}
-\item{TEnd}{end temperature}
 \item{TProp}{numeric vector (nResComp) temperature proportions of result components
 can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name}
 \item{X}{numeric matrix (nParm x nChainPop) initial state}
@@ -61,7 +34,6 @@ to handle first steps in Multi-step Metropolis decision internally.
 See details.}
 \item{compPosDen}{index or names of the parameter components that are used in this density function}
 \item{argsFLogDen}{further arguments passed to fLogDen}
-\item{TFix}{named numeric vector with Temperature for result components that have fixed temperature}
 }}
   \item{blocks}{list of parameter blocks, each block is a list with entries\describe{
 \item{dInfoPos}{name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters}
@@ -72,6 +44,9 @@ as described in \code{\link{updateBlockTwDEMC}}}
 \item{argsFUpdate}{further arguments passed to fUpdate}
 \item{requiresUpdatedDen}{if fUpdateBlock does not depend on current density result, then set this to FALSE and save some calculation time}
 }}
+  \item{TSpec}{numeric matrix (nResComp x 2): specifying Initial and End Temperature of each fLogDen result component.
+If only one row is specified, the Temperature is taken for all result components}
+  \item{m0}{scalar integer: number of samples in initial population, if length==0 will be calculated from number of chains and number of parameters}
   \item{nGen}{scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}}
   \item{spacePop}{the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops}
   \item{controlTwDEMC}{control parameters influencing the update and the convergens of the chains (see details)}
@@ -99,7 +74,6 @@ It is invoked usually by (\code{\link{twDEMCBlock.array}} or \code{\link{twDEMCB
 \item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)}
 \item{pIndStep}{independent state about after on average about those number of 1.5 accepted steps}
 \item{nPastGen}{factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population}
-\item{useMultiT}{whether to downscale Temperature of result components during burnin}
 }
 
 }}
@@ -130,7 +104,7 @@ In order to improve localization, less parameters or more chains per population 
 \item{splits}{named numeric vector: splitting history}
 \item{spaceInd}{the space replicate that the population belongs to}
 \item{parms}{numeric array (steps x parms x chains): collected states, including the initial states}
-\item{temp}{numeric vector (nSample+1): global temperature, i.e. cost reduction factor}
+\item{temp}{numeric array (nSample+1, nResComp): temperature, i.e. cost reduction factor in each step for each datastream}
 \item{pAccept}{acceptance rate of chains (nStep x nChainPop)}
 \item{resLogDen}{numeric array (steps x resComps x chains): results components of fLogDen of blocks}
 \item{logDen}{numberic array (steps x iDen x chains): results summed over blocks}
@@ -155,7 +129,6 @@ pops <- list(
 	pop2 <- list(
 		Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
 		,nGen=15
-		,T0=10
 	)
 )
 #tmp <- .checkPop(pops[[1]])
@@ -164,7 +137,6 @@ pops <- list(
 blockDefault <- list(
 	fLogDen=logDenGaussian
 	,resCompNames=c("obs","parms")
-	,TFix=c(parms=1)
 	,argsFLogDen = list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,				### vector of data to compare with

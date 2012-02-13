@@ -2,18 +2,9 @@
 \alias{plot2DKDMarginals}
 \title{plot2DKDMarginals}
 \description{Evaluates the Kernel-density regression on a grid and displays a figure.}
-\usage{
-plot2DKDMarginals(form,
-ds,
-dims = 40,
-bandwidth = NULL,
-nSample = 200,
-bwtype = "adaptive_nn",
-tol = 0.1,
-ftol = 0.1,
-bws = NULL,
-...)
-}
+\usage{plot2DKDMarginals(form, ds, dims = 40, bandwidth = NULL, nSample = 200, 
+    bwtype = "adaptive_nn", tol = 0.1, ftol = 0.1, bws = NULL, 
+    ...)}
 \arguments{
   \item{form}{formula of regression e.g. rLogDen~dO+tvrO}
   \item{ds}{dataframe or matrix with column names corresponding to variables in the formula}

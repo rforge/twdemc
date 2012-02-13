@@ -2,11 +2,8 @@
 \alias{transOrigPopt.default}
 \title{transOrigPopt default}
 \description{Transform vectors from normal to original scale.}
-\usage{
-\method{transOrigPopt}{default}(normpopt,
-poptDistr = eval(parse(text = "parDistr$trans[names(normpopt)]")),
-...)
-}
+\usage{\method{transOrigPopt}{default}(normpopt, poptDistr = eval(parse(text = "parDistr$trans[names(normpopt)]")), 
+    ...)}
 \arguments{
   \item{normpopt}{numerical vector/array with values at transformed, i.e. normal, scale}
   \item{poptDistr}{character vector/array of kind of transformation ("lognorm"/"logitnorm")
@@ -52,6 +49,7 @@ varDistr["D0"] <- "lognorm"
 varDistr["C0"] <- "logitnorm"
 parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb, useMedian=FALSE )
 parDistr
+poptDistr <- twConstrainPoptDistr(c("A0","C0"), parDistr)
 all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr$mu["A0"], parDistr$sigmaDiag["A0"] ) )
 
 # transform entire parameter vectors between scales
@@ -64,18 +62,18 @@ all.equal( parDistr$mu, pBack )
 
 # plot quantiles for given distributions
 pGrid <- seq(0.01,0.99,length.out=31)
-plot( qnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid)
-plot( qlnorm(pGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) ~ pGrid); abline(h=parmsBounds[["D0"]][1], col="grey")
+plot( qnorm(pGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) ~ pGrid)
+plot( qlnorm(pGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) ~ pGrid); abline(h=parmsBounds[["D0"]][1], col="grey")
 
 # plot densities for D0 parameter ranges
 dGrid <- seq(3, 80, length.out=100)
-denOrig1 <- dlnorm(dGrid, mean=parDistr$mu["D0"], sd=parDistr$sigmaDiag["D0"]) 
+denOrig1 <- dlnorm(dGrid, mean=parDistr["D0","mu"], sd=parDistr["D0","sigmaDiag"]) 
 plot( denOrig1 ~ dGrid, type="l"); abline(v=parmsBounds[["D0"]][1], col="grey")
 
 # now plot the same using a grid on normal scale, transforming them to original scale
-dNormGrid <- seq( parDistr$mu["D0"]-2*parDistr$sigmaDiag["D0"], parDistr$mu["D0"]+2*parDistr$sigmaDiag["D0"], length.out=100)
-dOrigGrid <- transOrigPopt(dNormGrid, parDistr$trans["D0"])
-all.equal( dNormGrid, transNormPopt(dOrigGrid, parDistr$trans["D0"]) )
-denOrig2 <- dDistr( dOrigGrid, parDistr$mu["D0"],parDistr$sigmaDiag["D0"],trans=parDistr$trans["D0"] )
+dNormGrid <- seq( parDistr["D0","mu"]-2*parDistr["D0","sigmaDiag"], parDistr["D0","mu"]+2*parDistr["D0","sigmaDiag"], length.out=100)
+dOrigGrid <- transOrigPopt(dNormGrid, parDistr["D0","trans"])
+all.equal( dNormGrid, transNormPopt(dOrigGrid, parDistr["D0","trans"]) )
+denOrig2 <- dDistr( dOrigGrid, parDistr["D0","mu"],parDistr["D0","sigmaDiag"],trans=parDistr["D0","trans"] )
 points( denOrig2 ~ dOrigGrid, col="blue" )
 }

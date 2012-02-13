@@ -2,13 +2,8 @@
 \alias{subset.twDEMCPops}
 \title{subset twDEMCPops}
 \description{Condenses an twDEMCPops result object to the cases boKeep.}
-\usage{
-\method{subset}{twDEMCPops}(x,
-boKeep,
-...,
-iPops = seq_along(x$pops),
-dropShortPops = FALSE)
-}
+\usage{\method{subset}{twDEMCPops}(x, boKeep, ..., iPops = seq_along(x$pops), 
+    dropShortPops = FALSE)}
 \arguments{
   \item{x}{twDEMCPops object}
   \item{boKeep}{either logical vector or numeric vector of indices of cases to keep}
@@ -26,13 +21,23 @@ an object of class \code{twDEMCPops} \itemize{
 \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
 \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
 \item{ thinning interval: \code{res$thin}  } 
+\item{ space replicate that the poplation belongs to: \code{\link{spacesPop.twDEMCPops}}  } 
+\item{ number of space replicates: \code{\link{getNSpaces.twDEMCPops}}  } 
+\item{ number of blocks: \code{\link{getNBlocks.twDEMCPops}}  } 
+\item{ parameter bounds: \code{\link{getParBoundsPop.twDEMCPops}}  } 
+\item{ parameter bounds: \code{\link{getCurrentTemp.twDEMCPops}}  } 
 }
 
 There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
-\item{ select chains or sub-populations: this method  } 
+\item{ transforming to array representation across populations of type \code{twDEMC}: code{\link{concatPops.twDEMCPops}}  }
+\item{ select sub-populations: \code{\link{subPops.twDEMCPops}}  } 
+\item{ select subset of cases: \code{\link{subset.twDEMCPops}} (this function) }
+\item{ make populations the same length: \code{\link{squeeze.twDEMCPops}}  }
+\item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.twDEMCPops}}  } 
 \item{ thin all the chains: \code{\link{thin.twDEMCPops}}  } 
-\item{ select subset of cases: \code{\link{subset.twDEMCPops}}  }
-\item{ combine several twDEMCPops results to a bigger set of populations \code{\link{combineTwDEMCPops}}  }
+\item{ combine several twDEMCPops results to a bigger set of populations: \code{\link{combineTwDEMCPops}}  }
+\item{ combine populations for subspaces to bigger populations: \code{\link{stackPopsInSpace.twDEMCPops}}  }
+\item{ combine MarkovChains of each population of a twDEMC to a single chain: \code{\link{stackChainsPop.twDEMCPops}}  }
 }
 
 There are several methods utilize the functions of the coda package. \itemize{
@@ -43,7 +48,7 @@ There are several methods utilize the functions of the coda package. \itemize{
 }
 
 components \code{thin,Y,nGenBurnin} are kept, but may be meaningless after subsetting.}
-\value{list of class twDEMCPops with subset of cases in parsm, logDen, pAccept, and temp}
+
 
 \author{Thomas Wutzler}
 

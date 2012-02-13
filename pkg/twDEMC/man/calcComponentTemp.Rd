@@ -2,14 +2,8 @@
 \alias{calcComponentTemp}
 \title{calcComponentTemp}
 \description{calculating the temperature of result components of logDensity}
-\usage{
-calcComponentTemp(temp,
-TFix,
-TProp,
-useMultiT = TRUE,
-posTFix = match(names(TFix),
-names(TProp)))
-}
+\usage{calcComponentTemp(temp, TFix, TProp, useMultiT = TRUE, posTFix = match(names(TFix), 
+    names(TProp)))}
 \arguments{
   \item{temp}{numeric scalar >= 1: global temperature}
   \item{TFix}{named vector: temperature for the components that does not change but is held fixed}

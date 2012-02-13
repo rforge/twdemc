@@ -353,7 +353,9 @@ setMethodS3("subsetF","twDEMCPops", function(
 		### keeps only cases within population which evaluate to TRUE for a given function.
 		x		##<< object of class twDEMCPops
 		,fKeep	##<< function(pop) returning an boolean matrix (nStep x nChain) of cases to keep
-		,... 
+			##<< ,alternatively returning an integer matrix (niStep x nChain) with the indices to keep
+			##<< ,alternatively returning an integer or boolean vector, that is applied to each chain
+		,...
 	){
 		#subsetF.twDEMCPops
 		##details<< The samples are redistributed across chains
@@ -364,18 +366,24 @@ setMethodS3("subsetF","twDEMCPops", function(
 					pop # no rows to apply fKeep to
 				}else{		
 					boKeep <- fKeep(pop)
-					# create a subset population for each chain
-					.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
-						.subsetTwDEMCPop(pop, boKeep[,iChain], iChain)
-					})
-					# combine all the populations to a common population of one chain
-					ss <- combineTwDEMCPops(.subSamplesChain)			
-					# split into pops, of equal length
-					ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose or gain a few samples due to not a multiple of nChains
-					# combine the pops of the chains into one populatin again
-					newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
-					newPop$splits <- pop$splits
-					newPop
+					if( is.matrix(boKeep) ){
+						# create a subset population for each chain
+						.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
+								.subsetTwDEMCPop(pop, boKeep[,iChain], iChain)
+							})
+						# combine all the populations to a common population of one chain
+						ss <- combineTwDEMCPops(.subSamplesChain, mergeMethod="random")			
+						# split into pops, of equal length
+						ssu <- .unstackPopsTwDEMCPops(ss$pop, nChainPop)	# here may loose or gain a few samples due to not a multiple of nChains
+						# combine the pops of the chains into one populatin again
+						newPop <- .concatChainsTwDEMCPops(ssu)	# combine chains into one array
+						newPop$splits <- pop$splits
+						newPop
+					}else{
+						# if only a vector all chains have the same length 
+						# not need of combine/unstack
+						.subsetTwDEMCPop(pop, boKeep)
+					}# if is.matix 
 				}# nrow(parms) != 0
 			})
 		### twDEMCPops with each population with some cases removed.
@@ -385,6 +393,7 @@ attr(subsetF.twDEMCPops,"ex") <- function(){
 	data(twdemcEx1)
 	range(concatPops(twdemcEx1)$parms[,"a",]) # spanning 9 to 11
 	#pop <- twdemcEx1$pops[[1]]
+	# note that the numer of samples across chains within one population is allowed to differ
 	fKeep <- function(pop){ tmp <- (pop$parms[,"a",] < 10) }
 	res <- subsetF(twdemcEx1, fKeep )
 	plot( as.mcmc.list(res), smooth=FALSE )
@@ -400,16 +409,11 @@ setMethodS3("subsetTail","twDEMCPops", function(
 		fKeep <- function(pop){
 			nR <- nrow(pop$parms)
 			nDrop <- round(nR*(1-pKeep))
-			ret <- matrix(TRUE, nrow=nR, ncol=dim(pop$parms)[3] )
-			if( 0 != nDrop ){
-				#ret will have at least on row because of subsetF
-				ret[1:nDrop, ] <- FALSE
-			}
-			ret
+			if( nDrop >= nR) return(FALSE) else return( (nDrop+1):nR )
 		}
 		subsetF(x,fKeep)
 	})
-attr(subsetF.twDEMCPops,"ex") <- function(){
+attr(subsetTail.twDEMCPops,"ex") <- function(){
 	data(twdemcEx1)
 	res <- subsetTail(twdemcEx1)
 	plot( as.mcmc.list(res), smooth=FALSE )
@@ -612,12 +616,14 @@ as.mcmc.list.twDEMCPops <- function(
 	pop	##<< stacked population
 	,nChain
 ){
-	#print(".unstackPopsTwDEMCPops:"); recover()
+	#print(".unstackPopsTwDEMCPops: start"); recover()
 	# if nCases in pop is not a multiple of nChain, then last rows are skipped.
 	nCases <- nrow(pop$parms) %/% nChain
 	pops <- vector("list", nChain)
+	#iChain <- nChain
 	for( iChain in (1:nChain) ){
-		cases <- if( nCases==0) FALSE else nCases*(iChain-1) + (1:nCases)
+		#cases <- if( nCases==0) FALSE else nCases*(iChain-1) + (1:nCases)
+		cases <- if( nCases==0) FALSE else (0:(nCases-1))*nChain+iChain	# all chains spread across initial chain
 		pops[[iChain]] <- pop	# keeping entries spaceInd, upperParBound, lowerParBounds, and splits		
 		pops[[iChain]]$parms <- pop$parms[cases,, ,drop=FALSE] 
 		pops[[iChain]]$logDen <- pop$logDen[cases,, ,drop=FALSE] 
@@ -881,6 +887,7 @@ combineTwDEMCPops <- function(
 	,mergeMethod="random"	##<< method of merging the pops, see \code{\link{twMergeSequences}}
 	,nInSlice=4		##<< sequence length from each population (only for mergeMethod \code{slice}
 ){
+	#print("start of combineTwDEMCPops"); recover()
 	nPop <- length(pops)
 	newPop <- pop1 <- pops[[1]]
 	if( nPop > 1){

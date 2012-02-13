@@ -2,10 +2,7 @@
 \alias{calcM0twDEMC}
 \title{calcM0twDEMC}
 \description{Calculate appropriate number of cases for initializing twDEMC.}
-\usage{
-calcM0twDEMC(nPar,
-nChainPop)
-}
+\usage{calcM0twDEMC(nPar, nChainPop)}
 \arguments{
   \item{nPar}{the number of parameters to estimate}
   \item{nChainPop}{the number of chains per population}

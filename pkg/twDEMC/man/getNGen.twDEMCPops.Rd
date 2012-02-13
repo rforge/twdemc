@@ -2,10 +2,7 @@
 \alias{getNGen.twDEMCPops}
 \title{getNGen twDEMCPops}
 \description{Extract the number of completed generations in res}
-\usage{
-\method{getNGen}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNGen}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

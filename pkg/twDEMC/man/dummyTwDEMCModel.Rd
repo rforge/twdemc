@@ -2,10 +2,7 @@
 \alias{dummyTwDEMCModel}
 \title{dummyTwDEMCModel}
 \description{example model function: y=a+bx}
-\usage{
-dummyTwDEMCModel(theta,
-xval)
-}
+\usage{dummyTwDEMCModel(theta, xval)}
 \arguments{
   \item{theta}{parameter vector with names a and b}
   \item{xval}{additional argument, passed by ... in logDenGaussian}

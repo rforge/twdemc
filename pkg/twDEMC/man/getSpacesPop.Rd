@@ -2,9 +2,7 @@
 \alias{getSpacesPop}
 \title{getSpacesPop}
 \description{Generic method behind \code{\link{getSpacesPop.twDEMCPops}}}
-\usage{
-getSpacesPop(...)
-}
+\usage{getSpacesPop(...)}
 \arguments{
   \item{\dots}{
 }

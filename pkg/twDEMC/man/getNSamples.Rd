@@ -2,9 +2,7 @@
 \alias{getNSamples}
 \title{getNSamples}
 \description{Generic method behind \code{\link{getNSamples.twDEMC}}}
-\usage{
-getNSamples(...)
-}
+\usage{getNSamples(...)}
 \arguments{
   \item{\dots}{
 }

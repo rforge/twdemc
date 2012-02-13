@@ -2,21 +2,15 @@
 \alias{initZtwDEMCNormal}
 \title{initZtwDEMCNormal}
 \description{Generate an initial population of states for \code{\link{twDEMCBlockInt}}.}
-\usage{
-initZtwDEMCNormal(thetaPrior,
-covarTheta,
-nChainPop = 4,
-nPop = 2,
-m0 = ceiling(calcM0twDEMC(length(thetaPrior),
-nChainPop)/(m0FiniteFac)),
-m0FiniteFac = 1,
-doIncludePrior = TRUE)
-}
+\usage{initZtwDEMCNormal(thetaPrior, covarTheta, nChainPop = 4, nPop = 2, 
+    m0 = ceiling(calcM0twDEMC(length(thetaPrior), nChainPop)/(m0FiniteFac)), 
+    m0FiniteFac = 1, doIncludePrior = TRUE)}
 \arguments{
-  \item{thetaPrior}{vector of parameters, point estimate}
-  \item{covarTheta}{the a prior covariance of parameters }
+  \item{thetaPrior}{numeric vector (nParm) of point estimate of the mean}
+  \item{covarTheta}{numeric matrix (nParm x nParm) the covariance of parameters.
+<< Alternatively, can be given as vector (nParm) of the diagonal, i.e. variances, if all dimensions are independent}
   \item{nChainPop}{number of chains to run}
-  \item{nPop}{number of independent populations among the chains }
+  \item{nPop}{number of independent populations among the chains}
   \item{m0}{number of initial states for each chain}
   \item{m0FiniteFac}{use a factor smaller than 1 to increase default m0 to account for only a portion of proposal results in finite densities}
   \item{doIncludePrior}{If TRUE, then set last sample of chain 1 to the prior estimate, 

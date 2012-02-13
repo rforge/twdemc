@@ -2,10 +2,7 @@
 \alias{updateBlockTwDEMC}
 \title{updateBlockTwDEMC}
 \description{Perfrom one DEMC step, function to be called in remote process.}
-\usage{
-updateBlockTwDEMC(xC,
-argsFUpdateBlock)
-}
+\usage{updateBlockTwDEMC(xC, argsFUpdateBlock)}
 \arguments{
   \item{xC}{numeric vector: current state that is used in density function of the block}
   \item{argsFUpdateBlock}{further argument provided for generating the update  \describe{
@@ -13,7 +10,6 @@ argsFUpdateBlock)
 \item{step}{proposed jump}
 \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
 \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
-\item{tempC}{global temperature}
 \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
 \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
 \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}

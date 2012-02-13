@@ -440,7 +440,6 @@ twQuantiles2Coef <- function(
 	
 	##value<< parameter distribution information, dataframe with columns
 	parDistr <- data.frame(
-		##describe<<
 		#varName = varNames		##<< character vector: type of distribtution (norm,lognorm,logitnorm)
 		trans = varDistr		##<< character vector: type of distribtution (norm,lognorm,logitnorm)
 		,mu = mu				##<< numeric vector: distribution parameter mu, i.e. expected values at normal scale

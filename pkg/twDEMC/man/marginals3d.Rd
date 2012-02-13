@@ -2,18 +2,8 @@
 \alias{marginals3d}
 \title{marginals3d}
 \description{integrate over all others but 3 columns}
-\usage{
-marginals3d(x,
-vars = c(2,
-3,
-4),
-intCol = 1,
-n = round(nrow(x)^(1/3)/12),
-dimnames = .colNames(x,
-vars),
-fAgg = mean,
-...)
-}
+\usage{marginals3d(x, vars = c(2, 3, 4), intCol = 1, n = round(nrow(x)^(1/3)/12), 
+    dimnames = .colNames(x, vars), fAgg = mean, ...)}
 \arguments{
   \item{x}{numeric matrix}
   \item{vars}{index (integer or string): column to define integration boxes}

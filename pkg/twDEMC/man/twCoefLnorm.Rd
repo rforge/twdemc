@@ -2,11 +2,7 @@
 \alias{twCoefLnorm}
 \title{twCoefLnorm}
 \description{Calculates mu and sigma of the lognormal distribution from median and upper quantile.}
-\usage{
-twCoefLnorm(median,
-quant,
-sigmaFac = qnorm(0.99))
-}
+\usage{twCoefLnorm(median, quant, sigmaFac = qnorm(0.99))}
 \arguments{
   \item{median}{geometric mu (median at the original exponential scale)}
   \item{quant}{value at the upper quantile, i.e. practical maximum}

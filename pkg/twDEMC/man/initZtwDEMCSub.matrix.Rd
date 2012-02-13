@@ -2,15 +2,8 @@
 \alias{initZtwDEMCSub.matrix}
 \title{initZtwDEMCSub matrix}
 \description{generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a matrix}
-\usage{
-\method{initZtwDEMCSub}{matrix}(x,
-...,
-vars = colnames(x),
-nChainPop = 4,
-nPop = 1,
-m0 = calcM0twDEMC(length(unique(vars)),
-nChainPop))
-}
+\usage{\method{initZtwDEMCSub}{matrix}(x, ..., vars = colnames(x), nChainPop = 4, 
+    nPop = 1, m0 = calcM0twDEMC(length(unique(vars)), nChainPop))}
 \arguments{
   \item{x}{the mcmc matrix to subsample (nCases x nParms)}
   \item{\dots}{
