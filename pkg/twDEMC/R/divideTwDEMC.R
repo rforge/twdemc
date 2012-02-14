@@ -271,7 +271,9 @@ divideTwDEMCSACont <- function(
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
-		nGenBatch=512				##<< number of generations for one call to twDEMCStep
+		#nGenBatch=max(64*controlTwDEMC$thin,m0*(1/ctrlSubspaces$minPSub)*4)		##<< number of generations for one call to twDEMCStep
+		nGenBatch=m0*(1/2/ctrlSubspaces$minPSub)*controlTwDEMC$thin*2		##<< number of generations for one call to twDEMCStep
+			##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
 		, pThinPast=0.5				##<< in each batch thin the past to given fraction before appending new results
 		, restartFilename=NULL		##<< filename to write intermediate results to
@@ -289,7 +291,7 @@ divideTwDEMCSACont <- function(
 		  maxSubPercChangeCrit=1.6	##<< if all subPercChange of all sub-populations are below this value in two last batches, may assume convergence and skip further batches
 		, maxRelTChangeCrit=0.025 	##<< if Temperature of the components changes less than specified value, the algorithm can finish
 		, maxLogDenDriftCrit=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
-		, gelmanCrit=1.4			##<< do not decrease Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
+		, gelmanCrit=1.4			##<< do not change Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 		, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces
 		, pCheckSkipPart=0.5		##<< when checking each population for convergence problems, skip this proportion (kind of burnin) 
 		, minNSampleCheck=32		##<< if a population has less samples across chains, skip the check because it is too uncertaint
@@ -311,11 +313,13 @@ divideTwDEMCSACont <- function(
 	argsF <- argsF[ !(names(argsF) %in% c("","nGen","mc","iPopsDoSplit")) ]  # remove positional arguments and arguments mc and nGen
 	#
 	#-- fill in default argument values
+	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
+	thin <- controlTwDEMC$thin
 	frm <- formals()
-	ctrlBatch <- if( hasArg(ctrlBatch) ) twMergeLists( eval(frm[["ctrlBatch"]]), ctrlBatch ) else ctrlBatch
-	ctrlT <- if( hasArg(ctrlT) ) twMergeLists( eval(frm[["ctrlT"]]), ctrlT ) else ctrlT
 	ctrlConvergence <- if( hasArg(ctrlConvergence) ) twMergeLists( eval(frm[["ctrlConvergence"]]), ctrlConvergence ) else ctrlConvergence
-	ctrlSubspaces <- if( hasArg(ctrlSubspaces) ) twMergeLists( eval(frm[["ctrlSubspaces"]]), ctrlSubspaces ) else ctrlSubspaces
+	ctrlSubspaces <- if( hasArg(ctrlSubspaces) ) twMergeLists( eval(frm[["ctrlSubspaces"]]), ctrlSubspaces ) else ctrlSubspaces 
+	ctrlBatch <- if( hasArg(ctrlBatch) ) twMergeLists( eval(frm[["ctrlBatch"]]), ctrlBatch ) else ctrlBatch	# after setting ctrlSubspaces because default uses minPSub
+	ctrlT <- if( hasArg(ctrlT) ) twMergeLists( eval(frm[["ctrlT"]]), ctrlT ) else ctrlT
 	if( debugSequential ){
 		if( 0==length(ctrlConvergence$dumpfileBasename) ) ctrlConvergence$dumpfileBasename <- "recover"
 		if( 0==length(ctrlSubspaces$argsFSplit$debugSequential) ) ctrlSubspaces$argsFSplit$debugSequential <- TRUE 
@@ -329,10 +333,6 @@ divideTwDEMCSACont <- function(
 	if( nResComp != length( ctrlT$TMax) ) stop("divideTwDEMCSACont: TMax must be of the same length as number of result Components.")
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )
 	#
-	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
-	thin <- controlTwDEMC$thin
-	if( ctrlBatch$nGenBatch%/%thin < 64) 
-		stop("divideTwDEMCSACont: not enough sample per batch. Increase nGenBatch to at least 64*thin or decreaste ctrolTwDEMC$thin")
 	ctrlBatch$nGenBatch = (ctrlBatch$nGenBatch%/%thin)*thin		# make nGen multiple of thin
 	#boPopsDidConverge <- FALSE
 	iGen = 0
@@ -353,6 +353,8 @@ divideTwDEMCSACont <- function(
 	m0=calcM0twDEMC(getNParms(mc),getNChainsPop(mc))		##<< minimum number of samples in step for extending runs
 	nRowsMin <- max( 2*(m0+1), ceiling(ctrlBatch$nSampleMin/nChainPop) )		# minimum number of rows in population, so that enough samples to split into 2 subs
 	nRowsMinMax <- max(nRowsMin, 1/ctrlSubspaces$minPSub*(m0+1))	# must be at least nRowsMin but does not need to be more than samples to split into 1/pSubMin subs
+	if( ctrlBatch$nGenBatch%/%thin < nRowsMin) 
+		stop("divideTwDEMCSACont: not enough sample per batch. Increase nGenBatch.")
 	#
 	#-- merge those spaces with less than m0 samples
 	pSubs0 <- .nSamplesPop/.nSamplesSpace[ as.character(.spacePop) ]
@@ -452,7 +454,8 @@ divideTwDEMCSACont <- function(
 		#resStep <- divideTwDEMCStep(mcApp, nGen=nGenStep, doRecordProposals=doRecordProposals, m0=m0, TEnd=TEnd, ... )
 		# initialized with mcNewMinN, because some pops of mcApp might have too few samples
 		resStep <- divideTwDEMCStep(mcNewMinN, qPop=pSubs, nGen=nGenStep, doRecordProposals=doRecordProposals, m0=m0, nRowsMin=nRowsMin, nRowsMinMax=nRowsMinMax, TEnd=TEnd, ... )
-		mcNew <- mcNew2 <- resStep$resTwDEMC			# mcNew: only the new samples 
+		mcNew <- mcNew2 <- resStep$resTwDEMC			# mcNew: only the new samples
+print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))		
 		mcNewMinN <- mcNew2 <- resStep$resTwDEMCMinN	# mcNew: last 2*m0 new rows 
 		pSubs <- pSubs2 <- pSubsNew <- resStep$pSubs	
 		subPercChange <- resStep$subPercChange
@@ -533,7 +536,9 @@ divideTwDEMCSACont <- function(
 	)
 	#str(resDiv$args)
 	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( res2Div, 1*1024), resDiv$args) )
-	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( resDiv, 4*1024), resDiv$args) )
+	resDiv <- res3Div <- do.call( divideTwDEMCSACont, c(list( resDiv, 4*1024), twMergeLists( resDiv$args, list( 
+		ctrlConvergence=list(gelmanCrit=1.2)
+	))))
 	#
 	resDiv$pSubs
 	resDiv$subPercChange
@@ -736,6 +741,7 @@ divideTwDEMCSACont <- function(
 	pSubs1 <- pSubs		# 
 	if( 0 != length(iPopsSplit) ){
 		mcApp0 <- mcApp; mcNewMinN0 <- mcNewMinN	# save intial populations
+		#mcApp <- mcApp0; mcNewMinN <- mcNewMinN0; pSubs1 <- pSubs
 		nPop <- length(mcNewMinN$pops)
 		nPopsSplit <- integer( nPop )	# number of subs that the population was splitted into
 		#iPop = iCheckSplit[ length(iCheckSplit) ]
@@ -743,6 +749,7 @@ divideTwDEMCSACont <- function(
 		newPSubs <- integer(0)
 		#iPop <- iPopsSplit[1]
 		#iPop <- iPopsSplit[2]
+		#iPop <- iPopsSplit[4]
 		for( iPop in iPopsSplit){
 			popMc <- mcNewMinN$pops[[iPop]]			# holds only the new samples
 			aSample <- stackChains( popMc$parms )	# base splitting only on samples obtained in last batch
@@ -755,8 +762,8 @@ divideTwDEMCSACont <- function(
 			# sapply( lapply( subs$spaces, "[[", "sample"), nrow )
 			# ceiling(sapply( subs$spaces, "[[", "pSub")*maxNSample)
 			#.getParBoundsPops(c(list(popMc),subs$spaces))
-			nPopsSplit[iPop] <- length(subs$spaces)
 			if( length(subs$spaces) > 1){
+				nPopsSplit[iPop] <- length(subs$spaces)	# mark splitted
 				# split the overall samples
 				newPSubs <- c( newPSubs, sapply(subs$spaces, "[[", "pSub") )
 				pop <- mcApp$pops[[iPop]]
@@ -784,7 +791,7 @@ divideTwDEMCSACont <- function(
 				#.getParBoundsPops(c(newPopsI, list(pop)))
 				#.getParBoundsPops(c(subs$spaces, list(pop))) #only internal splits
 			}
-		}
+		}	# for iSplit
 		# actually replace the old by the new pops
 		iPopsSplitted <- which(nPopsSplit != 0) 
 		if( 0 != length(iPopsSplitted)){
