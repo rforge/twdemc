@@ -1039,9 +1039,10 @@ sumLogDenComp <- function(
 		})
 		logDenSumArr1 <- abind(logDenSumL, rev.along=0)
 		dimnames(logDenSumArr1)[3] <- names(dInfos)
-		### numeric array (nStep x nDensities x nChain )
 		sumD <- aperm(logDenSumArr1, c(1,3,2))
 	}
+	##value<< numeric array (nStep x nDensities x nChain )
+	##seealso<< \code{\link{calcTemperatedLogDenChains.array}}
 }
 
 

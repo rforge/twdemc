@@ -29,9 +29,11 @@ setMethodS3("calcTemperatedLogDen","default", function(
 		ldiff/temp + maxLogDen
 	}else{
 		ldiff <- t(x)-maxLogDen 
-		### numeric matrix (nStep x nResComp), rescaled logDen
 		lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +maxLogDen)
 	}
+	##value<< numeric matrix (nStep x nResComp), rescaled logDen
+	##seealso<< \code{\link{sumLogDenComp}}
+
 })
 attr(calcTemperatedLogDen,"ex") <- function(){
 	data(twdemcEx1)
@@ -57,18 +59,32 @@ setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
 	calcTemperatedLogDen(logDen,temp,...)
 })
 
+setMethodS3("calcTemperatedLogDenChains","array", function(
+		### Rescale Log-Densities by given Temperatures within chains
+		x					##<< numeric matrix (nStep x nResComp x nChain), e.g. pop$resLogDen
+		,temp				##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
+		,...
+	){
+		#calcTemperatedLogDenChains.array
+		maxLogDen=apply(x,2,max)		# same minimum across all chains
+		#iChain <- 1
+		rL <- lapply( 1:dim(x)[3], function(iChain){ 
+				calcTemperatedLogDen.default( adrop(x[,,iChain ,drop=FALSE],3), temp, maxLogDen=maxLogDen )
+			})
+		logDenT <- abind(rL, rev.along=0)
+		##value<< numeric array (nStep x nComp x nChain): rescaled Log-Density for each chain.
+		##seealso<< \code{\link{sumLogDenComp}}
+	})
+
+
 setMethodS3("calcTemperatedLogDenChains","twDEMC", function(
 		### Rescale Log-Densities by given Temperatures within chains
-		x							##<< object of class twDEMC
+		x							##<< object with entry resLogDen, a numeric matrix (nStep x nResComp x nChain), e.g. twDEMC or pop in twDEMCPops
 		,temp=getCurrentTemp(x)		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
 		,...
 	){
-		maxLogDen=apply(x$resLogDen,2,max)		# same minimum across all chains
-		#iChain <- 1
-		rL <- lapply( 1:dim(x$resLogDen)[3], function(iChain){ 
-			calcTemperatedLogDen.default( adrop(x$resLogDen[,,iChain ,drop=FALSE],3), temp, maxLogDen=maxLogDen )
-		})
-		logDenT <- abind(rL, rev.along=0)
+		#calcTemperatedLogDenChains.twDEMC
+		calcTemperatedLogDenChains.array( x$resLogDen, temp )
 	})
 
 

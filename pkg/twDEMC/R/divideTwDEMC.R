@@ -11,6 +11,8 @@ divideTwDEMCStep <- function(
 	, nRowsMinMax			##<< number of rows in sub to include as maximum mcNewMinN 
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}, such as TEnd
 ){
+	if( length(aTwDEMC$dInfos) > 1)
+		stop("divideTwDEMCStep: subspace log-Density weighted aggregation only possible with one log-density function.")
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
 	nGenThin <- (nGen %/% thin)*thin		# when dealing with thinned samples use the number of generations of last recorded thinned generation
@@ -56,13 +58,21 @@ divideTwDEMCStep <- function(
 	## estimate proportional to the volume: the initial quantiles.
 	#iPop <- 1
 	#iPop <- 2
+	#print("divideTwDEMCStep: Before calculating mean logDen."); recover()
+	TCurr <- getCurrentTemp(resTwDEMC) 
 	popLogMeanDensSubs <- lapply( 1:nSpace, function(iiSpace){
 			iPops <- iPopsSpace[[iiSpace]]
-			#iSub <- 2
-			#iSub <- nSub
+			#iPop <- iPops[length(iPops)]
+			maxLogDenPops <- sapply(iPops,function(iPop){max( resTwDEMC$pops[[iPop]]$resLogDen, na.rm=TRUE )})
+			maxLogDen <- max(maxLogDenPops)
 			lw <- sapply(iPops,function(iPop){  # average the unnormalized densities
-					ss <- stackChains(resTwDEMC$pops[[iPop]]$logDen)
-					ssLogDen <- rowSums(ss)
+					#tempLogDen <- calcTemperatedLogDenChains( resTwDEMC$pops[[iPop]]$resLogDen, TCurr)
+					#logDen <- sumLogDenComp(tempLogDen, resTwDEMC$dInfos)
+					#assume only one density
+					tempLogDen <- calcTemperatedLogDen( stackChains(resTwDEMC$pops[[iPop]]$resLogDen), TCurr, maxLogDen=maxLogDen )
+					#ss <- rowSums(tempLogDen)
+					#ss <- stackChains(resTwDEMC$pops[[iPop]]$logDen)
+					ssLogDen <- rowSums(tempLogDen)
 					twLogSumExp(ssLogDen, shiftUpperBound=TRUE)-log(length(ssLogDen)) 
 				})	
 			lw - max(lw, na.rm=TRUE)			#divide by a constant on exp scale to avoid numerical errors
