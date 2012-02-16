@@ -491,7 +491,8 @@ setMethodS3("squeeze","twDEMCPops", function(
 	##details<< 
 	## all populations with 
 	for( iPop in seq_along(x$pops) ){
-		iKeep <- seq(1,nSamplesPop[iPop],length.out=length.out[iPop]) 
+		iKeep <- seq(1,nSamplesPop[iPop],length.out=length.out[iPop])
+		iKeep[length(iKeep)] <- nSamplesPop[iPop]	# take the last row
 		x$pops[[iPop]]$parms <- x$pops[[iPop]]$parms[iKeep,, ,drop=FALSE] 
 		x$pops[[iPop]]$logDen <- x$pops[[iPop]]$logDen[iKeep,, ,drop=FALSE] 
 		x$pops[[iPop]]$resLogDen <- x$pops[[iPop]]$resLogDen[iKeep,, ,drop=FALSE] 
