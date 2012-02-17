@@ -323,7 +323,7 @@ divideTwDEMCSACont <- function(
 	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
-	, debugSequential=debugSequential	##<< set to TRUE to avoid parallel execution, good for debugging
+	, debugSequential=FALSE			##<< set to TRUE to avoid parallel execution, good for debugging
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
@@ -382,12 +382,10 @@ divideTwDEMCSACont <- function(
 	}
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
-	if( 0 == length( ctrlT$TFix) ) ctrlT$TFix <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
-	if( nResComp != length( ctrlT$TFix) ) stop("divideTwDEMCSACont: TFix must be of the same length as number of result Components.")
+	ctrlT$TFix <- .completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
-	if( 0 == length( ctrlT$TMax) ) ctrlT$TMax <- structure( rep( NA_real_, nResComp), names=colnames(mc$pops[[1]]$resLogDen) )
-	if( nResComp != length( ctrlT$TMax) ) stop("divideTwDEMCSACont: TMax must be of the same length as number of result Components.")
-	iMaxTemp <- which( is.finite(ctrlT$TMax) )
+	ctrlT$TMax <- .completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
+	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
 	ctrlBatch$nGenBatch = (ctrlBatch$nGenBatch%/%thin)*thin		# make nGen multiple of thin
 	#boPopsDidConverge <- FALSE
