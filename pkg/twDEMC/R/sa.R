@@ -16,6 +16,7 @@ twDEMCSA <- function(
 	,nPop=2				##<< number of populations
 	,doIncludePrior=FALSE	##<< should the prior be part of initial population 
 		##<< Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1
+	,useSubspaceAdaptation=FALSE	##<< if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}	
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}
 		nGenBatch=m0*controlTwDEMC$thin*5	##<< number of generations for one call to twDEMCStep
@@ -28,6 +29,7 @@ twDEMCSA <- function(
 		##end<<
 	)
 	, ctrlConvergence = list()		##<< list or arguments controlling check for convergence, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}
+	, ctrlSubspaces = list()		##<< list of arguments controlling splitting and merging of subspaces, see \code{\link{divideTwDEMCSACont}}
 ){
 	##detail<< \describe{\item{Continuing a previous run}{
 	## When supplying the first of class twDEMCPops to twDEMCSA, the run is extended.
@@ -36,7 +38,14 @@ twDEMCSA <- function(
 	##}}
 	# in order to continue a previous result, supply it as a first argument and add entry args
 	if( inherits(thetaPrior,"twDEMCPops") && 0 != length(thetaPrior$args) ){
-		return( do.call(twDEMCSACont,c(list(thetaPrior, nGen=nGen),thetaPrior$args)) )
+		if( 0!=length(thetaPrior$useSubspaceAdaptation)) 
+			useSubspaceAdaptation <- thetaPrior$useSubspaceAdaptation 
+		tmp <- if( useSubspaceAdaptation )
+			do.call(divideTwDEMCSACont,c(list(thetaPrior, nGen=nGen),thetaPrior$args))
+		else	
+			do.call(twDEMCSACont,c(list(thetaPrior, nGen=nGen),thetaPrior$args))
+		tmp$useSubspaceAdaptation <- useSubspaceAdaptation
+		return(tmp)
 	}
 	#-- fill in default argument values
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
@@ -102,6 +111,8 @@ twDEMCSA <- function(
 			logDenDS <- logDenDS12
 		} # end generating nonfinite Zinit
 	# now the legnth of resComp is known (colnames(logDenDS)), so check the TFix and TMax parameters
+	if( 0==length(colnames(logDenDS)) ) 
+		colnames(logDenDS) <- paste("den",1:ncol(logDenDS), sep="")
 	nResComp <- ncol(logDenDS)
 	ctrlT$TFix <- .completeResCompVec( ctrlT$TFix, colnames(logDenDS) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
@@ -127,7 +138,7 @@ twDEMCSA <- function(
 	#iQuant <- which( maxRankLogDen == sort(maxRankLogDen)[ round(qTempInit*length(maxRankLogDen)) ]	)
 	iQuant <- sort(maxRankLogDen)[ round(ctrlT$qTempInit*length(maxRankLogDen)) ]
 	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
-	temp0 <- tempQ <- -2/nObs* qLogDenDS
+	temp0 <- pmax(1, tempQ <- -2/nObs* qLogDenDS)
 	#names(temp0) <- colnames(logDenDS)
 	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),Tmax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
@@ -165,11 +176,22 @@ twDEMCSA <- function(
 	print(paste("finished initial ",ctrlBatch$nGenBatch," out of ",nGen," gens.    ", date(), sep="") )
 	#
 	if( nGen <= ctrlBatch$nGenBatch ) return(res0)
-	twDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
-		, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential
-		, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence
-		, ...
-		)
+	nObsLocal <- nObs 
+	tmp <- if( useSubspaceAdaptation ){
+		divideTwDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
+			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential
+			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence, ctrlSubspaces=ctrlSubspaces
+			, ...
+		) 
+	}else {
+		twDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
+			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential
+			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence
+			, ...
+			)
+	}
+	tmp$useSubspaceAdaptation <- useSubspaceAdaptation	# remember this argument
+	tmp
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -205,7 +227,7 @@ attr(twDEMCSA,"ex") <- function(){
 		, debugSequential=TRUE
 		#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 	)
-	res <- twDEMCSACont( res0, nGen=2*256 )
+	res <- twDEMCSA( res0, nGen=4*256 )	# extend the former run
 
 	(TCurr <- getCurrentTemp(res))
 	mc0 <- concatPops(res)
@@ -272,7 +294,9 @@ twDEMCSACont <- function(
 	)
 ){
 	# save calling arguments to allow an continuing an interrupted run
-	args <- c( list( nObs=nObs,  m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, ctrlBatch=ctrlBatch, ctrlT=ctrlT,ctrlConvergence=ctrlConvergence), list(...) )
+	argsF <- as.list(sys.call())[-1]	# do not store the file name and the first two arguments
+	argsF <- argsF[ !(names(argsF) %in% c("","nGen","mc")) ]  # remove positional arguments and arguments mc and nGen
+	argsFEval <- lapply( argsF, eval.parent )		# remember values instead of language objects, which might not be there on a repeated call
 	#
 	#-- fill in default argument values
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
@@ -399,7 +423,7 @@ twDEMCSACont <- function(
 		TCurr <- getCurrentTemp(res)
 		print(paste("finished ",iBatch*ctrlBatch$nGenBatch," out of ",nGen," gens.   ", date(), sep="") )
 	}
-	res$args <- args
+	res$args <- argsFEval
 	res
 }
 
@@ -767,19 +791,33 @@ twDEMCSACont <- function(
 	
 	do.call( dInfos[[1]]$fLogDen, c(list(theta=thetaPrior), dInfos[[1]]$argsFLogDen) )
 	#str(den2CorEx)
-	nObs <- 1
+	.nObs <- 1
 	
 	#trace(twDEMCSA, recover)
-	argsTwDEMCSA <- list( thetaPrior=thetaPrior, covarTheta=covarTheta, dInfos=dInfos, nObs=nObs
-		#,TFix = c(1,NA,NA)
-		,nGen=256
-		#,TMax = c(NA,1.2,NA)	# do not increase sparce observations again too much
-		, nBatch=5 
+	argsTwDEMCSA <- list( thetaPrior=thetaPrior, covarTheta=covarTheta, dInfos=dInfos
+		, nObs=.nObs
+		,nGen=2*512
+		, ctrlBatch=list( nGenBatch=512 )
 		, debugSequential=TRUE
 		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed lenght
+		, useSubspaceAdaptation=TRUE
 	)
-	resPops <- res <- do.call( twDEMCSA, argsTwDEMCSA )
-	res2 <- do.call( twDEMCSACont, c(list(mc=res), res$args) )
+	# if nGen=256, too few samples per space - GelmanDiag does not converge
+	res <- res0 <- do.call( twDEMCSA, argsTwDEMCSA )
+	res <- res1 <- twDEMCSA( res0, nGen=8*512) 
+	res <- res2 <- twDEMCSA( res, nGen=8*512) 
+	
+	(TCurr <- getCurrentTemp(res))
+	#trace(concatPops.twDEMCPops, recover)	#untrace(concatPops.twDEMCPops)
+    getSpacesPop(res)
+	mc <- concatPops(stackPopsInSpace(res))
+	#windows(record=TRUE)
+	plot( as.mcmc.list(mc) , smooth=FALSE )
+	matplot( mc$temp, type="l" )
+	iSpace=1; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.8,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
+	iSpace=2; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.8,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
+	.checkProblemsSpectralPop(res$pops[[2]])
+	
 	# no mixing, stays at a given Temperature
 	# detects autocorrelation
 	TCurr <- getCurrentTemp(resPops)

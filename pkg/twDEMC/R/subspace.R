@@ -405,6 +405,7 @@ getSubSpaces <- function(
 	,maxNSample=128		##<< if given a value, then aSample is thinned before to given number of records (for efficiently calculating variances)
 	, verbose=FALSE		##<< if TRUE then prints on every terminating subspace
 ){
+	#print("getSubSpaces: start"); recover()
 	if( 0 != length(maxNSample) && is.finite(maxNSample) && (nrow(aSample) > maxNSample) ){
 		aSample <- aSample[ sample.int( nrow(aSample), maxNSample),]		
 	}
@@ -412,7 +413,8 @@ getSubSpaces <- function(
 	# because there may be long repetitions, taking all values less than a quantile might actually give very few cases instead of the quantile
 	#print("getSubSpaces: before minNSample"); recover()
 	#minNSample <- round(nrow(aSample)/pSub*minPSub)
-	minNSample <- ceiling(signif( nrow(aSample)/pSub*minPSub ,2))	# avoid taking 2 for 1.00001, take 2 for 1.1
+	#minNSample <- ceiling(signif( nrow(aSample)/pSub*minPSub ,2))	# avoid taking 2 for 1.00001, take 2 for 1.1
+	minNSample <- ceiling(signif( nrow(aSample)/pSub *minPSub ,2))	# avoid taking 2 for 1.00001, take 2 for 1.1
 	if( nrow(aSample) < minNSample ) stop("getSubSpaces: encountered aSample with too few rows"); 
 	##details<< 
 	# uses interval: lower < val <= upper
@@ -452,8 +454,10 @@ getSubSpaces <- function(
 		boLeft <- (aSample[,resSplit$varName] <= resSplit$split)
 		sampleLeft <- aSample[boLeft, ,drop=FALSE]
 		sampleRight <- aSample[!boLeft, ,drop=FALSE]
-		pSubLeft <- pSub*resSplit$perc
-		pSubRight <- pSub*(1-resSplit$perc)
+		#resSplit$perc may be incorrect for actual splitting, because of equal values
+		perc <- sum(boLeft)/length(boLeft)
+		pSubLeft <- pSub*perc
+		pSubRight <- pSub*(1-perc)
 		upperParBoundsLeft <- upperParBounds;  vectorElements(upperParBoundsLeft) <- resSplit$split
 		lowerParBoundsRight <- lowerParBounds; vectorElements(lowerParBoundsRight) <- resSplit$split
 		splitsNew <- c(splits, resSplit$split)
@@ -463,7 +467,9 @@ getSubSpaces <- function(
 		#spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=TRUE, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub)$spaces
 		#even when provided iVars for first level, need to check on subspaces for different variables agin
 		resLeft <- spacesLeft <- getSubSpaces(sampleLeft, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubLeft, minPSub=minPSub, splits=splitsNew, upperParBounds=upperParBoundsLeft, lowerParBounds=lowerParBounds, maxNSample=maxNSample)$spaces
+		if( any( sapply(lapply(resLeft,"[[", "sample"), nrow) < minNSample) ) stop("getSubSpaces: encountered left sample with too few rows");
 		resRight <- spacesRight <- getSubSpaces(sampleRight, nSplit=nSplit, isBreakEarly=isBreakEarlySubs, isBreakEarlySubs=isBreakEarlySubs, checkSlopesFirst=resSplit$resD, argsFSplit=argsFSplit, pSub=pSubRight, minPSub=minPSub, splits=splitsNew, upperParBounds=upperParBounds, lowerParBounds=lowerParBoundsRight, maxNSample=maxNSample)$spaces
+		if( any( sapply(lapply(resRight,"[[", "sample"), nrow) < minNSample) ) stop("getSubSpaces: encountered right sample with too few rows");
 		# add the splitting point as a new border to the results
 		# XXadd return iVars and jVarsVar
 		.tmp.f <- function(){

@@ -14,7 +14,7 @@ divideTwDEMCStep <- function(
 	, ...					##<< further arguments to \code{\link{twDEMCBlock}}, such as TEnd
 ){
 	if( length(aTwDEMC$dInfos) > 1)
-		stop("divideTwDEMCStep: subspace log-Density weighted aggregation only possible with one log-density function.")
+		warning("divideTwDEMCStep: subspace log-Density weighted aggregation only possible with one log-density function.")
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
 	thin <- controlTwDEMC$thin
 	nGenThin <- (nGen %/% thin)*thin		# when dealing with thinned samples use the number of generations of last recorded thinned generation
@@ -284,7 +284,7 @@ attr(divideTwDEMCStep,"ex") <- function(){
 	spec <- try( spectrum0.ar(ss)$spec, silent=TRUE )
 	if( !inherits(spec,"try-error") ){
 		varSample <- apply(ss, 2, var)
-		specVarRatioLumped <- spec/varSample
+		specVarRatioLumped <- ifelse( varSample==0, Inf, spec/varSample)
 	}else{
 		return( list(
 			hasProblems=TRUE
@@ -300,7 +300,7 @@ attr(divideTwDEMCStep,"ex") <- function(){
 		specVarRatio <- apply( pop$parms, 3, function(parmsChain){
 				spec <- spectrum0.ar(parmsChain)$spec
 				varSample <- apply(parmsChain, 2, var)
-				spec/varSample
+				ifelse( varSample==0, Inf, spec/varSample)
 			})
 		list(
 			hasProblems = TRUE
@@ -348,9 +348,9 @@ divideTwDEMCSACont <- function(
 		, maxRelTChangeCrit=0.025 	##<< if Temperature of the components changes less than specified value, the algorithm can finish
 		, maxLogDenDriftCrit=0.3	##<< if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity
 		, gelmanCrit=1.4			##<< do not change Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
-		, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces
+		, critSpecVarRatio=10		##<< if proprotion of spectral Density to Variation is higher than this value, split the space
 		, pCheckSkipPart=0.5		##<< when checking each population for convergence problems, skip this proportion (kind of burnin) 
-		, minNSampleCheck=32		##<< if a population has less samples across chains, skip the check because it is too uncertaint
+		, minNSampleCheck=16		##<< if a population has less samples within a chains, skip the check because it is too uncertain
 		, dumpfileBasename=NULL		##<< scalar string: filename to dump stack before stopping. May set to "recover"
 		##end<<
 	)
@@ -363,10 +363,11 @@ divideTwDEMCSACont <- function(
 	)
 ){
 	#-- store call arguments 
-	# trace(ftest, at=3, recover)
+	# trace(divideTwDEMCSACont, at=3, recover) #untrace(divideTwDEMCSACont)
 	# to come past this point as it does not work from within browser	argsF <- as.list(sys.call())[-1]
 	argsF <- as.list(sys.call())[-1]	# do not store the file name and the first two arguments
 	argsF <- argsF[ !(names(argsF) %in% c("","nGen","mc","iPopsDoSplit")) ]  # remove positional arguments and arguments mc and nGen
+	argsFEval <- lapply( argsF, eval.parent )		# remember values instead of language objects, which might not be there on a repeated call
 	#
 	#-- fill in default argument values
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
@@ -425,7 +426,8 @@ divideTwDEMCSACont <- function(
 	#mcApp <- mcApp		# concatenation of thinned past and new samples
 	#pSubs <- pSubs
 	subPercChange=rep(ctrlConvergence$maxSubPercChangeCrit, length(pSubs))	# at this value, convergence check is false but pops are splitted (< and >=)	specVarRatioPop <- .checkConvergenceProblems(mcApp, ctrlConvergence$critSpecVarRatio=Inf, pCheckSkipPart=ctrlConvergence$pCheckSkipPart)
-	specVarRatioPop <- .checkConvergenceProblems(mcApp, pSubs=pSubs, minPSub=Inf, nChainPop=nChainPop, pCheckSkipPart=ctrlConvergence$pCheckSkipPart)
+	specVarRatioPop <- .checkConvergenceProblems(mcApp, pSubs=pSubs, minPSub=0, nChainPop=nChainPop, pCheckSkipPart=ctrlConvergence$pCheckSkipPart)
+	#iPopsDoSplit <- union(iPopsDoSplit, which(specVarRatioPop > ctrlConvergence$critSpecVarRatio))
 	#
 	while( iGen < nGen ){
 		iBatch <- iGen/ctrlBatch$nGenBatch+1
@@ -469,7 +471,9 @@ divideTwDEMCSACont <- function(
 		#
 		#-- split pops that changed poportion a lot or pops with high spectralDensity ratio into smaller pops
 		# important > instead of >= maxSubPercChangeCrit; because of initialization: subPercChange is unknown
-		iPopsSplit <- union( iPopsDoSplit, which( (pSubs/2 > ctrlSubspaces$minPSub) & ((subPercChange > ctrlConvergence$maxSubPercChangeCrit) | (specVarRatioPop > 0.8*ctrlConvergence$critSpecVarRatio)) ))
+		iPopsSplit <- union( iPopsDoSplit, which( (pSubs/2 > ctrlSubspaces$minPSub) & 
+					((subPercChange > ctrlConvergence$maxSubPercChangeCrit) | (specVarRatioPop > 0.8*ctrlConvergence$critSpecVarRatio)) 
+		))
 		#.getParBoundsPops(mcApp$pops)
 		#.getParBoundsPops(mcAppRecent$pops)
 		#trace(.splitPops, recover )
@@ -551,7 +555,7 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 		,subPercChange = subPercChange		##<< numeric vector(nPop): relative change of proportions during last batch 
 		,relTChange =  relTChange			##<< numeric vector (nDen): calculated relative change of calculated new temperature for the next batch 
 		,specVarRatioPop = specVarRatioPop	##<< numeric vector (nPop): ratio of spectral density to variance
-		,args=argsF							##<< calling arguments to provide restart capability
+		,args=argsFEval						##<< calling arguments to provide restart capability
 		##end<<
 	)
 	mcApp[ names(resAdd) ] <- resAdd
@@ -707,11 +711,12 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 	, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces 
 	, dumpfileBasename="recover"##<< what to do on errors
 	, pCheckSkipPart=0.5		##<< when checking each population for convergence problems, skip this proportion (kind of burnin) 
-	, minNSampleCheck=32		##<< if a population has less samples across chains, skip the check because it is too uncertaint
+	, minNSampleCheck=16		##<< if a population has less samples within one chains, skip the check because it is too uncertain
 ){
-	nSamplePopChains <- nSamplePop*nChainPop  # number of samples across chains
+	#nSamplePopChains <- nSamplePop*nChainPop  # number of samples across chains
 	specVarRatioPop <- numeric(length(nSamplePop))	# initialized by 0
-	for( iPop in seq_along(mc$pops)) if( nSamplePopChains[iPop] >= minNSampleCheck){
+	#iPop=1
+	for( iPop in seq_along(mc$pops)) if( nSamplePop[iPop] >= minNSampleCheck){
 		# see .debug.divideTwDEMC below for commands to trace the problems
 		pop <- if( pCheckSkipPart != 0 ){
 			.subsetTwDEMCPop( mc$pops[[iPop]], iKeep= round((nSamplePop[iPop]-1)*pCheckSkipPart+1):nSamplePop[iPop] )			
@@ -740,7 +745,7 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 	# these functions then might be helpful
 	mcp <- concatPops(subPops(mc, iPops=iPop)) 
 	plot(as.mcmc.list(mcp), smooth=FALSE)
-	(tmp <- .checkProblemsSpectralPop(pop))
+	(tmp <- .checkProblemsSpectralPop(pop,critSpecVarRatio= critSpecVarRatio))
 	str3(mcp)
 	getNGen(mcp) 
 	mtrace(coda:::effectiveSize)
@@ -831,6 +836,7 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 				newPopsMcNew <- c( newPopsMcNew, newPopsMcNewI)
 				#sapply( lapply( subs$spaces, "[[", "sample"), nrow )
 				#sapply( lapply( newPopsI, "[[", "parms"), nrow )
+				#sapply( lapply( newPopsMcNewI, "[[", "parms"), nrow )
 				# check for consistency
 				tmp <- lapply( newPopsI, .checkPop, nGen=12 )
 				.nS <- nrow(pop$parms)
