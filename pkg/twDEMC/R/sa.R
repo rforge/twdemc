@@ -130,6 +130,7 @@ twDEMCSA <- function(
 	## The parameters at rank positions defined by qTempInit are selected.
 	## The minimum log-Density or each datastream is used obtain initial temperature as: T =  -2/nObs logDen
 	##}}
+	#print("twDEMCSA: before calculating initial temperature"); recover()
 	rankLogDenDS <- apply(-logDenDS, 2, rank)	# highest logDen first
 	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
 	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	
@@ -138,9 +139,9 @@ twDEMCSA <- function(
 	#iQuant <- which( maxRankLogDen == sort(maxRankLogDen)[ round(qTempInit*length(maxRankLogDen)) ]	)
 	iQuant <- sort(maxRankLogDen)[ round(ctrlT$qTempInit*length(maxRankLogDen)) ]
 	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
-	temp0 <- pmax(1, tempQ <- -2/nObs* qLogDenDS)
+	temp0 <- tempQ <-  pmax(1,-2/nObs* qLogDenDS)
 	#names(temp0) <- colnames(logDenDS)
-	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),Tmax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
+	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )

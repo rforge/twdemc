@@ -452,11 +452,13 @@ divideTwDEMCSACont <- function(
 		#-- check for convergence maybe break
 		#print("divideTwDEMCSACont: before checking converge"); recover()
 		logDenT <- calcTemperatedLogDen(mcSpaceEnd, TCurr)
+		#print("divideTwDEMCSACont: before checking convergence"); recover()
 		if( 
 			gelmanDiagRes <= ctrlConvergence$gelmanCrit &&		
 			(maxRelTChange <- max(relTChange)) <= ctrlConvergence$maxRelTChangeCrit && 
 			(maxspecVarRatioPop <- max(specVarRatioPop)) < ctrlConvergence$critSpecVarRatio &&		
-			(maxSubPerChange <- max(subPercChange)) < ctrlConvergence$maxSubPercChangeCrit &&	# important not <= because of initialization (do not break before first batch where subPercChange is unknown)
+			# important not <= because of initialization (do not break before first batch where subPercChange is unknown)
+			(maxSubPerChange <- max(subPercChange[pSubs >= ctrlSubspaces$minPSub])) < ctrlConvergence$maxSubPercChangeCrit &&	
 			!isLogDenDrift(logDenT, mcSpaceEnd$dInfos, maxDrift=ctrlConvergence$maxLogDenDriftCrit)  
 		){
 			cat(paste("divideTwDEMCSACont: Finishing early."
@@ -697,7 +699,8 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 		}else{
 			TEnd <-TCurr
 		}
-	### numeric vector (nResComp): target temperature for all result components 
+	### numeric vector (nResComp): target temperature for all result components
+	if( any(TEnd < 1)) stop("encountered TEnd < 1")
 	TEnd
 }
 
