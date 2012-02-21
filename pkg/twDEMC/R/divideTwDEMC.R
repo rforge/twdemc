@@ -324,6 +324,7 @@ divideTwDEMCSACont <- function(
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
 	, debugSequential=FALSE			##<< set to TRUE to avoid parallel execution, good for debugging
+	, restartFilename=NULL			##<< filename to write intermediate results to
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
@@ -332,7 +333,6 @@ divideTwDEMCSACont <- function(
 			##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
 		, pThinPast=0.5				##<< in each batch thin the past to given fraction before appending new results
-		, restartFilename=NULL		##<< filename to write intermediate results to
 		##end<<
 	)	
 	, ctrlT = list(					##<< list of arguments controlling Temperature decrease
@@ -383,9 +383,9 @@ divideTwDEMCSACont <- function(
 	}
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
-	ctrlT$TFix <- .completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
+	ctrlT$TFix <- completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
-	ctrlT$TMax <- .completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
+	ctrlT$TMax <- completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
 	ctrlBatch$nGenBatch = (ctrlBatch$nGenBatch%/%thin)*thin		# make nGen multiple of thin
@@ -434,7 +434,7 @@ divideTwDEMCSACont <- function(
 		#if( iBatch > 1){ print("divideTwDEMCSACont: later batch:"); recover() }
 		mcApp0 <- mcApp; mcNewMinN0 <- mcNewMinN; pSubs0 <- pSubs	# remember the initial populations
 		#mcApp<-mcApp0; mcNewMinN <- mcNewMinN0; pSubs<-pSubs0
-		.saveRestartFile( ctrlBatch$restartFilename, mcApp=mcApp, args=args )
+		.saveRestartFile( restartFilename, mcApp=mcApp, args=args )
 		#
 		#-- can Temperature be decreased?
 		TCurr <- getCurrentTemp(mcApp) 
@@ -447,7 +447,7 @@ divideTwDEMCSACont <- function(
 		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
 		TEnd <- .calcTEnd(gelmanDiagRes=gelmanDiagRes, resEnd=mcSpaceEnd, TCurr=TCurr, nObsDen=nObsDen, TFix=ctrlT$TFix, iFixTemp=iFixTemp, iNonFixTempDens=iNonFixTempDens, TMax=ctrlT$TMax, iMaxTemp=iMaxTemp
 		, gelmanCrit=ctrlConvergence$gelmanCrit, TDecProp=ctrlT$TDecProp)
-		relTChange <- abs(TEnd - TCurr)/TEnd
+	 	relTChange <- abs(TEnd - TCurr)/TEnd
 		#
 		#-- check for convergence maybe break
 		#print("divideTwDEMCSACont: before checking converge"); recover()

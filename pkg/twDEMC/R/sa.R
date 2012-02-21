@@ -11,6 +11,7 @@ twDEMCSA <- function(
 	, m0 = calcM0twDEMC(length(thetaPrior),nChainPop)	##<< minimum number of samples in step for extending runs
 	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, debugSequential=FALSE		##<< set to TRUE to avoid parallel execution, good for debugging
+	, restartFilename=NULL		##<< filename to write intermediate results to
 	#
 	,nChainPop=4		##<< number of chains within population
 	,nPop=2				##<< number of populations
@@ -18,10 +19,10 @@ twDEMCSA <- function(
 		##<< Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1
 	,useSubspaceAdaptation=FALSE	##<< if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}	
 	#
-	, ctrlBatch = list(				##<< list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}
+	, ctrlBatch = list(             ##<< list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}
 		nGenBatch=m0*controlTwDEMC$thin*5	##<< number of generations for one call to twDEMCStep
 	)	
-	, ctrlT = list(					##<< list of arguments controlling Temperature decrease, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}
+	, ctrlT = list(                 ##<< list of arguments controlling Temperature decrease, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}
 		TFix=numeric(0)				##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
 		, TMax=numeric(0)			##<< numeric vector (nResComp) specifying a maximum temperature for result components.
 		##describe<< 
@@ -114,9 +115,9 @@ twDEMCSA <- function(
 	if( 0==length(colnames(logDenDS)) ) 
 		colnames(logDenDS) <- paste("den",1:ncol(logDenDS), sep="")
 	nResComp <- ncol(logDenDS)
-	ctrlT$TFix <- .completeResCompVec( ctrlT$TFix, colnames(logDenDS) )
+	ctrlT$TFix <- completeResCompVec( ctrlT$TFix, colnames(logDenDS) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
-	ctrlT$TMax <- .completeResCompVec( ctrlT$TMax, colnames(logDenDS) )
+	ctrlT$TMax <- completeResCompVec( ctrlT$TMax, colnames(logDenDS) )
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
 	#if( 0 == length( TMaxInc) ) TMaxInc <- structure( rep( NA_real_, nResComp), names=colnames(logDenDS) )
@@ -135,15 +136,14 @@ twDEMCSA <- function(
 	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
 	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	
 	# quantile produces intermediate values, which may round wrong 
-	#iQuant <- which( maxRankLogDen == round(quantile(maxRankLogDen, qTempInit)) )
-	#iQuant <- which( maxRankLogDen == sort(maxRankLogDen)[ round(qTempInit*length(maxRankLogDen)) ]	)
-	iQuant <- sort(maxRankLogDen)[ round(ctrlT$qTempInit*length(maxRankLogDen)) ]
+	iQuant <- which( maxRankLogDen == round(ctrlT$qTempInit*length(maxRankLogDen)) )
 	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
 	temp0 <- tempQ <-  pmax(1,-2/nObs* qLogDenDS)
 	#names(temp0) <- colnames(logDenDS)
 	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
+if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
 	#
 	res0 <-  res <- twDEMCBlock( Zinit
@@ -180,13 +180,13 @@ twDEMCSA <- function(
 	nObsLocal <- nObs 
 	tmp <- if( useSubspaceAdaptation ){
 		divideTwDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
-			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential
+			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
 			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence, ctrlSubspaces=ctrlSubspaces
 			, ...
 		) 
 	}else {
 		twDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
-			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential
+			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
 			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence
 			, ...
 			)
@@ -267,6 +267,7 @@ twDEMCSACont <- function(
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
 	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
 	, debugSequential=FALSE		##<< set to TRUE to avoid parallel execution, good for debugging
+	, restartFilename=NULL		##<< filename to write intermediate results to
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
@@ -274,7 +275,6 @@ twDEMCSACont <- function(
 		##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		#, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
 		, pThinPast=0.5				##<< in each batch thin the past to given fraction before appending new results
-		, restartFilename=NULL		##<< filename to write intermediate results to
 		##end<<
 	)	
 	, ctrlT = list(					##<< list of arguments controlling Temperature decrease
@@ -313,9 +313,9 @@ twDEMCSACont <- function(
 	#
 	nResComp <- ncol(mc$pops[[1]]$resLogDen)
 	#print("saCont: before completing temperature settings."); recover()
-	ctrlT$TFix <- .completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
+	ctrlT$TFix <- completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
-	ctrlT$TMax <- .completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
+	ctrlT$TMax <- completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
 	res <- mc
@@ -348,12 +348,12 @@ twDEMCSACont <- function(
 	iBatch=1
 	nBatch <- ceiling( nGen/ctrlBatch$nGenBatch )
 	for(iBatch in (1:nBatch)){
-		if((0 < length(ctrlBatch$restartFilename)) && is.character(ctrlBatch$restartFilename) && ctrlBatch$restartFilename!=""){
+		if((0 < length(restartFilename)) && is.character(restartFilename) && restartFilename!=""){
 			resRestart.twDEMCSA = res #avoid variable confusion on load by giving a longer name
 			resRestart.twDEMCSA$iBatch <- iBatch	# also store updated calculation of burnin time
 			resRestart.twDEMCSA$args <- args		# also store updated calculation of burnin time
-			save(resRestart.twDEMCSA, file=ctrlBatch$restartFilename)
-			cat(paste("Saved resRestart.twDEMCSA to ",ctrlBatch$restartFilename,"\n",sep=""))
+			save(resRestart.twDEMCSA, file=restartFilename)
+			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
 		}
 		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
 		#----- check for high autocorrelation wihin spaces
@@ -819,23 +819,26 @@ twDEMCSACont <- function(
 	iSpace=2; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.8,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
 	.checkProblemsSpectralPop(res$pops[[2]])
 	
-	# no mixing, stays at a given Temperature
-	# detects autocorrelation
-	TCurr <- getCurrentTemp(resPops)
-	set.seed(0815)
-	resd <- divideTwDEMCSteps(resPops
-		, nGen=256*5
-		, nGenBatch=256
-		, dInfos=dInfos
-		, debugSequential=TRUE
-		, controlTwDEMC=list(DRgamma=0.1)
-		, minPSub=0.05
-		, TSpec=cbind( T0=TCurr, TEnd=TCurr )
-	)
-	str3(resd)
-	plot( as.mcmc.list(stackPopsInSpace(resd$resTwDEMC)), smooth=FALSE )
-	plot( as.mcmc.list(stackChainsPop(stackPopsInSpace(resd$resTwDEMC))), smooth=FALSE )
-	resd$subPercChange
+	res <- .tmp.byCluster <- function(){
+		runClusterParms <- list(
+			fSetupCluster = function(){library(twDEMC)}
+			,fRun = twDEMCSA
+			,argsFRun = within( argsTwDEMCSA,{
+					debugSequential<-FALSE 
+					nGen <- 512*2
+				}) 
+		)
+		# res <- do.call( twDEMCSA, runClusterParms$argsFRun )
+		save(runClusterParms, file=file.path("..","..","projects","asom","parms","saDen2dCor.RData"))
+		# from asom directory run: 
+		#   R CMD BATCH --vanilla '--args paramFile="parms/saDen2dCor.RData"' runCluster.R Rout/runCluster_0.rout 
+		# or from libra home directory run 
+		#   ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 'paramFile="parms/saDen2dCor.RData"'
+		# or
+		#    bsub -q SLES -n 4 ./bsubr_i.sh runCluster.R  nprocSingle=4 'paramFile="parms/saDen2dCor.RData"'
+		load("parms/res_saDen2dCor_0.RData")
+	}
+	
 }
 
 getBestModelIndex <- function(
@@ -914,7 +917,6 @@ twRunDEMCSA <- function(
 	argsDEMC[ names(.dots) ] <- .dots
 	#for( argName in names(.dots) ) argsDEMC[argName] <- .dots[argName]
 	if( 0 != length(restartFilename)) argsDEMC$restartFilename <- restartFilename
-	
 	# do the actual call
 	res <- do.call( twDEMCSA, argsDEMC )
 }
@@ -926,7 +928,7 @@ twRunDEMCSA <- function(
 	res1 <- do.call( twDEMCSACont, c( list(mc=resRestart.twDEMCSA), resRestart.twDEMCSA$args ))
 }
 
-.completeResCompVec <- function(
+completeResCompVec <- function(
 	### given a vector with names, make a vector corresponding to resComp with components, not yet given filled by NA
 	x				##<< named vector to be completed
 	,resCompNames	##<< names of the result components
@@ -937,7 +939,7 @@ twRunDEMCSA <- function(
 		xAll <- structure( rep( NA_real_, nResComp), names=resCompNames )
 	else if( nResComp != length( x) ){
 		iFix <- sapply( names(x), match, resCompNames )
-		if( any(is.na(iFix))) stop(".completeResCompVec: x must be of the same length as resCompNames or all its names must correspond names of resCompNames.")
+		if( any(is.na(iFix))) stop("completeResCompVec: x must be of the same length as resCompNames or all its names must correspond names of resCompNames.")
 		xAll <- structure( rep( NA_real_, nResComp), names=resCompNames )
 		xAll[iFix] <- x
 	}
