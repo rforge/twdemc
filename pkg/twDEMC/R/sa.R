@@ -143,7 +143,7 @@ twDEMCSA <- function(
 	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
-if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
+	#if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
 	#
 	res0 <-  res <- twDEMCBlock( Zinit
@@ -351,7 +351,7 @@ twDEMCSACont <- function(
 		if((0 < length(restartFilename)) && is.character(restartFilename) && restartFilename!=""){
 			resRestart.twDEMCSA = res #avoid variable confusion on load by giving a longer name
 			resRestart.twDEMCSA$iBatch <- iBatch	# also store updated calculation of burnin time
-			resRestart.twDEMCSA$args <- args		# also store updated calculation of burnin time
+			resRestart.twDEMCSA$args <- argsFEval	# also store updated calculation of burnin time
 			save(resRestart.twDEMCSA, file=restartFilename)
 			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
 		}
@@ -825,18 +825,35 @@ twDEMCSACont <- function(
 			,fRun = twDEMCSA
 			,argsFRun = within( argsTwDEMCSA,{
 					debugSequential<-FALSE 
-					nGen <- 512*2
+					#nGen <- 512*2
+					nGen <- 512*12
+					ctrlConvergence <- list( dumpfileBasename="parms/convergenceProblems" )
 				}) 
 		)
 		# res <- do.call( twDEMCSA, runClusterParms$argsFRun )
-		save(runClusterParms, file=file.path("..","..","projects","asom","parms","saDen2dCor.RData"))
+		asomRelPath="../../projects/asom"
+		save(runClusterParms, file=file.path(asomRelPath,"parms","saDen2dCor.RData"))
 		# from asom directory run: 
 		#   R CMD BATCH --vanilla '--args paramFile="parms/saDen2dCor.RData"' runCluster.R Rout/runCluster_0.rout 
 		# or from libra home directory run 
 		#   ./bsubr_i.sh runCluster.R iproc=0 nprocSinge=1 'paramFile="parms/saDen2dCor.RData"'
 		# or
-		#    bsub -q SLES -n 4 ./bsubr_i.sh runCluster.R  nprocSingle=4 'paramFile="parms/saDen2dCor.RData"'
-		load("parms/res_saDen2dCor_0.RData")
+		#    bsub -q SLES -n 8 ./bsubr_i.sh runCluster.R  nprocSingle=8 'paramFile="parms/saDen2dCor.RData"'
+		load(file.path(asomRelPath,"parms/res_saDen2dCor_0.RData"))
+		res <- runClusterRes$res
+		#
+		res <- loadAssign(file.path(asomRelPath,"parms/restart_saDen2dCor_0.RData"))
+		runClusterParms$argsFRun$thetaPrior=res
+		save(runClusterParms, file=file.path(asomRelPath,"parms","saDen2dCor.RData"))
+		#
+		remoteDumpfileBasename = "parms/convergenceProblems"	# search near line 496
+		tmp <- loadAssign(file.path(asomRelPath,paste(remoteDumpfileBasename,".rda",sep="")))
+		debugger(tmp)
+		#	
+	 	remoteDumpfileBasename = "parms/res_saDen2dCor_0"	# search near line 496
+	 	load(file.path(asomRelPath,paste(remoteDumpfileBasename,".rda",sep="")))
+	 	debugger(get(remoteDumpfileBasename))
+		
 	}
 	
 }

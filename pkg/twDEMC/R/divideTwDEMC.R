@@ -350,7 +350,7 @@ divideTwDEMCSACont <- function(
 		, gelmanCrit=1.4			##<< do not change Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 		, critSpecVarRatio=10		##<< if proprotion of spectral Density to Variation is higher than this value, split the space
 		, pCheckSkipPart=0.5		##<< when checking each population for convergence problems, skip this proportion (kind of burnin) 
-		, minNSampleCheck=16		##<< if a population has less samples within a chains, skip the check because it is too uncertain
+		, minNSampleCheck=25		##<< if a population has less samples within a chains, skip the check because it is too uncertain
 		, dumpfileBasename=NULL		##<< scalar string: filename to dump stack before stopping. May set to "recover"
 		##end<<
 	)
@@ -434,7 +434,7 @@ divideTwDEMCSACont <- function(
 		#if( iBatch > 1){ print("divideTwDEMCSACont: later batch:"); recover() }
 		mcApp0 <- mcApp; mcNewMinN0 <- mcNewMinN; pSubs0 <- pSubs	# remember the initial populations
 		#mcApp<-mcApp0; mcNewMinN <- mcNewMinN0; pSubs<-pSubs0
-		.saveRestartFile( restartFilename, mcApp=mcApp, args=args )
+		.saveRestartFile( restartFilename, mcApp=mcApp, args=argsFEval )
 		#
 		#-- can Temperature be decreased?
 		TCurr <- getCurrentTemp(mcApp) 
@@ -728,15 +728,15 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 		}
 		#mtrace(.checkProblemsSpectralPop)
 		resFCheck <- .checkProblemsSpectralPop( pop, critSpecVarRatio= critSpecVarRatio)
-		if( resFCheck$hasProblems && (pSubs[iPop]/2 < minPSub) ){
-			if( !is.null(dumpfileBasename) )
-				if( dumpfileBasename == "recover"){
-					# see .debug.divideTwDEMC below for debuggin commands
-					cat("checkConvergenceProblems: encountered convergence problems of an already small population. calling recover() \n ")
-					recover()
-				}  else dump.frames(dumpfileBasename,TRUE)
-			stop(paste("checkConvergenceProblems: checking function encountered problems. Dump in ",dumpfileBasename,sep=""))
-		}
+#		if( resFCheck$hasProblems && (pSubs[iPop]/2 < minPSub) ){
+#			if( !is.null(dumpfileBasename) )
+#				if( dumpfileBasename == "recover"){
+#					# see .debug.divideTwDEMC below for debuggin commands
+#					cat("checkConvergenceProblems: encountered convergence problems of an already small population. calling recover() \n ")
+#					recover()
+#				}  else dump.frames(dumpfileBasename,TRUE)
+#			stop(paste("checkConvergenceProblems: checking function encountered problems. Dump in ",dumpfileBasename,".rda",sep=""))
+#		}
 		specVarRatioPop[iPop] <- max(resFCheck$specVarRatioLumped)
 	}
 	### numeric vector (nPop): maximum ratios of spectral density to variance across parameters for each population
