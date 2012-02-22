@@ -669,36 +669,38 @@ print(paste("nGen(mcNew)=",paste(getNGen(mcNew),collapse=",")))
 	, TDecProp=0.9				##<< proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams)
 	, gelmanCrit=1.4			##<< do not decrease Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 ){
-	TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= gelmanCrit ){
-			logDenT <- calcTemperatedLogDen(resEnd, TCurr)
-			#mtrace(getBestModelIndex)
-			iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
-			maxLogDenT <- logDenT[iBest, ]
-			#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
-			#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
-			#sum logDenT within density
-			#logDenTDen <- lapply( iDens, function(iDen){
-			#			rcpos <- iCompsNonFixDen[[iDen]]
-			#			if( length(rcpos)==1) logDenT[,rcpos ,drop=TRUE] else						
-			#				rowSums( logDenT[ ,rcpos ,drop=FALSE])
-			#		})
-			iDens <- seq_along(iNonFixTempDens)
-			maxLogDenTDen <- sapply(iDens, function(iDen){ 
-					sum(maxLogDenT[iNonFixTempDens[[iDen]] ])
-				})
-			#TEnd0 <- pmax(1, -2*maxLogDenT/nObs )
-			TEndDen <- pmax(1, -2*maxLogDenTDen/nObsDen )
-			TEnd <- TCurr
-			for( iDen in iDens){
-				TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
-			} 
-			TEnd[iFixTemp] <- TFix[iFixTemp]
-			TEnd[iMaxTemp] <- pmin(TEnd[iMaxTemp], TMax[iMaxTemp])	# do not increase T above TMax
-			# slower TDecrease to avoid Temperatues that are not supported by other datastreams
-			TEnd <- TCurr - TDecProp*(TCurr-TEnd)
-		}else{
-			TEnd <-TCurr
-		}
+	#print(".calcTEnd: start"); recover()
+	#
+	logDenT <- calcTemperatedLogDen(resEnd, TCurr)
+	#mtrace(getBestModelIndex)
+	iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
+	maxLogDenT <- logDenT[iBest, ]
+	#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
+	#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
+	#sum logDenT within density
+	#logDenTDen <- lapply( iDens, function(iDen){
+	#			rcpos <- iCompsNonFixDen[[iDen]]
+	#			if( length(rcpos)==1) logDenT[,rcpos ,drop=TRUE] else						
+	#				rowSums( logDenT[ ,rcpos ,drop=FALSE])
+	#		})
+	iDens <- seq_along(iNonFixTempDens)
+	maxLogDenTDen <- sapply(iDens, function(iDen){ 
+			sum(maxLogDenT[iNonFixTempDens[[iDen]] ])
+		})
+	#TEnd0 <- pmax(1, -2*maxLogDenT/nObs )
+	TEndDen <- pmax(1, -2*maxLogDenTDen/nObsDen )
+	TEnd <- TCurr
+	for( iDen in iDens){
+		TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
+	} 
+	TEnd[iFixTemp] <- TFix[iFixTemp]
+	TEnd[iMaxTemp] <- pmin(TEnd[iMaxTemp], TMax[iMaxTemp])	# do not increase T above TMax
+	# slower TDecrease to avoid Temperatues that are not supported by other datastreams
+	TEnd <- ifelse( TEnd < TCurr, TCurr - TDecProp*(TCurr-TEnd), TEnd )
+	#
+	if(  inherits(gelmanDiagRes,"try-error") || gelmanDiagRes > gelmanCrit ){		
+		TEnd <-pmax(TEnd, TCurr)
+	}
 	### numeric vector (nResComp): target temperature for all result components
 	if( any(TEnd < 1)) stop("encountered TEnd < 1")
 	TEnd

@@ -62,6 +62,7 @@ twDEMCBlockInt <- function(
 	, fDiscrProp=NULL				##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
 	, argsFDiscrProp=list()			##<< further arguments to fDiscrProp
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
+	, progressOutput="."			##<< output after each thinning interval
 ){
 	##details<<  
 	## This is the central method for applying a Differential Evolution Markov Chain given a function of 
@@ -423,6 +424,7 @@ twDEMCBlockInt <- function(
 	
 	#--- main cycle of updates (each ctrl$thin generations) 
 	for( iThin0 in (0:(maxNThinned-1)) ){
+		if( length(progressOutput)!=0 && nchar(progressOutput)!=0 ){ cat(progressOutput) }
 		iGen = iThin0*ctrl$thin+(1:ctrl$thin)	# the generations within this thinning step
 		mZPops <- M0Pops + iThin0
 		iPopsOut <- which(nThinnedGenPops == iThin0)	# those pops drop out
@@ -525,6 +527,7 @@ twDEMCBlockInt <- function(
 			YPops[[iPop]][iYSteps0[iPop]+(1:ctrl$thin),,] <- resUpdate$Y[,,iiChains]
 		}
 	}# for iThin0
+	if( length(progressOutput)!=0 && nchar(progressOutput)!=0 ){ cat("\n") }
 	# recored the last parUpdateDen for dropouts
 	iChainsOut <- do.call( c, lapply( isPops, function(iPop){ chainsPop[[iPop]] }) )
 	parUpdateDenLast[,,iChainsOut] <- chainState$parUpdateDen

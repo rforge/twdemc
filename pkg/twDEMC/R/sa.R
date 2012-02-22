@@ -17,11 +17,13 @@ twDEMCSA <- function(
 	,nPop=2				##<< number of populations
 	,doIncludePrior=FALSE	##<< should the prior be part of initial population 
 		##<< Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1
-	,useSubspaceAdaptation=FALSE	##<< if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}	
 	#
 	, ctrlBatch = list(             ##<< list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}
-		nGenBatch=m0*controlTwDEMC$thin*5	##<< number of generations for one call to twDEMCStep
-	)	
+		##describe<< 
+		nGen0=m0*controlTwDEMC$thin*3	##<< number of generations for the intial run
+		,useSubspaceAdaptation=FALSE	##<< if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}	
+		##end<<
+		)	
 	, ctrlT = list(                 ##<< list of arguments controlling Temperature decrease, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}
 		TFix=numeric(0)				##<< numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
 		, TMax=numeric(0)			##<< numeric vector (nResComp) specifying a maximum temperature for result components.
@@ -39,14 +41,15 @@ twDEMCSA <- function(
 	##}}
 	# in order to continue a previous result, supply it as a first argument and add entry args
 	if( inherits(thetaPrior,"twDEMCPops") && 0 != length(thetaPrior$args) ){
-		if( 0!=length(thetaPrior$useSubspaceAdaptation)) 
-			useSubspaceAdaptation <- thetaPrior$useSubspaceAdaptation 
-		tmp <- if( useSubspaceAdaptation )
+		ret <- if( 0!=length(thetaPrior$args$ctrlBatch) &&
+				   0!=length(thetaPrior$args$ctrlBatch$useSubspaceAdaptation) &&	
+				   thetaPrior$args$ctrlBatch$useSubspaceAdaptation 
+			)
 			do.call(divideTwDEMCSACont,c(list(thetaPrior, nGen=nGen),thetaPrior$args))
 		else	
 			do.call(twDEMCSACont,c(list(thetaPrior, nGen=nGen),thetaPrior$args))
-		tmp$useSubspaceAdaptation <- useSubspaceAdaptation
-		return(tmp)
+		#ret$args$ctrlBatch$useSubspaceAdaptation <- ctrlBatch$useSubspaceAdaptation
+		return(ret)
 	}
 	#-- fill in default argument values
 	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
@@ -145,9 +148,10 @@ twDEMCSA <- function(
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
 	#if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
 	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
+	#if( sum(temp0 > 1) == 0){ dump.frames("parms/debugDump",TRUE); stop("twDEMCSA: no temperature > 0") }	
 	#
-	res0 <-  res <- twDEMCBlock( Zinit
-		, nGen=ctrlBatch$nGenBatch
+	ret <- res0 <-  res <- twDEMCBlock( Zinit
+		, nGen=min(nGen, ctrlBatch$nGen0)
 		#,nGen=16, debugSequential=TRUE
 		, dInfos=dInfos
 		, TSpec=cbind( T0=temp0, TEnd=temp0 )
@@ -158,11 +162,12 @@ twDEMCSA <- function(
 		,...
 	)
 	.tmp.f <- function(){
+		windows(record=TRUE)
 		mc0 <- concatPops(res)
+		plot( as.mcmc.list(mc0), smooth=FALSE )
 		matplot( mc0$temp, type="l" )
 		matplot( mc0$pAccept[,1,], type="l" )
 		matplot( mc0$pAccept[,2,], type="l" )
-		plot( as.mcmc.list(mc0), smooth=FALSE )
 		#trace(calcTemperatedLogDen.default, recover)
 		tmp <- calcTemperatedLogDen(adrop(res$pops[[1]]$resLogDen[,,1 ,drop=FALSE],3), getCurrentTemp(res) )
 		matplot( tmp, type="l" )
@@ -174,25 +179,26 @@ twDEMCSA <- function(
 		bo <- 1:10; iPop=1
 		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparce",iPop],c(10,100))] )
 	}
-	print(paste("finished initial ",ctrlBatch$nGenBatch," out of ",nGen," gens.    ", date(), sep="") )
+	print(paste("finished initial ",ctrlBatch$nGen0," out of ",nGen," gens.    ", date(), sep="") )
 	#
-	if( nGen <= ctrlBatch$nGenBatch ) return(res0)
-	nObsLocal <- nObs 
-	tmp <- if( useSubspaceAdaptation ){
-		divideTwDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
-			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
-			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence, ctrlSubspaces=ctrlSubspaces
-			, ...
-		) 
-	}else {
-		twDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGenBatch, nObs=nObs
-			, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
-			, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence
-			, ...
-			)
-	}
-	tmp$useSubspaceAdaptation <- useSubspaceAdaptation	# remember this argument
-	tmp
+	if( nGen > ctrlBatch$nGen0 ){
+		#nObsLocal <- nObs 
+		ret <- if( ctrlBatch$useSubspaceAdaptation ){
+			divideTwDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGen0, nObs=nObs
+				, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
+				, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence, ctrlSubspaces=ctrlSubspaces
+				, ...
+			) 
+		}else {
+			twDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGen0, nObs=nObs
+				, m0=m0, controlTwDEMC=controlTwDEMC, debugSequential=debugSequential, restartFilename=restartFilename
+				, ctrlBatch=ctrlBatch, ctrlT=ctrlT, ctrlConvergence=ctrlConvergence
+				, ...
+				)
+		}
+	}	
+	#ret$args$ctrlBatch$useSubspaceAdaptation <- ctrlBatch$useSubspaceAdaptation	# remember this argument
+	ret
 }
 attr(twDEMCSA,"ex") <- function(){
 	data(twTwoDenEx1)
@@ -798,10 +804,12 @@ twDEMCSACont <- function(
 	argsTwDEMCSA <- list( thetaPrior=thetaPrior, covarTheta=covarTheta, dInfos=dInfos
 		, nObs=.nObs
 		,nGen=2*512
-		, ctrlBatch=list( nGenBatch=512 )
+		, ctrlBatch=list( 
+			nGenBatch=512 
+			, useSubspaceAdaptation=TRUE
+		)
 		, debugSequential=TRUE
 		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed lenght
-		, useSubspaceAdaptation=TRUE
 	)
 	# if nGen=256, too few samples per space - GelmanDiag does not converge
 	res <- res0 <- do.call( twDEMCSA, argsTwDEMCSA )

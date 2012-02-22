@@ -760,6 +760,8 @@ as.mcmc.list.twDEMCPops <- function(
 	}else{
 		list(popSource)
 	}
+	if( all(is.na(pSubsSource)) ) # splitting a very small pop, may loose all samples, rendergin pSubsSource NA (division by zero)
+		pSubsSource[] <- 1/length(pSubsSource)		
 	#nrow(popSource$parms)
 	#sapply( lapply(subsPopSource,"[[","parms" ), nrow )
 	#
@@ -772,18 +774,20 @@ as.mcmc.list.twDEMCPops <- function(
 		# c(popDest$lowerParBounds, popDest$upperParBounds )
 		# c(subPopSource$lowerParBounds, subPopSource$upperParBounds )  # a combination of uB and lB should match
 		# mtrace(combineTwDEMCPops)
-		resCombine <- combineTwDEMCPops( list(popDest, subPopSource), mergeMethod=mergeMethod ) 
-		newPops[[jPop]] <-	if( resCombine$popCases[ (.nC <- length(resCombine$popCases))] == 2){
-			# make sure that last entry is from popDest (first pop in combineTwDEMCPops) to continue with current state
-			# so switch the last entry from popDest with last entry of the combined pop
-			iSwitch <- .nC+1- match( 1, rev(resCombine$popCases) ) # position of the last 1
-			.tmp1 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[-iSwitch] )
-			.tmp2 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[iSwitch] )
-			.tmp <- combineTwDEMCPops( list(.tmp1, .tmp2), mergeMethod="stack" )$pop  			
-		}else .tmp <- resCombine$pop
-if( nrow(newPops[[jPop]]$parms) != (nrow(popDest$parms) + nrow(subPopSource$parms))) stop(".mergePopTwDEMC: encountered mismatch in sample numbers.")	
-		#.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
-		# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
+		if( nrow(subPopSource$parms) != 0){
+			resCombine <-  combineTwDEMCPops( list(popDest, subPopSource), mergeMethod=mergeMethod )
+			newPops[[jPop]] <-	if( resCombine$popCases[ (.nC <- length(resCombine$popCases))] == 2){
+				# make sure that last entry is from popDest (first pop in combineTwDEMCPops) to continue with current state
+				# so switch the last entry from popDest with last entry of the combined pop
+				iSwitch <- .nC+1- match( 1, rev(resCombine$popCases) ) # position of the last 1
+				.tmp1 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[-iSwitch] )
+				.tmp2 <- .subsetTwDEMCPop( resCombine$pop, iKeep=seq_along(resCombine$popCases)[iSwitch] )
+				.tmp <- combineTwDEMCPops( list(.tmp1, .tmp2), mergeMethod="stack" )$pop  			
+			}else .tmp <- resCombine$pop
+	if( nrow(newPops[[jPop]]$parms) != (nrow(popDest$parms) + nrow(subPopSource$parms))) stop(".mergePopTwDEMC: encountered mismatch in sample numbers.")	
+			#.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
+			# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
+		}
 		newPPops[jPop] <- newPPops[jPop] + newPPops[iPop]*pSubsSource[ij]   # update the probability of the space
 		#c( nrow(pop$parms), nrow(popM$parms), nrow(tmp$parms) )
 		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
@@ -822,9 +826,9 @@ if( nrow(newPops[[jPop]]$parms) != (nrow(popDest$parms) + nrow(subPopSource$parm
 		stop(".mergePopTwDEMC: probabilities of space with merged does not sum to 1")
 	#
 	##value<< list with entries
-	resMerge <- list(	
+	resMerge <- list(
 		##describe<<
-		pops = c(pops[iOtherSpace], newPops) 		##<< list (nPops): the pops with one population less, that has been merged to the other pops
+		pops = c(pops[iOtherSpace], newPops)        ##<< list (nPops): the pops with one population less, that has been merged to the other pops
 		,pPops = c( pPops[iOtherSpace], newPPops )	##<< numeric vector (nPops): the updated proportions of the populations within space
 		#,nSub = length(subsPopSource)				##<< the number of subpopulation thats the population was splitted into
 		,iPopsBefore = c(iOtherSpace, iSameSpace) 	##<< integer vector (nPops): index of the population in original set of populations
