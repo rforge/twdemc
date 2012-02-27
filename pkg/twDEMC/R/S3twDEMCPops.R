@@ -101,6 +101,7 @@ setMethodS3("getNGen","twDEMCPops", function(
 		## \code{\link{time2iSample}}
 		## \code{\link{getNPops.twDEMCPops}}
 		## \code{\link{getNSamples.twDEMCPops}}
+		## \code{\link{getNSamplesSpace.twDEMCPops}}
 		## \code{\link{getNChains.twDEMCPops}}
 		## \code{\link{getNChainsPop.twDEMCPops}}
 		## \code{\link{getNParms.twDEMCPops}}
@@ -117,6 +118,8 @@ attr( getNGen.twDEMCPops, "ex") <- function(){
 	data(twdemcEx1)
 	getNGen(twdemcEx1)
 	getNSamples(twdemcEx1)
+	getNSamplesPop(twdemcEx1)
+	getNSamplesSpace(twdemcEx1)
 	twdemcEx1$thin
 	getNPops(twdemcEx1)
 	getNChains(twdemcEx1)
@@ -188,6 +191,7 @@ setMethodS3("getNSamples","twDEMCPops", function(
 	){
 		# getNSamples.twDEMCPops
 		##seealso<<   
+		## \code{\link{getNSamplesSpace.twDEMCPops}}
 		## \code{\link{getNGen.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
 		## ,\code{\link{twDEMCBlockInt}}
@@ -195,6 +199,27 @@ setMethodS3("getNSamples","twDEMCPops", function(
 		sapply( x$pops, function(pop){ nrow(pop$parms) })
 		### integer vector: number of samples in each population of twDEMCPops
 	})
+
+setMethodS3("getNSamplesSpace","twDEMCPops", function( 
+		### Extracts the number of samples summed over population within one space
+		x	##<< object of class twDEMCPops
+		,... 
+	){
+		# getNSamples.twDEMCPops
+		##seealso<<   
+		## \code{\link{getNGen.twDEMCPops}}
+		## \code{\link{getNSamples.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		## ,\code{\link{twDEMCBlockInt}}
+		##details<< There is only one sample per thinning interval of length \code{x$thin}.
+		.nSamplesPop <- getNSamples(x)
+		.spacePop <- getSpacesPop(x)
+		spaceInds <- unique(.spacePop)
+		.nSamplesSpace <- structure( sapply(spaceInds, function(spaceInd){ sum(.nSamplesPop[.spacePop==spaceInd])}), names=spaceInds)
+		.nSamplesSpace
+		### integer vector: number of samples in each population of twDEMCPops
+	})
+
 
 setMethodS3("getSpacesPop","twDEMCPops", function( 
 		### Extracts the space replicate that each population belongs to.

@@ -99,6 +99,7 @@ twDEMCBlockInt <- function(
 		,minPCompAcceptTempDecr=0.15  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)
 		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
 		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population
+		,freeMasterNode=TRUE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}} 
 		#,useMultiT = FALSE	##<< whether to downscale Temperature of result components during burnin
 		#moved to block,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change		
 	)  
@@ -485,6 +486,7 @@ twDEMCBlockInt <- function(
 			,debugSequential=debugSequential
 			,isRecordProposalsPop=isRecordProposalsPop 
 			,isPops=isPops
+			,freeMasterNode=ctrl$freeMasterNode
 		)
 		chainState <- resUpdate[ names(chainState) ]
 		
@@ -1024,6 +1026,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	### }
 	### Can be a name of a previously exported variable.
 	,debugSequential=FALSE	##<< see \code{\link[twSnowfall]{sfFArgsApplyDep}}
+	,freeMasterNode=FALSE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting, see \code{\link[twSnowfall]{sfFArgsApplyDep}}
 	,isRecordProposalsPop=rep(FALSE,nsPop)	##<< logical vector: for each population: if TRUE then proposals and results of rLogDen are recorded in result$Y.
 	, chainsPop=matrix(1:ncol(X),ncol=nsPop, dimnames=list(iChainInPop=NULL, iPop=NULL))		##<< list of integer vectors:
 	, isPops			##<< integer vector of populations that have not yet dropped out
