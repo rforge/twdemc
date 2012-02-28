@@ -461,6 +461,7 @@ attr(subsetTail.twDEMCPops,"ex") <- function(){
 ){
 	##details<< no checking of bounds performed
 	newPop <- pop	# keep entries upperParBounds, lowerParBounds, splits
+	if( nrow(pop$parms)==0 ) iKeep<-0
 	newPop$parms <- pop$parms[iKeep,,iChain  ,drop=FALSE] 
 	newPop$logDen <- pop$logDen[iKeep,,iChain ,drop=FALSE] 
 	newPop$resLogDen <- pop$resLogDen[iKeep,,iChain ,drop=FALSE] 
