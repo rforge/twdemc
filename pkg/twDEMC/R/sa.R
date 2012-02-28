@@ -41,6 +41,8 @@ twDEMCSA <- function(
 	##}}
 	# in order to continue a previous result, supply it as a first argument and add entry args
 	if( inherits(thetaPrior,"twDEMCPops") && 0 != length(thetaPrior$args) ){
+		if( 0!=length(restartFilename) )
+			thetaPrior$args$restartFilename=restartFilename
 		ret <- if( 0!=length(thetaPrior$args$ctrlBatch) &&
 				   0!=length(thetaPrior$args$ctrlBatch$useSubspaceAdaptation) &&	
 				   thetaPrior$args$ctrlBatch$useSubspaceAdaptation 
@@ -83,7 +85,7 @@ twDEMCSA <- function(
 		}else{
 			# generate more proposals and concatenate finite cases from both
 			Zinit1 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior
-				,m0FiniteFac=min(1,2*m0FiniteFac)		
+				,m0FiniteFac=min(1,m0FiniteFac)		
 			)
 			ss1 <- stackChains(Zinit1)
 			logDenL <- lapply( dInfos, function(dInfo){
@@ -93,6 +95,7 @@ twDEMCSA <- function(
 			logDenDS1 <- abind( logDenL )
 			# logDenDS1[ 1:round(nrow(logDenDS1)/1.7),1] <- NA		# testing replacement of non-finite cases
 			boFinite1 <- apply(is.finite(logDenDS1), 1, all )
+			m0FiniteFac1 <- sum(boFinite1) / nrow(logDenDS1)
 			ss12 <- rbind( ss[boFinite, ,drop=FALSE], ss1[boFinite1, ,drop=FALSE] )
 			logDenDS12 <- rbind( logDenDS0[boFinite, ,drop=FALSE], logDenDS1[boFinite1, ,drop=FALSE])
 			nDiff <- nrow(ss) - nrow(ss12)
