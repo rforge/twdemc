@@ -986,6 +986,7 @@ setMethodS3("stackPopsInSpace","twDEMCPops", function(
 	){
 		# stackPopsInSpace.twDEMCPops
 		##seealso<<   
+		## \code{\link{stackPops.twDEMCPops}}
 		## \code{\link{combineTwDEMCPops}}
 		## \code{\link{stackChains.twDEMCPops}}
 		## \code{\link{subset.twDEMCPops}}
@@ -1009,6 +1010,23 @@ attr(stackPopsInSpace.twDEMCPops,"ex") <- function(){
 	plot( as.mcmc.list(stackPopsInSpace( den2dCorEx$mcSubspaces0,mergeMethod="stack" )), smooth=FALSE )
 	plot( as.mcmc.list(stackPopsInSpace( den2dCorEx$mcSubspaces0,mergeMethod="slice" )), smooth=FALSE )
 }
+
+setMethodS3("stackPops","twDEMCPops", function( 
+		### Combine all populations (across subspaces) to one big population 
+		x
+		,...	##<< arguments passed \code{\link{combineTwDEMCPops}} such as \code{mergeMethod=stack/slice/random}
+	){
+		# stackPopsInSpace.twDEMCPops
+		##seealso<<   
+		## \code{\link{stackPopsInSpace.twDEMCPops}}
+		## \code{\link{combineTwDEMCPops}}
+		## \code{\link{stackChains.twDEMCPops}}
+		## \code{\link{subset.twDEMCPops}}
+		#iSpace=1
+		x$pops <- list(combineTwDEMCPops(x$pops, ...)$pop)
+		x
+	})
+
 
 #------------------------ 
 .stackChainsWithinPop <- function(pop){
