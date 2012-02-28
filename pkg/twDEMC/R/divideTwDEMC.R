@@ -979,7 +979,8 @@ twMergePops <- function(
 		iPopsMerge <- fIPopsMerge(mcApp,pSubs)
 		#
 		#-- check consistency
-		tmp <- lapply( mcApp$pops, .checkPop, nGen=12 )		
+		# there may be more populations without samples, check only the ones that have samples
+		tmp <- lapply( mcApp$pops[getNSamples(mcApp)!=0], .checkPop, nGen=12 )		
 		.spacesPop <- getSpacesPop(mcApp)
 		if( !isTRUE( all.equal(.pSpaces <- as.numeric(tapply(pSubs, .spacesPop, sum)), rep(1,length(unique(.spacesPop))))) )
 			stop("mergePops (3): pSubs within subspaces do not sum to 1.")
@@ -1003,7 +1004,7 @@ twMergePops <- function(
 		}
 		#
 		#print(iPopsMerge)
-	}
+	}# while
 	if( iExitMerge == 0 ) stop("mergePops: while loop of populations to merge did not exit.")
 	# check for consistency
 	.nS1 <- sum(getNSamples(mcApp0))

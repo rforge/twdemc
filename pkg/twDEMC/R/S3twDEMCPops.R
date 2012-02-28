@@ -722,6 +722,7 @@ as.mcmc.list.twDEMCPops <- function(
 		# in addition, some of the spaces might have no common border (seperated by a further split)
 		# update newPops[jPops] and also strip non-border indices from jPops
 		jPopsBorder <- integer(max(jPops))		# initialized by 0, not updated means no border
+		#lapply( newPops, "[[", "splits" )
 		#.getParBoundsPops(c(subSpacesAll,list(popM)))
 		# if upper Bound of source pop equals lower bound of target pop, decrease lower target bound 
 		#iB=1
