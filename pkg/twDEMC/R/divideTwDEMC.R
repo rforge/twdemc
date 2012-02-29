@@ -44,7 +44,7 @@ divideTwDEMCSACont <- function(
 	, ctrlSubspaces = list(			##<< list of arguments controlling splitting and merging of subspaces
 		##describe<< 
 		minPSub = 0.1				##<< minimal proportion of a sub-population
-		, maxNSample=256			##<< if given a value, then looking for subspaces is done on a subsample of given length for efficiency (see \code{\link{getSubSpaces}})
+		, maxNSample=max(256,2*m0*getNChainsPop(mc))	##<< if given a value, then looking for subspaces is done on a subsample of given length for efficiency (see \code{\link{getSubSpaces}})
 		, argsFSplit=list()			##<< further arguments to \code{\link{findSplit}}
 	##end<<
 	)
@@ -823,7 +823,8 @@ attr(divideTwDEMCStep,"ex") <- function(){
 			aSample <- stackChains( popMc$parms )	# base splitting only on samples obtained in last batch
 			#mtrace(getSubSpaces)
 			subs <- getSubSpaces( aSample, isBreakEarly=FALSE, pSub=pSubs[iPop]
-				, minPSub=max(ctrlSubspaces$minPSub, pSubs[iPop]*(m0*nChainPop+(nChainPop-1))/min(nrow(aSample),ctrlSubspaces$maxNSample) )	# avoid populations with too few samples, regard loosing samples during splitting
+				#, minPSub=max(ctrlSubspaces$minPSub, pSubs[iPop]*(m0*nChainPop+(nChainPop-1))/min(nrow(aSample),ctrlSubspaces$maxNSample) )	# avoid populations with too few samples, regard loosing samples during splitting
+				, minPSub=max(ctrlSubspaces$minPSub, pSubs[iPop]*(m0*nChainPop+(nChainPop-1))/min(nrow(aSample) ))  # maxNSample may be lower, however	
 				, maxNSample=ctrlSubspaces$maxNSample
 				, argsFSplit=ctrlSubspaces$argsFSplit	##<< further arguments to \code{\link{findSplit}}
 				, splits=popMc$splits, lowerParBounds=popMc$lowerParBounds, upperParBounds=popMc$upperParBounds )
