@@ -195,7 +195,12 @@ divideTwDEMCSACont <- function(
 		#
 		#-- sample the next batch
 		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","), sep="") )
-		if( any(getNSamples(mcNewMinN) < m0) ){ print("divideTwDEMCSACont: Too few samples, recover"); recover() }
+		if( any( (.nsMinN <-getNSamples(mcNewMinN)) < m0) ){
+			if( any(.nsMinN < m0/2) )
+				warning(paste("divideTwDEMCSACont: Very few samples after splitting mcNew: m0=",m0," nSamples=",paste(.nsMinN[.nsMinN<m0],collapse=","),sep="")); 
+			print(paste("divideTwDEMCSACont: May indicate problems: Fewer samples than m0 after splitting mcNew: m0=",m0," nSamples=",paste(.nsMinN[.nsMinN<m0],collapse=","),sep="")); 
+			# may occur because minPSub is done on a subSample in .sp
+		}
 		nGenStep <- min(ctrlBatch$nGenBatch, nGen-iGen)
 		#mtrace(divideTwDEMCStep)
 		#resStep <- divideTwDEMCStep(mcApp, nGen=nGenStep, doRecordProposals=doRecordProposals, m0=m0, TEnd=TEnd, ... )
@@ -244,6 +249,7 @@ divideTwDEMCSACont <- function(
 		,subPercChange = subPercChange		##<< numeric vector(nPop): relative change of proportions during last batch 
 		,relTChange =  relTChange			##<< numeric vector (nDen): calculated relative change of calculated new temperature for the next batch 
 		,specVarRatioPop = specVarRatioPop	##<< numeric vector (nPop): ratio of spectral density to variance
+		,TGlobal = max(getCurrentTemp(mcApp)[iNonFixTempDens]) ##<< Temperature of non-fixed components
 		,args=argsFEval						##<< calling arguments to provide restart capability
 	##end<<
 	)

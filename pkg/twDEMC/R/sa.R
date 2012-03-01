@@ -433,6 +433,7 @@ twDEMCSACont <- function(
 		TCurr <- getCurrentTemp(res)
 		print(paste("finished ",iBatch*ctrlBatch$nGenBatch," out of ",nGen," gens.   ", date(), sep="") )
 	}
+	res$TGlobal <- max(getCurrentTemp(res)[iCompsNonFixDen])
 	res$args <- argsFEval
 	res
 }

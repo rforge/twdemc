@@ -125,7 +125,7 @@ twDEMCBlockInt <- function(
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
 	if( 0 == length(m0) ) m0 = calcM0twDEMC(nParm,nChainPop)
 	M0Pops <- sapply( ZinitPops, nrow )
-	if( any(M0Pops < m0) ) warning(paste("twDEMCBlockInt: too few initial cases for populations",paste(which(M0Pops < m0),collapse=",")) )
+	if( any(M0Pops < 0.8*m0) ) warning(paste("twDEMCBlockInt: too few initial cases for populations",paste(which(M0Pops < m0),collapse=",")) )
 	nGenPops <- sapply( pops, "[[", "nGen")
 	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 0 )	#number of thinning intervals 
 	nGenPops = nThinnedGenPops * ctrl$thin  #number of generations in this batch (do not need to move behind last thinning interval)
