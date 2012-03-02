@@ -380,7 +380,8 @@ twDEMCSACont <- function(
 		mcl <- as.mcmc.list(ssc)
 		#plot( as.mcmc.list(mcl), smooth=FALSE )
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
-		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
+		gelmanDiagRes <- try( {tmp<-gelman.diag(mcl); if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]} )	# cholesky decomposition may throw errors
+		#gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
 		TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= ctrlConvergence$gelmanCrit ){
 				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
 				#mtrace(getBestModelIndex)

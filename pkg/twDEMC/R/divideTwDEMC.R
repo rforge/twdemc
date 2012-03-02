@@ -131,7 +131,7 @@ divideTwDEMCSACont <- function(
 		#print("divideTwDEMCSACont: loop start"); recover()
 		#plot( mcl, smooth=FALSE )
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
-		gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
+		gelmanDiagRes <- try( {tmp<-gelman.diag(mcl); if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]} )	# cholesky decomposition may throw errors
 		TEnd <- .calcTEnd(gelmanDiagRes=gelmanDiagRes, resEnd=mcSpaceEnd, TCurr=TCurr, nObsDen=nObsDen, TFix=ctrlT$TFix, iFixTemp=iFixTemp, iNonFixTempDens=iNonFixTempDens, TMax=ctrlT$TMax, iMaxTemp=iMaxTemp
 			, gelmanCrit=ctrlConvergence$gelmanCrit, TDecProp=ctrlT$TDecProp)
 		relTChange <- abs(TEnd - TCurr)/TEnd
