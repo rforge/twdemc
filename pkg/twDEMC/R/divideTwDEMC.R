@@ -249,7 +249,7 @@ divideTwDEMCSACont <- function(
 		,subPercChange = subPercChange		##<< numeric vector(nPop): relative change of proportions during last batch 
 		,relTChange =  relTChange			##<< numeric vector (nDen): calculated relative change of calculated new temperature for the next batch 
 		,specVarRatioPop = specVarRatioPop	##<< numeric vector (nPop): ratio of spectral density to variance
-		,TGlobal = max(getCurrentTemp(mcApp)[iNonFixTempDens]) ##<< Temperature of non-fixed components
+		,TGlobal = max(getCurrentTemp(mcApp)[iNonFixTempDens[[1]] ]) ##<< Temperature of non-fixed components
 		,args=argsFEval						##<< calling arguments to provide restart capability
 	##end<<
 	)
