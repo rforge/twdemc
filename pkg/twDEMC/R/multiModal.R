@@ -64,8 +64,8 @@ gelman.diag(as.mcmc.list(mcs))
 			if( isLogDenDrift(logDenT[,1,], res$dInfos) )
 		
 			# check shift in logDen
-			isLogDenDrift
-			if( )
+			#isLogDenDrift
+			#if( )
 			apply(tmp,2,quantile, probs=c(0.025,0.975))	# despite several modes, same spread of logDen
 			
 			.spacesPop <- getSpacesPop(res)
