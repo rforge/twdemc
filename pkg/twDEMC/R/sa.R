@@ -62,11 +62,13 @@ twDEMCSA <- function(
 	ctrlT <- if( hasArg(ctrlT) ) twMergeLists( eval(frm[["ctrlT"]]), ctrlT ) else ctrlT
 	#
 	#mtrace(initZtwDEMCNormal)
-	Zinit0 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior)
+	Zinit0 <- initZtwDEMCNormal( thetaPrior, covarTheta, nChainPop=nChainPop, nPop=nPop, doIncludePrior=doIncludePrior, m0=m0)
 	ss <- stackChains(Zinit0)
 	logDenL <- lapply( dInfos, function(dInfo){
 		resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss, argsFLogDen=dInfo$argsFLogDen)$logDenComp
 	})
+	#dInfo <- dInfos[[1]]
+	#tmp <- do.call( dInfo$fLogDen, c(list(ss[1,]), dInfo$argsFLogDen) )
 	# replace missing cases
 	logDenDS0 <- abind( logDenL )
 	# logDenDS0[1,1] <- NA		# testing replacement of non-finite cases
@@ -76,6 +78,8 @@ twDEMCSA <- function(
 	if( m0FiniteFac == 1){
 			Zinit <- Zinit0
 			logDenDS <- logDenDS0
+		}else if( m0FiniteFac < 0.05 ){
+			stop("twDEMCSA: less than 5% finite solutions in initial exploration. Check setup.")
 		}else if( m0FiniteFac > 0.9 ){
 			sumLogDen0 <- rowSums(logDenDS0)
 			Zinit <- replaceZinitNonFiniteLogDens( Zinit0, sumLogDen0 )
@@ -141,8 +145,9 @@ twDEMCSA <- function(
 	rankLogDenDS <- apply(-logDenDS, 2, rank)	# highest logDen first
 	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
 	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	
-	# quantile produces intermediate values, which may round wrong 
-	iQuant <- which( maxRankLogDen == round(ctrlT$qTempInit*length(maxRankLogDen)) )
+	# quantile produces intermediate values, which may round wrong
+	# search the component nearest to the quantile (may not match exact because of duplicates)
+	iQuant <- which.min( abs(maxRankLogDen - round(ctrlT$qTempInit*length(maxRankLogDen))) )
 	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
 	temp0 <- tempQ <-  pmax(1,-2/nObs* qLogDenDS)
 	#names(temp0) <- colnames(logDenDS)
