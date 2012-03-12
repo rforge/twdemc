@@ -474,8 +474,8 @@ divideTwDEMCStep <- function(
 	# iiSpace=iSpaces[1]
 	pPops <- numeric( length(spacesPop))
 	for( iiSpace in 1:nSpace){
-		p2u <- exp(popLogMeanDensSubs[[iiSpace]])*qPop[iiSpace]		# two weights: quantile and density importance
-		pPops[ iPopsSpace[[iiSpace]] ] <- p2 <- p2u/sum(p2u)									# normalize to 1 within population 
+		p2u <-  exp(popLogMeanDensSubs[[iiSpace]])*qPop[iiSpace] 		# two weights: quantile and density importance
+		pPops[ iPopsSpace[[iiSpace]] ] <- p2 <- pmax( .Machine$double.eps, p2u/sum(p2u)	)								# normalize to 1 within population 
 	}
 	subPercChange <- pPops/qPop	# ratio of estimated proportion in limiting distribution to proportion of initial proportion
 	nSamplesSubsReq0 <- nGenThin/thin * pPops
