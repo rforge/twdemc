@@ -931,6 +931,7 @@ twMergePops <- function(
 ){
 	mcApp0 <- mcApp; pSubs0 <- pSubs	# remeber state before merging
 	#mcApp <- mcApp0;	pSubs <- pSubs0	# reset to initial for debugging
+	#sapply(sapply( mcApp$pops, "[[", "splits" ), length )
 	fIPopsMerge <- function(mcApp,pSubs){	# make it a function to avoid replication and inconsitencies
 		#which( pSubs < minPSub/2 | getNSamples(mcApp) < m0 )
 		which( getNSamples(mcApp) < m0 )
@@ -955,7 +956,8 @@ twMergePops <- function(
 		#mtrace(.mergePopTwDEMC)
 		resMerge <- .mergePopTwDEMC( mcApp$pops, iPop, pSubs, mergeMethod="random" ) # use random to avoid high spectral density calculation afterwards
 		#resMergeNew <- .mergePopTwDEMC( mcNew$pops, iPop, pSubs, mergeMethod="random" ) # use random to avoid high spectral density calculation afterwards
-		# consitency check: seek neighboring populations
+		# consistency check: seek neighboring populations
+		# sapply(sapply( resMerge$pops, "[[", "splits" ), length )
 		for( iSpace in 1:nSpaces ){
 			popsS <- resMerge$pops[ sapply(resMerge$pops, "[[","spaceInd") == spaceInds[iSpace] ]
 			.nPopS <- length(popsS)

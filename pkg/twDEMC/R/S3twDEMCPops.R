@@ -710,10 +710,10 @@ as.mcmc.list.twDEMCPops <- function(
 	nPop <- length(newPops)
 	tmp[iSameSpace] <- 1:nPop
 	tmp[-iSameSpace] <- NA	# for detecting errors
-	iPop <- tmp[iPop0]
+	iSPop <- tmp[iPop0]		# index of iPop in newPops (of same space)
 	#determine neighbouring pops with same first part of splits
 	#pop <- popsS[-iPop][1]
-	jPops <- (1:nPop)[-iPop][ sapply( newPops[-iPop], function(pop){ 
+	jPops <- (1:nPop)[-iSPop][ sapply( newPops[-iSPop], function(pop){ 
 			(length(pop$splits) >= length(popSource$splits)) && all(pop$splits[ 1:length(popSource$splits)] == popSource$splits)
 		})]
 	# j = jPops[1]
@@ -732,6 +732,7 @@ as.mcmc.list.twDEMCPops <- function(
 			lbVal <- if( 0 != length(popSource$lowerParBounds) && is.finite(popSource$lowerParBounds[parName])) 
 				popSource$lowerParBounds[parName] else NULL
 			#jPop = jPops[1]
+			#sapply(newPops[jPops], "[[", "splits")
 			for( jPop in jPops ){
 				lb <- newPops[[jPop]]$lowerParBounds
 				if( 0 != length(lb) && is.finite(lb[parName]) && lb[parName]==ubVal ){
@@ -815,7 +816,7 @@ as.mcmc.list.twDEMCPops <- function(
 			#.getParBoundsPops(c( list(subPopSource), list(popDest), list(newPops[[jPop]])) )
 			# c(tmp$lowerParBounds, tmp$upperParBounds )  # matching border should disappear
 		}
-		newPPops[jPop] <- newPPops[jPop] + newPPops[iPop]*pSubsSource[ij]   # update the probability of the space
+		newPPops[jPop] <- newPPops[jPop] + newPPops[iSPop]*pSubsSource[ij]   # update the probability of the space
 		#c( nrow(pop$parms), nrow(popM$parms), nrow(tmp$parms) )
 		newPops[[jPop]]$splits <- popDest$splits[ -length(popSource$splits) ]  # we just removed this splitting point
 	}
@@ -831,14 +832,14 @@ as.mcmc.list.twDEMCPops <- function(
 	#
 	# ------- delete the merged source population 
 	# only after merging so that indices hold true
-	newPops[[iPop]] <- NULL	
-	newPPops <- newPPops[-iPop]
+	newPops[[iSPop]] <- NULL	
+	newPPops <- newPPops[-iSPop]
 	iSameSpace0 <- iSameSpace
 	iSameSpace <- iSameSpace[ iSameSpace != iPop0 ]
 	# newPops has changed, update the position indices
-	bo <- jPops > iPop; jPops[bo] <- jPops[bo]-1 
-	bo <- jPopsSplitBorder > iPop; jPopsSplitBorder[bo] <- jPopsSplitBorder[bo]-1 
-	bo <- jPopsSplitNonBorder > iPop; jPopsSplitNonBorder[bo] <- jPopsSplitNonBorder[bo]-1 
+	bo <- jPops > iSPop; jPops[bo] <- jPops[bo]-1 
+	bo <- jPopsSplitBorder > iSPop; jPopsSplitBorder[bo] <- jPopsSplitBorder[bo]-1 
+	bo <- jPopsSplitNonBorder > iSPop; jPopsSplitNonBorder[bo] <- jPopsSplitNonBorder[bo]-1 
 	#
 	#-------- check consistency
 	# may have lost some samples during splitting because all chains in one pop need to have the same lenght
