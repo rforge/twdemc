@@ -4,7 +4,7 @@ setMethodS3("calcTemperatedLogDen","default", function(
 	x			##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
 	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
 	,...
-	,maxLogDen=apply(x,2,max)	##<< best achievable log-Density
+	,refDen=apply(x,2,quantile,probs=0.9)	##<< reference density: differences to this value will be scaled and readded 
 ){
 	# calcTemperatedLogDen.default
 	##seealso<<   
@@ -25,11 +25,11 @@ setMethodS3("calcTemperatedLogDen","default", function(
 	## is important for comparison.
 	## Hence, first the best logDen is subtracted, then the difference is multiplied by given temperatue.
 	if( ncol(x) == 1){
-		ldiff <- x - maxLogDen	
-		ldiff/temp + maxLogDen
+		ldiff <- x - refDen	
+		ldiff/temp + refDen
 	}else{
-		ldiff <- t(x)-maxLogDen 
-		lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +maxLogDen)
+		ldiff <- t(x)-refDen 
+		lT <- t(apply( ldiff, 2, function(logDenRow){ logDenRow / temp }) +refDen)
 	}
 	##value<< numeric matrix (nStep x nResComp), rescaled logDen
 	##seealso<< \code{\link{sumLogDenComp}}
@@ -38,9 +38,9 @@ setMethodS3("calcTemperatedLogDen","default", function(
 attr(calcTemperatedLogDen,"ex") <- function(){
 	data(twdemcEx1)
 	logDen0 <- stackChains(concatPops(twdemcEx1)$resLogDen)
-	maxLogDen <- apply(logDen0,2,max)
+	refLogDen <- apply(logDen0,2,max)
 	temp = c(obs=20, parms=1)
-	logDen <- t( (t(logDen0)-maxLogDen)*temp +maxLogDen )
+	logDen <- t( (t(logDen0)-refLogDen)*temp +refLogDen )
 	
 	logDenT <- calcTemperatedLogDen(logDen,temp)
 	.exp <- logDen0
@@ -66,10 +66,11 @@ setMethodS3("calcTemperatedLogDenChains","array", function(
 		,...
 	){
 		#calcTemperatedLogDenChains.array
-		maxLogDen=apply(x,2,max)		# same minimum across all chains
+		#refLogDen=apply(x,2,max)		# same minimum across all chains
+		refLogDen=apply(x,2,quantile,probs=0.9)		# same reference across all chains
 		#iChain <- 1
 		rL <- lapply( 1:dim(x)[3], function(iChain){ 
-				calcTemperatedLogDen.default( adrop(x[,,iChain ,drop=FALSE],3), temp, maxLogDen=maxLogDen )
+				calcTemperatedLogDen.default( adrop(x[,,iChain ,drop=FALSE],3), temp, refLogDen=refLogDen )
 			})
 		logDenT <- abind(rL, rev.along=0)
 		##value<< numeric array (nStep x nComp x nChain): rescaled Log-Density for each chain.

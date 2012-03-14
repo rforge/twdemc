@@ -1029,21 +1029,44 @@ setMethodS3("stackPops","twDEMCPops", function(
 
 
 #------------------------ 
-.stackChainsWithinPop <- function(pop){
+.stackChainsWithinPop <- function(
+	pop
+	,mergeMethod="stack"
+){
 	nc <- dim(pop$parms)[3]
+	nr <- nrow(pop$parms)
 	newPop <- pop
-	newPop$parms <- abind( lapply( 1:nc, function(iChain){ pop$parms[,,iChain ,drop=FALSE]}), along=1 ) 
-	newPop$logDen <- abind( lapply( 1:nc, function(iChain){ pop$logDen[,,iChain ,drop=FALSE]}), along=1 )
-	newPop$resLogDen <-abind( lapply( 1:nc, function(iChain){ pop$resLogDen[,,iChain ,drop=FALSE]}), along=1 )
-	newPop$pAccept <- abind( lapply( 1:nc, function(iChain){ pop$pAccept[,,iChain ,drop=FALSE]}), along=1 )
-	newPop$temp <- abind( lapply( 1:nc, function(iChain){ pop$temp }), along=1 )  # repeat the temperature
-	newPop$Y <- abind( lapply( 1:nc, function(iChain){ pop$Y[,,iChain ,drop=FALSE]}), along=1 )
+	if( nc != 1 ){
+		newPop$parms <- abind( lapply( 1:nc, function(iChain){ pop$parms[,,iChain ,drop=FALSE]}), along=1 ) 
+		newPop$logDen <- abind( lapply( 1:nc, function(iChain){ pop$logDen[,,iChain ,drop=FALSE]}), along=1 )
+		newPop$resLogDen <-abind( lapply( 1:nc, function(iChain){ pop$resLogDen[,,iChain ,drop=FALSE]}), along=1 )
+		newPop$pAccept <- abind( lapply( 1:nc, function(iChain){ pop$pAccept[,,iChain ,drop=FALSE]}), along=1 )
+		newPop$temp <- abind( lapply( 1:nc, function(iChain){ pop$temp }), along=1 )  # repeat the temperature
+		newPop$Y <- abind( lapply( 1:nc, function(iChain){ pop$Y[,,iChain ,drop=FALSE]}), along=1 )
+		if( mergeMethod != "stack" && nr != 0){
+			# need to resort the entries
+			chainInd <- twMergeSequences( rep(nr,nc), mergeMethod=mergeMethod )
+			chainIndY <- twMergeSequences( rep(nrow(pop$Y),nc), mergeMethod=mergeMethod )
+			#iChain <- 1
+			for( iChain in 1:nc){
+				iPos <- which(chainInd==iChain)
+				iPosY <- which(chainIndY==iChain)
+				newPop$parms[iPos,,1] <- pop$parms[,,iChain]
+				newPop$logDen[iPos,,1] <- pop$logDen[,,iChain]
+				newPop$resLogDen[iPos,,1] <- pop$resLogDen[,,iChain]
+				newPop$pAccept[iPos,,1] <- pop$pAccept[,,iChain]
+				newPop$temp[iPos,] <- pop$temp
+				newPop$Y[iPosY,,1] <- pop$Y[,,iChain]
+			}
+		}
+	}
 	newPop
 }
 
 setMethodS3("stackChainsPop","twDEMCPops", function( 
 		### Combine MarkovChains of each population of a twDEMC to a single chain.
 		x
+		,mergeMethod="stack"
 		,...
 	){
 		#stackChainsPop.twDEMCPops
@@ -1053,7 +1076,7 @@ setMethodS3("stackChainsPop","twDEMCPops", function(
 		#iPop = nPop
 		#pop <- x$pops[[nPop]]
 		xNew <- x
-		xNew$pops <- newPops <- lapply( x$pops, .stackChainsWithinPop )
+		xNew$pops <- newPops <- lapply( x$pops, .stackChainsWithinPop, mergeMethod=mergeMethod )
 		xNew
 	})
 attr(stackChainsPop.twDEMCPops,"ex") <- function(){

@@ -1,3 +1,14 @@
+# see track in mdi2 of MDIHamer
+# strategy: do batches of twDEMCSA
+# look if stuck in several minima
+# for subspaces check, if it is a local minimum
+# add the one with lower Density to a list 
+# split the other one and continue
+# 
+# if encountered leaf
+# continue splitting with the one from todo-list with higherst Temperature
+
+
 fDenMultiMode <- function(x){
 	y <- +2.5*cos(4*x+pi/2) + 5*cos(2*x) + 9*cos(x)
 	z <- -20*(y +  (x/pi)^4) -200

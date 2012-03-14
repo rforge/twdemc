@@ -126,7 +126,8 @@ divideTwDEMCSACont <- function(
 		#-- can Temperature be decreased?
 		TCurr <- getCurrentTemp(mcApp) 
 		mcSpace <- stackPopsInSpace(mcApp, mergeMethod="random")	
-		mcSpaceEnd <- thin(mcSpace, start=getNGen(mcSpace) %/% 2)
+		#mcSpaceEnd <- thin(mcSpace, start=getNGen(mcSpace) %/% 2)
+		mcSpaceEnd <- stackPopsInSpace(subsetTail(mcSpace,pKeep = 0.5))
 		mcl <- as.mcmc.list(stackChainsPop( mcSpaceEnd ))
 		#print("divideTwDEMCSACont: loop start"); recover()
 		#plot( mcl, smooth=FALSE )

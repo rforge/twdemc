@@ -907,7 +907,7 @@ attr(getBestModelIndex,"ex") <- function(){
 
 isLogDenDrift <- function(
 	### check whether first quartile all the logDensities is significantly smaller than last quartile 
-	logDenT		##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
+	logDenT		##<< numeric array (nStep x nResComp): logDensity (highest are best)
 	, dInfos 	##<< list of lists with entry resCompPos (integer vector) specifying the position of result components for each density
 	, alpha=0.05	##<< the significance level for a difference
 	, maxDrift=0.3	##<< difference in LogDensity, below which no drift is signalled
