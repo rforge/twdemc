@@ -168,7 +168,7 @@ initStateModMeta <- function(
 		iR <- matrix( iR, byrow=TRUE, nrow=modMeta$nRow, ncol=length(iR), dimnames=list(rowNamesSOM,names(iR)))
 	if( !is.null(rownames(iR))) iR <- iR[rowNamesSOM,,drop=FALSE]	#permute rows 
 	if( (modMeta$nRow) != nrow(iR) ) stop("iR must contain a row for each state variable.")
-	
+	#
 	if( is.null(colnames(iR)) ) colnames(iR) <- modMeta$colNames else{
 		c12 <- modMeta$csts$cis[1]
 		if( !(c12 %in% colnames(iR)) ) iR <- cbind(iR,structure(1.0,names=c12))	#add default entry for c12
@@ -179,17 +179,17 @@ initStateModMeta <- function(
 	if( length(na.omit(modMeta$csts$cis)) != ncol(iRcis) ) stop("iR must contain a value for each carbon isotope.")
 	iRnis <- iR[,modMeta$csts$nis,drop=FALSE]
 	if( length(na.omit(modMeta$csts$nis)) != ncol(iRnis) ) stop("iR must contain a value for each nitrogen isotope.")
-	
+	#
 	if( length(na.omit(cn)) == 1)		#repeat for each row
 		cn <- rep(cn,length(rowNamesSOM))
 	if( !is.null(names(cn)) ) cn <- cn[rowNamesSOM]	#permute names
 	if( !length(na.omit(cn)) == (modMeta$nRow)) stop("cn must contain a value for each state variable.")
-	
+	#
 	#initialize the state variables
 	x <- modMeta$matrixTemplate
 	x[ rowNamesSOM ,modMeta$csts$cis] <- xc12*iRcis
 	xn15<-rep(0,length(xc12)) 
-	xn15[xc12!=0] <- (xc12/cn)[xc12!=0]
+	xn15[xc12!=0 & cn!=0] <- (xc12/cn)[xc12!=0 & cn!=0]
 	x[ rowNamesSOM, modMeta$csts$nis] <- xn15*iRnis
 	x
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
