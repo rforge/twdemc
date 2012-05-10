@@ -400,7 +400,7 @@ twQuantiles2Coef <- function(
 	#twEnumNames(quant,FALSE)  # gives problems with check, define variables by hand.
 	upperBoundSigmaFac = qnorm(upperBoundProb)		
 	mu=structure(numeric(n),names=varNames); sigmaDiag=structure(numeric(n), names=varNames)
-
+	#
 	if( any(boNorm)){
 		quantTmp <- quant[boNorm, ,drop=FALSE]
 		if( useCi ){
@@ -413,7 +413,7 @@ twQuantiles2Coef <- function(
 			sigmaDiag[boNorm] <- (quantTmp[,i_qUpper]-quantTmp[,i_qMedian])/upperBoundSigmaFac
 		}
 	}
-	
+	#
 	if( any(boLognorm)){
 		quantTmp <- quant[boLognorm, ,drop=FALSE]
 		coefs <- if( useMedian )
@@ -425,7 +425,7 @@ twQuantiles2Coef <- function(
 		mu[boLognorm] <- coefs[,1]
 		sigmaDiag[boLognorm] <- coefs[,2]
 	}
-	
+	#
 	if( any(boLogitnorm) ){
 		quantTmp <- quant[boLogitnorm, ,drop=FALSE]
 		coefs <- if( useMedian )
@@ -437,7 +437,7 @@ twQuantiles2Coef <- function(
 		mu[boLogitnorm] <- coefs[,1]
 		sigmaDiag[boLogitnorm] <- coefs[,2]
 	}
-	
+	#
 	##value<< parameter distribution information, dataframe with columns
 	parDistr <- data.frame(
 		#varName = varNames		##<< character vector: type of distribtution (norm,lognorm,logitnorm)
