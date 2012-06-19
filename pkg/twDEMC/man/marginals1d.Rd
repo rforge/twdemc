@@ -2,8 +2,16 @@
 \alias{marginals1d}
 \title{marginals1d}
 \description{integrate over all others but 1 column}
-\usage{marginals1d(x, vars = 2, intCol = 1, n = round(nrow(x)/12), dimnames = .colNames(x, 
-    vars), fAgg = mean, ...)}
+\usage{
+marginals1d(x,
+vars = 2,
+intCol = 1,
+n = round(nrow(x)/12),
+dimnames = .colNames(x,
+vars),
+fAgg = mean,
+...)
+}
 \arguments{
   \item{x}{numeric matrix}
   \item{vars}{index (integer or string): column to define integration boxes}

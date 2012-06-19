@@ -2,7 +2,10 @@
 \alias{checkProblemsSpectral}
 \title{checkProblemsSpectral}
 
-\usage{checkProblemsSpectral(aTwDEMC, critSpecVarRatio = 50)}
+\usage{
+checkProblemsSpectral(aTwDEMC,
+critSpecVarRatio = 50)
+}
 \arguments{
   \item{aTwDEMC}{
 }

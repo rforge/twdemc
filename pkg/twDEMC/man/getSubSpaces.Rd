@@ -2,11 +2,24 @@
 \alias{getSubSpaces}
 \title{getSubSpaces}
 \description{Recursively splitting the sample into subsamples and recording the upper and lower bounds}
-\usage{getSubSpaces(aSample, nSplit = 4, isBreakEarly = TRUE, isBreakEarlySubs = TRUE, 
-    checkSlopesFirst = data.frame(ivar = 1, j1AlphaSlope = 1, 
-        jAlphaSlope = 2)[FALSE, ], argsFSplit = list(), pSub = 1, 
-    minPSub = 0.05, upperParBounds = numeric(0), lowerParBounds = numeric(0), 
-    splits = numeric(0), maxNSample = 128, verbose = FALSE)}
+\usage{
+getSubSpaces(aSample,
+nSplit = 4,
+isBreakEarly = TRUE,
+isBreakEarlySubs = TRUE,
+checkSlopesFirst = data.frame(ivar = 1,
+j1AlphaSlope = 1,
+jAlphaSlope = 2)[FALSE,
+],
+argsFSplit = list(),
+pSub = 1,
+minPSub = 0.05,
+upperParBounds = numeric(0),
+lowerParBounds = numeric(0),
+splits = numeric(0),
+maxNSample = 128,
+verbose = FALSE)
+}
 \arguments{
   \item{aSample}{numeric matrix with parameters in columns: sample or subsample that is devided (do not include rLogLik in first column)}
   \item{nSplit}{see \code{\link{findSplit}}, potentially modified due to argument \code{minPSub}}

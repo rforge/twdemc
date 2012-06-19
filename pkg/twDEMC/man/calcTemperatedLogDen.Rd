@@ -2,7 +2,9 @@
 \alias{calcTemperatedLogDen}
 \title{calcTemperatedLogDen}
 \description{Generic method behind \code{\link{calcTemperatedLogDen.default}}}
-\usage{calcTemperatedLogDen(...)}
+\usage{
+calcTemperatedLogDen(...)
+}
 \arguments{
   \item{\dots}{
 }
@@ -18,9 +20,9 @@
 \examples{
 data(twdemcEx1)
 logDen0 <- stackChains(concatPops(twdemcEx1)$resLogDen)
-maxLogDen <- apply(logDen0,2,max)
+refLogDen <- apply(logDen0,2,max)
 temp = c(obs=20, parms=1)
-logDen <- t( (t(logDen0)-maxLogDen)*temp +maxLogDen )
+logDen <- t( (t(logDen0)-refLogDen)*temp +refLogDen )
 
 logDenT <- calcTemperatedLogDen(logDen,temp)
 .exp <- logDen0

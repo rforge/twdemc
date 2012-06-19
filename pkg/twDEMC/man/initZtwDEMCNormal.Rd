@@ -2,9 +2,16 @@
 \alias{initZtwDEMCNormal}
 \title{initZtwDEMCNormal}
 \description{Generate an initial population of states for \code{\link{twDEMCBlockInt}}.}
-\usage{initZtwDEMCNormal(thetaPrior, covarTheta, nChainPop = 4, nPop = 2, 
-    m0 = ceiling(calcM0twDEMC(length(thetaPrior), nChainPop)/(m0FiniteFac)), 
-    m0FiniteFac = 1, doIncludePrior = TRUE)}
+\usage{
+initZtwDEMCNormal(thetaPrior,
+covarTheta,
+nChainPop = 4,
+nPop = 2,
+m0 = ceiling(calcM0twDEMC(length(thetaPrior),
+nChainPop)/(m0FiniteFac)),
+m0FiniteFac = 1,
+doIncludePrior = TRUE)
+}
 \arguments{
   \item{thetaPrior}{numeric vector (nParm) of point estimate of the mean}
   \item{covarTheta}{numeric matrix (nParm x nParm) the covariance of parameters.

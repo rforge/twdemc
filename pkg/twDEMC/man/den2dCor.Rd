@@ -2,7 +2,13 @@
 \alias{den2dCor}
 \title{den2dCor}
 \description{Example of log-Unnormalized Density function with changing correlation and scales in variances }
-\usage{den2dCor(theta, muA = 0.8, sigmaA = 1, cb = 1/4, cDen = 0)}
+\usage{
+den2dCor(theta,
+muA = 0.8,
+sigmaA = 1,
+cb = 1/4,
+cDen = 0)
+}
 \arguments{
   \item{theta}{named numeric vector with components "a" and "b"}
   \item{muA}{parameter for the log-normal distribution of component a}

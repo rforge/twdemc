@@ -2,7 +2,10 @@
 \alias{iSample2time}
 \title{iSample2time}
 \description{Convert sample number to time given the thinning interval}
-\usage{iSample2time(iSample, thin = 1)}
+\usage{
+iSample2time(iSample,
+thin = 1)
+}
 \arguments{
   \item{iSample}{integer vector: indices of the samples in recorded states}
   \item{thin}{integer scalar: thinning interval}

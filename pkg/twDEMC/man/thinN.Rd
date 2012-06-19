@@ -2,7 +2,9 @@
 \alias{thinN}
 \title{thinN}
 \description{Generic method behind \code{\link{thinN.mcmc.list}}}
-\usage{thinN(...)}
+\usage{
+thinN(...)
+}
 \arguments{
   \item{\dots}{
 }

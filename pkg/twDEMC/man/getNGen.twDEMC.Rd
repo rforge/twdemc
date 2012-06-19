@@ -2,7 +2,10 @@
 \alias{getNGen.twDEMC}
 \title{getNGen twDEMC}
 \description{Extract the number of completed generations in res}
-\usage{\method{getNGen}{twDEMC}(res, ...)}
+\usage{
+\method{getNGen}{twDEMC}(res,
+...)
+}
 \arguments{
   \item{res}{object of class twDEMC}
   \item{\dots}{

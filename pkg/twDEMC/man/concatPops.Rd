@@ -2,7 +2,9 @@
 \alias{concatPops}
 \title{concatPops}
 \description{Generic method behind \code{\link{concatPops.twDEMCPops}}}
-\usage{concatPops(...)}
+\usage{
+concatPops(...)
+}
 \arguments{
   \item{\dots}{
 }

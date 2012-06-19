@@ -2,7 +2,12 @@
 \alias{dinvchisq}
 \title{dinvchisq}
 \description{density function and for the (scaled) inverse-chi-squared distribution.}
-\usage{dinvchisq(x, df, scale = 1/df, log = FALSE)}
+\usage{
+dinvchisq(x,
+df,
+scale = 1/df,
+log = FALSE)
+}
 \arguments{
   \item{x}{vector of quantiles}
   \item{df}{degrees of freedom parameter, usually represented as nu}

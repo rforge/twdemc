@@ -2,8 +2,17 @@
 \alias{marginals2d}
 \title{marginals2d}
 \description{integrate over all others but 2 columns}
-\usage{marginals2d(x, vars = c(2, 3), intCol = 1, n = round(sqrt(nrow(x))/12), 
-    dimnames = .colNames(x, vars), fAgg = mean, ...)}
+\usage{
+marginals2d(x,
+vars = c(2,
+3),
+intCol = 1,
+n = round(sqrt(nrow(x))/12),
+dimnames = .colNames(x,
+vars),
+fAgg = mean,
+...)
+}
 \arguments{
   \item{x}{numeric matrix}
   \item{vars}{index (integer or string): column to define integration boxes}

@@ -2,7 +2,11 @@
 \alias{rinvchisq}
 \title{rinvchisq}
 \description{random number function and for the (scaled) inverse-chi-squared distribution.}
-\usage{rinvchisq(n, df, scale = 1/df)}
+\usage{
+rinvchisq(n,
+df,
+scale = 1/df)
+}
 \arguments{
   \item{n}{
 }

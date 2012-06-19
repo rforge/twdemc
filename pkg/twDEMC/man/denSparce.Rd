@@ -2,8 +2,12 @@
 \alias{denSparce}
 \title{denSparce}
 \description{Example of using two different logDensity functions: density of sparce observations}
-\usage{denSparce(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
-    ...)}
+\usage{
+denSparce(theta,
+twTwoDenEx = twTwoDenEx1,
+theta0 = twTwoDenEx$thetaTrue,
+...)
+}
 \arguments{
   \item{theta}{
 }

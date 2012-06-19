@@ -2,8 +2,15 @@
 \alias{plotThinned.mcmc.list}
 \title{plotThinned mcmc list}
 \description{Plot of thinned coda's \code{mcmc.list}.}
-\usage{\method{plotThinned}{mcmc.list}(x, ..., maxVars = 3, vars = 1:min(maxVars, 
-    ncol(x[[1]])), maxN = 500, suppressPlotWarnings = TRUE)}
+\usage{
+\method{plotThinned}{mcmc.list}(x,
+...,
+maxVars = 3,
+vars = 1:min(maxVars,
+ncol(x[[1]])),
+maxN = 500,
+suppressPlotWarnings = TRUE)
+}
 \arguments{
   \item{x}{
 }

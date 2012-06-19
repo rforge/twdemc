@@ -2,17 +2,29 @@
 \alias{divideTwDEMCStep}
 \title{divideTwDEMCStep}
 \description{run twDEMCBlock on subspaces}
-\usage{divideTwDEMCStep(aTwDEMC, qPop = numeric(0), nGen = 512, controlTwDEMC = list(), 
-    nSampleMin = round(32/getNChainsPop(aTwDEMC)), m0 = calcM0twDEMC(getNParms(aTwDEMC), 
-        getNChainsPop(aTwDEMC)), ...)}
+\usage{
+divideTwDEMCStep(aTwDEMC,
+qPop = numeric(0),
+nGen = 512,
+controlTwDEMC = list(),
+m0 = calcM0twDEMC(getNParms(aTwDEMC),
+getNChainsPop(aTwDEMC)),
+nRowsMin,
+nRowsMinMax,
+minPSub,
+TEnd,
+...)
+}
 \arguments{
   \item{aTwDEMC}{former run of twDEMCBlockInt}
   \item{qPop}{numeric vector (nPop): probability of samples in subspace within entire space}
   \item{nGen}{the number of generations for twDEMCBlock}
   \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlock}} containing entry thin}
-  \item{nSampleMin}{minimum number of samples in each population so that calculation of average density is stable}
-  \item{m0}{
-}
+  \item{m0}{minimum number of samples in step for extending runs}
+  \item{nRowsMin}{number of rows in sub to sample at minimum, must contain enough samples for robust estimation of mean log-Density of subspace}
+  \item{nRowsMinMax}{number of rows in sub to include as maximum mcNewMinN}
+  \item{minPSub}{minimum proportion of a subsample in splitting´}
+  \item{TEnd}{numeric vector (nResComp) target temperature}
   \item{\dots}{further arguments to \code{\link{twDEMCBlock}}, such as TEnd}
 }
 \details{A first estimate of the proportion of samples from different subspaces
@@ -25,7 +37,8 @@ estimate proportional to the volume: the initial quantiles.}
 \item{resTwDEMC}{the runs with new samples of class twDEMCPops}
 \item{pSubs}{the quantiles of samples within given subspace}
 \item{subPercChange}{numeric vector: ratio of estimated proportion in limiting distribution to proportion of initial proportion}
-\item{resTwDEMCMinN}{twDEMCPops with last (nRowsMin <- max( 2*m0, nSampleMin )) rows}}
+\item{resTwDEMCMinN}{twDEMCPops with last (nRowsMin <- max( 2*m0, nSampleMin )) rows}
+\item{nPopsApp}{numeric vectgor (nSpace): number of spaces for which samples are appended}}
 
 \author{Thomas Wutzler}
 

@@ -2,7 +2,14 @@
 \alias{thin.twDEMC}
 \title{thin twDEMC}
 \description{Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.}
-\usage{\method{thin}{twDEMC}(x, newThin = x$thin, start = 0, end = NA, ..., doKeepBatchCall = FALSE)}
+\usage{
+\method{thin}{twDEMC}(x,
+newThin = x$thin,
+start = 0,
+end = NA,
+...,
+doKeepBatchCall = FALSE)
+}
 \arguments{
   \item{x}{the twDEMC list to thin}
   \item{newThin}{finite numeric scalar: the target thinning factor, must be positive multiple of x$thin}

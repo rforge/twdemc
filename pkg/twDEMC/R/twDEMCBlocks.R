@@ -58,7 +58,7 @@ twDEMCBlockInt <- function(
 	, spacePop = 1:nPop			##<< the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops 
 	, controlTwDEMC = list()	##<< control parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
-	, remoteDumpfileBasename=NULL	##<< the basename of a dumpfile that is created on error on remote process 
+	, remoteDumpfileBasename=NULL	##<< the basename of a dumpfile that is created on error on remote process (see example section) 
 	, fDiscrProp=NULL				##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
 	, argsFDiscrProp=list()			##<< further arguments to fDiscrProp
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
@@ -670,6 +670,24 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	res3 <- twDEMCBatch(res2, nGen=100)	    # continue even further without needing to respecify parameters
 	getNGen(res3)					# 100 as nGen
 	
+	# tracing error in remote session:
+	# Provide argument \code{remoteDumpfileBasename="dumpFile"}
+	# Then a dumpfile is created on remote error by \code{\link{sfRemoteWrapper}}.
+	# In order to trace the density function, the following can be done
+	if( FALSE ){
+		.remoteDumpfileBasename="dumpfile"
+		.remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
+		load(.remoteDumpfile)
+		debugger(get(.remoteDumpfileBasename))
+		# choose last step (18)
+		require(debug)
+		fDen <- remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen
+		mtrace(fDen); remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen <- fDen
+		do.call(remoteFun, c(remoteFunArgs, list(...)))	
+		# go()
+		# qqq()
+	}
+	
 	detach()
 	
 }
@@ -1088,7 +1106,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	# modify in place, so that dimnames etc are preserved
 	endChain0 <- (nStep-1)*nsChain	#index before last step of all chains
 	for( iChain in 1:nsChain ){
-		resChain = res[[endChain0+iChain]]
+		resChain <- res[[endChain0+iChain]]
 		X[,iChain] <- resChain$xC
 		logDenCompX[,iChain] <- resChain$logDenCompC
 		parUpdateDen[,,iChain] <- resChain$parUpdateDenC
@@ -1203,7 +1221,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			if( 0 != length(resUpdate$logDenCompP) ) logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal 		
 		}
 	} #iBlock
-	
+
 	##value<< list with components
 	resUpdate <- list( ##describe <<
 		xC=xC						##<< numeric vecotr: current accepted state

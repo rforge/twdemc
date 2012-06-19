@@ -2,10 +2,16 @@
 \alias{constrainNStack}
 \title{constrainNStack}
 \description{Subsetting a sequence of parameter vectors. Keeps only the n cases in pss1 that are closest to thetaPrior.}
-\usage{constrainNStack(pss1, thetaPrior, n = nrow(pss1)\%/\%4, vars = names(thetaPrior), 
-    invCovarTheta = if (0 < length(thetaPrior)) solve(cov(pss1[, 
-        names(thetaPrior[vars]), drop = FALSE])) else numeric(0), 
-    returnAlpha = FALSE)}
+\usage{
+constrainNStack(pss1,
+thetaPrior,
+n = nrow(pss1)\%/\%4,
+vars = names(thetaPrior),
+invCovarTheta = if (0 < length(thetaPrior)) solve(cov(pss1[,
+names(thetaPrior[vars]),
+drop = FALSE])) else numeric(0),
+returnAlpha = FALSE)
+}
 \arguments{
   \item{pss1}{numeric matrix: the stack to constrain, see details}
   \item{thetaPrior}{the point in parameter spcae for which to select the closest values}

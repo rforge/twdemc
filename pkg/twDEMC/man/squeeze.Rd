@@ -2,7 +2,9 @@
 \alias{squeeze}
 \title{squeeze}
 \description{Generic method behind \code{\link{squeeze.twDEMCPops}}}
-\usage{squeeze(...)}
+\usage{
+squeeze(...)
+}
 \arguments{
   \item{\dots}{
 }

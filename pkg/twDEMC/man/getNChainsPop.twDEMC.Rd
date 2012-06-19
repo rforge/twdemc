@@ -2,7 +2,10 @@
 \alias{getNChainsPop.twDEMC}
 \title{getNChainsPop twDEMC}
 \description{Extracts the number of chains per population}
-\usage{\method{getNChainsPop}{twDEMC}(res, ...)}
+\usage{
+\method{getNChainsPop}{twDEMC}(res,
+...)
+}
 \arguments{
   \item{res}{object of class twDEMC}
   \item{\dots}{

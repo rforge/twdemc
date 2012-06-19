@@ -2,7 +2,10 @@
 \alias{getNChains.twDEMCPops}
 \title{getNChains twDEMCPops}
 \description{Extracts the number of chains}
-\usage{\method{getNChains}{twDEMCPops}(x, ...)}
+\usage{
+\method{getNChains}{twDEMCPops}(x,
+...)
+}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

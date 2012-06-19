@@ -2,7 +2,12 @@
 \alias{normConstLaplace}
 \title{normConstLaplace}
 \description{Laplace Approximation of the normalizing constant }
-\usage{normConstLaplace(sample, fLogPost, alpha = 0.05, nd = cov.rob(sample))}
+\usage{
+normConstLaplace(sample,
+fLogPost,
+alpha = 0.05,
+nd = cov.rob(sample))
+}
 \arguments{
   \item{sample}{MCMC sample of parameters, each row of the matrix is a parameter vector}
   \item{fLogPost}{function to evaluate log of unnormalized posterior density}

@@ -2,7 +2,11 @@
 \alias{calcDEMCTempProp}
 \title{calcDEMCTempProp}
 \description{Calculate Temperature of components }
-\usage{calcDEMCTempProp(temp, diffLogDen, rFracMin = 1/4)}
+\usage{
+calcDEMCTempProp(temp,
+diffLogDen,
+rFracMin = 1/4)
+}
 \arguments{
   \item{temp}{the maximum temperature}
   \item{diffLogDen}{expected difference in LogDensitys proposed-accepted per datastream}

@@ -2,9 +2,15 @@
 \alias{constrainCfStack}
 \title{constrainCfStack}
 \description{Subsetting a sequence of parameter vectors. Keeps only the the cases in pss1 that are inside a confidence ellipsis around thetaPrior.}
-\usage{constrainCfStack(pss1, thetaPrior, alpha = 0.95, vars = names(thetaPrior), 
-    invCovarTheta = if (0 < length(thetaPrior)) solve(cov(pss1[, 
-        vars, drop = FALSE])) else numeric(0))}
+\usage{
+constrainCfStack(pss1,
+thetaPrior,
+alpha = 0.95,
+vars = names(thetaPrior),
+invCovarTheta = if (0 < length(thetaPrior)) solve(cov(pss1[,
+vars,
+drop = FALSE])) else numeric(0))
+}
 \arguments{
   \item{pss1}{numeric matrix: the stack to constrain, see details}
   \item{thetaPrior}{the point in parameter spcae for which to select the closest values}

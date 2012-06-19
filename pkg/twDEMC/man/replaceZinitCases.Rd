@@ -2,7 +2,10 @@
 \alias{replaceZinitCases}
 \title{replaceZinitCases}
 \description{Replaces states of Zinit by sampling the other states that are marked good.}
-\usage{replaceZinitCases(Zinit, boMat)}
+\usage{
+replaceZinitCases(Zinit,
+boMat)
+}
 \arguments{
   \item{Zinit}{initial states of the form required by \code{\link{twDEMCBlockInt}}}
   \item{boMat}{boolean matrix specifying good cases with rows cases and columns chains. If it is a vector, then matrix is constructed using last dimension as the number of chains}

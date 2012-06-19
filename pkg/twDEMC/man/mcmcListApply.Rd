@@ -2,7 +2,11 @@
 \alias{mcmcListApply}
 \title{mcmcListApply}
 \description{Applies function to each chain of \code{mcmc.list}.}
-\usage{mcmcListApply(mcmcList, fun, ...)}
+\usage{
+mcmcListApply(mcmcList,
+fun,
+...)
+}
 \arguments{
   \item{mcmcList}{
 }

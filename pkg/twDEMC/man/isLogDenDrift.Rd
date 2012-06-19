@@ -2,9 +2,14 @@
 \alias{isLogDenDrift}
 \title{isLogDenDrift}
 \description{check whether first quartile all the logDensities is significantly smaller than last quartile }
-\usage{isLogDenDrift(logDenT, dInfos, alpha = 0.05, maxDrift = 0.3)}
+\usage{
+isLogDenDrift(logDenT,
+dInfos,
+alpha = 0.05,
+maxDrift = 0.3)
+}
 \arguments{
-  \item{logDenT}{numeric matrix (nStep x nResComp): logDensity (highest are best)}
+  \item{logDenT}{numeric array (nStep x nResComp): logDensity (highest are best)}
   \item{dInfos}{list of lists with entry resCompPos (integer vector) specifying the position of result components for each density}
   \item{alpha}{the significance level for a difference}
   \item{maxDrift}{difference in LogDensity, below which no drift is signalled}

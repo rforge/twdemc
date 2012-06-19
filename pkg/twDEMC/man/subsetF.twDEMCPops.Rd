@@ -2,7 +2,11 @@
 \alias{subsetF.twDEMCPops}
 \title{subsetF twDEMCPops}
 \description{keeps only cases within population which evaluate to TRUE for a given function.}
-\usage{\method{subsetF}{twDEMCPops}(x, fKeep, ...)}
+\usage{
+\method{subsetF}{twDEMCPops}(x,
+fKeep,
+...)
+}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{fKeep}{function(pop) returning an boolean matrix (nStep x nChain) of cases to keep

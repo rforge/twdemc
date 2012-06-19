@@ -2,7 +2,10 @@
 \alias{getNGen.twDEMCPops}
 \title{getNGen twDEMCPops}
 \description{Extract the number of completed generations in res}
-\usage{\method{getNGen}{twDEMCPops}(x, ...)}
+\usage{
+\method{getNGen}{twDEMCPops}(x,
+...)
+}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{
@@ -22,6 +25,7 @@ see }
 \code{\link{time2iSample}}
 \code{\link{getNPops.twDEMCPops}}
 \code{\link{getNSamples.twDEMCPops}}
+\code{\link{getNSamplesSpace.twDEMCPops}}
 \code{\link{getNChains.twDEMCPops}}
 \code{\link{getNChainsPop.twDEMCPops}}
 \code{\link{getNParms.twDEMCPops}}
@@ -33,6 +37,8 @@ see }
 data(twdemcEx1)
 getNGen(twdemcEx1)
 getNSamples(twdemcEx1)
+getNSamplesPop(twdemcEx1)
+getNSamplesSpace(twdemcEx1)
 twdemcEx1$thin
 getNPops(twdemcEx1)
 getNChains(twdemcEx1)

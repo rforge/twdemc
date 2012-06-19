@@ -2,8 +2,14 @@
 \alias{calcComponentTempMat}
 \title{calcComponentTempMat}
 \description{calculating the temperature of result components of logDen}
-\usage{calcComponentTempMat(temp, TFix, TProp, useMultiT = TRUE, posTFix = match(names(TFix), 
-    names(TProp)))}
+\usage{
+calcComponentTempMat(temp,
+TFix,
+TProp,
+useMultiT = TRUE,
+posTFix = match(names(TFix),
+names(TProp)))
+}
 \arguments{
   \item{temp}{numeric vector >= 1: global temperature}
   \item{TFix}{named vector: temperature for the components that does not change but is held fixed}

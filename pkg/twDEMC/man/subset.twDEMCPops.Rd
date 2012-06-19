@@ -2,8 +2,13 @@
 \alias{subset.twDEMCPops}
 \title{subset twDEMCPops}
 \description{Condenses an twDEMCPops result object to the cases boKeep.}
-\usage{\method{subset}{twDEMCPops}(x, boKeep, ..., iPops = seq_along(x$pops), 
-    dropShortPops = FALSE)}
+\usage{
+\method{subset}{twDEMCPops}(x,
+boKeep,
+...,
+iPops = seq_along(x$pops),
+dropShortPops = FALSE)
+}
 \arguments{
   \item{x}{twDEMCPops object}
   \item{boKeep}{either logical vector or numeric vector of indices of cases to keep}

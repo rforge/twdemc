@@ -2,11 +2,24 @@
 \alias{findSplit}
 \title{findSplit}
 \description{determine the parameter and its value, where to split the parameter space}
-\usage{findSplit(aSample, nSplit = 4, rVarCrit = 3^2, rAlphaSlopeCrit = base:::pi/4, 
-    pSlopeMax = 0.05, iVars = 1:ncol(aSample), jVarsVar = 1:ncol(aSample), 
-    jVarsSlope = 1:ncol(aSample), isBreakEarly = TRUE, checkSlopesFirst = data.frame(ivar = 1, 
-        j1AlphaSlope = 1, jAlphaSlope = 2)[FALSE, ], maxNSample = 128, 
-    calcVarParallel = TRUE, debugSequential = FALSE)}
+\usage{
+findSplit(aSample,
+nSplit = 4,
+rVarCrit = 3^2,
+rAlphaSlopeCrit = base:::pi/4,
+pSlopeMax = 0.05,
+iVars = 1:ncol(aSample),
+jVarsVar = 1:ncol(aSample),
+jVarsSlope = 1:ncol(aSample),
+isBreakEarly = TRUE,
+checkSlopesFirst = data.frame(ivar = 1,
+j1AlphaSlope = 1,
+jAlphaSlope = 2)[FALSE,
+],
+maxNSample = 128,
+calcVarParallel = TRUE,
+debugSequential = FALSE)
+}
 \arguments{
   \item{aSample}{the sample (stacked chains)}
   \item{nSplit}{how many points per parameter dimension to check for split}

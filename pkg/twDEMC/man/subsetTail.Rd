@@ -2,7 +2,9 @@
 \alias{subsetTail}
 \title{subsetTail}
 \description{Generic method behind \code{\link{subsetTail.twDEMCPops}}}
-\usage{subsetTail(...)}
+\usage{
+subsetTail(...)
+}
 \arguments{
   \item{\dots}{
 }

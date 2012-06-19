@@ -1024,7 +1024,6 @@ twMergePops <- function(
 	if( any(getNSamples(mcApp) < m0) ){ print("twMergePops: Too few samples, recover"); recover() }
 	##value<< list with entries
 	list(
-		##describe<<
 		mcApp = mcApp		##<< twDEMCPop with merged populations
 		#,mcNew = mcNew		##<< twDEMCPop with merged populations
 		,pSubs = pSubs		##<< updated percentiles of the subPopulations. Sum to 1.

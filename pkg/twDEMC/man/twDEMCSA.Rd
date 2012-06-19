@@ -2,33 +2,51 @@
 \alias{twDEMCSA}
 \title{twDEMCSA}
 \description{simulated annealing DEMC }
-\usage{twDEMCSA(thetaPrior, covarTheta, nChainPop = 4, nPop = 2, doIncludePrior = FALSE, 
-    dInfos, qTempInit = 0.4, nObs, nGen = 512, TFix = numeric(0), 
-    TMax = numeric(0), nBatch = 4, maxRelTChange = 0.025, maxLogDenDrift = 0.3, 
-    restartFilename = NULL, TDecProp = 0.8, critSpecVarRatio = 20, 
-    ...)}
+\usage{
+twDEMCSA(thetaPrior,
+covarTheta,
+nGen = 512,
+nObs,
+...,
+dInfos,
+m0 = calcM0twDEMC(length(thetaPrior),
+nChainPop),
+controlTwDEMC = list(),
+debugSequential = FALSE,
+restartFilename = NULL,
+nChainPop = 4,
+nPop = 2,
+doIncludePrior = FALSE,
+ctrlBatch = list(nGen0 = m0 * controlTwDEMC$thin * 3,
+useSubspaceAdaptation = FALSE),
+ctrlT = list(TFix = numeric(0),
+TMax = numeric(0),
+qTempInit = 0.4),
+ctrlConvergence = list(),
+ctrlSubspaces = list())
+}
 \arguments{
   \item{thetaPrior}{vector of parameters, point estimate}
   \item{covarTheta}{the a prior covariance of parameters}
+  \item{nGen}{number of generations in the initial batch, default 512}
+  \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
+  \item{\dots}{further argument to \code{\link{twDEMCBlockInt}}}
+  \item{dInfos}{argument to \code{\link{twDEMCBlockInt}}}
+  \item{m0}{minimum number of samples in step for extending runs}
+  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlock}} containing entry thin}
+  \item{debugSequential}{set to TRUE to avoid parallel execution, good for debugging}
+  \item{restartFilename}{filename to write intermediate results to}
   \item{nChainPop}{number of chains within population}
   \item{nPop}{number of populations}
   \item{doIncludePrior}{should the prior be part of initial population
 << Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1}
-  \item{dInfos}{argument to \code{\link{twDEMCBlockInt}}}
-  \item{qTempInit}{quantile of logDensities used to calculate initial beginning and end temperature, with default 0.4: 40\% of the space is accepted}
-  \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
-  \item{nGen}{number of generations in the initial batch}
-  \item{TFix}{numeric vector (nResComp) specifying a finite value for components with fixed Temperatue, and a non-finite for others
-<< Alternatively a named numeric vector specifying the fixed temperature only for certain components. Note this breaks if result components (possibly of different logDensity functions) have same names}
-  \item{TMax}{numeric vector (nResComp) specifying a maximum temperature for result components.
-<< Alternatively a named numeric vector specifying the maximum temperature only for certain components. Note this breaks if result components (possibly of different logDensity functions) have same names}
-  \item{nBatch}{number of batches with recalculated Temperature}
-  \item{maxRelTChange}{if Temperature of the components changes less than specified value, we do not need further batches because of Temperature}
-  \item{maxLogDenDrift}{if difference between mean logDensity of first and fourth quartile of the sample is less than this value, we do not need further batches because of drift in logDensity}
-  \item{restartFilename}{filename to write intermediate results to}
-  \item{TDecProp}{proportion of Temperature decrease: below one to diminish risk of decreasing Temperature too fast (below what is supported by other data streams)}
-  \item{critSpecVarRatio}{if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces}
-  \item{\dots}{further argument to \code{\link{twDEMCSA}}}
+  \item{ctrlBatch}{list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}\describe{
+\item{nGen0}{number of generations for the intial run}
+\item{useSubspaceAdaptation}{if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}}
+}}
+  \item{ctrlT}{list of arguments controlling Temperature decrease, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}}
+  \item{ctrlConvergence}{list or arguments controlling check for convergence, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}}
+  \item{ctrlSubspaces}{list of arguments controlling splitting and merging of subspaces, see \code{\link{divideTwDEMCSACont}}}
 }
 \details{\describe{\item{initial temperature}{
 Initial parameters are ranked according to their maximum log-Density across components.
@@ -69,16 +87,16 @@ nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(t
 
 #trace(twDEMCSACont, recover )
 #trace(twDEMCSA, recover )
-resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
-	, TFix=c(parmsSparce=1)
-	, nGen=256
-	#, nBatch=2
-	, nBatch=8
+res <- res0 <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs
+	, nGen=3*256
+	, ctrlT=list( TFix=c(parmsSparce=1) )
+	, ctrlBatch=list( nGenBatch=256 )
 	, debugSequential=TRUE
 	#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 )
+res <- twDEMCSA( res0, nGen=4*256 )	# extend the former run
 
-(TCurr <- getCurrentTemp(resPops))
+(TCurr <- getCurrentTemp(res))
 mc0 <- concatPops(res)
 plot( as.mcmc.list(mc0) , smooth=FALSE )
 matplot( mc0$temp, type="l" )

@@ -2,7 +2,10 @@
 \alias{stackChains.array}
 \title{stackChains array}
 \description{Combine MarkovChains of result population of twDEMC. }
-\usage{\method{stackChains}{array}(Zinit, ...)}
+\usage{
+\method{stackChains}{array}(Zinit,
+...)
+}
 \arguments{
   \item{Zinit}{
 }

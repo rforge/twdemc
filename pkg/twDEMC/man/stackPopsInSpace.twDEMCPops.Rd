@@ -2,7 +2,11 @@
 \alias{stackPopsInSpace.twDEMCPops}
 \title{stackPopsInSpace twDEMCPops}
 \description{Combine populations for subspaces to bigger populations }
-\usage{\method{stackPopsInSpace}{twDEMCPops}(x, ..., spacePop = getSpacesPop(x))}
+\usage{
+\method{stackPopsInSpace}{twDEMCPops}(x,
+...,
+spacePop = getSpacesPop(x))
+}
 \arguments{
   \item{x}{
 }
@@ -17,7 +21,8 @@
 
 
 
-\seealso{\code{\link{combineTwDEMCPops}}
+\seealso{\code{\link{stackPops.twDEMCPops}}
+\code{\link{combineTwDEMCPops}}
 \code{\link{stackChains.twDEMCPops}}
 \code{\link{subset.twDEMCPops}}}
 \examples{

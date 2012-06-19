@@ -2,7 +2,10 @@
 \alias{getParBoundsPop.twDEMCPops}
 \title{getParBoundsPop twDEMCPops}
 \description{Extracts lower or upper ParBounds}
-\usage{\method{getParBoundsPop}{twDEMCPops}(x, ...)}
+\usage{
+\method{getParBoundsPop}{twDEMCPops}(x,
+...)
+}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

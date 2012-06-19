@@ -2,8 +2,14 @@
 \alias{replaceZinitNonFiniteLogDensLastStep}
 \title{replaceZinitNonFiniteLogDensLastStep}
 \description{Replaces states of last step, i.e. column of Zinit that yield non-finite rLogDen by sampling other states.}
-\usage{replaceZinitNonFiniteLogDensLastStep(Zinit, fLogDen, nPop = 1, 
-    iStep = nrow(Zinit), maxSteps = 16, ...)}
+\usage{
+replaceZinitNonFiniteLogDensLastStep(Zinit,
+fLogDen,
+nPop = 1,
+iStep = nrow(Zinit),
+maxSteps = 16,
+...)
+}
 \arguments{
   \item{Zinit}{initial states see InitDEMCzsp}
   \item{fLogDen}{the logDen Function}

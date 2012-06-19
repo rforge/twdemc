@@ -2,7 +2,9 @@
 \alias{subPops}
 \title{subPops}
 \description{Generic method behind \code{\link{subPops.twDEMCPops}}}
-\usage{subPops(...)}
+\usage{
+subPops(...)
+}
 \arguments{
   \item{\dots}{
 }

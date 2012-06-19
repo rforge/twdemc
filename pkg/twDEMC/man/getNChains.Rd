@@ -2,7 +2,9 @@
 \alias{getNChains}
 \title{getNChains}
 \description{Generic method behind \code{\link{getNChains.twDEMC}}}
-\usage{getNChains(...)}
+\usage{
+getNChains(...)
+}
 \arguments{
   \item{\dots}{
 }

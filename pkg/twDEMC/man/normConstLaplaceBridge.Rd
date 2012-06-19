@@ -2,9 +2,18 @@
 \alias{normConstLaplaceBridge}
 \title{normConstLaplaceBridge}
 \description{Laplace bridge Approximation of the normalizing constant}
-\usage{normConstLaplaceBridge(sample, logPostSample, fLogPost, alpha = 0.05, 
-    nd = cov.rob(sample), M = 10000, logCest = normConstLaplace(sample, 
-        fLogPost, alpha, nd)["logCLV"])}
+\usage{
+normConstLaplaceBridge(sample,
+logPostSample,
+fLogPost,
+alpha = 0.05,
+nd = cov.rob(sample),
+M = 10000,
+logCest = normConstLaplace(sample,
+fLogPost,
+alpha,
+nd)["logCLV"])
+}
 \arguments{
   \item{sample}{MCMC sample of parameters, each row of the matrix is a parameter vector}
   \item{logPostSample}{the unnormalized posteror density of the sample}

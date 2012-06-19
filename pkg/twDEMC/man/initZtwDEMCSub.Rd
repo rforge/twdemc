@@ -2,7 +2,9 @@
 \alias{initZtwDEMCSub}
 \title{initZtwDEMCSub}
 \description{Generic method behind \code{\link{initZtwDEMCSub.matrix}}}
-\usage{initZtwDEMCSub(...)}
+\usage{
+initZtwDEMCSub(...)
+}
 \arguments{
   \item{\dots}{
 }

@@ -2,7 +2,11 @@
 \alias{combinePops.twDEMC}
 \title{combinePops twDEMC}
 \description{Combine several populations to one big population consiting of more chains.}
-\usage{\method{combinePops}{twDEMC}(x, ..., doKeepBatchCall = FALSE)}
+\usage{
+\method{combinePops}{twDEMC}(x,
+...,
+doKeepBatchCall = FALSE)
+}
 \arguments{
   \item{x}{first twDEMC object}
   \item{\dots}{more twDEMC objects}

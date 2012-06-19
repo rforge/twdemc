@@ -2,7 +2,10 @@
 \alias{getSpacesPop.twDEMCPops}
 \title{getSpacesPop twDEMCPops}
 \description{Extracts the space replicate that each population belongs to.}
-\usage{\method{getSpacesPop}{twDEMCPops}(x, ...)}
+\usage{
+\method{getSpacesPop}{twDEMCPops}(x,
+...)
+}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{

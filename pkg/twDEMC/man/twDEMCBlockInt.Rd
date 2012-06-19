@@ -2,18 +2,47 @@
 \alias{twDEMCBlockInt}
 \title{twDEMCBlockInt}
 \description{Differential Evolution Markov Chain with blocked parameter update}
-\usage{twDEMCBlockInt(pops = list(list(parms, nGen = 12, TProp = NULL, 
-    X = NULL, logDenCompX = NULL, spaceInd = 1, upperParBounds = numeric(0), 
-    lowerParBounds = numeric(0), splits = numeric(0))), dInfos = list(list(fLogDen = NULL, 
-    xC = xC, logDenCompC = logDenCompC, parUpdateDenC = parUpdateDenC, 
-    compPosDen = 1:nrow(pops[[1]]$parms), argsFLogDen = list(), 
-    intResComp = vector("integer", 0), fLogDenScale = 1)), blocks = list(list(dInfoPos = 1, 
-    compPos = dInfos[[1]]$compPosDen, fUpdateBlock = updateBlockTwDEMC, 
-    argsFUpdate = list(), requiresUpdatedDen = TRUE)), TSpec = matrix(1, 
-    ncol = 2, nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), 
-    m0 = numeric(0), nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
-    debugSequential = FALSE, remoteDumpfileBasename = NULL, fDiscrProp = NULL, 
-    argsFDiscrProp = list(), doRecordProposals = FALSE)}
+\usage{
+twDEMCBlockInt(pops = list(list(parms,
+nGen = 12,
+TProp = NULL,
+X = NULL,
+logDenCompX = NULL,
+spaceInd = 1,
+upperParBounds = numeric(0),
+lowerParBounds = numeric(0),
+splits = numeric(0))),
+dInfos = list(list(fLogDen = NULL,
+xC = xC,
+logDenCompC = logDenCompC,
+parUpdateDenC = parUpdateDenC,
+compPosDen = 1:nrow(pops[[1]]$parms),
+argsFLogDen = list(),
+intResComp = vector("integer",
+0),
+fLogDenScale = 1)),
+blocks = list(list(dInfoPos = 1,
+compPos = dInfos[[1]]$compPosDen,
+fUpdateBlock = updateBlockTwDEMC,
+argsFUpdate = list(),
+requiresUpdatedDen = TRUE)),
+TSpec = matrix(1,
+ncol = 2,
+nrow = 1,
+dimnames = list(NULL,
+c("T0",
+"TEnd"))),
+m0 = numeric(0),
+nGen = integer(0),
+spacePop = 1:nPop,
+controlTwDEMC = list(),
+debugSequential = FALSE,
+remoteDumpfileBasename = NULL,
+fDiscrProp = NULL,
+argsFDiscrProp = list(),
+doRecordProposals = FALSE,
+progressOutput = ".")
+}
 \arguments{
   \item{pops}{list of population infos for each population, each info is a list with components\describe{
 \item{parms}{list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.}
@@ -51,10 +80,11 @@ If only one row is specified, the Temperature is taken for all result components
   \item{spacePop}{the space replicate that each population belongs to. By default assume only one population per space, overridden by entry in pops}
   \item{controlTwDEMC}{control parameters influencing the update and the convergens of the chains (see details)}
   \item{debugSequential}{if TRUE apply is used instead of sfApply, for easier debugging}
-  \item{remoteDumpfileBasename}{the basename of a dumpfile that is created on error on remote process}
+  \item{remoteDumpfileBasename}{the basename of a dumpfile that is created on error on remote process (see example section)}
   \item{fDiscrProp}{function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)}
   \item{argsFDiscrProp}{further arguments to fDiscrProp}
   \item{doRecordProposals}{if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y}
+  \item{progressOutput}{output after each thinning interval}
 }
 \details{This is the central method for applying a Differential Evolution Markov Chain given a function of 
 an unnormalized probability density.
@@ -74,6 +104,7 @@ It is invoked usually by (\code{\link{twDEMCBlock.array}} or \code{\link{twDEMCB
 \item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)}
 \item{pIndStep}{independent state about after on average about those number of 1.5 accepted steps}
 \item{nPastGen}{factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population}
+\item{freeMasterNode}{if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}}}
 }
 
 }}
@@ -184,6 +215,24 @@ res2 <- twDEMCBatch(resRestart.twDEMC)	# continue without needing to respecify p
 getNGen(res2)					# 60 as nGen
 res3 <- twDEMCBatch(res2, nGen=100)	    # continue even further without needing to respecify parameters
 getNGen(res3)					# 100 as nGen
+
+# tracing error in remote session:
+# Provide argument \code{remoteDumpfileBasename="dumpFile"}
+# Then a dumpfile is created on remote error by \code{\link{sfRemoteWrapper}}.
+# In order to trace the density function, the following can be done
+if( FALSE ){
+	.remoteDumpfileBasename="dumpfile"
+	.remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
+	load(.remoteDumpfile)
+	debugger(get(.remoteDumpfileBasename))
+	# choose last step (18)
+	require(debug)
+	fDen <- remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen
+	mtrace(fDen); remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen <- fDen
+	do.call(remoteFun, c(remoteFunArgs, list(...)))	
+	# go()
+	# qqq()
+}
 
 detach()
 

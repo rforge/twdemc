@@ -2,8 +2,12 @@
 \alias{squeeze.twDEMCPops}
 \title{squeeze twDEMCPops}
 \description{Reduces the rows of populations so that all populations have the same number of samples. }
-\usage{\method{squeeze}{twDEMCPops}(x, ..., length.out = min(getNSamples(x)), 
-    dropShortPops = FALSE)}
+\usage{
+\method{squeeze}{twDEMCPops}(x,
+...,
+length.out = min(getNSamples(x)),
+dropShortPops = FALSE)
+}
 \arguments{
   \item{x}{the twDEMCPops list to thin}
   \item{\dots}{

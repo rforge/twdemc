@@ -2,7 +2,12 @@
 \alias{calcDEMCTemp}
 \title{calcDEMCTemp}
 \description{Calculates the temperature for an exponential decrease from \code{T0} to \code{Tend} after \code{nGen} steps. 	}
-\usage{calcDEMCTemp(T0, Tend = 1, nGen, iGen = 1:nGen)}
+\usage{
+calcDEMCTemp(T0,
+Tend = 1,
+nGen,
+iGen = 1:nGen)
+}
 \arguments{
   \item{T0}{the initial temperature (before the first step at iGen=0)}
   \item{Tend}{the temperature at the last step}

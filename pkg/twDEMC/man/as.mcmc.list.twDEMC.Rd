@@ -2,8 +2,13 @@
 \alias{as.mcmc.list.twDEMC}
 \title{as mcmc list twDEMC}
 \description{Converts list of type twDEMC (result of \code{\link{twDEMC}}) to coda's \code{mcmc.list}. }
-\usage{\method{as.mcmc}{list.twDEMC}(x, maxLength = NULL, thin = 1, start = 1, 
-    ...)}
+\usage{
+\method{as.mcmc}{list.twDEMC}(x,
+maxLength = NULL,
+thin = 1,
+start = 1,
+...)
+}
 \arguments{
   \item{x}{the output of \code{\link{twDEMC}}) run}
   \item{maxLength}{maximum length of the chains, thin will be increased accordingly}

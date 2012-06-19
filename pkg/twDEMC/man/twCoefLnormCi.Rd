@@ -2,7 +2,12 @@
 \alias{twCoefLnormCi}
 \title{twCoefLnormCi}
 \description{Calculates mu and sigma of the lognormal distribution from lower and upper quantile, i.e. conidence interval.}
-\usage{twCoefLnormCi(lower, upper, sigmaFac = qnorm(0.99), isTransScale = FALSE)}
+\usage{
+twCoefLnormCi(lower,
+upper,
+sigmaFac = qnorm(0.99),
+isTransScale = FALSE)
+}
 \arguments{
   \item{lower}{value at the lower quantile, i.e. practical minimum}
   \item{upper}{value at the upper quantile, i.e. practical maximum}
