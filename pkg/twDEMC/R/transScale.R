@@ -22,11 +22,14 @@ twVarDistrVec <- function(
 setMethodS3("transOrigPopt","default", function( 
 		### Transform vectors from normal to original scale.
 	normpopt	##<< numerical vector/array with values at transformed, i.e. normal, scale
-	,poptDistr=eval(parse(text="parDistr$trans[names(normpopt)]")),
+	,poptDistr=parDistr$trans[names(normpopt)]
 		### character vector/array of kind of transformation ("lognorm"/"logitnorm")
 		### values with other characters indicate no transformation
-		### default assumes vector \code{parDistr$trans} in environement 
-	...
+		### positions must match the positions in normpopt
+	,parDistr 
+		### alternative way of specifying poptDistr: 
+		### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+	,...
 ){
 	# transOrigPopt.default
 	
@@ -72,16 +75,16 @@ attr(transOrigPopt.default,"ex") <- function(){
 	varDistr["D0"] <- "lognorm"
 	varDistr["C0"] <- "logitnorm"
 	parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb, useMedian=FALSE )
-	parDistr
 	poptDistr <- twConstrainPoptDistr(c("A0","C0"), parDistr)
-	all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr$mu["A0"], parDistr$sigmaDiag["A0"] ) )
+	all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr[["A0","mu"]], parDistr[["A0","sigmaDiag"]] ) )
 	
 	# transform entire parameter vectors between scales
-	pOrig <- transOrigPopt( parDistr$mu, parDistr$trans[names(parDistr$mu)] )
+	pOrig <- transOrigPopt( parDistr$mu, parDistr=parDistr )
 	# note that transform of mu slighly differs from the mode for lognormal and logitnormal 
 	pOrig
 	# back-transform to normal scale
-	pBack <- transNormPopt( pOrig, parDistr$trans[names(pOrig)] )	
+	#pBack <- transNormPopt( pOrig, parDistr$trans[names(pOrig)] )	
+	pBack <- transNormPopt( pOrig, parDistr=parDistr )	
 	all.equal( parDistr$mu, pBack )
 	
 	# plot quantiles for given distributions
@@ -104,13 +107,16 @@ attr(transOrigPopt.default,"ex") <- function(){
 
 setMethodS3("transNormPopt","default", function( 
 		### Transform vectors from original to normal scale.
-		popt, 
+		popt 
 		### numerical vector/array with values at untransformed scale
-		poptDistr=eval(parse(text="parDistr$trans[names(normpopt)]")),
+		,poptDistr=parDistr$trans[names(normpopt)]
 		### character vector/array of kind of transformation ("lognorm"/"logitnorm")
 		### values with other characters indicate no transformation
-		### default assumes vector parDistr$trans in environement 
-		...
+		### positions must match the positions in normpopt
+		,parDistr 
+		### alternative way of specifying poptDistr: 
+		### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+		,...
 	){
 		# transNormPopt.default
 		
@@ -131,11 +137,16 @@ setMethodS3("transNormPopt","default", function(
 
 setMethodS3("transOrigPopt","matrix", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each column of \code{normopt}.
-	normpopt, 
+	normpopt 
 		### numerical matrx with values at transformed, i.e. normal, scale
-	poptDistr=eval(parse(text="parDistr$trans[colnames(normpopt)]")),
+	,poptDistr=parDistr$trans[colnames(normpopt)]
 		### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
-	...
+		### Positions must match the positions in normpopt.
+		### If given a single value, it is repeated.
+	,parDistr 
+		### Alternative way of specifying poptDistr: 
+		### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+	,...
 ){
 	#seealso<<   
 	# \code{\link{transOrigPopt.default}}
@@ -163,11 +174,14 @@ setMethodS3("transOrigPopt","matrix", function(
 
 setMethodS3("transOrigPopt","array", function( 
 		### Applies \code{\link{transOrigPopt.default}} to each column, i.e. variable, of \code{normopt}.
-		normpopt, 
-		### numerical matrx with values at transformed, i.e. normal, scale
-		poptDistr=eval(parse(text="parDistr$trans[rownames(normpopt)]")),
+		normpopt 
+		### numerical array with values at transformed, i.e. normal, scale
+		,poptDistr=parDistr$trans[colnames(normpopt)]
 		### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
-		...
+		,parDistr 
+		### Alternative way of specifying poptDistr: 
+		### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+		,...
 	){
 		#seealso<<   
 		# \code{\link{transOrigPopt.default}}
@@ -190,30 +204,36 @@ setMethodS3("transOrigPopt","array", function(
 #twUtest(transOrigPopt, "test.transCoda" )
 setMethodS3("transOrigPopt","mcmc.list", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each entry of \code{normopt}.
-	normpopt, 
+	normpopt
 	### numerical matrx with values at transformed, i.e. normal, scale
-	poptDistr=eval(parse(text="parDistr$trans")),
+	,poptDistr=parDistr$trans[ colnames(normpopt[[1]]$parms) ]
 	### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
-	...
+	,parDistr 
+	### Alternative way of specifying poptDistr: 
+	### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+	,...
 ){
 	##seealso<<   
 	## \code{\link{transOrigPopt.default}}
-	mcmcListApply( normpopt, transOrigPopt.matrix, poptDistr)
+	mcmcListApply( normpopt, transOrigPopt.matrix, poptDistr=poptDistr)
 })
 
 
 setMethodS3("transOrigPopt","twDEMC", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.
-	normpopt, 
-		### list of class twDEMC with $parms in transformed scale 
-	poptDistr=eval(parse(text="parDistr$trans")),
-		### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
-	...
+	normpopt
+	### numerical matrx with values at transformed, i.e. normal, scale
+	,poptDistr=parDistr$trans[ colnames(normpopt$parms) ]
+	### character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt
+	,parDistr 
+	### Alternative way of specifying poptDistr: 
+	### dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} 
+	,...
 ){
 	##seealso<<   
 	## \code{\link{transOrigPopt.default}}
 	res <- normpopt
-	res$parms <- transOrigPopt.array(normpopt$parms, poptDistr=poptDistr)
+	res$parms <- transOrigPopt.array(normpopt$parms, poptDistr)
 	# in addition transform parameters in Y
 	if( 0<length(normpopt$Y) ){
 		varNames <- colnames(res$parms)

@@ -4,14 +4,17 @@
 \description{Transform vectors from normal to original scale.}
 \usage{
 \method{transOrigPopt}{default}(normpopt,
-poptDistr = eval(parse(text = "parDistr$trans[names(normpopt)]")),
+poptDistr = parDistr$trans[names(normpopt)],
+parDistr,
 ...)
 }
 \arguments{
   \item{normpopt}{numerical vector/array with values at transformed, i.e. normal, scale}
   \item{poptDistr}{character vector/array of kind of transformation ("lognorm"/"logitnorm")
 values with other characters indicate no transformation
-default assumes vector \code{parDistr$trans} in environement }
+positions must match the positions in normpopt}
+  \item{parDistr}{alternative way of specifying poptDistr: 
+dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} }
   \item{\dots}{
 }
 }
@@ -51,16 +54,16 @@ varDistr <- twVarDistrVec( names(parmsBounds) )	# by default assumed normal
 varDistr["D0"] <- "lognorm"
 varDistr["C0"] <- "logitnorm"
 parDistr <- twQuantiles2Coef( parmsBounds, varDistr, upperBoundProb=upperBoundProb, useMedian=FALSE )
-parDistr
 poptDistr <- twConstrainPoptDistr(c("A0","C0"), parDistr)
-all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr$mu["A0"], parDistr$sigmaDiag["A0"] ) )
+all.equal( upperBoundProb, pnorm(parmsBounds$A0[2], parDistr[["A0","mu"]], parDistr[["A0","sigmaDiag"]] ) )
 
 # transform entire parameter vectors between scales
-pOrig <- transOrigPopt( parDistr$mu, parDistr$trans[names(parDistr$mu)] )
+pOrig <- transOrigPopt( parDistr$mu, parDistr=parDistr )
 # note that transform of mu slighly differs from the mode for lognormal and logitnormal 
 pOrig
 # back-transform to normal scale
-pBack <- transNormPopt( pOrig, parDistr$trans[names(pOrig)] )	
+#pBack <- transNormPopt( pOrig, parDistr$trans[names(pOrig)] )	
+pBack <- transNormPopt( pOrig, parDistr=parDistr )	
 all.equal( parDistr$mu, pBack )
 
 # plot quantiles for given distributions

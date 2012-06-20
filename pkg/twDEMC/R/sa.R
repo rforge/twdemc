@@ -9,7 +9,7 @@ twDEMCSA <- function(
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 	, dInfos			##<< argument to \code{\link{twDEMCBlockInt}}
 	, m0 = calcM0twDEMC(length(thetaPrior),nChainPop)	##<< minimum number of samples in step for extending runs
-	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
+	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlockInt}} containing entry thin
 	, debugSequential=FALSE		##<< set to TRUE to avoid parallel execution, good for debugging
 	, restartFilename=NULL		##<< filename to write intermediate results to
 	#
@@ -279,7 +279,7 @@ twDEMCSACont <- function(
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
-	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
+	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlockInt}} containing entry thin
 	, debugSequential=FALSE		##<< set to TRUE to avoid parallel execution, good for debugging
 	, restartFilename=NULL		##<< filename to write intermediate results to
 	#

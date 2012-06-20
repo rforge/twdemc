@@ -7,7 +7,7 @@
 	})
 	.setUpDf <- within( list(),{
 		parDistrNamed = list( trans=c(b="norm", a="lognorm", c="someweired"))
-		parDistr = list( trans=c("lognorm","norm"))
+		parDistr = list( trans=c(a="lognorm",b="norm"))
 		parmsBounds = list(
 			kS = 1/100 * c(1,100)	# differnt meanings, essentially do not constrain
 			,mSA = 1 *c(1,10) 		# MM constant in SOM decomposition: in the range but larger than A0, very uncertain
@@ -87,7 +87,7 @@ test.transTwDEMC <- function(){
 	.tmpexp$Y[,"a",] <- exp(mc1$Y[,"a",])
 	checkEquals( .tmpexp, .tmp )
 	
-	.tmp2 <- transOrigPopt(mc1 )	#check default automatically accessing parDistr$trans
+	.tmp2 <- transOrigPopt(mc1, parDistr=parDistr )	#check default automatically accessing parDistr$trans
 	checkEquals( .tmp, .tmp2)
 }
 

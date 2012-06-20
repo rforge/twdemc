@@ -4,14 +4,17 @@
 \description{Transform vectors from original to normal scale.}
 \usage{
 \method{transNormPopt}{default}(popt,
-poptDistr = eval(parse(text = "parDistr$trans[names(normpopt)]")),
+poptDistr = parDistr$trans[names(normpopt)],
+parDistr,
 ...)
 }
 \arguments{
   \item{popt}{numerical vector/array with values at untransformed scale}
   \item{poptDistr}{character vector/array of kind of transformation ("lognorm"/"logitnorm")
 values with other characters indicate no transformation
-default assumes vector parDistr$trans in environement }
+positions must match the positions in normpopt}
+  \item{parDistr}{alternative way of specifying poptDistr: 
+dataframe with parameter names in column names and column trans, such as provided by \code{\link{twQuantiles2Coef}} }
   \item{\dots}{
 }
 }

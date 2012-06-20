@@ -6,8 +6,8 @@ divideTwDEMCSACont <- function(
 	, nObs							##<< integer vector (nResComp) specifying the number of observations for each result component
 	, iPopsDoSplit=integer(0)		##<< populations given here will definitely be splitted (no matter of other criteria)
 	#
-	, ...							##<< arguments passed to \code{\link{twDEMCBlock}}
-	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
+	, ...							##<< arguments passed to \code{\link{twDEMCBlockInt}}
+	, controlTwDEMC = list()		##<< list argument to \code{\link{twDEMCBlockInt}} containing entry thin
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
 	, debugSequential=FALSE			##<< set to TRUE to avoid parallel execution, good for debugging
@@ -341,13 +341,13 @@ divideTwDEMCStep <- function(
 	aTwDEMC					##<< former run of twDEMCBlockInt
 	,qPop=numeric(0)		##<< numeric vector (nPop): probability of samples in subspace within entire space 
 	,nGen=512				##<< the number of generations for twDEMCBlock
-	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
+	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlockInt}} containing entry thin
 	, m0 = calcM0twDEMC(getNParms(aTwDEMC),getNChainsPop(aTwDEMC))	##<< minimum number of samples in step for extending runs
 	, nRowsMin				##<< number of rows in sub to sample at minimum, must contain enough samples for robust estimation of mean log-Density of subspace
 	, nRowsMinMax			##<< number of rows in sub to include as maximum mcNewMinN
 	, minPSub				##<< minimum proportion of a subsample in splitting´
 	, TEnd					##<< numeric vector (nResComp) target temperature 
-	, ...					##<< further arguments to \code{\link{twDEMCBlock}}, such as TEnd
+	, ...					##<< further arguments to \code{\link{twDEMCBlockInt}}, such as TEnd
 ){
 	if( length(aTwDEMC$dInfos) > 1)
 		warning("divideTwDEMCStep: subspace log-Density weighted aggregation only possible with one log-density function.")

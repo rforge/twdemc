@@ -2,10 +2,10 @@ divideTwDEMCSteps <- function(
 	### run twDEMCBlock on subspaces
 	aTwDEMC					##<< former run of twDEMCBlockInt
 	,nGen=512				##<< the number of generations for twDEMCBlock
-	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlock}} containing entry thin
+	, controlTwDEMC = list()	##<< list argument to \code{\link{twDEMCBlockInt}} containing entry thin
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, m0 = calcM0twDEMC(getNParms(aTwDEMC),getNChainsPop(aTwDEMC))		# minimum number of samples in step for extending runs
-	, ...					##<< further arguments to \code{\link{twDEMCBlock}}
+	, ...					##<< further arguments to \code{\link{twDEMCBlockInt}}
 	, nGenBatch=256
 	#, argsFSplitPop=vector("list",dim(aSample)[3])	##<< for each population: list of arguments  passed \code{\link{getSubSpaces}} and further to \code{\link{findSplit}}, e.g. for passing order of variables to check in \code{iVars} and \code{jVarsVar}
 	, dumpfileBasename="recover"
