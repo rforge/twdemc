@@ -4,7 +4,8 @@
 \description{Applies \code{\link{transOrigPopt.default}} to each entry of \code{normopt}.}
 \usage{
 \method{transOrigPopt}{mcmc.list}(normpopt,
-poptDistr = parDistr$trans[colnames(normpopt[[1]]$parms)],
+poptDistr = parDistr[colnames(normpopt[[1]]$parms),
+"trans"],
 parDistr,
 ...)
 }

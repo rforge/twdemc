@@ -4,7 +4,8 @@
 \description{Transform vectors from original to normal scale.}
 \usage{
 \method{transNormPopt}{default}(popt,
-poptDistr = parDistr$trans[names(normpopt)],
+poptDistr = parDistr[names(normpopt),
+"trans"],
 parDistr,
 ...)
 }

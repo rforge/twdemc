@@ -19,13 +19,13 @@ TEnd,
   \item{aTwDEMC}{former run of twDEMCBlockInt}
   \item{qPop}{numeric vector (nPop): probability of samples in subspace within entire space}
   \item{nGen}{the number of generations for twDEMCBlock}
-  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlock}} containing entry thin}
+  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlockInt}} containing entry thin}
   \item{m0}{minimum number of samples in step for extending runs}
   \item{nRowsMin}{number of rows in sub to sample at minimum, must contain enough samples for robust estimation of mean log-Density of subspace}
   \item{nRowsMinMax}{number of rows in sub to include as maximum mcNewMinN}
   \item{minPSub}{minimum proportion of a subsample in splitting´}
   \item{TEnd}{numeric vector (nResComp) target temperature}
-  \item{\dots}{further arguments to \code{\link{twDEMCBlock}}, such as TEnd}
+  \item{\dots}{further arguments to \code{\link{twDEMCBlockInt}}, such as TEnd}
 }
 \details{A first estimate of the proportion of samples from different subspaces
 are the initial percentiles qp. 

@@ -38,8 +38,8 @@ argsFSplit = list()))
   \item{nGen}{the number of generations for twDEMCBlock}
   \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
   \item{iPopsDoSplit}{populations given here will definitely be splitted (no matter of other criteria)}
-  \item{\dots}{arguments passed to \code{\link{twDEMCBlock}}}
-  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlock}} containing entry thin}
+  \item{\dots}{arguments passed to \code{\link{twDEMCBlockInt}}}
+  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlockInt}} containing entry thin}
   \item{doRecordProposals}{if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y}
   \item{m0}{minimum number of samples in step for extending runs
 

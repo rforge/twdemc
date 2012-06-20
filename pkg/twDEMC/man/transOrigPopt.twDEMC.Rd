@@ -4,7 +4,8 @@
 \description{Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.}
 \usage{
 \method{transOrigPopt}{twDEMC}(normpopt,
-poptDistr = parDistr$trans[colnames(normpopt$parms)],
+poptDistr = parDistr[colnames(normpopt$parms),
+"trans"],
 parDistr,
 ...)
 }

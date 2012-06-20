@@ -1,0 +1,7 @@
+    stackChains.twDEMCPops                  html  
+Rd warning: Z:/twutz/eclipse_R/twDEMC/man/stackChains.twDEMCPops.Rd:21: missing link 'stackPopsInSpace'
+
+    subset.twDEMCPops                       html  
+Rd warning: Z:/twutz/eclipse_R/twDEMC/man/subset.twDEMCPops.Rd:29: missing link 'spacesPop.twDEMCPops'
+
+Unit test devideTwDEMC

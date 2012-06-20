@@ -29,7 +29,7 @@ dumpfileBasename = NULL))
   \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
   \item{\dots}{further argument to \code{\link{twDEMCBlockInt}}}
   \item{m0}{minimum number of samples in step for extending runs}
-  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlock}} containing entry thin}
+  \item{controlTwDEMC}{list argument to \code{\link{twDEMCBlockInt}} containing entry thin}
   \item{debugSequential}{set to TRUE to avoid parallel execution, good for debugging}
   \item{restartFilename}{filename to write intermediate results to}
   \item{ctrlBatch}{list of arguments controlling batch executions\describe{

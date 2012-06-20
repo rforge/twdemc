@@ -7,7 +7,7 @@
 	})
 	.setUpDf <- within( list(),{
 		parDistrNamed = list( trans=c(b="norm", a="lognorm", c="someweired"))
-		parDistr = list( trans=c(a="lognorm",b="norm"))
+		parDistr = data.frame( trans=c(a="lognorm",b="norm"))
 		parmsBounds = list(
 			kS = 1/100 * c(1,100)	# differnt meanings, essentially do not constrain
 			,mSA = 1 *c(1,10) 		# MM constant in SOM decomposition: in the range but larger than A0, very uncertain

@@ -4,7 +4,8 @@
 \description{Applies \code{\link{transOrigPopt.default}} to each column of \code{normopt}.}
 \usage{
 \method{transOrigPopt}{matrix}(normpopt,
-poptDistr = parDistr$trans[colnames(normpopt)],
+poptDistr = parDistr[colnames(normpopt),
+"trans"],
 parDistr,
 ...)
 }
