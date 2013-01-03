@@ -2,10 +2,7 @@
 \alias{sumLogDenComp}
 \title{sumLogDenComp}
 \description{sum LogDen components within density}
-\usage{
-sumLogDenComp(resLogDen,
-dInfos = NULL)
-}
+\usage{sumLogDenComp(resLogDen, dInfos = NULL)}
 \arguments{
   \item{resLogDen}{numeric matrix (nStep x nResComp x nChain): of log-Densities}
   \item{dInfos}{list of densities each a list with entry resCompPos: integer vector, specifying the result components within density

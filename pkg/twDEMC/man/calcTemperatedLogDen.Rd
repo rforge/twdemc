@@ -1,10 +1,8 @@
 \name{calcTemperatedLogDen}
 \alias{calcTemperatedLogDen}
 \title{calcTemperatedLogDen}
-\description{Generic method behind \code{\link{calcTemperatedLogDen.default}}}
-\usage{
-calcTemperatedLogDen(...)
-}
+\description{Generic method behind \code{calcTemperatedLogDen.default}}
+\usage{calcTemperatedLogDen(...)}
 \arguments{
   \item{\dots}{
 }

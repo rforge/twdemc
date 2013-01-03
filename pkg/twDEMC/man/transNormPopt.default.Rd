@@ -2,13 +2,8 @@
 \alias{transNormPopt.default}
 \title{transNormPopt default}
 \description{Transform vectors from original to normal scale.}
-\usage{
-\method{transNormPopt}{default}(popt,
-poptDistr = parDistr[names(normpopt),
-"trans"],
-parDistr,
-...)
-}
+\usage{\method{transNormPopt}{default}(popt, poptDistr = parDistr[names(normpopt), 
+    "trans"], parDistr, ...)}
 \arguments{
   \item{popt}{numerical vector/array with values at untransformed scale}
   \item{poptDistr}{character vector/array of kind of transformation ("lognorm"/"logitnorm")
@@ -29,4 +24,4 @@ By this way it is possible to specify only one value, or vector corresponding to
 
 \seealso{\code{\link{transOrigPopt.default}}
 \code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

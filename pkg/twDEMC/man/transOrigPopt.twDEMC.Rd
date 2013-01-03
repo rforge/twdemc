@@ -2,13 +2,8 @@
 \alias{transOrigPopt.twDEMC}
 \title{transOrigPopt twDEMC}
 \description{Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.}
-\usage{
-\method{transOrigPopt}{twDEMC}(normpopt,
-poptDistr = parDistr[colnames(normpopt$parms),
-"trans"],
-parDistr,
-...)
-}
+\usage{\method{transOrigPopt}{twDEMC}(normpopt, poptDistr = parDistr[colnames(normpopt$parms), 
+    "trans"], parDistr, ...)}
 \arguments{
   \item{normpopt}{numerical matrx with values at transformed, i.e. normal, scale}
   \item{poptDistr}{character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt}
@@ -25,4 +20,4 @@ dataframe with parameter names in column names and column trans, such as provide
 
 
 \seealso{\code{\link{transOrigPopt.default}}}
-
+\examples{FALSE}

@@ -2,21 +2,10 @@
 \alias{logDenGaussian}
 \title{logDenGaussian}
 \description{Invokes the model and calculate an unnormalized logDensity (-1/2*misfit) assuming (multivariate) Gaussian errors in both data in priors. }
-\usage{
-logDenGaussian(theta,
-logDenAccept = numeric(0),
-metropolisStepTemp = c(parms = 1),
-...,
-fModel,
-theta0 = theta,
-obs,
-invCovar,
-thetaPrior = NULL,
-invCovarTheta = NULL,
-namesTheta = NULL,
-blockIndices = NULL,
-scale = -1/2)
-}
+\usage{logDenGaussian(theta, logDenAccept = numeric(0), metropolisStepTemp = c(parms = 1), 
+    ..., fModel, theta0 = theta, obs, invCovar, thetaPrior = NULL, 
+    invCovarTheta = NULL, namesTheta = NULL, blockIndices = NULL, 
+    scale = -1/2)}
 \arguments{
   \item{theta}{the parameter vector to be optimized (may be more than updated, if used with blocks).}
   \item{logDenAccept}{scalar: logDen for parms from revious run for two step Metropolis decision}

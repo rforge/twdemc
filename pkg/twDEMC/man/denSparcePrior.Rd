@@ -2,14 +2,8 @@
 \alias{denSparcePrior}
 \title{denSparcePrior}
 \description{Same as denSpace but returning two components: prior and misfit}
-\usage{
-denSparcePrior(theta,
-twTwoDenEx = twTwoDenEx1,
-theta0 = twTwoDenEx$thetaTrue,
-thetaPrior = NULL,
-invCovarTheta = NULL,
-...)
-}
+\usage{denSparcePrior(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
+    thetaPrior = NULL, invCovarTheta = NULL, ...)}
 \arguments{
   \item{theta}{
 }

@@ -2,12 +2,8 @@
 \alias{combineTwDEMCPops}
 \title{combineTwDEMCPops}
 \description{combine given populations to one big chain with more cases}
-\usage{
-combineTwDEMCPops(pops,
-popCases = integer(0),
-mergeMethod = "random",
-nInSlice = 4)
-}
+\usage{combineTwDEMCPops(pops, popCases = integer(0), mergeMethod = "random", 
+    nInSlice = 4)}
 \arguments{
   \item{pops}{list of population objects}
   \item{popCases}{integer vector (sum(getNSamples(pops))): specifying for each case (row) from which population it is filled}

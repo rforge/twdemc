@@ -1,10 +1,8 @@
 \name{transNormPopt}
 \alias{transNormPopt}
 \title{transNormPopt}
-\description{Generic method behind \code{\link{transNormPopt.default}}}
-\usage{
-transNormPopt(...)
-}
+\description{Generic method behind \code{transNormPopt.default}}
+\usage{transNormPopt(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ transNormPopt(...)
 
 
 
-
+\examples{TRUE}

@@ -2,14 +2,8 @@
 \alias{subChains.twDEMC}
 \title{subChains twDEMC}
 \description{Condenses an twDEMC List to the chains iChains e.g \code{1:4}.}
-\usage{
-\method{subChains}{twDEMC}(x,
-iChains = NULL,
-iPops = NULL,
-nPop = NULL,
-...,
-doKeepBatchCall = FALSE)
-}
+\usage{\method{subChains}{twDEMC}(x, iChains = NULL, iPops = NULL, nPop = NULL, 
+    ..., doKeepBatchCall = FALSE)}
 \arguments{
   \item{x}{
 }
@@ -56,4 +50,4 @@ Alternatively to specification of iChains, one can specify a vector of populatio
 
 
 \seealso{\code{\link{twDEMC}}}
-
+\examples{FALSE}

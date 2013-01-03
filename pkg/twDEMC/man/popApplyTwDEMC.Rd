@@ -2,12 +2,7 @@
 \alias{popApplyTwDEMC}
 \title{popApplyTwDEMC}
 \description{Applying a function across all chains of one population for each case.}
-\usage{
-popApplyTwDEMC(x,
-nPop,
-FUN,
-...)
-}
+\usage{popApplyTwDEMC(x, nPop, FUN, ...)}
 \arguments{
   \item{x}{a matrix with columns chains or array with last dimension chain}
   \item{nPop}{number of populations}

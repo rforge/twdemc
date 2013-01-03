@@ -2,10 +2,7 @@
 \alias{getNBlocks.twDEMCPops}
 \title{getNBlocks twDEMCPops}
 \description{Extracts the number of samples}
-\usage{
-\method{getNBlocks}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNBlocks}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{
@@ -21,4 +18,4 @@
 \seealso{\code{\link{getNGen.twDEMCPops}}
 \code{\link{subset.twDEMCPops}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

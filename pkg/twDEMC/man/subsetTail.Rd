@@ -1,10 +1,8 @@
 \name{subsetTail}
 \alias{subsetTail}
 \title{subsetTail}
-\description{Generic method behind \code{\link{subsetTail.twDEMCPops}}}
-\usage{
-subsetTail(...)
-}
+\description{Generic method behind \code{subsetTail.twDEMCPops}}
+\usage{subsetTail(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ subsetTail(...)
 
 
 
-
+\examples{TRUE}

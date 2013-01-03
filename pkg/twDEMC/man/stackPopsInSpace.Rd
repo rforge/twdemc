@@ -1,10 +1,8 @@
 \name{stackPopsInSpace}
 \alias{stackPopsInSpace}
 \title{stackPopsInSpace}
-\description{Generic method behind \code{\link{stackPopsInSpace.twDEMCPops}}}
-\usage{
-stackPopsInSpace(...)
-}
+\description{Generic method behind \code{stackPopsInSpace.twDEMCPops}}
+\usage{stackPopsInSpace(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ stackPopsInSpace(...)
 
 
 
-
+\examples{TRUE}

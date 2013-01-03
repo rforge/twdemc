@@ -2,10 +2,7 @@
 \alias{getBestModelIndex}
 \title{getBestModelIndex}
 \description{select the best model based on (temperated) logDensity components}
-\usage{
-getBestModelIndex(logDenT,
-dInfos)
-}
+\usage{getBestModelIndex(logDenT, dInfos)}
 \arguments{
   \item{logDenT}{numeric matrix (nStep x nResComp): logDensity (highest are best)}
   \item{dInfos}{list of lists with entry resCompPos (integer vector) specifying the position of result components for each density}

@@ -1,10 +1,8 @@
 \name{initZtwDEMCSub}
 \alias{initZtwDEMCSub}
 \title{initZtwDEMCSub}
-\description{Generic method behind \code{\link{initZtwDEMCSub.matrix}}}
-\usage{
-initZtwDEMCSub(...)
-}
+\description{Generic method behind \code{initZtwDEMCSub.matrix}}
+\usage{initZtwDEMCSub(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ initZtwDEMCSub(...)
 
 
 
-
+\examples{TRUE}

@@ -2,19 +2,9 @@
 \alias{divideTwDEMCStep}
 \title{divideTwDEMCStep}
 \description{run twDEMCBlock on subspaces}
-\usage{
-divideTwDEMCStep(aTwDEMC,
-qPop = numeric(0),
-nGen = 512,
-controlTwDEMC = list(),
-m0 = calcM0twDEMC(getNParms(aTwDEMC),
-getNChainsPop(aTwDEMC)),
-nRowsMin,
-nRowsMinMax,
-minPSub,
-TEnd,
-...)
-}
+\usage{divideTwDEMCStep(aTwDEMC, qPop = numeric(0), nGen = 512, controlTwDEMC = list(), 
+    m0 = calcM0twDEMC(getNParms(aTwDEMC), getNChainsPop(aTwDEMC)), 
+    nRowsMin, nRowsMinMax, minPSub, TEnd, ...)}
 \arguments{
   \item{aTwDEMC}{former run of twDEMCBlockInt}
   \item{qPop}{numeric vector (nPop): probability of samples in subspace within entire space}

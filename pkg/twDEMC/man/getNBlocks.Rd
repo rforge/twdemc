@@ -1,10 +1,8 @@
 \name{getNBlocks}
 \alias{getNBlocks}
 \title{getNBlocks}
-\description{Generic method behind \code{\link{getNBlocks.twDEMC}}}
-\usage{
-getNBlocks(...)
-}
+\description{Generic method behind \code{getNBlocks.twDEMC}}
+\usage{getNBlocks(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getNBlocks(...)
 
 
 
-
+\examples{TRUE}

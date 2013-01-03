@@ -2,11 +2,7 @@
 \alias{popMeansTwDEMC}
 \title{popMeansTwDEMC}
 \description{Calculating population means across chains within each population, and smooth time series.}
-\usage{
-popMeansTwDEMC(x,
-nPop,
-kSmooth = NULL)
-}
+\usage{popMeansTwDEMC(x, nPop, kSmooth = NULL)}
 \arguments{
   \item{x}{a matrix with columns chains}
   \item{nPop}{number of populations}

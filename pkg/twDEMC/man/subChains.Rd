@@ -1,10 +1,8 @@
 \name{subChains}
 \alias{subChains}
 \title{subChains}
-\description{Generic method behind \code{\link{subChains.twDEMC}}}
-\usage{
-subChains(...)
-}
+\description{Generic method behind \code{subChains.twDEMC}}
+\usage{subChains(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ subChains(...)
 
 
 
-
+\examples{TRUE}

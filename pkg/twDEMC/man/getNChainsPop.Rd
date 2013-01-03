@@ -1,10 +1,8 @@
 \name{getNChainsPop}
 \alias{getNChainsPop}
 \title{getNChainsPop}
-\description{Generic method behind \code{\link{getNChainsPop.twDEMC}}}
-\usage{
-getNChainsPop(...)
-}
+\description{Generic method behind \code{getNChainsPop.twDEMC}}
+\usage{getNChainsPop(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getNChainsPop(...)
 
 
 
-
+\examples{TRUE}

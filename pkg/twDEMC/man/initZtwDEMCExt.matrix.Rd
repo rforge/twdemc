@@ -2,16 +2,8 @@
 \alias{initZtwDEMCExt.matrix}
 \title{initZtwDEMCExt matrix}
 \description{subsampling and extending twDEMC with new variables}
-\usage{
-\method{initZtwDEMCExt}{matrix}(Zinit1,
-...,
-thetaPrior,
-covarTheta,
-nChainPop = 4,
-nPop = 1,
-m0 = calcM0twDEMC(length(thetaPrior),
-nChainPop))
-}
+\usage{\method{initZtwDEMCExt}{matrix}(Zinit1, ..., thetaPrior, covarTheta, nChainPop = 4, 
+    nPop = 1, m0 = calcM0twDEMC(length(thetaPrior), nChainPop))}
 \arguments{
   \item{Zinit1}{the matrix to subsample (nCases x nParms)}
   \item{\dots}{
@@ -34,4 +26,4 @@ assuming no correlations between variables present and absent in vtwdemc and }
 
 
 \seealso{\code{\link{initZtwDEMCNormal}}}
-
+\examples{FALSE}

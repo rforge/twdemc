@@ -1,10 +1,8 @@
 \name{getCurrentTemp}
 \alias{getCurrentTemp}
 \title{getCurrentTemp}
-\description{Generic method behind \code{\link{getCurrentTemp.twDEMC}}}
-\usage{
-getCurrentTemp(...)
-}
+\description{Generic method behind \code{getCurrentTemp.twDEMC}}
+\usage{getCurrentTemp(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getCurrentTemp(...)
 
 
 
-
+\examples{TRUE}

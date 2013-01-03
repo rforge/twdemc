@@ -2,15 +2,8 @@
 \alias{calcTemperatedLogDen.default}
 \title{calcTemperatedLogDen default}
 \description{Rescale Log-Densities by given Temperatures}
-\usage{
-\method{calcTemperatedLogDen}{default}(x,
-temp,
-...,
-refDen = apply(x,
-2,
-quantile,
-probs = 0.9))
-}
+\usage{\method{calcTemperatedLogDen}{default}(x, temp, ..., refDen = apply(x, 
+    2, quantile, probs = 0.9))}
 \arguments{
   \item{x}{numeric matrix (nStep x nResComp): logDensities for each component at each step}
   \item{temp}{numeric vector (nResComp): Temperature, i.e. cost reduction factor}
@@ -38,4 +31,4 @@ Hence, first the best logDen is subtracted, then the difference is multiplied by
 \seealso{\code{\link{twDEMC}}
 
 \code{\link{sumLogDenComp}}}
-
+\examples{FALSE}

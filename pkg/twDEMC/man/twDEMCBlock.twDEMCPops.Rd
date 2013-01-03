@@ -2,13 +2,8 @@
 \alias{twDEMCBlock.twDEMCPops}
 \title{twDEMCBlock twDEMCPops}
 \description{initialize \code{\link{twDEMCBlockInt}} by former run and append results to former run}
-\usage{
-\method{twDEMCBlock}{twDEMCPops}(x,
-...,
-TEnd = numeric(0),
-doRecordProposals = FALSE,
-extendRun = TRUE)
-}
+\usage{\method{twDEMCBlock}{twDEMCPops}(x, ..., TEnd = numeric(0), doRecordProposals = FALSE, 
+    extendRun = TRUE)}
 \arguments{
   \item{x}{list of class twDEMC, result of \code{\link{twDEMCBlockInt}}}
   \item{\dots}{further arguments to \code{\link{twDEMCBlockInt}}}

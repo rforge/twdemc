@@ -2,11 +2,7 @@
 \alias{combinePops.twDEMC}
 \title{combinePops twDEMC}
 \description{Combine several populations to one big population consiting of more chains.}
-\usage{
-\method{combinePops}{twDEMC}(x,
-...,
-doKeepBatchCall = FALSE)
-}
+\usage{\method{combinePops}{twDEMC}(x, ..., doKeepBatchCall = FALSE)}
 \arguments{
   \item{x}{first twDEMC object}
   \item{\dots}{more twDEMC objects}
@@ -21,4 +17,4 @@ Temperature is taken from the first population - it assumes that all populations
 
 
 \seealso{\code{\link{subChains.twDEMC}}}
-
+\examples{FALSE}

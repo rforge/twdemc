@@ -1,10 +1,8 @@
 \name{getNGen}
 \alias{getNGen}
 \title{getNGen}
-\description{Generic method behind \code{\link{getNGen.twDEMC}}}
-\usage{
-getNGen(...)
-}
+\description{Generic method behind \code{getNGen.twDEMC}}
+\usage{getNGen(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getNGen(...)
 
 
 
-
+\examples{TRUE}

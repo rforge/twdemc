@@ -1,5 +1,7 @@
 data(twTwoDenEx1)
-
+require(reshape)
+sfInit(parallel=TRUE, cpus=2)
+set.seed(0815)
 # moved densities to denSparceRichBoth.R
 
 
@@ -93,7 +95,8 @@ theta0 <- adrop(ZinitPopsA[nrow(ZinitPopsA),,1 ,drop=FALSE],3)
 
 # with correct b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
+		dInfos=list(
+                dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -154,7 +157,7 @@ resa <- resa2 <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen,
 	))
 plot( as.mcmc.list(resa), smooth=FALSE)
 #mtrace(subset.twDEMC)
-res2 <- res <- thin(resa, start=100)
+resRS <-res2 <- res <- thin(resa, start=100)
 plot( as.mcmc.list(res), smooth=FALSE)
 ss <- stackChains(res)
 twTwoDenEx1$thetaTrue
@@ -168,11 +171,16 @@ plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # not as good but ok
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # still no relation 
 
 #----------- 2b try to infer by weights
-res <- res2
+res <- resRS
 lDen <- stackChains(res$resLogDen)
 #plot(density(lDen[lDen>-1000]))
+lDenM <- melt(lDen)
+boxplot( value ~ resComp, lDenM[lDenM$resComp != "parms",] )
+
 madDen <- apply(lDen,2,function(lDenI){ median(abs(lDenI - median(lDenI))) })
-weights <- wMedian <- min(madDen)/madDen
+madDen <- apply(lDen,2, median)     # actually wrong: the spread (difference to best) is important
+weights <- wMedian <- ifelse( madDen, min(madDen[madDen != 0])/madDen, 0)
+#weights <- c(1,1,0.1)
 
 resa <- resa2b <-  concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
 		dInfos=list(dBoth=list(fLogDen=denBoth, argsFLogDen=list(weights=weights, thresholdCovar=thresholdCovar)))
@@ -197,18 +205,23 @@ plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1) # at least some relation
 
 #XX check same magnitude of resLogDen
 res <- res2b
-lDen <- stackChains(res$resLogDen)
-lDenDiff <- apply(lDen,2,function(lDenI){ lDenI - median(lDenI) })
+lDen2 <- stackChains(res$resLogDen)
+lDenM2 <- melt(lDen2)
+boxplot( value ~ resComp, lDenM2[lDenM2$resComp != "parms",] )
+
+lDenDiff <- apply(lDen2,2,function(lDenI){ abs(lDenI - median(lDenI)) })
+apply(lDenDiff,2, median)
 q10lDenDiff <- apply(lDenDiff,2,quantile,0.1)
 lDenDiffM <- melt(lDenDiff)
 lDenDiffM2 <- lDenDiffM[
 	((lDenDiffM$resComp=="y1") & (lDenDiffM$value >= q10lDenDiff[1])) |
 	((lDenDiffM$resComp=="y2") & (lDenDiffM$value >= q10lDenDiff[2])) 
 		,]
+boxplot( value ~ resComp, lDenDiffM )
 boxplot( value ~ resComp, lDenDiffM2 )
 if( require(ggplot2) ){
 	p1 <- ggplot(lDenDiffM2, aes(y=value, x=resComp)) + geom_boxplot() +
-		opts(axis.title.x=theme_blank()) + coord_flip()
+		theme(axis.title.x=element_blank()) + coord_flip()
 }
 
 #----------- fit b to shortterm and a to longterm observations using direct sampling
@@ -296,11 +309,14 @@ denCol <- rgb(
 plot( ss[bo,"b"] ~ ss[bo,"a"], col=denCol, xlab="a", ylab="b")
 # red (rich) increases with higher b along the valley, blue (sparce) constaines a
 
-plot3d( ss[bo,"a"], ss[bo,"b"], lDen[bo], col=denCol )
+if( require(rgl) )
+    plot3d( ss[bo,"a"], ss[bo,"b"], lDen[bo], col=denCol )
 
 
 #----------- ggplot of violin plots of the distributions 
 require(ggplot2)
+require(grid)
+
 .tmp.f <- function(){
 	# creating violin plots with ggplot2
 	#http://markmail.org/search/?q=list%3Ar-project+violin+plots+ggplot#query:list%3Ar-project%20violin%20plots%20ggplot+page:1+mid:ka6kymn6agvvdakg+state:results
@@ -330,8 +346,9 @@ dfDen <- rbind(
 dfDenM <- melt(dfDen)
 str(dfDenM)
 
-StatDensityNonZero <- StatDensity$proto( calculate<- function(.,data, scales, dMin=0.001, ...){
-		res <- StatDensity$calculate(data,scales,...)
+StatDensityNonZero <- proto( ggplot2:::StatDensity ,{
+    calculate <- function(.,data, scales, dMin=0.001, ...){
+		res <- ggplot2:::StatDensity$calculate(data,scales,...)
 		# append a zero density at the edges
 		if( res$density[1] > 0) res <- rbind( data.frame(x=res$x[1]-diff(res$x[1:2]),density=0,scaled=0,count=0),res)
 		if( res$density[nrow(res)] > 0) res <- rbind( res, data.frame(x=res$x[nrow(res)]+diff(res$x[nrow(res)-c(1,0)]),density=0,scaled=0,count=0))
@@ -340,7 +357,9 @@ StatDensityNonZero <- StatDensity$proto( calculate<- function(.,data, scales, dM
 		res$count[ bo ] <- NA
 		res$scaled[ bo ] <- NA
 		res
-	}, required_aes=c("x"))
+	}
+    required_aes=c("x")
+})
 #with(StatDensityNonZero, mtrace(calculate)) 
 #with(StatDensityNonZero, mtrace(calculate,F)) 
 
@@ -358,15 +377,19 @@ stat_densityNonZero <- function (
 #pgm <- stat_densityNonZero(  aes(ymax = -..density..),  size=1, geom="line")
 pgm <- geom_line(aes(y = +..scaled..), stat="densityNonZero", size=1)
 pgm2 <- geom_line(aes(y = -..scaled..), stat="densityNonZero", size=1) 
-optsm <- opts(axis.title.x = theme_blank(), axis.text.y = theme_blank(), axis.ticks.y = theme_blank() ) 
-pa <- ggplot(dfDen, aes(x = a, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('a')
-pb <- ggplot(dfDen, aes(x = b, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('b')
+optsm <- theme(axis.title.x = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank() ) 
+pa <- ggplot(dfDen, aes(x = a, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('a') +
+   geom_vline( aes(xintercept= a, col="true", linetype="true"), data=as.data.frame(t(twTwoDenEx1$thetaTrue)))    
+pb <- ggplot(dfDen, aes(x = b, colour=scenario, linetype=scenario)) + pgm + pgm2 + optsm + scale_y_continuous('b') + 
+        geom_vline( aes(xintercept= b, col="true", linetype="true"), data=as.data.frame(t(twTwoDenEx1$thetaTrue)))    
 #pb
 windows(width=7, height=3)
 grid.newpage()
 pushViewport( viewport(layout=grid.layout(2,1)))
 print(pa , vp = viewport(layout.pos.row=1,layout.pos.col=1))	
-print(pb + opts(legend.position = "none") , vp = viewport(layout.pos.row=2,layout.pos.col=1))	
+print(pb + theme(legend.position = "none") , vp = viewport(layout.pos.row=2,layout.pos.col=1))	
+
+# XX TODO print true values
 
 #----------- ggplot predictive posterior
 	scenarios <- c("R","RS","RSw","DG","DM")
@@ -437,7 +460,7 @@ print(pb + opts(legend.position = "none") , vp = viewport(layout.pos.row=2,layou
 		#geom_errorbarh(aes(xmax = upper, xmin = lower)) +
 		geom_point() +
 		facet_wrap( ~ variable, scales="free") +
-		opts(axis.title.x=theme_blank() ) +
+		opts(axis.title.x=element_blank() ) +
 		geom_abline(colour="black") +
 		c()
 	p1
@@ -448,7 +471,7 @@ p2 <- ggplot(dfPred, aes(x=median, y=observations, colour=scenario) ) +
 	#geom_errorbarh(aes(xmax = upper, xmin = lower)) +
 	geom_point() +
 	facet_wrap( ~ variable, scales="free") +
-	opts(axis.title.x=theme_blank() ) +
+	opts(axis.title.x=element_blank() ) +
 	geom_abline(colour="black") +
 	c()
 p2

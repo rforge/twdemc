@@ -1,10 +1,8 @@
 \name{squeeze}
 \alias{squeeze}
 \title{squeeze}
-\description{Generic method behind \code{\link{squeeze.twDEMCPops}}}
-\usage{
-squeeze(...)
-}
+\description{Generic method behind \code{squeeze.twDEMCPops}}
+\usage{squeeze(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ squeeze(...)
 
 
 
-
+\examples{TRUE}

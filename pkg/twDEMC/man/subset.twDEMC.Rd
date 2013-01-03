@@ -2,11 +2,7 @@
 \alias{subset.twDEMC}
 \title{subset twDEMC}
 \description{Condenses an twDEMC result object to the cases boKeep.}
-\usage{
-\method{subset}{twDEMC}(x,
-boKeep,
-...)
-}
+\usage{\method{subset}{twDEMC}(x, boKeep, ...)}
 \arguments{
   \item{x}{twDEMC object}
   \item{boKeep}{either logical vector or numeric vector of indices of cases to keep}
@@ -21,4 +17,4 @@ boKeep,
 
 
 \seealso{\code{\link{subChains.twDEMC}}}
-
+\examples{FALSE}

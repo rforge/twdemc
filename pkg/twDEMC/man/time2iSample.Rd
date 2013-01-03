@@ -2,14 +2,8 @@
 \alias{time2iSample}
 \title{time2iSample}
 \description{Convert time to sample number}
-\usage{
-time2iSample(time,
-thin = 1,
-match = c(round = "round",
-floor = "floor",
-ceiling = "ceiling",
-none = "none"))
-}
+\usage{time2iSample(time, thin = 1, match = c(round = "round", floor = "floor", 
+    ceiling = "ceiling", none = "none"))}
 \arguments{
   \item{time}{numeric: indices of the samples in recorded states}
   \item{thin}{integer scalar: thinning interval}

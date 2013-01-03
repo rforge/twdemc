@@ -1,10 +1,8 @@
 \name{getSpacesPop}
 \alias{getSpacesPop}
 \title{getSpacesPop}
-\description{Generic method behind \code{\link{getSpacesPop.twDEMCPops}}}
-\usage{
-getSpacesPop(...)
-}
+\description{Generic method behind \code{getSpacesPop.twDEMCPops}}
+\usage{getSpacesPop(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getSpacesPop(...)
 
 
 
-
+\examples{TRUE}

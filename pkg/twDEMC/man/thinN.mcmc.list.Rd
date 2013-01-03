@@ -2,11 +2,7 @@
 \alias{thinN.mcmc.list}
 \title{thinN mcmc list}
 \description{Thin x so that each chain consists of about nThinnedRecords}
-\usage{
-\method{thinN}{mcmc.list}(x,
-nThinnedRecords = 100,
-...)
-}
+\usage{\method{thinN}{mcmc.list}(x, nThinnedRecords = 100, ...)}
 \arguments{
   \item{x}{object to be thinned and plotted (mcmc.list)}
   \item{nThinnedRecords}{number of records in thinned object}
@@ -22,4 +18,4 @@ The same visual impression can be achieved using a thinned chain.}
 
 
 
-
+\examples{FALSE}

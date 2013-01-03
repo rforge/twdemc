@@ -2,13 +2,8 @@
 \alias{transOrigPopt.mcmc.list}
 \title{transOrigPopt mcmc list}
 \description{Applies \code{\link{transOrigPopt.default}} to each entry of \code{normopt}.}
-\usage{
-\method{transOrigPopt}{mcmc.list}(normpopt,
-poptDistr = parDistr[colnames(normpopt[[1]]$parms),
-"trans"],
-parDistr,
-...)
-}
+\usage{\method{transOrigPopt}{mcmc.list}(normpopt, poptDistr = parDistr[colnames(normpopt[[1]]$parms), 
+    "trans"], parDistr, ...)}
 \arguments{
   \item{normpopt}{numerical matrx with values at transformed, i.e. normal, scale}
   \item{poptDistr}{character vector of kind of transformation ("lognorm"/"logitnorm") for each column of normpopt}
@@ -25,4 +20,4 @@ dataframe with parameter names in column names and column trans, such as provide
 
 
 \seealso{\code{\link{transOrigPopt.default}}}
-
+\examples{FALSE}

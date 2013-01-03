@@ -2,10 +2,7 @@
 \alias{getCurrentTemp.twDEMCPops}
 \title{getCurrentTemp twDEMCPops}
 \description{Get the Temperature, i.e. cost reduction factor of the last sample}
-\usage{
-\method{getCurrentTemp}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getCurrentTemp}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{
@@ -21,4 +18,4 @@
 \seealso{\code{\link{getNGen.twDEMCPops}}
 \code{\link{subset.twDEMCPops}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

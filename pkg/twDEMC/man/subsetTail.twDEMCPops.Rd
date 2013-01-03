@@ -2,11 +2,7 @@
 \alias{subsetTail.twDEMCPops}
 \title{subsetTail twDEMCPops}
 \description{discards the first part of all the chains}
-\usage{
-\method{subsetTail}{twDEMCPops}(x,
-pKeep = 0.5,
-...)
-}
+\usage{\method{subsetTail}{twDEMCPops}(x, pKeep = 0.5, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{pKeep}{the percentage of the samples to keep}

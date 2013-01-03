@@ -2,27 +2,13 @@
 \alias{twDEMCSACont}
 \title{twDEMCSACont}
 \description{continuing simulated annealing DEMC based on previous reslt}
-\usage{
-twDEMCSACont(mc,
-nGen = 512,
-nObs,
-...,
-m0 = calcM0twDEMC(getNParms(mc),
-getNChainsPop(mc)),
-controlTwDEMC = list(),
-debugSequential = FALSE,
-restartFilename = NULL,
-ctrlBatch = list(nGenBatch = m0 * controlTwDEMC$thin * 5,
-pThinPast = 0.5),
-ctrlT = list(TFix = numeric(0),
-TMax = numeric(0),
-TDecProp = 0.9),
-ctrlConvergence = list(maxRelTChangeCrit = 0.025,
-maxLogDenDriftCrit = 0.3,
-gelmanCrit = 1.4,
-critSpecVarRatio = 20,
-dumpfileBasename = NULL))
-}
+\usage{twDEMCSACont(mc, nGen = 512, nObs, ..., m0 = calcM0twDEMC(getNParms(mc), 
+    getNChainsPop(mc)), controlTwDEMC = list(), debugSequential = FALSE, 
+    restartFilename = NULL, ctrlBatch = list(nGenBatch = m0 * 
+        controlTwDEMC$thin * 5, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
+        TMax = numeric(0), TDecProp = 0.9), ctrlConvergence = list(maxRelTChangeCrit = 0.025, 
+        maxLogDenDriftCrit = 0.3, gelmanCrit = 1.4, critSpecVarRatio = 20, 
+        dumpfileBasename = NULL))}
 \arguments{
   \item{mc}{result of twDEMCBlock}
   \item{nGen}{number of generations in the initial batch, default 512}

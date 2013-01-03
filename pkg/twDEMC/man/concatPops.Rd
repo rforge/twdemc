@@ -1,10 +1,8 @@
 \name{concatPops}
 \alias{concatPops}
 \title{concatPops}
-\description{Generic method behind \code{\link{concatPops.twDEMCPops}}}
-\usage{
-concatPops(...)
-}
+\description{Generic method behind \code{concatPops.twDEMCPops}}
+\usage{concatPops(...)}
 \arguments{
   \item{\dots}{
 }

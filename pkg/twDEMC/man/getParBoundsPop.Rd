@@ -1,10 +1,8 @@
 \name{getParBoundsPop}
 \alias{getParBoundsPop}
 \title{getParBoundsPop}
-\description{Generic method behind \code{\link{getParBoundsPop.twDEMCPops}}}
-\usage{
-getParBoundsPop(...)
-}
+\description{Generic method behind \code{getParBoundsPop.twDEMCPops}}
+\usage{getParBoundsPop(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getParBoundsPop(...)
 
 
 
-
+\examples{TRUE}

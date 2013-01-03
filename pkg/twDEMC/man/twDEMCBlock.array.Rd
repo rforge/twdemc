@@ -2,17 +2,9 @@
 \alias{twDEMCBlock.array}
 \title{twDEMCBlock array}
 \description{Initialize \code{\link{twDEMCBlockInt}} by array of initial population and remove those generations from results afterwards}
-\usage{
-\method{twDEMCBlock}{array}(x,
-...,
-nPop = 1,
-X = NULL,
-logDenCompX = NULL,
-upperParBounds = vector("list",
-nPop),
-lowerParBounds = vector("list",
-nPop))
-}
+\usage{\method{twDEMCBlock}{array}(x, ..., nPop = 1, X = NULL, logDenCompX = NULL, 
+    upperParBounds = vector("list", nPop), lowerParBounds = vector("list", 
+        nPop))}
 \arguments{
   \item{x}{initial population: a numeric array (M0 x d x nChain) see details in \code{\link{twDEMCBlockInt}}}
   \item{\dots}{further arguments to \code{\link{twDEMCBlockInt}}}

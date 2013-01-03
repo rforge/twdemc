@@ -2,10 +2,7 @@
 \alias{updateBlockTwDEMC}
 \title{updateBlockTwDEMC}
 \description{Perfrom one DEMC step, function to be called in remote process.}
-\usage{
-updateBlockTwDEMC(xC,
-argsFUpdateBlock)
-}
+\usage{updateBlockTwDEMC(xC, argsFUpdateBlock)}
 \arguments{
   \item{xC}{numeric vector: current state that is used in density function of the block}
   \item{argsFUpdateBlock}{further argument provided for generating the update  \describe{

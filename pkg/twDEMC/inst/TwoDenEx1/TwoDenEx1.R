@@ -42,14 +42,19 @@ attr(den2dCor,"ex") <- function(){
 	(.expTheta <- c(a=0,b=0) )
 	(.expCovTheta <- diag(c(a=2,b=2)) )		
 	.nPops=2
-	Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
+	Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChain=4*.nPops, nPop=.nPops)
 	#mtrace(twDEMCBlockInt)
 	
-	den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
-	den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+	#den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
+	#den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+    den2dCorTwDEMC <- twDEMCBlock(Zinit, nGen=500
+        , dInfos=list(list(fLogDen=den2dCor))
+        , nPop=.nPops )
+    den2dCorTwDEMC <- twDEMCBlock(den2dCorTwDEMC, nGen=1000)
+    
 	
 	plot( thinN(as.mcmc.list(den2dCorTwDEMC)))
-	matplot( den2dCorTwDEMC$pAccept, type="l" )
+	matplot( den2dCorTwDEMC$pops[[1]]$pAccept[,1,], type="l" )
 	pps <- pps0 <- stackChains(thin(den2dCorTwDEMC,start=300))
 	ss <- ss0 <- pps[,-1]
 	#plot( ss[,1], ss[,2] )

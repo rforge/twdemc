@@ -2,10 +2,7 @@
 \alias{getNSamples.twDEMC}
 \title{getNSamples twDEMC}
 \description{Extracts the number of s}
-\usage{
-\method{getNSamples}{twDEMC}(res,
-...)
-}
+\usage{\method{getNSamples}{twDEMC}(res, ...)}
 \arguments{
   \item{res}{object of class twDEMC}
   \item{\dots}{
@@ -21,4 +18,4 @@
 \seealso{\code{\link{getNGen.twDEMC}}
 \code{\link{subChains.twDEMC}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

@@ -2,13 +2,8 @@
 \alias{initZtwDEMCSub.twDEMC}
 \title{initZtwDEMCSub twDEMC}
 \description{generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a previous result}
-\usage{
-\method{initZtwDEMCSub}{twDEMC}(vtwdemc,
-...,
-vars = colnames(vtwdemc$parms),
-nChainPop = getNChainsPop(vtwdemc),
-nPop = getNPops(vtwdemc))
-}
+\usage{\method{initZtwDEMCSub}{twDEMC}(vtwdemc, ..., vars = colnames(vtwdemc$parms), 
+    nChainPop = getNChainsPop(vtwdemc), nPop = getNPops(vtwdemc))}
 \arguments{
   \item{vtwdemc}{the twDEMC list to subsample}
   \item{\dots}{
@@ -27,4 +22,4 @@ nPop = getNPops(vtwdemc))
 
 
 \seealso{\code{\link{initZtwDEMCNormal}}}
-
+\examples{FALSE}

@@ -2,10 +2,7 @@
 \alias{getNSpaces.twDEMCPops}
 \title{getNSpaces twDEMCPops}
 \description{Extracts the number of space replicates.}
-\usage{
-\method{getNSpaces}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNSpaces}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{
@@ -22,4 +19,4 @@
 \code{\link{getNGen.twDEMCPops}}
 \code{\link{subset.twDEMCPops}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

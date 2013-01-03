@@ -1,10 +1,8 @@
 \name{getNSpaces}
 \alias{getNSpaces}
 \title{getNSpaces}
-\description{Generic method behind \code{\link{getNSpaces.twDEMCPops}}}
-\usage{
-getNSpaces(...)
-}
+\description{Generic method behind \code{getNSpaces.twDEMCPops}}
+\usage{getNSpaces(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ getNSpaces(...)
 
 
 
-
+\examples{TRUE}

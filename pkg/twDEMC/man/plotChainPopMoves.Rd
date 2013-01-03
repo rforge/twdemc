@@ -2,15 +2,8 @@
 \alias{plotChainPopMoves}
 \title{plotChainPopMoves}
 \description{Plot boxplots of the distribution of first and last fifth of steps for each population }
-\usage{
-plotChainPopMoves(resB,
-iChains = rep(1:getNPops(resB),
-each = getNChainsPop(resB)),
-doSort = TRUE,
-...,
-xlab = "Chains",
-ylab = "LogDensity")
-}
+\usage{plotChainPopMoves(resB, iChains = rep(1:getNPops(resB), each = getNChainsPop(resB)), 
+    doSort = TRUE, ..., xlab = "Chains", ylab = "LogDensity")}
 \arguments{
   \item{resB}{the twDEMC to examine}
   \item{iChains}{mapping from chain to population}

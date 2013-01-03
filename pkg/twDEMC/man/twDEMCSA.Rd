@@ -2,29 +2,13 @@
 \alias{twDEMCSA}
 \title{twDEMCSA}
 \description{simulated annealing DEMC }
-\usage{
-twDEMCSA(thetaPrior,
-covarTheta,
-nGen = 512,
-nObs,
-...,
-dInfos,
-m0 = calcM0twDEMC(length(thetaPrior),
-nChainPop),
-controlTwDEMC = list(),
-debugSequential = FALSE,
-restartFilename = NULL,
-nChainPop = 4,
-nPop = 2,
-doIncludePrior = FALSE,
-ctrlBatch = list(nGen0 = m0 * controlTwDEMC$thin * 3,
-useSubspaceAdaptation = FALSE),
-ctrlT = list(TFix = numeric(0),
-TMax = numeric(0),
-qTempInit = 0.4),
-ctrlConvergence = list(),
-ctrlSubspaces = list())
-}
+\usage{twDEMCSA(thetaPrior, covarTheta, nGen = 512, nObs, ..., dInfos, 
+    m0 = calcM0twDEMC(length(thetaPrior), nChainPop), controlTwDEMC = list(), 
+    debugSequential = FALSE, restartFilename = NULL, nChainPop = 4, 
+    nPop = 2, doIncludePrior = FALSE, ctrlBatch = list(nGen0 = m0 * 
+        controlTwDEMC$thin * 3, useSubspaceAdaptation = FALSE), 
+    ctrlT = list(TFix = numeric(0), TMax = numeric(0), qTempInit = 0.4), 
+    ctrlConvergence = list(), ctrlSubspaces = list())}
 \arguments{
   \item{thetaPrior}{vector of parameters, point estimate}
   \item{covarTheta}{the a prior covariance of parameters}

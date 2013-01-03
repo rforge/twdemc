@@ -2,13 +2,8 @@
 \alias{twQuantiles2Coef}
 \title{twQuantiles2Coef}
 \description{Calculating coefficients of transformed normal distributions from quantiles.}
-\usage{
-twQuantiles2Coef(parmsBounds,
-varDistr,
-upperBoundProb = 0.99,
-useMedian = FALSE,
-useCi = FALSE)
-}
+\usage{twQuantiles2Coef(parmsBounds, varDistr, upperBoundProb = 0.99, 
+    useMedian = FALSE, useCi = FALSE)}
 \arguments{
   \item{parmsBounds}{numeric matrix (nParm x 2), each row a numeric vector of length 2 specifying mode/median/lower quantile and upper quantile value.
 rownames must give the variabes.

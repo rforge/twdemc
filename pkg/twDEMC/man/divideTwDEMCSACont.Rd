@@ -2,37 +2,17 @@
 \alias{divideTwDEMCSACont}
 \title{divideTwDEMCSACont}
 \description{run twDEMCBlock on subspaces with decreasing Temperature}
-\usage{
-divideTwDEMCSACont(mc,
-nGen = 512,
-nObs,
-iPopsDoSplit = integer(0),
-...,
-controlTwDEMC = list(),
-doRecordProposals = FALSE,
-m0 = calcM0twDEMC(getNParms(mc),
-getNChainsPop(mc)),
-debugSequential = FALSE,
-restartFilename = NULL,
-ctrlBatch = list(nGenBatch = m0 * (1/2/ctrlSubspaces$minPSub) * controlTwDEMC$thin * 2,
-nSampleMin = 32,
-pThinPast = 0.5),
-ctrlT = list(TFix = numeric(0),
-TMax = numeric(0),
-TDecProp = 0.9),
-ctrlConvergence = list(maxSubPercChangeCrit = 1.6,
-maxRelTChangeCrit = 0.025,
-maxLogDenDriftCrit = 0.3,
-gelmanCrit = 1.4,
-critSpecVarRatio = 10,
-pCheckSkipPart = 0.5,
-minNSampleCheck = 25,
-dumpfileBasename = NULL),
-ctrlSubspaces = list(minPSub = 0.1,
-maxNSample = max(256,
-2 * m0 * getNChainsPop(mc)),
-argsFSplit = list()))
-}
+\usage{divideTwDEMCSACont(mc, nGen = 512, nObs, iPopsDoSplit = integer(0), 
+    ..., controlTwDEMC = list(), doRecordProposals = FALSE, m0 = calcM0twDEMC(getNParms(mc), 
+        getNChainsPop(mc)), debugSequential = FALSE, restartFilename = NULL, 
+    ctrlBatch = list(nGenBatch = m0 * (1/2/ctrlSubspaces$minPSub) * 
+        controlTwDEMC$thin * 2, nSampleMin = 32, pThinPast = 0.5), 
+    ctrlT = list(TFix = numeric(0), TMax = numeric(0), TDecProp = 0.9), 
+    ctrlConvergence = list(maxSubPercChangeCrit = 1.6, maxRelTChangeCrit = 0.025, 
+        maxLogDenDriftCrit = 0.3, gelmanCrit = 1.4, critSpecVarRatio = 10, 
+        pCheckSkipPart = 0.5, minNSampleCheck = 25, dumpfileBasename = NULL), 
+    ctrlSubspaces = list(minPSub = 0.1, maxNSample = max(256, 
+        2 * m0 * getNChainsPop(mc)), argsFSplit = list()))}
 \arguments{
   \item{mc}{former run of twDEMCBlockInt}
   \item{nGen}{the number of generations for twDEMCBlock}

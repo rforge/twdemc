@@ -2,13 +2,8 @@
 \alias{transOrigPopt.default}
 \title{transOrigPopt default}
 \description{Transform vectors from normal to original scale.}
-\usage{
-\method{transOrigPopt}{default}(normpopt,
-poptDistr = parDistr[names(normpopt),
-"trans"],
-parDistr,
-...)
-}
+\usage{\method{transOrigPopt}{default}(normpopt, poptDistr = parDistr[names(normpopt), 
+    "trans"], parDistr, ...)}
 \arguments{
   \item{normpopt}{numerical vector/array with values at transformed, i.e. normal, scale}
   \item{poptDistr}{character vector/array of kind of transformation ("lognorm"/"logitnorm")

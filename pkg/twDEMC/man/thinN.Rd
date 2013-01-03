@@ -1,10 +1,8 @@
 \name{thinN}
 \alias{thinN}
 \title{thinN}
-\description{Generic method behind \code{\link{thinN.mcmc.list}}}
-\usage{
-thinN(...)
-}
+\description{Generic method behind \code{thinN.mcmc.list}}
+\usage{thinN(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ thinN(...)
 
 
 
-
+\examples{TRUE}

@@ -1,10 +1,8 @@
 \name{combinePops}
 \alias{combinePops}
 \title{combinePops}
-\description{Generic method behind \code{\link{combinePops.twDEMC}}}
-\usage{
-combinePops(...)
-}
+\description{Generic method behind \code{combinePops.twDEMC}}
+\usage{combinePops(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ combinePops(...)
 
 
 
-
+\examples{TRUE}

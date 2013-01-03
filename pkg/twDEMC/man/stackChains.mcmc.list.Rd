@@ -2,10 +2,7 @@
 \alias{stackChains.mcmc.list}
 \title{stackChains mcmc list}
 \description{Combine list of MarkovChains to one big matrix.}
-\usage{
-\method{stackChains}{mcmc.list}(mcmcList,
-...)
-}
+\usage{\method{stackChains}{mcmc.list}(mcmcList, ...)}
 \arguments{
   \item{mcmcList}{
 }
@@ -20,4 +17,4 @@
 
 
 \seealso{\code{\link{subChains.twDEMC}}}
-
+\examples{FALSE}

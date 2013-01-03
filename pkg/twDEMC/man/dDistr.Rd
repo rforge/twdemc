@@ -2,12 +2,7 @@
 \alias{dDistr}
 \title{dDistr}
 \description{Calculate density for transform of normal distribution.}
-\usage{
-dDistr(x,
-mu,
-sigma,
-trans)
-}
+\usage{dDistr(x, mu, sigma, trans)}
 \arguments{
   \item{x}{numeric vector of quantile at original scale for to calculate density}
   \item{mu}{numeric vector (recycled)}

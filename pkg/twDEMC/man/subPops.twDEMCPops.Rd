@@ -2,12 +2,7 @@
 \alias{subPops.twDEMCPops}
 \title{subPops twDEMCPops}
 \description{Condenses an twDEMCPops List to given population indices or space replicates}
-\usage{
-\method{subPops}{twDEMCPops}(x,
-iPops,
-iSpaces = NULL,
-...)
-}
+\usage{\method{subPops}{twDEMCPops}(x, iPops, iSpaces = NULL, ...)}
 \arguments{
   \item{x}{
 }
@@ -25,4 +20,4 @@ iSpaces = NULL,
 
 \seealso{\code{\link{twDEMCBlockInt}}
 \code{\link{subset.twDEMCPops}}}
-
+\examples{FALSE}

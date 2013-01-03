@@ -2,12 +2,7 @@
 \alias{concatPops.twDEMCPops}
 \title{concatPops twDEMCPops}
 \description{Concatenates all the chains of all subpopulations to one matrix of call \code{twDEMC}.}
-\usage{
-\method{concatPops}{twDEMCPops}(x,
-...,
-useThinning = TRUE,
-minPopLength = NULL)
-}
+\usage{\method{concatPops}{twDEMCPops}(x, ..., useThinning = TRUE, minPopLength = NULL)}
 \arguments{
   \item{x}{
 }
@@ -26,4 +21,4 @@ minPopLength = NULL)
 \seealso{\code{\link{subset.twDEMCPops}}
 ,\code{\link{subset.twDEMC}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

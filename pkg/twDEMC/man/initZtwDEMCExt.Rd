@@ -1,10 +1,8 @@
 \name{initZtwDEMCExt}
 \alias{initZtwDEMCExt}
 \title{initZtwDEMCExt}
-\description{Generic method behind \code{\link{initZtwDEMCExt.matrix}}}
-\usage{
-initZtwDEMCExt(...)
-}
+\description{Generic method behind \code{initZtwDEMCExt.matrix}}
+\usage{initZtwDEMCExt(...)}
 \arguments{
   \item{\dots}{
 }
@@ -17,4 +15,4 @@ initZtwDEMCExt(...)
 
 
 
-
+\examples{TRUE}

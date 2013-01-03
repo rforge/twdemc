@@ -2,10 +2,7 @@
 \alias{getNPops.twDEMCPops}
 \title{getNPops twDEMCPops}
 \description{Extracts the number of populations}
-\usage{
-\method{getNPops}{twDEMCPops}(x,
-...)
-}
+\usage{\method{getNPops}{twDEMCPops}(x, ...)}
 \arguments{
   \item{x}{object of class twDEMCPops}
   \item{\dots}{
@@ -21,4 +18,4 @@
 \seealso{\code{\link{getNGen.twDEMCPops}}
 ,\code{\link{subset.twDEMCPops}}
 ,\code{\link{twDEMCBlockInt}}}
-
+\examples{FALSE}

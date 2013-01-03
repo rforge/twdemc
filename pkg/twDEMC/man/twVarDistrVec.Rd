@@ -2,9 +2,7 @@
 \alias{twVarDistrVec}
 \title{twVarDistrVec}
 \description{create a factor level with given variable names}
-\usage{
-twVarDistrVec(varNames)
-}
+\usage{twVarDistrVec(varNames)}
 \arguments{
   \item{varNames}{character vector}
 }
