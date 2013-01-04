@@ -2,12 +2,8 @@
 \alias{ggplotChainPopMoves}
 \title{ggplotChainPopMoves}
 \description{Plot boxplots of the distribution of first and last fifth of steps for each population }
-\usage{
-ggplotChainPopMoves(resB,
-iChains = rep(1:ncol(resB$temp),
-each = ncol(resB$rLogDen)\%/\%ncol(resB$temp)),
-doSort = TRUE)
-}
+\usage{ggplotChainPopMoves(resB, iChains = rep(1:ncol(resB$temp), each = ncol(resB$rLogDen)\%/\%ncol(resB$temp)), 
+    doSort = TRUE)}
 \arguments{
   \item{resB}{the twDEMC to examine}
   \item{iChains}{mapping from chain to population}

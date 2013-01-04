@@ -2,18 +2,9 @@
 \alias{plotMarginal2D}
 \title{plotMarginal2D}
 \description{Plot the 2D marginal Density of a sample}
-\usage{
-plotMarginal2D(smp,
-xCol = 2,
-yCol = 3,
-intCol = 1,
-grains = 18,
-FUN = mean,
-argsFUN = list(na.rm = TRUE),
-col = rev(heat.colors(20)),
-minN = 7,
-...)
-}
+\usage{plotMarginal2D(smp, xCol = 2, yCol = 3, intCol = 1, grains = 18, 
+    FUN = mean, argsFUN = list(na.rm = TRUE), col = rev(heat.colors(20)), 
+    minN = 7, ...)}
 \arguments{
   \item{smp}{numeric matrix: first column logDensity, other columns free parameters, see \code{\link{stackChains.twDEMC}}}
   \item{xCol}{index (column number or column name) of column for x ordinate}
