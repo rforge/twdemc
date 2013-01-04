@@ -89,27 +89,27 @@ StatPrior <- {
 	require(ggplot2)
 	proto::proto( ggplot2:::StatDensity, {
 	objname <- "prior"
-	calculate<- function(.,data, scales, poptDistr, doTransOrig=FALSE, ...){
+	calculate<- function(.,data, scales, poptDistr, doTransOrig=FALSE, nGrid=100, ...){
 		parname <- as.character(data$parName[1])
 		#range <- scales$x$output_set()
 		range <- scales$x$range$range
-		xGrid <- seq(range[1], range[2], length = 100)
+		xGrid <- seq(range[1], range[2], length = nGrid)
 		#mtrace(dDistr)
-		if( (parname %in% rownames(poptDistr)) ){
+		if( (parname %in% names(poptDistr$mu)) ){
 			if( doTransOrig )
-				prior <- dDistr(xGrid, mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"], trans=poptDistr[parname,"trans"])
+				prior <- dDistr(xGrid, mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname], trans=poptDistr$trans[parname])
 			else
-				prior <- dnorm(xGrid, mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"])
+				prior <- dnorm(xGrid, mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname])
 			densdf <- data.frame(x=xGrid,prior=prior)
 			densdf$priorScaled <- densdf$prior/max(densdf$prior, na.rm = TRUE)
-			#xgrid <- seq( poptDistr[parname,"mu"]-sqrt(poptDistr[parname,"sigmaDiag"]), poptDistr[parname,"mu"]+sqrt(poptDistr[parname,"sigmaDiag"]), length.out=100)	
-			#plot( dnorm(xgrid, mean=poptDistr[parname,"mu"], sd=sqrt(poptDistr[parname,"sigmaDiag"])) )
-			#densdf$priorScaledOpt <- densdf$prior/ dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=sqrt(poptDistr[parname,"sigmaDiag"]))
-			maxDen <- if( doTransOrig ) switch( as.character(poptDistr[parname,"trans"])
-						,logitnorm = dlogitnorm(modeLogitnorm(mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"]),mu=poptDistr[parname,"mu"], sigma=poptDistr[parname,"sigmaDiag"])
-						,lognorm = dlnorm(exp(poptDistr[parname,"mu"]-poptDistr[parname,"sigmaDiag"]^2), meanlog=poptDistr[parname,"mu"], sdlog=poptDistr[parname,"sigmaDiag"])
-						,norm = dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"])
-					) else dnorm(poptDistr[parname,"mu"], mean=poptDistr[parname,"mu"], sd=poptDistr[parname,"sigmaDiag"]) 
+			#xgrid <- seq( poptDistr$mu[parname]-sqrt(poptDistr$sigmaDiag[parname]), poptDistr$mu[parname]+sqrt(poptDistr$sigmaDiag[parname]), length.out=100)	
+			#plot( dnorm(xgrid, mean=poptDistr$mu[parname], sd=sqrt(poptDistr$sigmaDiag[parname])) )
+			#densdf$priorScaledOpt <- densdf$prior/ dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=sqrt(poptDistr$sigmaDiag[parname]))
+			maxDen <- if( doTransOrig ) switch( as.character(poptDistr$trans[parname])
+						,logitnorm = dlogitnorm(modeLogitnorm(mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname]),mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname])
+						,lognorm = dlnorm(exp(poptDistr$mu[parname]-poptDistr$sigmaDiag[parname]^2), meanlog=poptDistr$mu[parname], sdlog=poptDistr$sigmaDiag[parname])
+						,norm = dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname])
+					) else dnorm(poptDistr$mu[parname], mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname]) 
 			densdf$priorScaledOpt <- densdf$prior/ maxDen
 		}else{
 			densdf <- data.frame(x=xGrid,prior=0,priorScaled=0,priorScaledOpt=0)
@@ -117,7 +117,7 @@ StatPrior <- {
 		#qqplot( x, priorScaledOpt, data=densdf )
 		#plot(densdf$x, densdf$priorScaledOpt )
 		#if( doTransOrig ) 
-		#	densdf$x <- transOrigPopt(xgrid,poptDistr[parname,"trans"])
+		#	densdf$x <- transOrigPopt(xgrid,poptDistr$trans[parname])
 		densdf
 	}
 	required_aes=c("x","parName")
@@ -129,10 +129,10 @@ StatPrior <- {
 stat_prior <- function (
 	### constructs a new StatPrior statistics based on aesthetics x and parName
 	mapping = NULL, data = NULL, geom = "line", position = "stack", 
-	adjust = 1,	poptDistr, doTransOrig=FALSE, ...
+	adjust = 1,	poptDistr, doTransOrig=FALSE, nGrid=100, ...
 ){ 
 	StatPrior$new(mapping = mapping, data = data, geom = geom, 
-		position = position, adjust = adjust, poptDistr=poptDistr, doTransOrig=doTransOrig, ...)
+		position = position, adjust = adjust, poptDistr=poptDistr, doTransOrig=doTransOrig, nGrid=nGrid, ...)
 }
 #stat_prior(
 
@@ -143,11 +143,12 @@ ggplotDensity.twDEMC <- function(
 	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
 	,doDispLogDen=TRUE	##<< include density of LogDensitys
+    ,idInfo=names(res$dInfos)[1]
 ){
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
 	## \code{\link{twDEMCInt}}
-	
+	#
 	nPop = 	ncol(res$temp)
 	nChainsPop = ncol(res$rLogDen)%/%nPop
 	#thin result to about 500 cases per constrainted population, to save calculation time
@@ -158,50 +159,120 @@ ggplotDensity.twDEMC <- function(
 		if(0==length(poptDistr)) stop("for doTransOrig one must provide argument poptDistr")
 		resT <- transOrigPopt.twDEMC(resT0,poptDistr2$trans)
 	}
-	# stack populations
-	pParms <- popApplyTwDEMC( resT$parms, nPop, function(x){ abind(twListArrDim(x),along=2) })
-	pLogDen <- popApplyTwDEMC( resT$rLogDen, nPop, as.vector)
-	tmp <- abind(pLogDen, pParms, along=1); 
-	pTmp3 <- if( pMin > 0){
-			# remove cases with lowest rLogDen
-			nDrop <- floor(ncol(tmp)*pMin)
-			abind( lapply( 1:nPop, function(iPop){
-						iKeep <- order(pLogDen[,iPop,drop=TRUE])[-(1:nDrop)]
-						twExtractFromLastDims(adrop(tmp[,,iPop,drop=FALSE],3),iKeep) 
-					}), rev.along=0 )
-		}else tmp
-	dimnames(pTmp3)<-list( parms=c("rLogDen",rownames(res$parms)),steps=NULL, pops=NULL)
-	#pTmp3 <- pTmp3[c("rLogDen","epsA","kS"),,][,,1:2]
-	#pTmp3 <- pTmp3[c("rLogDen","tvr"),,][,,1:2]
-	#poptDistr2 <- twConstrainPoptDistr(rownames(pTmp3)[-1],poptDistr )
-	if( !doDispLogDen ){
-		pTmp3 <- pTmp3[rownames(pTmp3)!="rLogDen",,]		
-	}		
-	tmpDs4 <- reshape2::melt(pTmp3)
+	# each population one single chain
+    m <- stackChainsPop( resT )
+    mA <- stackChains(m)    # all samples
+    # remove cases with 
+    m <- m[ m[,idInfo] >=  quantile(m[,idInfo],pMin) ,   ]
+    # pick columns
+    .colNames <- c( {if(doDispLogDen) idInfo else NULL}, colnames(res$parms) )
+	tmpDs4 <- structure( reshape2::melt(m[,.colNames]), names=c("pops","parms","value"))
 	tmpDs4$pops <- as.factor(tmpDs4$pops)
-	
+	#
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value))+ ylim(0,1) +#, colour=pops, fill=pops
-		opts(axis.title.x = theme_blank())
+		theme(axis.title.x = element_blank())
 	#print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
 	if( 0 < length(poptDistr) ){
 		.nPop <- length(levels(tmpDs4$pops))
 		cols <- c("gray40",scale_colour_hue(limits=1:.nPop)$output_set() )
 		names(cols) <- c("prior",as.character(1:.nPop))
 		p2 <- p1+ 
-			stat_prior(aes(y=..priorScaledOpt..,parName=parms,colour="prior")
+			stat_prior(aes(y=..priorScaledOpt..,parName=parms,nGrid=30, colour="prior")
 				#,data=tmpDs3	#will confuse the x-ranges
 				,poptDistr=poptDistr2,doTransOrig = doTransOrig
 				,size=0.8,linetype="twodash")+
 			scale_colour_manual("Populations",cols )
 	}
 	p3 <- p2 + stat_density(aes(y=..scaled..,colour=pops,ymax=1), geom="line")+
-		facet_wrap(~parms, scales="free_x")
+		facet_wrap(~parms, scales="free_x") +
+        theme()
 	#p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
 	#		facet_wrap(~parms, scales="free")
 	#p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
 	p5 <- p3 + xlab("Parameter") + ylab("Scaled posterior density")
 	p5
 }
+attr( ggplotDensity.twDEMC, "ex") <- function(){
+    data(twdemcEx1)  # from package twDEMC
+    res <- concatPops(twdemcEx1)
+    ggplotDensity.twDEMC( res )
+}
+
+ggplotDensity.twDEMCPops <- function(
+        ### Plotting the densities for each parameter.
+        res				##<< the twDEMCPops object whose densities to plot
+        ,poptDistr=NULL	##<< parameter Distributions for the prior, usually \code{poptDistr <- \link{twConstrainPoptDistr}(poptNames,HamerParameterPriors$parDistr )}
+        ,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
+        ,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
+        ,doDispLogDen=TRUE	##<< include density of LogDensitys
+        ,idInfo=names(res$dInfos)[1]
+        ,nSamplesPop=500      ##<< thin to about these number of samples within each population  
+){
+    ##seealso<<  
+    ## \code{\link{plotMarginal2D}}
+    ## \code{\link{twDEMCInt}}
+    #
+    nPop = 	length(res$pops)
+    # one chain per population
+    resPops <- lapply( 1:nPop, function(iPop){ stackChainsPop(subPops(res,iPop=iPop)) })
+    resPopsI <- resPops[[1]]
+    parNames <- colnames(resPopsI$pops[[1]]$parms)
+    # thin result to about 500 cases per constrainted population, to save calculation time and retrieve matrix
+    resMPops <- lapply(resPops, function(mPopsI){
+                stackChains(
+                thin(mPopsI, newThin=max(1,
+                    floor( (nrow(mPopsI$pops[[1]]$parms)*mPopsI$thin*(1-pMin))/nSamplesPop)  %/% mPopsI$thin
+                            ) * mPopsI$thin
+                    ))
+            })
+    # pick columns
+    .colNames <- c( {if(doDispLogDen) idInfo else NULL}, parNames )
+    # omit the cases of very low density
+    #minDen <- quantile( do.call( c, lapply(resMPops,"[",,idInfo)), pMin)
+    resM2Pops <- lapply( resMPops, function(m){
+                m[ m[,idInfo] >=  quantile(m[,idInfo],pMin) ,  .colNames ]      # better for each pop separately
+            })
+    if( 0 < length(poptDistr) )
+        poptDistr2 <- twConstrainPoptDistr(parNames,poptDistr )	#also used for prior
+    if( doTransOrig ){
+        if(0==length(poptDistr)) stop("for doTransOrig one must provide argument poptDistr")
+        for( iPop in seq_along(resM2Pops) ){
+            resM2Pops[[iPop]][,-1] <- transOrigPopt(resM2Pops[[iPop]][,-1], poptDistr2$trans)
+        }
+    }
+    tmpDs4 <- structure( reshape2::melt(resM2Pops) , names=c("cases","parms","value","pops"))
+    tmpDs4$pops <- as.factor(tmpDs4$pops)
+    #
+    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aes(x=value,colour=pops))#+ ylim(0,1) +#, colour=pops, fill=pops
+            theme(axis.title.x = element_blank())
+    #print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
+    if( 0 < length(poptDistr) ){
+        .nPop <- length(levels(tmpDs4$pops))
+        cols <- c("gray40",scale_colour_hue(1:.nPop)$palette(.nPop)   )
+        names(cols) <- c("prior",as.character(1:.nPop))
+        p2 <- p1+ 
+                stat_prior(aes(y=..priorScaledOpt..,parName=parms,colour="prior",ymax=1) #, position="identity"
+                        #,data=tmpDs3	#will confuse the x-ranges
+                        ,poptDistr=poptDistr2,doTransOrig = doTransOrig
+                        ,size=0.8,linetype="twodash")+
+                scale_colour_manual("Populations",values=cols )
+    }
+    p3 <- p2 + stat_density(aes(y=..scaled..,ymax=1), geom="line", position = "identity")+
+            facet_wrap(~parms, scales="free_x") +
+            theme()
+    #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
+    #		facet_wrap(~parms, scales="free")
+    #p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
+    p5 <- p3 + xlab("Parameter") + ylab("Scaled posterior density")
+    p5
+}
+attr( ggplotDensity.twDEMCPops, "ex") <- function(){
+    data(twdemcEx1)  # from package twDEMC
+    res <- twdemcEx1
+    ggplotDensity.twDEMCPops( res )
+    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE )
+}
+
 
 ggplotDensity.poptDistr <- function(
 	### Plotting the densities for each parameter.
@@ -224,7 +295,7 @@ ggplotDensity.poptDistr <- function(
 	dimnames(qRange)<-list(parms=pNames, iRec=NULL)
 	tmpDs4 <- reshape2::melt(qRange)
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value),geom="blank")+ #, colour=pops, fill=pops
-		opts(axis.title.x = theme_blank())
+		theme(axis.title.x = element_blank())
 	p2 <- p1 + facet_wrap(~parms, scales="free_x") 
 	#p4 <- p2 + stat_prior(aes(y=..priorScaledOpt..,parName=parms),poptDistr=poptDistr,doTransOrig=doTransOrig)
 	p4 <- p2 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=parDistr,doTransOrig=doTransOrig)
