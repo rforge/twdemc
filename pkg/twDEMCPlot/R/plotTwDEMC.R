@@ -89,14 +89,18 @@ StatPrior <- {
 	require(ggplot2)
 	proto::proto( ggplot2:::StatDensity, {
 	objname <- "prior"
-	calculate<- function(.,data, scales, poptDistr, doTransOrig=FALSE, nGrid=100, ...){
+	calculate<- function(.,data, scales, poptDistr, doTransOrig=FALSE, nGrid=30, ...){
 		parname <- as.character(data$parName[1])
 		#range <- scales$x$output_set()
 		range <- scales$x$range$range
 		xGrid <- seq(range[1], range[2], length = nGrid)
+        if( is.data.frame(poptDistr) ){ 
+            orig <- poptDistr
+            poptDistr <- as.list(poptDistr)
+            poptDistr <- lapply( poptDistr, function(item){ structure(item, names=rownames(orig))})
+        }
 		#mtrace(dDistr)
-		if( (parname %in% names(poptDistr$mu)) ){
-			if( doTransOrig )
+		if( (parname %in% names(poptDistr$mu)) ){			if( doTransOrig )
 				prior <- dDistr(xGrid, mu=poptDistr$mu[parname], sigma=poptDistr$sigmaDiag[parname], trans=poptDistr$trans[parname])
 			else
 				prior <- dnorm(xGrid, mean=poptDistr$mu[parname], sd=poptDistr$sigmaDiag[parname])
