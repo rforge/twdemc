@@ -397,8 +397,10 @@ twDEMCSACont <- function(
 			save(resRestart.twDEMCSA, file=restartFilename)
 			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
 		}
-		resEnd <- thin(res, start=getNGen(res) * ctrlBatch$pThinPast )	# neglect the first half part
-		#----- check for high autocorrelation wihin spaces
+        # do the diagnostics on the last halv of the chain, but continue 
+		resEnd <- thin(res, start=ceiling(getNGen(res)) * ctrlBatch$pThinPast )	# neglect the first half part
+        resSparse <- squeeze(res, length.out=ceiling(getNSamples(res)*ctrlBatch$pThinPast) ) # better thin the entire chain so that distant path is sparsely kept
+        #----- check for high autocorrelation wihin spaces
 		mcEnd <- concatPops(stackChainsPop(resEnd))
 		#plot( as.mcmc.list(mcEnd), smooth=FALSE )
 		specVarRatio <- apply( mcEnd$parms, 3, function(aSamplePurePop){
@@ -407,7 +409,7 @@ twDEMCSACont <- function(
 				spec/varSample
 			})	
 		if( any(specVarRatio > ctrlConvergence$critSpecVarRatio) ){
-			stop("twDEMCSACont: too much autocorrelation. Try using divideTwDEMC")
+			stop("twDEMCSACont: too much autocorrelation. Try using divideTwDEMC or higher thinning interval")
 		} 
 		ssc <- stackChainsPop(resEnd)	# combine all chains of one population
 		mcl <- as.mcmc.list(ssc)
@@ -415,7 +417,17 @@ twDEMCSACont <- function(
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
 		gelmanDiagRes <- try( {tmp<-gelman.diag(mcl); if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]} )	# cholesky decomposition may throw errors
 		#gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
-    	TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= ctrlConvergence$gelmanCrit ){
+        # compare intra-chain to inter-chain gelman diag
+        gelmanDiagPops <- sapply( 1:getNPops(resEnd), function(iPop){
+             mcl <- as.mcmc.list( subPops(resEnd,iPop) )
+             tmp<-gelman.diag(mcl)
+             if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]
+         })
+        maxGelmanDiagPops <- max(gelmanDiagPops)
+    	TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && 
+                maxGelmanDiagPops <= ctrlConvergence$gelmanCrit &&          # each pop converged
+                (gelmanDiagRes <= 1.2*maxGelmanDiagPops)                     # all pops explore the same optimum
+        ){
 # deprecated, use temp calculation with scaling with nObs
 #    			logDenT <- calcTemperatedLogDen(resEnd, TCurr)
 #				#mtrace(getBestModelIndex)
@@ -463,9 +475,9 @@ twDEMCSACont <- function(
 				TEnd <-TCurr
 			}
 		#TMin <- pmin(TMin, TEnd)
-		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","), sep="") )
+        print(paste("gelmanDiagPops=",signif(gelmanDiagRes,2)," max(gelmanDiagPop)=",signif(maxGelmanDiagPops,2)," T=",paste(signif(TCurr,2),collapse=","), sep="") )
         print(paste("doing ",ctrlBatch$nGenBatch," generations to TEnd=",paste(signif(TEnd,2),collapse=","),sep="") )
-        res1 <- res <- twDEMCBlock( resEnd
+        res1 <- res <- twDEMCBlock( resSparse
 			, nGen=ctrlBatch$nGenBatch
 			, debugSequential=debugSequential
 			, m0=m0
