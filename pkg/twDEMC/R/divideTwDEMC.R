@@ -276,7 +276,7 @@ divideTwDEMCSACont <- function(
 		, nGen=256
 		, nBatch=1 
 		, debugSequential=TRUE
-		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed lenght
+		, controlTwDEMC=list(DRgamma=0.1)		# DR step of 1/10 of the proposed length
 	)
 	resPops <- res <- res0 <- do.call( twDEMCSA, argsTwDEMCSA )
 	res$pops[[2]]$spaceInd <- 4

@@ -1,10 +1,31 @@
 # slowly decreasing Temperature (cost reduction factor)
 
+.calcTemp <- function(
+        ### calculate the Temperature so that sum(S_k) = n_k        
+        Sk               ##<< numeric vector (nResultComp): misfit (=-2*logDensity) per result components
+        , nObs=1         ##<< number of observations per result component
+        , TFix=rep( NA_real_, length(Sk))        ##<< numeric vector (nResultComp): fixed temperature for components, non-finite for those with varying temperature
+        , iFixTemp=which(is.finite(TFix))        ##<< integer vector: index of result components, which Temperature is fixed 
+        , iNonFixTemp=which(!is.finite(TFix))    ##<< integer vector: index of result components, which Temperature is fixed 
+){
+    if( length(iNonFixTemp) ){
+        tempk <- pmax(1,Sk / nObs)          # estimate per data stream
+        tempBaseK <- (tempk -1)/nObs + 1    # one esitmate for base factor
+        tempBase <- max( tempBaseK[iNonFixTemp])    # take the maximum of the bases, for components that do not have fixed temperature
+        temp <- 1 +(tempBase-1)*nObs
+        temp[iFixTemp] <- TFix[iFixTemp]
+        temp
+    }else{
+        TFix
+    }
+    ### numberic vector (nResComp) with temperatures
+}
+
 twDEMCSA <- function(
 	### simulated annealing DEMC 
 	thetaPrior			##<< vector of parameters, point estimate
 	,covarTheta			##<< the a prior covariance of parameters
-	,nGen=512			##<< number of generations in the initial batch, default 512
+	,nGen=512			##<< number of generations 
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 	, dInfos			##<< argument to \code{\link{twDEMCBlockInt}}
@@ -20,7 +41,7 @@ twDEMCSA <- function(
 	#
 	, ctrlBatch = list(             ##<< list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}
 		##describe<< 
-		nGen0=m0*controlTwDEMC$thin*3	##<< number of generations for the intial run
+		nGen0=m0*controlTwDEMC$thin*3	##<< number of generations for the initial batch
 		,useSubspaceAdaptation=FALSE	##<< if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}	
 		##end<<
 		)	
@@ -127,6 +148,7 @@ twDEMCSA <- function(
 	nResComp <- ncol(logDenDS)
 	ctrlT$TFix <- completeResCompVec( ctrlT$TFix, colnames(logDenDS) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
+    iNonFixTemp <- which( !is.finite(ctrlT$TFix) )
 	ctrlT$TMax <- completeResCompVec( ctrlT$TMax, colnames(logDenDS) )
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
@@ -141,21 +163,22 @@ twDEMCSA <- function(
 	## The parameters at rank positions defined by qTempInit are selected.
 	## The minimum log-Density or each datastream is used obtain initial temperature as: T =  -2/nObs logDen
 	##}}
-	#print("twDEMCSA: before calculating initial temperature"); recover()
+    #print("twDEMCSA: before calculating initial temperature"); recover()
 	rankLogDenDS <- apply(-logDenDS, 2, rank)	# highest logDen first
-	iNonFixTemp <- (1:nResComp)[ ifelse(0!=length(iFixTemp),-iFixTemp, TRUE) ]
-	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	
+	maxRankLogDen <- apply(rankLogDenDS[ ,iNonFixTemp ,drop=FALSE],1,max)	# highest rank in all densities
 	# quantile produces intermediate values, which may round wrong
 	# search the component nearest to the quantile (may not match exact because of duplicates)
 	iQuant <- which.min( abs(maxRankLogDen - round(ctrlT$qTempInit*length(maxRankLogDen))) )
 	qLogDenDS <- apply( logDenDS[iQuant, ,drop=FALSE], 2, min )
-	temp0 <- tempQ <-  pmax(1,-2/nObs* qLogDenDS)
-	#names(temp0) <- colnames(logDenDS)
+    #temp0 <- tempQ <-  pmax(1,-2/nObs* qLogDenDS)  # deprecated, new calculation account for nObs 
+    #names(temp0) <- colnames(logDenDS)
+    #temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
+    Sk <- -2*qLogDenDS
+    temp0 <- tempQ <- .calcTemp( Sk, nObs, ctrlT$TFix, iFixTemp, iNonFixTemp  )
 	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
-	temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
 	#if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
-	print(paste("initial T=",paste(signif(temp0,2),collapse=","),"    ", date(), sep="") )
+	print(paste("initial T=",paste(signif(temp0,2),collapse=",")," for ",min(nGen, ctrlBatch$nGen0)," generations","    ", date(), sep="") )
 	#if( sum(temp0 > 1) == 0){ dump.frames("parms/debugDump",TRUE); stop("twDEMCSA: no temperature > 0") }	
 	#
 	ret <- res0 <-  res <- twDEMCBlock( Zinit
@@ -273,9 +296,9 @@ attr(twDEMCSA,"ex") <- function(){
 }
 
 twDEMCSACont <- function(
-	### continuing simulated annealing DEMC based on previous reslt
+	### continuing simulated annealing DEMC based on previous result
 	mc					##<< result of twDEMCBlock
-	,nGen=512			##<< number of generations in the initial batch, default 512
+	,nGen=512			##<< overall number of generations to add (within one batch provide ctrlBatch$nGenBatch)
 	,nObs				##<< integer vector (nResComp) specifying the number of observations for each result component
 	,... 				##<< further argument to \code{\link{twDEMCBlockInt}}
 	, m0 = calcM0twDEMC(getNParms(mc),getNChainsPop(mc))	##<< minimum number of samples in step for extending runs
@@ -286,7 +309,8 @@ twDEMCSACont <- function(
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
 		nGenBatch=m0*controlTwDEMC$thin*5		##<< number of generations for one call to twDEMCStep
-		##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
+        #nGenBatch=m0*controlTwDEMC$thin*3		##<< number of generations for one call to twDEMCStep
+        ##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		#, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
 		, pThinPast=0.5				##<< in each batch thin the past to given fraction before appending new results
 		##end<<
@@ -312,9 +336,12 @@ twDEMCSACont <- function(
 	argsF <- as.list(sys.call())[-1]	# do not store the file name and the first two arguments
 	argsF <- argsF[ !(names(argsF) %in% c("","nGen","mc")) ]  # remove positional arguments and arguments mc and nGen
 	argsFEval <- lapply( argsF, eval.parent )		# remember values instead of language objects, which might not be there on a repeated call
-	#
+    mc$args <- argsFEval
+    #
 	#-- fill in default argument values
-	if( is.null(controlTwDEMC$thin) ) controlTwDEMC$thin <- 4
+	if( is.null(controlTwDEMC$thin) ){ 
+        controlTwDEMC$thin <- 4
+    }
 	thin <- controlTwDEMC$thin
 	frm <- formals()
 	ctrlConvergence <- if( hasArg(ctrlConvergence) ) twMergeLists( eval(frm[["ctrlConvergence"]]), ctrlConvergence ) else ctrlConvergence
@@ -329,6 +356,7 @@ twDEMCSACont <- function(
 	#print("saCont: before completing temperature settings."); recover()
 	ctrlT$TFix <- completeResCompVec( ctrlT$TFix, colnames(mc$pops[[1]]$resLogDen) )
 	iFixTemp <- which( is.finite(ctrlT$TFix) )
+    iNonFixTemp <- which( !is.finite(ctrlT$TFix) )
 	ctrlT$TMax <- completeResCompVec( ctrlT$TMax, colnames(mc$pops[[1]]$resLogDen) )
 	iMaxTemp <- which( is.finite(ctrlT$TMax) )	
 	#
@@ -369,7 +397,7 @@ twDEMCSACont <- function(
 			save(resRestart.twDEMCSA, file=restartFilename)
 			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
 		}
-		resEnd <- thin(res, start=getNGen(res)%/%2 )	# neglect the first half part
+		resEnd <- thin(res, start=getNGen(res) * ctrlBatch$pThinPast )	# neglect the first half part
 		#----- check for high autocorrelation wihin spaces
 		mcEnd <- concatPops(stackChainsPop(resEnd))
 		#plot( as.mcmc.list(mcEnd), smooth=FALSE )
@@ -387,34 +415,44 @@ twDEMCSACont <- function(
 		#plot( res$pops[[1]]$parms[,"b",1] ~ res$pops[[1]]$parms[,"a",1], col=rainbow(255)[round(twRescale(-res$pops[[1]]$resLogDen[,"logDen1",1],c(10,200)))] )
 		gelmanDiagRes <- try( {tmp<-gelman.diag(mcl); if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]} )	# cholesky decomposition may throw errors
 		#gelmanDiagRes <- try( gelman.diag(mcl)$mpsrf )	# cholesky decomposition may throw errors
-		TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= ctrlConvergence$gelmanCrit ){
-				logDenT <- calcTemperatedLogDen(resEnd, TCurr)
-				#mtrace(getBestModelIndex)
-				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
-				maxLogDenT <- logDenT[iBest, ]
-				#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
-				#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
-				#sum logDenT within density
-				#logDenTDen <- lapply( iDens, function(iDen){
-				#			rcpos <- iCompsNonFixDen[[iDen]]
-				#			if( length(rcpos)==1) logDenT[,rcpos ,drop=TRUE] else						
-				#				rowSums( logDenT[ ,rcpos ,drop=FALSE])
-				#		})
-				maxLogDenTDen <- sapply(iDens, function(iDen){ 
-						sum(maxLogDenT[iCompsNonFixDen[[iDen]] ])
-					})
-				#TEnd0 <- pmax(1, -2*maxLogDenT/nObs )
-				TEndDen <- pmax(1, -2*maxLogDenTDen/nObsDen )
-				TEnd <- TCurr
-				for( iDen in iDens){
-					TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
-				} 
-				TEnd[iFixTemp] <- ctrlT$TFix[iFixTemp]
+    	TEnd <- if(  !inherits(gelmanDiagRes,"try-error") && gelmanDiagRes <= ctrlConvergence$gelmanCrit ){
+# deprecated, use temp calculation with scaling with nObs
+#    			logDenT <- calcTemperatedLogDen(resEnd, TCurr)
+#				#mtrace(getBestModelIndex)
+#				iBest <- getBestModelIndex( logDenT, resEnd$dInfos )
+#				maxLogDenT <- logDenT[iBest, ]
+#				#thetaBest <- stackChains(concatPops(resEnd)$parms)[iBest, ]
+#				#calcTemperatedLogDen( do.call( dInfos[[1]]$fLogDen, c(list(thetaBest), dInfos[[1]]$argsFLogDen) ), TCurr )
+#				#sum logDenT within density
+#				#logDenTDen <- lapply( iDens, function(iDen){
+#				#			rcpos <- iCompsNonFixDen[[iDen]]
+#				#			if( length(rcpos)==1) logDenT[,rcpos ,drop=TRUE] else						
+#				#				rowSums( logDenT[ ,rcpos ,drop=FALSE])
+#				#		})
+#				maxLogDenTDen <- sapply(iDens, function(iDen){ 
+#						sum(maxLogDenT[iCompsNonFixDen[[iDen]] ])
+#					})
+#				#TEnd0 <- pmax(1, -2*maxLogDenT/nObs )
+#				TEndDen <- pmax(1, -2*maxLogDenTDen/nObsDen )
+#				TEnd <- TCurr
+#				for( iDen in iDens){
+#					TEnd[ resEnd$dInfos[[iDen]]$resCompPos ] <- TEndDen[iDen]
+#				} 
+#				TEnd[iFixTemp] <- ctrlT$TFix[iFixTemp]
+                #
+                # print("twDEMCSACont: before Temperature calculation."); recover()    
+                resLogDen <- stackChains(concatPops(resEnd)$resLogDen)
+                #debug(getBestModelIndices)
+                iBest <- getBestModelIndices(resLogDen, resEnd$dInfos, 0.1) 
+                SkBest <- -2*resLogDen[iBest,]
+                Sk <- apply( SkBest, 2, median )
+                TEnd <- .calcTemp( Sk, nObs, ctrlT$TFix, iFixTemp, iNonFixTemp  )
+                #
 				TEnd[iMaxTemp] <- pmin(TEnd[iMaxTemp], ctrlT$TMax[iMaxTemp])	# do not increase T above TMax
 				relTChange <- abs(TEnd - TCurr)/TEnd
 				#if( (max(relTChange) <= maxRelTChange) ) recover()
 				#trace(isLogDenDrift, recover )
-				if( (max(relTChange) <= ctrlConvergence$maxRelTChangeCrit) && !isLogDenDrift(logDenT, resEnd$dInfos, maxDrift=ctrlConvergence$maxLogDenDriftCrit) ){
+				if( (max(relTChange) <= ctrlConvergence$maxRelTChangeCrit) && !isLogDenDrift(resLogDen, resEnd$dInfos, maxDrift=ctrlConvergence$maxLogDenDriftCrit) ){
 					res <- resEnd
 					print(paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2),"% and no drift in logDensity. Finishing early.",sep=""))
 					break
@@ -426,8 +464,9 @@ twDEMCSACont <- function(
 			}
 		#TMin <- pmin(TMin, TEnd)
 		print(paste("gelmanDiag=",signif(gelmanDiagRes,2)," T=",paste(signif(TCurr,2),collapse=","), sep="") )
-		res1 <- res <- twDEMCBlock( resEnd
-			, nGen=nGen
+        print(paste("doing ",ctrlBatch$nGenBatch," generations to TEnd=",paste(signif(TEnd,2),collapse=","),sep="") )
+        res1 <- res <- twDEMCBlock( resEnd
+			, nGen=ctrlBatch$nGenBatch
 			, debugSequential=debugSequential
 			, m0=m0
 			, controlTwDEMC=controlTwDEMC
@@ -439,7 +478,7 @@ twDEMCSACont <- function(
 		TCurr <- getCurrentTemp(res)
 		print(paste("finished ",iBatch*ctrlBatch$nGenBatch," out of ",nGen," gens.   ", date(), sep="") )
 	}
-	res$TGlobal <- max(getCurrentTemp(res)[iCompsNonFixDen])
+	res$TGlobal <- max(getCurrentTemp(res)[unlist(iCompsNonFixDen)])
 	res$args <- argsFEval
 	res
 }
@@ -904,6 +943,39 @@ attr(getBestModelIndex,"ex") <- function(){
 	getBestModelIndex(logDenT, dInfos)
 	-logDenT
 }
+
+
+getBestModelIndices <- function(
+        ### select the best models based on (temperated) logDensity components
+        resLogDen	##<< numeric matrix (nStep x nResComp): logDensity (highest are best)
+        , dInfos 	##<< list of lists with entry resCompPos (integer vector) specifying the position of result components for each density
+        , prob=0.1  ##<< proportion of good indices to return
+){
+    iBest <- if( length(dInfos) > 1){
+                # with several densities, each parameter vector is ranked differently
+                # select the case where the maximum of all the ranks across densities is lowest
+                #iDen = 1
+                logDenDens <- do.call( cbind, 	lapply( seq_along(dInfos), function(iDen){
+                                    dInfo <- dInfos[[iDen]]
+                                    logDenInfoT <- rowSums(resLogDen[,dInfo$resCompPos ,drop=FALSE])	
+                                }))
+                rankDen <- apply( -logDenDens,2, rank) # starting with the highest density
+                rankDenMax <- apply( rankDen, 1, max )   
+                iBest <- which( rankDenMax <= quantile( rankDenMax, prob))
+            }else{
+                logDen <- rowSums(resLogDen)
+                iBest <- which( logDen >= quantile( logDen, (1-prob) ))
+            }
+    ### the indices within resLogDen with most highly ranked models (i.e whose worst rank across density is highest)
+    iBest
+}
+attr(getBestModelIndices,"ex") <- function(){
+    logDenT <- cbind( -sample(5)/2, -sample(5), -sample(5) )
+    #dInfos <- list( d1=list(resCompPos=1:2), d2=list(resCompPos=3) )
+    dInfos <- list( d1=list(resCompPos=2), d2=list(resCompPos=3) )
+    getBestModelIndices(logDenT, dInfos, 0.2)
+}
+
 
 isLogDenDrift <- function(
 	### check whether first quartile all the logDensities is significantly smaller than last quartile 
