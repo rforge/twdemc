@@ -4,37 +4,33 @@ twDEMCBlockInt <- function(
 			##describe<< 
 			parms		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
 			, nGen = 12	##<< number of generations, i.e. steps to proceed
-			, TProp=NULL	##<< numeric vector (nResComp) temperature proportions of result components
-			## can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
+			, TProp=NULL	##<< numeric vector (nResComp) temperature proportions of result components.
+			    ## It can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
 			, X=NULL		##<< numeric matrix (nParm x nChainPop) initial state
 			, logDenCompX=NULL 		##<< numeric matrix (nComp x nChain): logDen components of initial state X, see details
 			, spaceInd = 1	##<< the space replicate that this population belongs to
-			, upperParBounds = numeric(0)
-			### named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound
-			### for exploring subspaces of the limiting distribution, see details
+			, upperParBounds = numeric(0)   ##<< named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound.
+			    ## For exploring subspaces of the limiting distribution, see details
 			, lowerParBounds = numeric(0)  ##<< similar to upperParBounds: sample > bound
 			, splits=numeric(0)		##<< named numeric vector of splitting points, used to remerge divided subspaces 
 		)) 
 		##end<<  
 	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
 			##describe<< 
-			fLogDen=NULL
-			###	\code{function(theta, ...)} calculates a vector of logDensities 
-			### corresponding to different data streams of parameter vector theta 
-			### \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
-			,xC=xC						##<< numeric vector: current accepted state
-			,logDenCompC=logDenCompC	##<< numeric vector: result components of fLogDen for current position
+			fLogDen=NULL                    ##<< \code{function(theta, ...)} calculates a vector of logDensities 
+			    ## corresponding to different data streams of parameter vector theta 
+			    ## \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
+			,xC=xC						    ##<< numeric vector: current accepted state
+			,logDenCompC=logDenCompC	    ##<< numeric vector: result components of fLogDen for current position
 			,parUpdateDenC=parUpdateDenC	##<< integer vector: logDensity that recently updated parameter at given index			
-			## to handle first steps in Multi-step Metropolis decision internally. 
-			## See details.
+			    ## to handle first steps in Multi-step Metropolis decision internally. 
+			    ## See details.
 			, compPosDen=1:nrow(pops[[1]]$parms)	##<< index or names of the parameter components that are used in this density function 
-			, argsFLogDen=list()	##<< further arguments passed to fLogDen
-			, intResComp=vector("integer",0) 
-			### integer or character vector: indices or names of results components of fLogDen 
-			### that are used for internal Metropolis decisions
-			, fLogDenScale=1 
-			### scalar multiplied to the result of fLogDen 
-			### allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
+			, argsFLogDen=list()	                ##<< further arguments passed to fLogDen
+			, intResComp=vector("integer",0)        ##<< integer or character vector: indices or names of results components of fLogDen 
+			    ## that are used for internal Metropolis decisions
+			, fLogDenScale=1                        ##<< scalar multiplied to the result of fLogDen 
+			    ## allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
 			#, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
 		)) 
 		##end<< 
@@ -45,7 +41,7 @@ twDEMCBlockInt <- function(
 			, fUpdateBlock=updateBlockTwDEMC	##<< function to update the parameters.
 			## \cr It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
 			## as described in \code{\link{updateBlockTwDEMC}}
-			, argsFUpdate=list()	##<< further arguments passed to fUpdate
+			, argsFUpdate=list()	    ##<< further arguments passed to fUpdate
 			, requiresUpdatedDen=TRUE	##<< if fUpdateBlock does not depend on current density result, then set this to FALSE and save some calculation time 
 			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
 		))

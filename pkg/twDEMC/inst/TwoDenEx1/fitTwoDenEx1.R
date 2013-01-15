@@ -389,8 +389,6 @@ pushViewport( viewport(layout=grid.layout(2,1)))
 print(pa , vp = viewport(layout.pos.row=1,layout.pos.col=1))	
 print(pb + theme(legend.position = "none") , vp = viewport(layout.pos.row=2,layout.pos.col=1))	
 
-# XX TODO print true values
-
 #----------- ggplot predictive posterior
 	scenarios <- c("R","RS","RSw","DG","DM")
 	nScen <- length(scenarios)

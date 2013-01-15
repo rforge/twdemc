@@ -11,7 +11,7 @@
     if( length(iNonFixTemp) ){
         tempk <- pmax(1,Sk / nObs)          # estimate per data stream
         tempBaseK <- (tempk -1)/nObs + 1    # one esitmate for base factor
-        tempBase <- max( tempBaseK[iNonFixTemp])    # take the maximum of the bases, for components that do not have fixed temperature
+        tempBase <- max( tempBaseK[iNonFixTemp], na.rm=TRUE)    # take the maximum of the bases, for components that do not have fixed temperature
         temp <- 1 +(tempBase-1)*nObs
         temp[iFixTemp] <- TFix[iFixTemp]
         temp
@@ -174,7 +174,7 @@ twDEMCSA <- function(
     #names(temp0) <- colnames(logDenDS)
     #temp0[iFixTemp] <- ctrlT$TFix[iFixTemp]
     Sk <- -2*qLogDenDS
-    temp0 <- tempQ <- .calcTemp( Sk, nObs, ctrlT$TFix, iFixTemp, iNonFixTemp  )
+    temp0 <- tempQ <- .calcTemp( Sk, nObs[colnames(logDenDS)], ctrlT$TFix, iFixTemp, iNonFixTemp  )
 	ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(tempQ),tempQ,Inf) )[iNonFixTemp]		# decrease TMax  
 	if( !all(is.finite(temp0)) ) stop("twDEMCSA: encountered non-finite Temperatures.")
 	#if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
@@ -1060,7 +1060,11 @@ completeResCompVec <- function(
 		iFix <- sapply( names(x), match, resCompNames )
 		if( any(is.na(iFix))) stop("completeResCompVec: x must be of the same length as resCompNames or all its names must correspond names of resCompNames.")
 		xAll <- structure( rep( NA_real_, nResComp), names=resCompNames )
-		xAll[iFix] <- x
+        xfin <- x[ is.finite(x) ]
+        #iName <- names(xfin)[1]
+		for( iName in names(xfin) ){
+            xAll[ names(xAll)== iName ] <- xfin[iName]
+        }
 	}
 	xAll
 	### vector with names resCompNames, with corresponding values of x set, others NA
