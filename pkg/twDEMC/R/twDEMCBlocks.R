@@ -772,7 +772,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	if( 0==length(dInfo$fLogDenScale) ) dInfo$fLogDenScale <- 1
 	#if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
 	if( 0!=length(dInfo$TFix) ) warning("Usage of TFix is deprecated. Use TSpec with T0 and TEnd of one for given components.")
-	
+	if( length(i <- which(!(names( dInfo) %in% c("fLogDen","xC","logDenCompC","parUpdateDenC","compPosDen","intResComp","argsFLogDen","fLogDenScale","intermediate")))) )
+        stop(paste(".checkDInfo: unknown entries in dInfo:",paste(names(dInfo)[i],sep=",") ))
 	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale defined
 	dInfo
 }
@@ -1167,54 +1168,70 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	acceptedBlock <- numeric(a$nBlock) 
 	xP <- xC		# place for recording proposal
 	logDenCompP <- logDenCompC # place for recording density results for proposal
-	
-	#iBlock<-2
+    #
+    intermediates <- list()     # initially empty
+	#
+    #recover()
+	#iBlock<-1
+    #iBlock<-2
 	#dInfo1 <- a$argsFUpdateBlocks[[1]]
 	for( iBlock in seq_along(a$argsFUpdateBlocks)){
 		#block <- blocks[[iBlock]]
-		dInfo <- block <- a$argsFUpdateBlocks[[iBlock]] #merged the information in argsFUpdateBlocks
-		cd <- dInfo$compPosDen # components used by the current density function
-		cu <- block$compPos	   # components to be updated in this block
+		blockArgs <- a$argsFUpdateBlocks[[iBlock]] #merged the information in argsFUpdateBlocks
+        usesIntermediate <- length(blockArgs$intermediate) != 0
+        #
+		cd <- blockArgs$compPosDen # components used by the current density function
+		cu <- blockArgs$compPos	   # components to be updated in this block
 		#cuInD <- block$compPosInD 
 		##details<< \describe{}{\item{Recalculating logDensity of accepted state.}{
 		## If one of the components used by the current density function has been
 		## updated against another density function, then the current density of  
 		## the accepted state is out of date, and needs to be recalculated.
 		##}}
-		if( block$requiresUpdatedDen && !all( parUpdateDenC[block$dInfoPos,cd] ) ){	
-			# here do not allow for internal rejection 
-			logDenCompC[dInfo$resCompPos] <- dInfo$fLogDenScale * do.call( dInfo$fLogDen, c(list(xC[cd]), dInfo$argsFLogDen) )	# evaluate logDen
-			parUpdateDenC[block$dInfoPos,cd] <- TRUE								
+		if( blockArgs$requiresUpdatedDen && !all( parUpdateDenC[blockArgs$dInfoPos,cd] ) ){
+            # intermediate state may have been calculated
+            blockArgs$argsFLogDen$intermediate <- if( usesIntermediate )  intermediates[[blockArgs$intermediate]] else NULL
+            # here do not allow for internal rejection
+            logDenCompC[blockArgs$resCompPos] <- tmp <- blockArgs$fLogDenScale * do.call( blockArgs$fLogDen, c(list(xC[cd]), blockArgs$argsFLogDen) )	# evaluate logDen
+			parUpdateDenC[blockArgs$dInfoPos,cd] <- TRUE
+            if( usesIntermediate ){
+                intermediates[[ blockArgs$intermediate]] <- attr(tmp,"intermediate") 
+            } 
 		}	
 		# make sure to use names different from already existing in argsFUpdateBlocks[[iBlock]]
-		# in c latter entries overwrite previous entries, so use argsFUpdateBlocks first				
-		argsFUpdateBlock <- c( a$argsFUpdateBlocks[[iBlock]], list(
+		# in c latter entries overwrite previous entries, so use argsFUpdateBlocks first
+        blockArgs$argsFLogDen$intermediate <- NULL      # itermediate refers to current state not for proposal
+		argsFUpdateBlock <- c( blockArgs, list(
 				step=step
 				, rExtra=rExtra
-				, logDenCompC=logDenCompC[ dInfo$resCompPos  ]
+				, logDenCompC=logDenCompC[ blockArgs$resCompPos  ]
 				#, tempC=tempGlobalC
-				, tempDenCompC=tempDenCompC[ dInfo$resCompPos ]	
+				, tempDenCompC=tempDenCompC[ blockArgs$resCompPos ]	
 				, pAccept=pAcceptC
 				, upperParBounds=a$upperParBoundsPop[[iPop]]
 				, lowerParBounds=a$lowerParBoundsPop[[iPop]]
 				, iPop=iPop
 			))
 		#resUpdate <- updateBlockTwDEMC( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
-		resUpdate <- block$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
+		resUpdate <- blockArgs$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )       # call the update
 		acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
 		if( !all(is.finite(resUpdate$accepted)))
 			stop(".updateBlocksTwDEMC: encountered non-finited acceptance rate")
 		if( resUpdate$accepted != 0){
 			#if( resUpdate$xC["a"] > 10.8) recover()
 			xC[cu] <- xP[cu] <- resUpdate$xC		# update the components of current state
+            #undebug(setIntermediate)
 			parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the update parameters
 			if( 0 != length(resUpdate$logDenCompC) ){				
-				logDenCompC[ dInfo$resCompPos  ] <- logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
-				parUpdateDenC[block$dInfoPos,cu] <- TRUE	# if density has been calculated, indicate that it is up to date 
-			}
+                if( usesIntermediate) 
+                    intermediates[[ blockArgs$intermediate]] <- attr(resUpdate$logDenCompC,"intermediate")  # update the intermediate
+                logDenCompC[ blockArgs$resCompPos  ] <- logDenCompP[ blockArgs$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
+				parUpdateDenC[blockArgs$dInfoPos,cu] <- TRUE	# if density has been calculated, indicate that it is up to date 
+            }
 		}else{ # not accepted
 			if( 0 != length(resUpdate$xP) ) xP[ cu  ] <- resUpdate$xP 				# proposal 		
-			if( 0 != length(resUpdate$logDenCompP) ) logDenCompP[ dInfo$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal 		
+			if( 0 != length(resUpdate$logDenCompP) ) logDenCompP[ blockArgs$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal
+            # keep with previous intermediate                
 		}
 	} #iBlock
 
@@ -1225,6 +1242,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		,parUpdateDenC=parUpdateDenC			##<< integer vector: logDensity that recently updated parameter at given index
 		,accepted=acceptedBlock		##<< numeric vector: acceptance of each block (0: not, 1: did, (0..1): DRstep)
 		,xP=xP						##<< numeric vector: result components of fLogDen for proposal
+        #,intermediate
 		,logDenCompP=logDenCompP
 	) ##enf<<
 	#})	# with
@@ -1412,11 +1430,11 @@ updateBlockTwDEMC <- function(
 	##value<< list with components
 	list(	##describe<<
 		accepted=accepted			##<< boolean scalar: if step was accepted
-		, xC=xC[a$compPosInDen]		##<< numeric vector: components of position in parameter space that are being updated
-		, logDenCompC=a$logDenCompC	##<< numeric vector: result components of fLogDen for current position
+		, xC=xC[a$compPosInDen]		##<< numeric vector: components of position in parameter space that are being updated (if accepted then the same as xP)
+		, logDenCompC=a$logDenCompC	##<< numeric vector: result components of fLogDen for current position (if accepted then the same as logDenCompP)
 		#, logDenC =logDenC			##<< numeric vector: summed fLogDen for current accepted position
-		, xP=xP[a$compPosInDen]		##<< numeric vector: components of proposal that are being updated
-		, logDenCompP=Lp			##<< numeric vector: result components of fLogDen for proposal
+		, xP=xP[a$compPosInDen]		##<< numeric vector: components of proposal that are being 
+		, logDenCompP=Lp			##<< numeric vector: result components of fLogDen for proposal, may inlcude attr "intermediate"
 	#, logDenP=logDenP			##<< numeric vector: summed fLogDen for proposal
 	)	##end<<
 	#})

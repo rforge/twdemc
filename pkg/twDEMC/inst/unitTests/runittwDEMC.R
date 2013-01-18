@@ -525,48 +525,117 @@ i_nnertest.probUpDir <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
-t_est.ofMulti <- function(){
-	# same as goodStartSeq, but with executing debugSequential=FALSE, i.e. parallel
-	.nPop=2
-	argsFLogDen <- list(
-		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
-		obs=obs,			### vector of data to compare with
-		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
-		thetaPrior = thetaTrue,	### the prior estimate of the parameters
-		invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
-		xval=xval
-	)
-	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
-	
-	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
-	dim(Zinit)
-	
-	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
-		nPop=.nPop
-		#fLogDenScale=-1/2
-		#debugSequential=TRUE
-	))
-	str(res)
-	
-	rescoda <- as.mcmc.list(res) 
-	
-	suppressWarnings({	#glm fit in summary
-	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
-	})	
-	# 1/2 orders of magnitude around prescribed sd for theta
-	.pop=1
-	for( .pop in seq(along.with=.popsd) ){
-		checkMagnitude( sdTheta, .popsd[[.pop]] )
-	}
-	
-	# check that thetaTrue is in 95% interval 
-	.pthetaTrue <- sapply(1:2, function(.pop){
-			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
-		})
-	checkInterval( .pthetaTrue ) 
+test.ofMulti <- function(){
+    # testing multiple log-Density functions
+    data(twTwoDenEx1)
+    thresholdCovar = 0.3	# the true value
+    #thresholdCovar = 0		# the effective model that glosses over this threshold
+    thetaMean <- twTwoDenEx1$thetaTrue
+    sdTheta <- (thetaMean*0.3)
+    argsFLogDen <- list(
+            thresholdCovar=thresholdCovar
+            , thetaPrior=thetaMean
+            , invCovarTheta=sdTheta^2
+         )            
+    #
+    .nPop=2
+    .nChainPop=4
+    ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
+    #
+    .nGen=256
+    resa <-  concatPops( resBlock <- twDEMCBlock( 
+                    ZinitPops
+                    , nGen=.nGen 
+                    ,dInfos=list(
+                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen)
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen)
+                    )
+                    ,blocks = list(
+                            a=list(dInfoPos="dSparse", compPos="a")
+                            ,b=list(dInfoPos="dRich", compPos="b")
+                    )
+                    ,nPop=.nPop
+                    ,controlTwDEMC=list(thin=8)		
+                    #,debugSequential=TRUE
+                    ,doRecordProposals=TRUE
+            ))
+    #plot( as.mcmc.list(resa), smooth=FALSE)
+    rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
+    #
+    #i=1
+    .popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]})
+    .popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]})
+    # 1/2 orders of magnitude around prescribed sd for theta
+    # no true sdTheta
+    #.pop=1
+    #for( .pop in seq(along.with=.popsd) ){
+    #    checkMagnitude( sdTheta, .popsd[[.pop]] )
+    #}
+    #
+    # check that thetaTrue is in 95% interval 
+    .pthetaTrue <- sapply(1:2, function(.pop){
+                pnorm(thetaMean, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+            })
+    checkInterval( .pthetaTrue ) 
 }
+
+test.ofMultiIntermediate <- function(){
+    # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
+    data(twTwoDenEx1)
+    thresholdCovar = 0.3	# the true value
+    #thresholdCovar = 0		# the effective model that glosses over this threshold
+    thetaMean <- twTwoDenEx1$thetaTrue
+    sdTheta <- (thetaMean*0.3)
+    #
+    argsFLogDen <- list(
+            thresholdCovar=thresholdCovar
+            , thetaPrior=thetaMean
+            , invCovarTheta=sdTheta^2
+    )            
+    #
+    .nPop=2
+    .nChainPop=4
+    ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
+    #
+    .nGen=256
+    #undebug(denRichPrior)
+    resa <- concatPops( resBlock <- twDEMCBlock( 
+                    ZinitPops
+                    , nGen=.nGen 
+                    ,dInfos=list(
+                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                    )
+                    ,blocks = list(
+                            a=list(dInfoPos="dSparse", compPos="a")
+                            ,b=list(dInfoPos="dRich", compPos="b")
+                    )
+                    ,nPop=.nPop
+                    ,controlTwDEMC=list(thin=8)		
+                    #,debugSequential=TRUE
+                    ,doRecordProposals=TRUE
+            ))
+    #plot( as.mcmc.list(resa), smooth=FALSE)
+    rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
+    #
+    #i=1
+    #(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+    #(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+    # 1/2 orders of magnitude around prescribed sd for theta
+    # no true sdTheta
+    #.pop=1
+    #for( .pop in seq(along.with=.popsd) ){
+    #    checkMagnitude( sdTheta, .popsd[[.pop]] )
+    #}
+    #
+    # check that thetaTrue is in 95% interval 
+    .pthetaTrue <- sapply(1:2, function(.pop){
+                pnorm(thetaMean, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+            })
+    checkInterval( .pthetaTrue ) 
+}
+
+
 
 t_est.doAppendPrevLogDen <- function(){
 	# same as goodStartSeq, but with extending former runs

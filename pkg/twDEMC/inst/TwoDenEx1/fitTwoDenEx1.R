@@ -2,7 +2,7 @@ data(twTwoDenEx1)
 require(reshape)
 sfInit(parallel=TRUE, cpus=2)
 set.seed(0815)
-# moved densities to denSparceRichBoth.R
+# moved densities to denSparseRichBoth.R
 
 
 
@@ -96,7 +96,7 @@ theta0 <- adrop(ZinitPopsA[nrow(ZinitPopsA),,1 ,drop=FALSE],3)
 # with correct b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
 		dInfos=list(
-                dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
+                dSparse=list(fLogDen=denSparse, argsFLogDen=list(theta0=c(a=1,b=2),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -106,7 +106,7 @@ plot( as.mcmc.list(resa), smooth=FALSE)
 
 # with biased b
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPopsA, nGen=.nGen, 
-		dInfos=list(dSparce=list(fLogDen=denSparce, argsFLogDen=list(theta0=c(a=1,b=1.6),thresholdCovar=thresholdCovar)))
+		dInfos=list(dSparse=list(fLogDen=denSparse, argsFLogDen=list(theta0=c(a=1,b=1.6),thresholdCovar=thresholdCovar)))
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
@@ -262,11 +262,11 @@ resa <- resa3 <- concatPops( resBlock <- twDEMCBlock(
 		res3a$parms
 		, nGen=.nGen*2 
 		,dInfos=list(
-			dSparce=list(fLogDen=denSparce, argsFLogDen=list(thresholdCovar=thresholdCovar))
+			dSparse=list(fLogDen=denSparse, argsFLogDen=list(thresholdCovar=thresholdCovar))
 			,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
-			a=list(dInfoPos="dSparce", compPos="a")
+			a=list(dInfoPos="dSparse", compPos="a")
 			,b=list(dInfoPos="dRich", compPos="b")
 		)
 		,nPop=.nPop
@@ -292,19 +292,19 @@ plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes cl
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
 
 
-plot( ss[,"dSparce"] ~ ss[,"a"] )
+plot( ss[,"dSparse"] ~ ss[,"a"] )
 plot( ss[,"dRich"] ~ ss[,"a"] )
 plot( rowSums(ss[,1:2]) ~ ss[,"a"] )
 plot( ss[,"dRich"] ~ ss[,"b"] )
 plot( ss[,"b"] ~ ss[,"a"], col=rev(heat.colors(100))[round(twRescale(ss[,"dRich"],c(1,100)))])
-plot( ss[,"b"] ~ ss[,"a"], col=rev(heat.colors(100))[round(twRescale(ss[,"dSparce"],c(1,100)))])
+plot( ss[,"b"] ~ ss[,"a"], col=rev(heat.colors(100))[round(twRescale(ss[,"dSparse"],c(1,100)))])
 
-lDen <- twRescale(ss[,"dSparce"])+twRescale(ss[,"dRich"])
+lDen <- twRescale(ss[,"dSparse"])+twRescale(ss[,"dRich"])
 bo <- (lDen > quantile(lDen,0.1)) 
 denCol <- rgb( 
 	twRescale(ss[bo,"dRich"])
 	,0
-	,twRescale(ss[bo,"dSparce"])
+	,twRescale(ss[bo,"dSparse"])
 )
 plot( ss[bo,"b"] ~ ss[bo,"a"], col=denCol, xlab="a", ylab="b")
 # red (rich) increases with higher b along the valley, blue (sparce) constaines a

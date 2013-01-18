@@ -242,15 +242,15 @@ attr(twDEMCSA,"ex") <- function(){
 	thresholdCovar = 0		# the effective model that glosses over this threshold
 	
 	dInfos=list(
-		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
 		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
 	)
 	blocks = list(
-		a=list(dInfoPos="dSparce", compPos="a")
+		a=list(dInfoPos="dSparse", compPos="a")
 		,b=list(dInfoPos="dRich", compPos="b")
 	)
 	
-	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen))
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 	
 	#str(twTwoDenEx1)
@@ -608,15 +608,15 @@ twDEMCSACont <- function(
 	
 	# for updating each in turn against both densities
 	dInfos=list(
-		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
 		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
 	)
 	blocks = list(
-		bSparce=list(dInfoPos="dSparce", compPos=c("a","b") )
+		bSparce=list(dInfoPos="dSparse", compPos=c("a","b") )
 		,bRich=list(dInfoPos="dRich", compPos=c("a","b") )
 	)
 	
-	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen))
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 	
 	#str(twTwoDenEx1)
@@ -666,15 +666,15 @@ twDEMCSACont <- function(
 	
 	# for updating each in turn against both densities
 	dInfos=list(
-		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
 		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
 	)
 	blocks = list(
-		bSparce=list(dInfoPos="dSparce", compPos=c("a","b") )
+		bSparce=list(dInfoPos="dSparse", compPos=c("a","b") )
 		,bRich=list(dInfoPos="dRich", compPos=c("a") )
 	)
 	
-	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen))
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 	#str(twTwoDenEx1)
 	nObs <- c( parmsSparce=1, obsSparce=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
@@ -726,15 +726,15 @@ twDEMCSACont <- function(
 	
 	# for updating each in turn against both densities
 	dInfos=list(
-		dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+		dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
 		,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
 	)
 	blocks = list(
-		bSparce=list(dInfoPos="dSparce", compPos=c("b") )
+		bSparce=list(dInfoPos="dSparse", compPos=c("b") )
 		,bRich=list(dInfoPos="dRich", compPos=c("a") )
 	)
 	
-	do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+	do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen))
 	do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 	
 	#str(twTwoDenEx1)
