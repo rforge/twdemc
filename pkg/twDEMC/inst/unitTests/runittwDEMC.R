@@ -104,7 +104,7 @@ test_int.goodStartSeqData.plot2d <- function(){
 	res <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
-		,controlTwDEMC=list(thin=8)		
+		,controlTwDEMC=list(thin=8, useLoadBalancing=TRUE )		
 		,debugSequential=TRUE
 		,doRecordProposals=TRUE
 	))
@@ -559,7 +559,7 @@ test.ofMulti <- function(){
                     #,debugSequential=TRUE
                     ,doRecordProposals=TRUE
             ))
-    #plot( as.mcmc.list(resa), smooth=FALSE)
+    plot( as.mcmc.list(resa), smooth=FALSE)
     rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
     #
     #i=1
