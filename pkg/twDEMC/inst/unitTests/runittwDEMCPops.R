@@ -65,7 +65,7 @@ test.distinctLogDen <- function(){
 	# both fLogDen compare the same model against the same observations but use different priors
 	dInfoDefault <- list(
 		fLogDen=logDenGaussian
-		,resCompNames=c("obs","parms")
+		#,resCompNames=c("obs","parms")
 		#,TFix=c(parms=1)
 		,argsFLogDen = list(
 			fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 

@@ -76,7 +76,7 @@ twDEMCBlockInt <- function(
 	## #details<<
 	## # further elements in pop that are calculated are \itemize{
 	## #  \item resCompPos: position of the result components in the concatenation across all density functions  
-	## # }
+    ## # }
 	
 	
 	##details<< \describe{ \item{recognized control parameters in \code{controlTwDEMC}: }{
@@ -215,7 +215,7 @@ twDEMCBlockInt <- function(
 				stop(paste("twDEMCBlockInt: non-finite logDensity of starting value ",sep=""))
 			dInfos[[ iDen ]]$resCompNames <- rcNames <- .getResFLogDenNames( t(.resLogDenPar$logDenComp) ) 
 			#dInfos[[ iDen ]]$resCompNamesUnique <- paste(rcNames,iDen,sep="_")  
-			dInfos[[ iDen ]]$resCompNamesUnique <- rcNames  	# keep original names
+			#dInfos[[ iDen ]]$resCompNamesUnique <- rcNames  	# keep original names
 			logDenCompDen[[iDen]] <- .resLogDenPar$logDenComp
 		} #iDen
 		logDenCompXMiss <- do.call( cbind, logDenCompDen )
@@ -237,7 +237,7 @@ twDEMCBlockInt <- function(
 			dInfo = dInfos[[iDen]]
 			.resFLogDen <- do.call( dInfo$fLogDen, c(list(XChains[,1]),dInfo$argsFLogDen))
 			dInfos[[ iDen ]]$resCompNames <- rcNames <- .getResFLogDenNames( .resFLogDen ) 
-			dInfos[[ iDen ]]$resCompNamesUnique <- rcNames #paste(rcNames,iDen,sep="_")  
+			#dInfos[[ iDen ]]$resCompNamesUnique <- rcNames #paste(rcNames,iDen,sep="_")  
 		} #iDen
 	}
 	logDenCompXChains <- do.call( cbind, logDenCompXPops )
@@ -775,8 +775,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	if( 0==length(dInfo$fLogDenScale) ) dInfo$fLogDenScale <- 1
 	#if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
 	if( 0!=length(dInfo$TFix) ) warning("Usage of TFix is deprecated. Use TSpec with T0 and TEnd of one for given components.")
-	if( length(i <- which(!(names( dInfo) %in% c("fLogDen","xC","logDenCompC","parUpdateDenC","compPosDen","intResComp","argsFLogDen","fLogDenScale","intermediate")))) )
-        stop(paste(".checkDInfo: unknown entries in dInfo:",paste(names(dInfo)[i],sep=",") ))
+	if( length(i <- which(!(names( dInfo) %in% c("fLogDen","xC","logDenCompC","parUpdateDenC","compPosDen","intResComp","argsFLogDen","fLogDenScale","intermediate"
+                                                ,"resCompNames","resCompPos","intResCompPos","intResCompPosWithin")))) )
+        stop(paste(".checkDInfo: unknown entries in dInfo:",paste(names(dInfo)[i],collapse=",") ))
 	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp, fLogDenScale defined
 	dInfo
 }

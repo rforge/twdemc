@@ -619,8 +619,8 @@ test.ofMultiIntermediate <- function(){
     rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
     #
     #i=1
-    #(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
-    #(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+    (.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+    (.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
     # 1/2 orders of magnitude around prescribed sd for theta
     # no true sdTheta
     #.pop=1
