@@ -304,6 +304,8 @@ test.extendRun <- function(){
 }
 
 test.split <- function(){
+    # test advance of subspaces with lower and upper par bounds 
+    # and with different nGen
 	lmDummy <- lm( obs ~ xval, weights=1/sdObs^2)		# results without priors
 	(.expTheta <- coef(lmDummy))
 	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
@@ -357,10 +359,14 @@ test.split <- function(){
 	res <- resU <- subChains(resB,iPops=2)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
-
+    #
+    # inspect entire (unsqueezed upper population 
+    resU <- subPops(resBlockA, iPops=2)
+    plot(as.mcmc.list(concatPops(resU)))
+    #
 	checkTrue( all( stackChains(resL)[,"a"] <= aSplit ) )
 	checkTrue( all( aSplit < stackChains(resU)[,"a"] ) )
-	
+	#
 	.nGen2 <- .nGen + c(32,16) 
 	#mtrace(twDEMCBlockInt)
 	resBlock2 <- twDEMCBlock(resBlockA, nGen=.nGen2
@@ -369,7 +375,7 @@ test.split <- function(){
 	)
 	getNSamples(resBlock2)
 	checkEquals( .nGen+.nGen2, getNGen(resBlock2) )
-
+    #
 	res <- resB <-  concatPops(resBlock <- thin(resBlock2, start=8))
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
@@ -379,20 +385,20 @@ test.split <- function(){
 	res <- resU <- subChains(resB,iPops=2)
 	rescoda <- as.mcmc.list(res) 
 	plot(rescoda, smooth=FALSE)
-	
+	#
 	checkTrue( all( stackChains(resL)[,"a"] <= aSplit ) )
 	checkTrue( all( stackChains(resU)[,"a"] > aSplit ) )
-	
+	#
 	ssc <- stackChains(concatPops(resBlock2))
 	.popmean <- colMeans( ssc[,-(1:2)])
 	.popsd <- apply(ssc[,-(1:2)], 2, sd )
-	
+	#
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
 	for( .pop in seq(along.with=.popsd) ){
 		checkMagnitude( sdTheta, .popsd[[.pop]] )
 	}
-	
+	#
 	# check that thetaTrue is in 95% interval 
 	.pthetaTrue <- sapply(1:2, function(.pop){
 			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])

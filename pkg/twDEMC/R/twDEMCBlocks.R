@@ -403,7 +403,7 @@ twDEMCBlockInt <- function(
 		sfExport("remoteArgsFUpdateBlocksTwDEMC")	#evaluated in remote process, only passed one time
 	#else( assign("remoteArgsFUpdateBlocksTwDEMC", remoteArgsFUpdateBlocksTwDEMC, pos=1))	#export to current 
 	tmp.remoteFunArgs <- if( !debugSequential && sfParallel() ) as.name("remoteArgsFUpdateBlocksTwDEMC") else remoteArgsFUpdateBlocksTwDEMC 	# eval.parent fails for remoteArgsFUpdateBlocksTwDEMC within sequential function
-	
+	#
 	# arguments to demc that change between thinning intervals
 	# substract logDen components of logDenCompX from logDenXExt
 	chainState <- list(
@@ -413,20 +413,21 @@ twDEMCBlockInt <- function(
 	#,logDenX = logDenX
 	)
 	parUpdateDenLast = chainState$parUpdateDen # to store the last parUpdateDen
-	
+	#
 	maxNThinned <- max(nThinnedGenPops)
 	isSamePopLength = all( nThinnedGenPops == maxNThinned)
 	isPops <- 1:nPop	# populations that take part in this step (some may need less steps)
 	isChains <- 1:nChain  # chains that take part in this step
 	#iThin0 <- maxNThinned-1
-	
+	#
 	#--- main cycle of updates (each ctrl$thin generations) 
 	for( iThin0 in (0:(maxNThinned-1)) ){
 		if( length(progressOutput)!=0 && nchar(progressOutput)!=0 ){ cat(progressOutput) }
 		iGen = iThin0*ctrl$thin+(1:ctrl$thin)	# the generations within this thinning step
 		mZPops <- M0Pops + iThin0
 		iPopsOut <- which(nThinnedGenPops == iThin0)	# those pops drop out
-		if( 0 != length(iPopsOut) ){
+        #if( length(iPopsOut)) recover()                
+        if( 0 != length(iPopsOut) ){
 			iChainsOut <- do.call( c, lapply( iPopsOut, function(iPop){ chainsPop[[iPop]] }) )
 			iiPopsOut <- which(isPops %in% iPopsOut ) # index in set of current populations
 			iiChainsOut <- rep((iiPopsOut-1)*nChainPop, each=nChainPop) + (1:nChainPop)
@@ -442,7 +443,7 @@ twDEMCBlockInt <- function(
 				})
 			#acceptance rates and nGenBack refer to all chains
 		}	
-		
+		#
 		# sample random vectors (note here parameters in rows) 
 		# calculate proposed steps (differences not destinations) within next thinning interval
 		zxl <- lapply( iPops[isPops], function(iPop){
@@ -450,7 +451,7 @@ twDEMCBlockInt <- function(
 			})	
 		zx <- abind( zxl, along= 2 )	# combine chains (and steps within each chain) of all populations
 		genPropRes <- .generateXPropThin(zx,ctrl=ctrl, nChain=length(isPops)*nChainPop)
-		
+		#
 		# check if proposals should be recorded
 		# for the first time
 		iPopsRecord <- which( (1:nPop %in% isPops) & (iThin0 == nThinOmitRecordPops))
@@ -463,16 +464,16 @@ twDEMCBlockInt <- function(
 		}
 		# after the proposal has been made
 		isRecordProposalsPop = ((iThin0 >= nThinOmitRecordPops))[isPops]	# only record the last proposals after nThinOmitRecord
-		
+		#
 		# numeric matrix (nGenThin x nPop)
 		#tempGlobalThinStepsL <- lapply( iPops[isPops], function(iPop){ tempGlobalPops[[iPop]][ 1+iGen ] })
 		#tempGlobalThinSteps <- structure( do.call( cbind,tempGlobalThinStepsL ), dimnames=list(steps=NULL,pops=NULL) )	
 		# numeric array (nGenThin x nResComp x nPop)		
 		tempDenCompThinStepsL <- lapply( iPops[isPops], function(iPop){ tempResCompPops[[iPop]][1+iGen, ,drop=FALSE] })
 		tempDenCompThinSteps <- structure( abind( tempDenCompThinStepsL, along=3 ), dimnames=list(steps=NULL,resComp=resCompNamesUFlat, pops=NULL) )	
-		
+		#
 		# here may use code in .tmp.f.testStep
-		
+		#
 		#-- do the steps of next thinning interval in load balanced way
         fUpdateInterval <- if( ctrl$useLoadBalancing ) .updateIntervalTwDEMCPar else  .updateIntervalTwDEMCParChains
         # fUpdateInterval <- .updateIntervalTwDEMCParChains
@@ -480,7 +481,8 @@ twDEMCBlockInt <- function(
 			,xStep=genPropRes$xStep, rExtra=genPropRes$rExtra
 			#, tempGlobalSteps=tempGlobalThinSteps
 			, tempDenCompSteps=tempDenCompThinSteps		
-			, nsPop=length(isPops), pAcceptPar=pAcceptPops[,isPops ,drop=FALSE]
+			, nsPop=length(isPops)
+            , pAcceptPar=pAcceptPops[,isPops ,drop=FALSE]
 			,remoteFunArgs=remoteArgsFUpdateBlocksTwDEMC
 			,debugSequential=debugSequential
 			,isRecordProposalsPop=isRecordProposalsPop 
@@ -488,7 +490,7 @@ twDEMCBlockInt <- function(
 			,freeMasterNode=ctrl$freeMasterNode
 		)
 		chainState <- resUpdate[ names(chainState) ]
-		
+		#
 		#-- calculate accepteance rate
 		#row in acceptance Window to record acceptance, if exceeds window, copy second part to first (rewind)
 		acceptPos0 <- aThinWinW + (iThin0 %% aThinWinW)
@@ -506,7 +508,7 @@ twDEMCBlockInt <- function(
 		pAcceptPops[] <- pmax(1/ctrl$thin,pAcceptPops ) # lower bound
 		pAcceptMinPops <- apply(pAcceptPops,2,min)	# minimum of acceptance rate across blocks for each population 
 		nGenBackPops <- pmin(M0Pops,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(pAcceptMinPops * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
-		
+		#
 		#-- record current thinning step for each population
 		for( iiPop in seq_along(isPops) ){
 			iPop <- isPops[iiPop]		# translate index in current populations to all populations 
@@ -518,7 +520,7 @@ twDEMCBlockInt <- function(
 			pAccept[[iPop]][iThin0+2,,] <- pAcceptChains[,igChains]
 #if( iPop==13 && any(chainState$X["a",ipChains] < -0.6) ) recover()	
 		}
-		
+		#
 		#-- record poprosals
 		iYSteps0 <- (iThin0 - nThinOmitRecordPops)*ctrl$thin 
 		for( iiPop in which(isRecordProposalsPop) ){
@@ -1057,15 +1059,16 @@ attr(twDEMCBlockInt,"ex") <- function(){
     #iChain <- 1
     fapply <- if( isTRUE(debugSequential) ) lapply else sfLapply
     res <- fapply( 1:nsChain, function(iChain){
-                iPop <- ((iChain-1) %/% nChainPop) +1  
+                iiPop <- ((iChain-1) %/% nChainPop) +1
+                iPop <- isPops[ iiPop ] # refer to population in non-dropped array
                 .updateIntervalTwDEMCChain( X[,iChain], logDenCompX[,iChain]
                     , adrop(parUpdateDen[,,iChain,drop=FALSE],3)
                     , adrop(xStep[,,iChain,drop=FALSE],3)
                     , rExtra[,iChain]
-                    , adrop(tempDenCompSteps[,,iPop,drop=FALSE],3)
-                    , pAcceptPar[,iPop]
-                    ,remoteFunArgs=remoteFunArgs
-                    ,isRecordProposal[iPop]
+                    , adrop(tempDenCompSteps[,,iiPop,drop=FALSE],3)
+                    , pAcceptPar[,iiPop]
+                    , remoteFunArgs=remoteFunArgs
+                    , isRecordProposalsPop[iiPop]
                     , iPop = iPop
                 )                
             }) 
@@ -1168,6 +1171,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
          prevRes$accepted
      }
      #
+#if( (iPop==2) &&  (X["a"] < 10.8) ) recover()
     ##value<< list with components
     resDo <- list(	##describe<< 
             X=prevRes$xC			    ##<< vector (nParm) current position
@@ -1458,6 +1462,7 @@ updateBlockTwDEMC <- function(
 	xP <- xC
 	xP[a$compPosInDen] <- xP[a$compPosInDen] + a$step[a$compPosInDen]  
 	#
+#if( a$iPop==2 && (a$lowerParBounds != 10.8) ) recover()
 	boOutside <- 
 		any( sapply( names(a$upperParBounds), function(pname){ xP[pname] >= a$upperParBounds[pname] })) ||
 		any( sapply( names(a$lowerParBounds), function(pname){ xP[pname] < a$lowerParBounds[pname] }))
