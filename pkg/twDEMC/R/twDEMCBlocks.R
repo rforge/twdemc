@@ -411,12 +411,12 @@ twDEMCBlockInt <- function(
 	remoteArgsFUpdateBlocksTwDEMC$remoteDumpfileBasename<-remoteDumpfileBasename	#if null delete
 	if( !debugSequential && sfParallel() ){
 		sfExport("remoteArgsFUpdateBlocksTwDEMC",".updateIntervalTwDEMCChain",".updateBlocksTwDEMC")	#evaluated in remote process, only passed one time
-        sfLibrary(abind)        
+        suppressWarnings(sfLibrary(abind))        
     }    
 	#else( assign("remoteArgsFUpdateBlocksTwDEMC", remoteArgsFUpdateBlocksTwDEMC, pos=1))	#export to current
     # pass remoteArgsFUpdateBlocksTwDEMC as a name instead of each time complete object in a call
     # by using sfRemoteWrapper it is obtained from exported object on the remote node
-	tmp.remoteFunArgs <- if( !debugSequential && sfParallel() ) as.name("remoteArgsFUpdateBlocksTwDEMC") else remoteArgsFUpdateBlocksTwDEMC 	# eval.parent fails for remoteArgsFUpdateBlocksTwDEMC within sequential function
+	nameRemoteArgs <- if( !debugSequential && sfParallel() ) as.name("remoteArgsFUpdateBlocksTwDEMC") else remoteArgsFUpdateBlocksTwDEMC 	# eval.parent fails for remoteArgsFUpdateBlocksTwDEMC within sequential function
 	#
 	# arguments to demc that change between thinning intervals
 	# substract logDen components of logDenCompX from logDenXExt
@@ -500,7 +500,7 @@ twDEMCBlockInt <- function(
 			, tempDenCompSteps=tempDenCompThinSteps		
 			, nsPop=length(isPops)
             , pAcceptPar=pAcceptPops[,isPops ,drop=FALSE]
-			,remoteFunArgs=remoteArgsFUpdateBlocksTwDEMC
+			,remoteFunArgs=nameRemoteArgs
 			,debugSequential=debugSequential
 			,isRecordProposalsPop=isRecordProposalsPop 
 			,isPops=isPops

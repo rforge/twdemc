@@ -548,7 +548,7 @@ test.ofMulti <- function(){
     .nChainPop=4
     ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
     #
-    .nGen=256
+    .nGen=128
     resa <-  concatPops( resBlock <- twDEMCBlock( 
                     ZinitPops
                     , nGen=.nGen 
@@ -613,7 +613,7 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE){
     .nChainPop=4
     ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
     #
-    .nGen=256
+    .nGen=128
     #undebug(denRichPrior)
     .remoteDumpfileBasename="dump_twDEMC_ofMultiIntermediate"
     resa <- concatPops( resBlock <- twDEMCBlock( 
