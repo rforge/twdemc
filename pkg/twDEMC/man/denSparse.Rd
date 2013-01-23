@@ -1,15 +1,17 @@
-\name{denSparce}
-\alias{denSparce}
-\title{denSparce}
+\name{denSparse}
+\alias{denSparse}
+\title{denSparse}
 \description{Example of using two different logDensity functions: density of sparce observations}
-\usage{denSparce(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
-    ...)}
+\usage{denSparse(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
+    intermediate = NULL, ...)}
 \arguments{
   \item{theta}{
 }
   \item{twTwoDenEx}{
 }
   \item{theta0}{
+}
+  \item{intermediate}{
 }
   \item{\dots}{
 }

@@ -535,8 +535,9 @@ checkProblemsGelman1 <- function(
 }
 
 checkProblemsSpectral <- function(
-	aTwDEMC
-	, critSpecVarRatio=50
+    ### Calculate and check problems on too high spectral ratios of Variance
+	aTwDEMC                 ##<< twDEMC object to check
+	, critSpecVarRatio=50   ##<< the threshold to report problems
 ){
 	aSamplePure <- stackChainsPop(aTwDEMC)[,-(1:getNBlocks(aTwDEMC)), ,drop=FALSE] 
 	specVarRatio <- apply( aSamplePure, 3, function(aSamplePurePop){

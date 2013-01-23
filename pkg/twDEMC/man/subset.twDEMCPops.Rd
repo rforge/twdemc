@@ -21,7 +21,7 @@ an object of class \code{twDEMCPops} \itemize{
 \item{ number of chains per population: \code{\link{getNChainsPop.twDEMCPops}}  } 
 \item{ number of parameters: \code{\link{getNParms.twDEMCPops}}  } 
 \item{ thinning interval: \code{res$thin}  } 
-\item{ space replicate that the poplation belongs to: \code{\link{spacesPop.twDEMCPops}}  } 
+\item{ space replicate that the poplation belongs to: \code{\link{getSpacesPop.twDEMCPops}}  } 
 \item{ number of space replicates: \code{\link{getNSpaces.twDEMCPops}}  } 
 \item{ number of blocks: \code{\link{getNBlocks.twDEMCPops}}  } 
 \item{ parameter bounds: \code{\link{getParBoundsPop.twDEMCPops}}  } 

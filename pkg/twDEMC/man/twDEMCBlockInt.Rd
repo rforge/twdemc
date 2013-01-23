@@ -7,26 +7,32 @@
     lowerParBounds = numeric(0), splits = numeric(0))), dInfos = list(list(fLogDen = NULL, 
     xC = xC, logDenCompC = logDenCompC, parUpdateDenC = parUpdateDenC, 
     compPosDen = 1:nrow(pops[[1]]$parms), argsFLogDen = list(), 
-    intResComp = vector("integer", 0), fLogDenScale = 1)), blocks = list(list(dInfoPos = 1, 
-    compPos = dInfos[[1]]$compPosDen, fUpdateBlock = updateBlockTwDEMC, 
-    argsFUpdate = list(), requiresUpdatedDen = TRUE)), TSpec = matrix(1, 
-    ncol = 2, nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), 
-    m0 = numeric(0), nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
+    intResComp = vector("integer", 0), fLogDenScale = 1, intermediate = "modOutput")), 
+    blocks = list(list(dInfoPos = 1, compPos = dInfos[[1]]$compPosDen, 
+        fUpdateBlock = updateBlockTwDEMC, argsFUpdate = list(), 
+        requiresUpdatedDen = TRUE)), TSpec = matrix(1, ncol = 2, 
+        nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), m0 = numeric(0), 
+    nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
     debugSequential = FALSE, remoteDumpfileBasename = NULL, fDiscrProp = NULL, 
     argsFDiscrProp = list(), doRecordProposals = FALSE, progressOutput = ".")}
 \arguments{
   \item{pops}{list of population infos for each population, each info is a list with components\describe{
 \item{parms}{list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.}
 \item{nGen}{scalar integer: number of generations, if given overwrites \code{pops[[i]]$nGen}}
-\item{TProp}{numeric vector (nResComp) temperature proportions of result components
-can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name}
+\item{TProp}{numeric vector (nResComp) temperature proportions of result components.
+It can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name}
 \item{X}{numeric matrix (nParm x nChainPop) initial state}
 \item{logDenCompX}{numeric matrix (nComp x nChain): logDen components of initial state X, see details}
 \item{spaceInd}{the space replicate that this population belongs to}
+\item{upperParBounds}{named numeric vectors: giving upper parameter bounds: lowerBound < par <= upperBound.
+For exploring subspaces of the limiting distribution, see details}
 \item{lowerParBounds}{similar to upperParBounds: sample > bound}
 \item{splits}{named numeric vector of splitting points, used to remerge divided subspaces}
 }}
   \item{dInfos}{named list of used density functions. Each entry is a list with components\describe{
+\item{fLogDen}{\code{function(theta, ...)} calculates a vector of logDensities
+corresponding to different data streams of parameter vector theta 
+\cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}}
 \item{xC}{numeric vector: current accepted state}
 \item{logDenCompC}{numeric vector: result components of fLogDen for current position}
 \item{parUpdateDenC}{integer vector: logDensity that recently updated parameter at given index
@@ -34,6 +40,11 @@ to handle first steps in Multi-step Metropolis decision internally.
 See details.}
 \item{compPosDen}{index or names of the parameter components that are used in this density function}
 \item{argsFLogDen}{further arguments passed to fLogDen}
+\item{intResComp}{integer or character vector: indices or names of results components of fLogDen
+that are used for internal Metropolis decisions}
+\item{fLogDenScale}{scalar multiplied to the result of fLogDen
+allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity}
+\item{intermediate}{string: identifier in list of intermediate results that are shared between densities. See details.}
 }}
   \item{blocks}{list of parameter blocks, each block is a list with entries\describe{
 \item{dInfoPos}{name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters}
@@ -75,7 +86,9 @@ It is invoked usually by (\code{\link{twDEMCBlock.array}} or \code{\link{twDEMCB
 \item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)}
 \item{pIndStep}{independent state about after on average about those number of 1.5 accepted steps}
 \item{nPastGen}{factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population}
+\item{useLoadBalancing}{if set to TRUE, submits each step separaetely to a free node, else each node gets an entire chain process}
 \item{freeMasterNode}{if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}}}
+\item{returnIntermediates}{set to FALSE if intermediate result is large and transferring it between slaves slowes down calculation}
 }
 
 }}
@@ -91,6 +104,28 @@ The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth gen
 If acceptance rates drops to low values, this might be because of bad localization
 ,i.e the requirement to use states from more distant past.
 In order to improve localization, less parameters or more chains per population are required.
+}}
+
+\describe{ \item{intermediate results}{
+Different density functions can share intermediate results, so that they do not need to be recomputed.
+For example two densities can be based on the same model output for given parameters, but compare different
+predictions against different observations. If for a given parameter vector, the model output has been
+computed in one density, it does not need to be recomputed in the second density function.
+
+This is an advanced option. Care must be taken that the intermediate is really the same between
+densities.
+
+Description of both densities should specify the same identifier string in argument \code{dInfo$intermediate}. 
+The densities should return the model output in attribute "intermediate" with the result vector of logDensity
+components. \code{twDEMC} ensures that this result is provided with argument \code{intermediate}
+in another call. If the parameters have changed, an empty list will be given with this argument.
+
+For an example see test case \code{ofMultiIntermediate} in file unitTests/runittwDEMC.R.
+
+When using parallel execution on multiple cores, the transfer of very big intermediates can cause
+performance issues. Use argument \code{controlTwDEMC$returnIntermediate=FALSE} to ensure that 
+intemediates are stored only within process boundaries. When executing the next interval or the next round of
+updates of all blocks, the intermediate will then be the empty list initially.
 }}}
 \value{a list with entries of populations, each entry is a list
 \item{thin}{thinning interval that has been used}

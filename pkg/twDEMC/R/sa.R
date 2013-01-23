@@ -495,7 +495,7 @@ twDEMCSACont <- function(
 	res
 }
 
-.tmp.ggplotResults <- function(){
+.tmp.f <- function(){       # ggplotResults
 	mc0 <- concatPops(res)
 	.nSample <- 128
 	dfDen <- rbind(
@@ -595,7 +595,7 @@ twDEMCSACont <- function(
 	
 }
 
-.tmp.AllDensities <- function(){ # does not work
+.tmp.f <- function(){ # does not work        # AllDensities
 	# same as example but with each parameter updated against both densities
 	data(twTwoDenEx1)
 	
@@ -653,7 +653,7 @@ twDEMCSACont <- function(
 	
 }
 
-.tmp.AllSparce <- function(){ # 
+.tmp.f <- function(){ #         # AllSparce
 	# same as example but with b also updated against sparce, a only against sparce 
 	data(twTwoDenEx1)
 	
@@ -713,7 +713,7 @@ twDEMCSACont <- function(
 }
 
 
-.tmp.2DenSwitched <- function(){ # does not work
+.tmp.f <- function(){ # does not work        # .tmp.2DenSwitched
 	# same as example but with each parameter b updated against sparce
 	data(twTwoDenEx1)
 	
@@ -770,7 +770,7 @@ twDEMCSACont <- function(
 	
 }
 
-.tmp.oneDensity_andCluster <- function(){
+.tmp.f <- function(){   # oneDensity_andCluster
 	# same as example but with only one combined density for both parameters
 	data(twTwoDenEx1)
 	
@@ -798,11 +798,11 @@ twDEMCSACont <- function(
 	)
 	resPops <- res <- do.call( twDEMCSA, argsTwDEMCSA )
 	
-	.tmp.continueRun <- function(){
+	.tmp.f <- function(){ #continueRun
 		res$pops[[2]]$spaceInd <- 4		# test spaces different from 1:nSpace
 		res2 <- twDEMCSA(res)
 	}
-	.tmp.byCluster <- function(){
+	.tmp.f <- function(){ #byCluster
 		runClusterParms <- list(
 			fSetupCluster = function(){library(twDEMC)}
 			,fRun = twDEMCSA
@@ -844,7 +844,7 @@ twDEMCSACont <- function(
 }
 
 
-.tmp.den2dCor <- function(){
+.tmp.f <- function(){       #den2dCor
 	# fitting the den2dCor model
 	data(den2dCorEx)
 	#str3(den2dCorEx)
@@ -888,7 +888,7 @@ twDEMCSACont <- function(
 	iSpace=2; plot( mc$parms[,"a",iSpace], mc$parms[,"b",iSpace], xlim=c(-0.8,2), ylim=c(-20,20), col=(heat.colors(100))[twRescale(log(-mc$resLogDen[,1,iSpace]),c(10,100))])
 	.checkProblemsSpectralPop(res$pops[[2]])
 	
-	res <- .tmp.byCluster <- function(){
+	.tmp.f <- function(){
 		runClusterParms <- list(
 			fSetupCluster = function(){library(twDEMC)}
 			,fRun = twDEMCSA
@@ -1039,7 +1039,7 @@ twRunDEMCSA <- function(
 	# do the actual call
 	res <- do.call( twDEMCSA, argsDEMC )
 }
-.tmp.testRestart <- function(){
+.tmp.f <- function(){       # testRestart
 	rFileName <- file.path("tmp","example_twDEMCSA.RData")
 	load(rFileName)	# resRestart.twDEMCSA
 	#untrace(twDEMCSACont)

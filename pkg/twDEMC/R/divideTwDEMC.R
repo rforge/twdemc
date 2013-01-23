@@ -257,7 +257,7 @@ divideTwDEMCSACont <- function(
 	mcApp[ names(resAdd) ] <- resAdd
 	mcApp
 }
-.tmp.den2dCor <- function(){
+.tmp.f <- function(){   #.tmp.den2dCor
 	# fitting the den2dCor model
 	data(den2dCorEx)
 	#str3(den2dCorEx)
@@ -345,7 +345,7 @@ divideTwDEMCStep <- function(
 	, m0 = calcM0twDEMC(getNParms(aTwDEMC),getNChainsPop(aTwDEMC))	##<< minimum number of samples in step for extending runs
 	, nRowsMin				##<< number of rows in sub to sample at minimum, must contain enough samples for robust estimation of mean log-Density of subspace
 	, nRowsMinMax			##<< number of rows in sub to include as maximum mcNewMinN
-	, minPSub				##<< minimum proportion of a subsample in splitting´
+	, minPSub				##<< minimum proportion of a subsample in splitting
 	, TEnd					##<< numeric vector (nResComp) target temperature 
 	, ...					##<< further arguments to \code{\link{twDEMCBlockInt}}, such as TEnd
 ){

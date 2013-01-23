@@ -12,7 +12,7 @@
 \arguments{
   \item{thetaPrior}{vector of parameters, point estimate}
   \item{covarTheta}{the a prior covariance of parameters}
-  \item{nGen}{number of generations in the initial batch, default 512}
+  \item{nGen}{number of generations}
   \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
   \item{\dots}{further argument to \code{\link{twDEMCBlockInt}}}
   \item{dInfos}{argument to \code{\link{twDEMCBlockInt}}}
@@ -25,7 +25,7 @@
   \item{doIncludePrior}{should the prior be part of initial population
 << Recommendation to set to false, because if the TRUE parameter is in initial set, the Temperature is set to 1}
   \item{ctrlBatch}{list of arguments controlling batch executions, see \code{\link{twDEMCSACont}} and \code{\link{divideTwDEMCSACont}}\describe{
-\item{nGen0}{number of generations for the intial run}
+\item{nGen0}{number of generations for the initial batch}
 \item{useSubspaceAdaptation}{if TRUE then overall space is devided and each subspace is explored with locally adapted DEMC, see	\code{\link{divideTwDEMCSACont}}}
 }}
   \item{ctrlT}{list of arguments controlling Temperature decrease, see \code{\link{twDEMCSACont}}  and \code{\link{divideTwDEMCSACont}}}
@@ -55,15 +55,15 @@ thresholdCovar = 0.3	# the true value
 thresholdCovar = 0		# the effective model that glosses over this threshold
 
 dInfos=list(
-	dSparce=list(fLogDen=denSparcePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+	dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
 	,dRich=list(fLogDen=denRich, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior))
 )
 blocks = list(
-	a=list(dInfoPos="dSparce", compPos="a")
+	a=list(dInfoPos="dSparse", compPos="a")
 	,b=list(dInfoPos="dRich", compPos="b")
 )
 
-do.call( dInfos$dSparce$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparce$argsFLogDen))
+do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen))
 do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen))
 
 #str(twTwoDenEx1)

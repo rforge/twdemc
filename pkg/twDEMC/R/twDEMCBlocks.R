@@ -2,7 +2,7 @@ twDEMCBlockInt <- function(
 	### Differential Evolution Markov Chain with blocked parameter update
 	pops =  list( list( ##<< list of population infos for each population, each info is a list with components
 			##describe<< 
-			parms		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
+			parms=list()		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
 			, nGen = 12	##<< number of generations, i.e. steps to proceed
 			, TProp=NULL	##<< numeric vector (nResComp) temperature proportions of result components.
 			    ## It can also be given as character vector with names of result components, however, be aware that htis fails if several logDen may return components of the same name
@@ -20,9 +20,9 @@ twDEMCBlockInt <- function(
 			fLogDen=NULL                    ##<< \code{function(theta, ...)} calculates a vector of logDensities 
 			    ## corresponding to different data streams of parameter vector theta 
 			    ## \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
-			,xC=xC						    ##<< numeric vector: current accepted state
-			,logDenCompC=logDenCompC	    ##<< numeric vector: result components of fLogDen for current position
-			,parUpdateDenC=parUpdateDenC	##<< integer vector: logDensity that recently updated parameter at given index			
+			,xC=c()						    ##<< numeric vector: current accepted state
+			,logDenCompC=c()	            ##<< numeric vector: result components of fLogDen for current position
+			,parUpdateDenC=c()          	##<< integer vector: logDensity that recently updated parameter at given index			
 			    ## to handle first steps in Multi-step Metropolis decision internally. 
 			    ## See details.
 			, compPosDen=1:nrow(pops[[1]]$parms)	##<< index or names of the parameter components that are used in this density function 
@@ -32,6 +32,7 @@ twDEMCBlockInt <- function(
 			, fLogDenScale=1                        ##<< scalar multiplied to the result of fLogDen 
 			    ## allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity
 			#, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
+            , intermediate="modOutput"	  ##<< string: identifier in list of intermediate results that are shared between densities. See details. 
 		)) 
 		##end<< 
 	, blocks = list( list( ##<< list of parameter blocks, each block is a list with entries
@@ -131,8 +132,8 @@ twDEMCBlockInt <- function(
 	XPops <- lapply( pops, "[[", "X" )
 	XChains <- do.call(cbind,XPops)
 	logDenCompXPops <- lapply( pops, "[[", "logDenCompX" ) # see initial states for initializing missing entries
-	upperParBoundsPop = lapply( pops, "[[", "upperParBounds" )
-	lowerParBoundsPop = lapply( pops, "[[", "lowerParBounds" )
+	upperParBoundsPop <- lapply( pops, "[[", "upperParBounds" )
+	lowerParBoundsPop <- lapply( pops, "[[", "lowerParBounds" )
 	
 	#-- dimensions of fLogDenInfo
 	dInfos <- lapply(dInfos, .checkDInfo, parNames=parNames)
@@ -584,6 +585,30 @@ twDEMCBlockInt <- function(
 			}
 		} # length(resComp) == 1 
 	} # iDen
+    
+    ##details<< \describe{ \item{intermediate results}{
+    ## Different density functions can share intermediate results, so that these do not need to be recomputed.
+    ## For example two densities can be based on the same model predictions for given parameters, but compare different
+    ## subsets of the predictions against different observations. If for a given parameter vector, the model output has been
+    ## computed in one density, it does not need to be recomputed in the second density function.
+    ##
+    ## This is an advanced option. Care must be taken that the intermediate is really the same between
+    ## densities.
+    ##
+    ## Description of both densities should specify the same identifier string in argument \code{dInfo$intermediate}. 
+    ## The densities should return the model output in attribute "intermediate" with the result vector of logDensity
+    ## components. \code{twDEMC} ensures that this result is provided with argument \code{intermediate}
+    ## in another call to the density function. 
+    ## If the parameters have changed, an empty list will be given with this argument.
+    ##
+    ## For an example see test case \code{ofMultiIntermediate} in file unitTests/runittwDEMC.R.
+    ## Using densities \code{\link{denSparsePrior}} and \code{\link{denRichPrior}}. 
+    ##
+    ## When using parallel execution on multiple cores, the transfer of very big intermediates can cause
+    ## performance issues. Use argument \code{controlTwDEMC$returnIntermediate=FALSE} to ensure that 
+    ## intemediates are stored only within process boundaries. When executing the next interval or the next round of
+    ## updates of all blocks, the intermediate will then be the empty list initially.
+    ##}}
 	
 	#-- return
 	spacesPop <- sapply(pops,"[[","spaceInd")
@@ -710,7 +735,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	
 }
 
-.tmp.f.testStep <- function(){
+.tmp.f <- function(){   # testStep
 	# test one step for one chain
 	iStep <- 1
 	iChain <- 1
@@ -727,7 +752,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
         , argsUpdateBlocksTwDEMC=remoteArgsFUpdateBlocksTwDEMC$argsUpdateBlocksTwDEMC )			
 }
 
-.tmpf. <- function(){
+.tmp.f <- function(){
 	# before (code here) calculated temperature for each chain, but actually need it only by population
 	tempThinStepsL <- lapply( iPops, function(iPop){
 			matrix( temp[[iPop]][ 1+iGen ], nrow=length(iGen), ncol=nChainPop )
@@ -1025,11 +1050,6 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	nParm <- nrow(z)
 	nState <- ncol(z)
 	dz <- adrop((z[,,1,drop=FALSE]-z[,,2,drop=FALSE]),3)	#jump vector as the difference between two random states (from z2 towards z1)
-	.tmp.f <- function(){
-		if( !is.null(ctrl$probUpDir) && (ctrl$probUpDir != 1/2) ){
-			iFinites <- which(is.finite(zLogDen[,1]) & is.finite(zLogDen[,2]))
-		}
-	}
 	boGammasF1 <- (runif(nState) < ctrl$pGamma1)
 	gamma_par <- matrix( ctrl$F1, nrow=nParm, ncol=nState) # to be able to jump between modes
 	gamma_par[,!boGammasF1] <- ctrl$F2 * runif( nParm*sum(!boGammasF1), min=1-ctrl$epsMult, max=1+ctrl$epsMult)    # multiplicative error to be applied to the difference 	
@@ -1040,6 +1060,12 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		}
 	xStepChainAndRExtra <- rbind(xStepChain,rExtra=0)
 	### Numeric matrix (Nparms, nsteps): difference vectors in parameter space.
+}
+
+.tmp.f <- function(){
+    if( !is.null(ctrl$probUpDir) && (ctrl$probUpDir != 1/2) ){
+        iFinites <- which(is.finite(zLogDen[,1]) & is.finite(zLogDen[,2]))
+    }
 }
 
 .updateIntervalTwDEMCParChains <- function(
@@ -1136,17 +1162,17 @@ attr(twDEMCBlockInt,"ex") <- function(){
         argsUpdateIntervalTwDEMCChain = list( ##<< argument that change across invocations of .updateIntervalTwDEMCChain
                 ## supplied as list, so that we can use sfLapply
                 ##describe<<
-        X				##<< numeric vector: current location
-        ,logDenCompX	##<< numeric vector: result of calls to density functions for current location
-        ,intermediates  ##<< list: intermediate results for current location 
-        ,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
-        ,xStep 			##<< matrix rows: difference vectors in parameter space, cols: steps
-        ,rExtra			##<< numeric vector: row: step within thinning interval
-        ,tempDenCompSteps	##<< numeric matrix:  (nGenThin x nResComp)
+        X=c()		    ##<< numeric vector: current location
+        ,logDenCompX=c()##<< numeric vector: result of calls to density functions for current location
+        ,intermediates=list()  ##<< list: intermediate results for current location 
+        ,parUpdateDen=c()	##<< for each parameter/density combination: is the density up to date from previous step
+        ,xStep=c() 			##<< matrix rows: difference vectors in parameter space, cols: steps
+        ,rExtra=c()			##<< numeric vector: row: step within thinning interval
+        ,tempDenCompSteps=c()	##<< numeric matrix:  (nGenThin x nResComp)
         #,nsPop			##<< the number of populations that take part in this step
-        ,pAcceptPar		##<< numeric vector: current acceptance rate for each (block)
+        ,pAcceptPar=c()		##<< numeric vector: current acceptance rate for each (block)
         ,isRecordProposalsPop=FALSE 	##<< logical
-        , iPop          ##<< the population that the current chain is in
+        , iPop=1          ##<< the population that the current chain is in
        )
         ##end<<
         ,argsUpdateBlocksTwDEMC	##<< list: further arguments to \code{\link{.updateBlocksTwDEMC}}
@@ -1364,8 +1390,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
             ##describe<< 
             argsFUpdateBlocks=list()    ##<< list(nBlock) arguments for each block: dInfo, block 
             ,nBlock=1                   ##<< scalar integer: the number of blocks
-            ,upperParBoundsPop          ##<< upper parameter bounds
-            ,lowerParBoundsPop          ##<< lower parameter bounds          
+            ,upperParBoundsPop=c()      ##<< upper parameter bounds
+            ,lowerParBoundsPop=c()      ##<< lower parameter bounds          
             ,returnIntermediate=TRUE    ##<< boolean whether to return the intermediate: set to FALSE if its a big result that is fast calculated and should not transferred across processes
             ##end<<
             )

@@ -402,7 +402,7 @@ calcDEMCTempProp <- function(
 		### yielding acceptance rates closest to pTarget
 	}
 	
-	.tmp.f.plot.calcDEMCTempDiffLogDen2 <- function(){
+	.tmp.f <- function(){  #plot.calcDEMCTempDiffLogDen2
 		#expD <- seq(-200,0,length.out=101)
 		temp=min(expD)/-3
 		rr <- expD/min(expD)

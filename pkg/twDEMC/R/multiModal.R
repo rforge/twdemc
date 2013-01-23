@@ -9,12 +9,15 @@
 # continue splitting with the one from todo-list with higherst Temperature
 
 
-fDenMultiMode <- function(x){
+fDenMultiMode <- function(
+    ### Test function to generate a multimodel distribution
+    x      ##<< covariate 
+){
 	y <- +2.5*cos(4*x+pi/2) + 5*cos(2*x) + 9*cos(x)
 	z <- -20*(y +  (x/pi)^4) -200
 }
 
-.tmp.test <- function(){
+.tmp.f <- function(){
 	x1 <- seq(-2*pi,+2*pi,length.out=300)
 	#x1 <- seq(-10,+10,length.out=300)
 	plot( fDenMultiMode(x1) ~ x1,  type="l" )
@@ -22,7 +25,7 @@ fDenMultiMode <- function(x){
 	plot( fDenMultiMode(x2) ~ x2,  type="l" )
 }
 
-.tmp.fit <- function(){
+.tmp.f <- function(){
 	thetaPrior = c(x=0)
 	covarTheta = c(x=1/pi)
 	dInfos = list(d1=list(fLogDen=fDenMultiMode))

@@ -32,10 +32,10 @@ internally. Hence, for Metropolis step here operates only on other remaining com
 }}}
 \value{list with components
 \item{accepted}{boolean scalar: if step was accepted}
-\item{xC}{numeric vector: components of position in parameter space that are being updated}
-\item{logDenCompC}{numeric vector: result components of fLogDen for current position}
-\item{xP}{numeric vector: components of proposal that are being updated}
-\item{logDenCompP}{numeric vector: result components of fLogDen for proposal
+\item{xC}{numeric vector: components of position in parameter space that are being updated (if accepted then the same as xP)}
+\item{logDenCompC}{numeric vector: result components of fLogDen for current position (if accepted then the same as logDenCompP)}
+\item{xP}{numeric vector: components of proposal that are being}
+\item{logDenCompP}{numeric vector: result components of fLogDen for proposal, may inlcude attr "intermediate"
 }}
 
 \author{Thomas Wutzler}

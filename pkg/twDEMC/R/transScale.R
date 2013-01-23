@@ -358,7 +358,7 @@ attr(twCoefLnormMLE,"ex") <- function(){
 	#mle=exp( mu-sigma^2)
 	if( mu<=logMle) return(.Machine$double.xmax)
 	sigma=sqrt(mu - logMle)
-	tmp.predp = plnorm(quant, mean=mu, sd=sigma )
+	tmp.predp = plnorm(quant, meanlog=mu, sdlog=sigma )
 	tmp.diff = tmp.predp - perc
 	sum(tmp.diff^2)
 }

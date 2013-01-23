@@ -1,7 +1,7 @@
 \name{twDEMCSACont}
 \alias{twDEMCSACont}
 \title{twDEMCSACont}
-\description{continuing simulated annealing DEMC based on previous reslt}
+\description{continuing simulated annealing DEMC based on previous result}
 \usage{twDEMCSACont(mc, nGen = 512, nObs, ..., m0 = calcM0twDEMC(getNParms(mc), 
     getNChainsPop(mc)), controlTwDEMC = list(), debugSequential = FALSE, 
     restartFilename = NULL, ctrlBatch = list(nGenBatch = m0 * 
@@ -11,7 +11,7 @@
         dumpfileBasename = NULL))}
 \arguments{
   \item{mc}{result of twDEMCBlock}
-  \item{nGen}{number of generations in the initial batch, default 512}
+  \item{nGen}{overall number of generations to add (within one batch provide ctrlBatch$nGenBatch)}
   \item{nObs}{integer vector (nResComp) specifying the number of observations for each result component}
   \item{\dots}{further argument to \code{\link{twDEMCBlockInt}}}
   \item{m0}{minimum number of samples in step for extending runs}
