@@ -96,7 +96,8 @@ twDEMCBlockInt <- function(
 		,pIndStep = 1.5 ##<< independent state about after on average about those number of 1.5 accepted steps
 		,nPastGen = 10  ##<< factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population
         ,useLoadBalancing=FALSE	##<< if set to TRUE, submits each step separaetely to a free node, else each node gets an entire chain process 
-        ,freeMasterNode=FALSE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}} 
+        ,freeMasterNode=FALSE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}}
+        ,returnIntermediates=TRUE  ##<< set to FALSE if intermediate result is large and transferring it between slaves slowes down calculation
         #,useMultiT = FALSE	##<< whether to downscale Temperature of result components during burnin
 		#moved to block,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change		
 	)  
@@ -388,20 +389,33 @@ twDEMCBlockInt <- function(
 			#, list(TPropPops=TPropPops[dInfo$compPosDen,]) 
 			)
 		})
-	remoteArgsFUpdateBlocksTwDEMC <- list( 
-		remoteFun=.updateBlocksTwDEMC,	# this function is called remotely and invokes the update function for each block 
-		argsUpdateBlocksTwDEMC=list(
+    fUpdateInterval <- .updateIntervalTwDEMCParChains
+    remoteArgsFUpdateBlocksTwDEMC <- list( 
+         remoteFun = .updateIntervalTwDEMCChain
+         ,argsUpdateBlocksTwDEMC=list(
 			argsFUpdateBlocks = argsFUpdateBlocks
 			,nBlock=nBlock #, iBlocks=iBlocks
 			,upperParBoundsPop=upperParBoundsPop
 			,lowerParBoundsPop=lowerParBoundsPop
+            ,returnIntermediate=TRUE    # here stays on slave    
 		#,temp=temp
 		)
 	)
+    if( ctrl$useLoadBalancing ){
+        # take different local and remote functions on load balancing
+        fUpdateInterval <- .updateIntervalTwDEMCPar
+        remoteArgsFUpdateBlocksTwDEMC$remoteFun = .updateBlocksTwDEMC	# this function is called remotely and invokes the update function for each block
+        remoteArgsFUpdateBlocksTwDEMC$argsUpdateBlocksTwDEMC$returnIntermediate = ctrl$returnIntermediate
+    }    
+    #
 	remoteArgsFUpdateBlocksTwDEMC$remoteDumpfileBasename<-remoteDumpfileBasename	#if null delete
-	if( !debugSequential & sfParallel() )
-		sfExport("remoteArgsFUpdateBlocksTwDEMC")	#evaluated in remote process, only passed one time
-	#else( assign("remoteArgsFUpdateBlocksTwDEMC", remoteArgsFUpdateBlocksTwDEMC, pos=1))	#export to current 
+	if( !debugSequential && sfParallel() ){
+		sfExport("remoteArgsFUpdateBlocksTwDEMC",".updateIntervalTwDEMCChain",".updateBlocksTwDEMC")	#evaluated in remote process, only passed one time
+        sfLibrary(abind)        
+    }    
+	#else( assign("remoteArgsFUpdateBlocksTwDEMC", remoteArgsFUpdateBlocksTwDEMC, pos=1))	#export to current
+    # pass remoteArgsFUpdateBlocksTwDEMC as a name instead of each time complete object in a call
+    # by using sfRemoteWrapper it is obtained from exported object on the remote node
 	tmp.remoteFunArgs <- if( !debugSequential && sfParallel() ) as.name("remoteArgsFUpdateBlocksTwDEMC") else remoteArgsFUpdateBlocksTwDEMC 	# eval.parent fails for remoteArgsFUpdateBlocksTwDEMC within sequential function
 	#
 	# arguments to demc that change between thinning intervals
@@ -409,6 +423,7 @@ twDEMCBlockInt <- function(
 	chainState <- list(
 		X = XChains
 		,logDenCompX = logDenCompXChains
+        ,intermediatesChains=lapply( 1:nChain, function(iChain){list()} )  # initially empty
 		,parUpdateDen = array(TRUE, dim=c(nDen,nParm,nChain), dimnames=list(dens=NULL,parms=parNames,chains=NULL))  ##<< for each parameter/density combination: is the density up to date
 	#,logDenX = logDenX
 	)
@@ -438,6 +453,7 @@ twDEMCBlockInt <- function(
 			# adapt chainState that refer to current populations only
 			chainState <- within(chainState,{
 					X <- X[,-iiChainsOut ,drop=FALSE]
+                    intermediatesChains <- intermediatesChains[-iiChainsOut]
 					logDenCompX <- logDenCompX[,-iiChainsOut ,drop=FALSE]
 					parUpdateDen <- parUpdateDen[,,-iiChainsOut ,drop=FALSE]
 				})
@@ -474,11 +490,12 @@ twDEMCBlockInt <- function(
 		#
 		# here may use code in .tmp.f.testStep
 		#
-		#-- do the steps of next thinning interval in load balanced way
-        fUpdateInterval <- if( ctrl$useLoadBalancing ) .updateIntervalTwDEMCPar else  .updateIntervalTwDEMCParChains
+#-- do the steps of next thinning interval 
         # fUpdateInterval <- .updateIntervalTwDEMCParChains
-        resUpdate <- fUpdateInterval( X=chainState$X, logDenCompX=chainState$logDenCompX, parUpdateDen=chainState$parUpdateDen
-			,xStep=genPropRes$xStep, rExtra=genPropRes$rExtra
+        resUpdate <- fUpdateInterval( X=chainState$X, logDenCompX=chainState$logDenCompX
+            , intermediatesChains=chainState$intermediatesChains
+            , parUpdateDen=chainState$parUpdateDen
+			, xStep=genPropRes$xStep, rExtra=genPropRes$rExtra
 			#, tempGlobalSteps=tempGlobalThinSteps
 			, tempDenCompSteps=tempDenCompThinSteps		
 			, nsPop=length(isPops)
@@ -705,7 +722,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	logDenCompC <- chainState$logDenCompX[,iChain]
 	parUpdateDenC <- chainState$parUpdateDen[,,iChain]
 	tempC <- tempThinSteps[iChain,iStep]
-	.updateBlocksTwDEMC(iPop = iPop,step=step,rExtra=rExtra,Xc=Xc,logDenCompC=logDenCompC,parUpdateDenC=parUpdateDenC,pAccept=pAccept, temp=tempC, argsUpdateBlocksTwDEMC=remoteArgsFUpdateBlocksTwDEMC$argsUpdateBlocksTwDEMC )			
+	.updateBlocksTwDEMC(iPop = iPop,step=step,rExtra=rExtra,Xc=Xc,logDenCompC=logDenCompC
+        ,parUpdateDenC=parUpdateDenC,pAccept=pAccept, temp=tempC
+        , argsUpdateBlocksTwDEMC=remoteArgsFUpdateBlocksTwDEMC$argsUpdateBlocksTwDEMC )			
 }
 
 .tmpf. <- function(){
@@ -1028,6 +1047,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
         # first three arguments relate to current state (stored in chainState in twDEMCBlockInt)
         X				##<< numeric matrix: current location of chains rows: parameters, columns: chains
         ,logDenCompX	##<< numeric matrix: result of calls to density functions from previous step
+        ,intermediatesChains = lapply(1:nsChain, function(iChain){ list()}  )  ##<< list(nChain) intermediate states 
         ,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
         ,xStep 			##<< array rows: difference vectors in parameter space, cols: steps, zdim: chains
         ,rExtra			##<< numeric matrix: row: step within thinning interval, col: chain
@@ -1036,14 +1056,14 @@ attr(twDEMCBlockInt,"ex") <- function(){
         ,pAcceptPar		##<< numeric matrix: current acceptance rate for each (block x population)
         #argsUpdateBlocksTwDEMC, ##<< list of arguments to updateBlocksTwDEMC
         #argsDEMCStep,	##<< see \code{\link{.doDEMCStep}}
-        ,remoteFunArgs	
-        ### see \code{\link[twSnowfall]{sfRemoteWrapper}}
-        ### Must include entries \itemize{
-        ### \item{remoteFun=.updateBlocksTwDEMC}
-        ### \item{argsUpdateBlocksTwDEMC (maybe character name of exported variable}
-        ### \item{remoteDumpfileBasename} 
-        ### }
-        ### Can be a name of a previously exported variable.
+        ,remoteFunArgs	##<< arguments that do not change across calls
+        ## may be specified as a name instead of complete object (see code{\link[twSnowfall]{sfRemoteWrapper}})
+        ## Must include entries \itemize{
+        ## \item{remoteFun=.updateBlocksTwDEMCChains}
+        ## \item{argsUpdateBlocksTwDEMC 
+        ## \item{remoteDumpfileBasename} 
+        ## }
+        ## Can be a name of a previously exported variable.
         ,debugSequential=FALSE	##<< see \code{\link[twSnowfall]{sfFArgsApplyDep}}
         ,freeMasterNode=FALSE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting, see \code{\link[twSnowfall]{sfFArgsApplyDep}}
         ,isRecordProposalsPop=rep(FALSE,nsPop)	##<< logical vector: for each population: if TRUE then proposals and results of rLogDen are recorded in result$Y.
@@ -1056,22 +1076,34 @@ attr(twDEMCBlockInt,"ex") <- function(){
     nsChain <- dimXStep[3]
     nChainPop = nsChain / nsPop
     #
+    # if( length(intermediatesChains[[1]]) ) recover()
+    #
     #iChain <- 1
-    fapply <- if( isTRUE(debugSequential) ) lapply else sfLapply
-    res <- fapply( 1:nsChain, function(iChain){
-                iiPop <- ((iChain-1) %/% nChainPop) +1
-                iPop <- isPops[ iiPop ] # refer to population in non-dropped array
-                .updateIntervalTwDEMCChain( X[,iChain], logDenCompX[,iChain]
-                    , adrop(parUpdateDen[,,iChain,drop=FALSE],3)
-                    , adrop(xStep[,,iChain,drop=FALSE],3)
-                    , rExtra[,iChain]
-                    , adrop(tempDenCompSteps[,,iiPop,drop=FALSE],3)
-                    , pAcceptPar[,iiPop]
-                    , remoteFunArgs=remoteFunArgs
-                    , isRecordProposalsPop[iiPop]
-                    , iPop = iPop
-                )                
-            }) 
+    argsListsChain <- lapply( 1:nsChain, function(iChain){
+        iiPop <- ((iChain-1) %/% nChainPop) +1
+        iPop <- isPops[ iiPop ] # refer to population in non-dropped array
+        list( X = X[,iChain]
+                ,logDenCompX = logDenCompX[,iChain]
+                , intermediates = intermediatesChains[[iiPop]]
+                , parUpdateDen = adrop(parUpdateDen[,,iChain,drop=FALSE],3)
+                , xStep = adrop(xStep[,,iChain,drop=FALSE],3)
+                , rExtra = rExtra[,iChain]
+                , tempDenCompSteps = adrop(tempDenCompSteps[,,iiPop,drop=FALSE],3)
+                , pAcceptPar = pAcceptPar[,iiPop]
+                , isRecordProposalsPop = isRecordProposalsPop[iiPop]
+                , iPop = iPop
+        )                
+    })
+    #
+    #remoteFunArgs$remoteFun <- .updateIntervalTwDEMCChain   # on changed function
+    res <- if( isTRUE(debugSequential) ){
+        lapply( argsListsChain, remoteFunArgs$remoteFun, argsUpdateBlocksTwDEMC=remoteFunArgs$argsUpdateBlocksTwDEMC )
+    }else{
+#        if( sfParallel() ) sfExport( list=c("nChainPop",  "X", "logDenCompX", "parUpdateDen", "xStep"
+#                                    , "rExtra", "tempDenCompSteps", "pAcceptPar"
+#                                    , "remoteFunArgsChain", "isRecordProposalsPop","returnIntermediateChains"))
+        sfLapply( argsListsChain, sfRemoteWrapper, remoteFunArgs = remoteFunArgs )
+    }
     ##value<< list with components
     res1 <- res[[1]]
     X <- array( NA_real_,  c(length(res1$X), nsChain), dimnames=list(parms=names(res1$X), iChain=NULL))
@@ -1094,77 +1126,74 @@ attr(twDEMCBlockInt,"ex") <- function(){
             , parUpdateDen=parUpdateDen	##<< numeric matrix (par x den x chain): for each parameter/density combination: is the density up to date
             , accepted=accepted			##<< numeric matrix (blocks x chains): number of accepted steps for each chain
             , Y=if( !is.null(res1$Y) ) Y else NULL	##<< numeric matrix (steps x 2+params+result x chains): accepted, rLogDen, parms, and all fLogDen result components for each proposal
+            , intermediatesChains = lapply(res,"[[","intermediatesX")
     ) ##end<< 
 }
 
 .updateIntervalTwDEMCChain <- function(
         ### Perform update steps within next thinning interval for a single chain (called remotely from .updateIntervalTwDEMCParChains) 
         # first three arguments relate to current state (stored in chainState in twDEMCBlockInt)
+        argsUpdateIntervalTwDEMCChain = list( ##<< argument that change across invocations of .updateIntervalTwDEMCChain
+                ## supplied as list, so that we can use sfLapply
+                ##describe<<
         X				##<< numeric vector: current location
-        ,logDenCompX	##<< numeric vector: result of calls to density functions from previous step
+        ,logDenCompX	##<< numeric vector: result of calls to density functions for current location
+        ,intermediates  ##<< list: intermediate results for current location 
         ,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
         ,xStep 			##<< matrix rows: difference vectors in parameter space, cols: steps
         ,rExtra			##<< numeric vector: row: step within thinning interval
         ,tempDenCompSteps	##<< numeric matrix:  (nGenThin x nResComp)
         #,nsPop			##<< the number of populations that take part in this step
         ,pAcceptPar		##<< numeric vector: current acceptance rate for each (block)
-        #argsUpdateBlocksTwDEMC, ##<< list of arguments to updateBlocksTwDEMC
-        #argsDEMCStep,	##<< see \code{\link{.doDEMCStep}}
-        ,remoteFunArgs	
-        ### see \code{\link[twSnowfall]{sfRemoteWrapper}}
-        ### Must include entries \itemize{
-        ### \item{remoteFun=.updateBlocksTwDEMC}
-        ### \item{argsUpdateBlocksTwDEMC (maybe character name of exported variable}
-        ### \item{remoteDumpfileBasename} 
-        ### }
-        ### Can be a name of a previously exported variable.
-        ,debugSequential=FALSE	##<< see \code{\link[twSnowfall]{sfFArgsApplyDep}}
-        #,freeMasterNode=FALSE	##<< if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting, see \code{\link[twSnowfall]{sfFArgsApplyDep}}
         ,isRecordProposalsPop=FALSE 	##<< logical
         , iPop          ##<< the population that the current chain is in
+       )
+        ##end<<
+        ,argsUpdateBlocksTwDEMC	##<< list: further arguments to \code{\link{.updateBlocksTwDEMC}}
 ){
+    a <- argsUpdateIntervalTwDEMCChain  # shortcut
     # .updateIntervalTwDEMCPar
     ##seealso<< 
     ## \code{\link{twDEMCBlockInt}}
     ## \code{\link{.doDEMCStep}}
-    dimXStep <- dim(xStep)
+    dimXStep <- dim(a$xStep)
     nStep <- dimXStep[2]
     #d <- as.list(structure(dimXStep,names=c("parms","chains","steps"))) 
     iGenT <- (1:nStep)
     nCases = nStep
-    if( !(nCases == length(rExtra)) )
+    if( !(nCases == length(a$rExtra)) )
         stop("number of cases in steps must correspond to length of rExtra")
     res0 <- list(
-                        xC=X
-                        ,logDenCompC=logDenCompX
-                        ,parUpdateDenC=parUpdateDen
+                        xC=a$X
+                        ,logDenCompC=a$logDenCompX
+                        ,intermediatesC=a$intermediates
+                        ,parUpdateDenC=a$parUpdateDen
                 )
     #
     # record the proposals, their density results and their acceptance for each generation in thinning interval
-    parNames <- names(X)
-    resCompNames <- names(logDenCompX)
+    parNames <- names(a$X)
+    resCompNames <- names(a$logDenCompX)
     if( is.null(resCompNames) ) resCompNames <- paste("lDen",seq_along(res[[1]]$logDenCompP),sep="") 
-    tmp <- c(parNames,paste("accepted",seq_along(pAcceptPar),sep=""),resCompNames)
+    tmp <- c(parNames,paste("accepted",seq_along(a$pAcceptPar),sep=""),resCompNames)
     Y <- array( NA_real_, dim=c(nStep=nStep,comp=length(tmp)), dimnames=list(steps=NULL,comp=tmp) )			
     #
     # recored acceptance state
-    acceptedSteps <- array( NA_real_, dim=c(nStep=nStep,block=length(pAcceptPar)) )
+    acceptedSteps <- array( NA_real_, dim=c(nStep=nStep,block=length(a$pAcceptPar)) )
     #
     #i <- 1
     prevRes <- res0
-    tmpf <- remoteFunArgs$argsUpdateBlocksTwDEMC
     for( iStep in  1:nStep){
-        args <-c( prevRes[1:3] 
-                ,list( step=xStep[,iStep] 
-                        , rExtra=rExtra[iStep ,drop=TRUE]
+        args <-c( prevRes[1:4] 
+                ,list( step=a$xStep[,iStep] 
+                        , rExtra=a$rExtra[iStep ,drop=TRUE]
                         #, tempGlobalC=tempGlobalSteps[iStep0+1,isPop ,drop=TRUE]
-                        , tempDenCompC=tempDenCompSteps[iStep,, drop=TRUE]
-                        , pAccept=pAcceptPar
+                        , tempDenCompC=a$tempDenCompSteps[iStep,, drop=TRUE]
+                        , pAccept=a$pAcceptPar
                         #, isPop=isPop
-                        , iPop=iPop
+                        , iPop=a$iPop
+                        , argsUpdateBlocksTwDEMC=argsUpdateBlocksTwDEMC
                     )
-                    , within(remoteFunArgs, remoteFun <- NULL)
-                    )
+                 )
          prevRes <- do.call( .updateBlocksTwDEMC, args )
          Y[iStep,] <- c( prevRes$xP, prevRes$accepted, prevRes$logDenCompP )
          acceptedSteps[iStep,] <- prevRes$accepted
@@ -1173,9 +1202,12 @@ attr(twDEMCBlockInt,"ex") <- function(){
      #
 #if( (iPop==2) &&  (X["a"] < 10.8) ) recover()
     ##value<< list with components
+    ctrl <- argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$ctrl
     resDo <- list(	##describe<< 
             X=prevRes$xC			    ##<< vector (nParm) current position
             , logDenCompX=prevRes$logDenCompC	##<< vector (nResComp): result components of fLogDen current position 
+            , intermediatesX=if( ctrl$returnIntermediate ) ##<< list: intermediate results for current position 
+                    prevRes$intermediatesC else lapply(1:nChain, function(iChain){list()})	 
             #, logDenX=logDenX			##<< vector current logDen of chains
             , parUpdateDen=prevRes$parUpdateDenC	##<< numeric matrix (par x den): for each parameter/density combination: is the density up to date
             , accepted=colSums(acceptedSteps)			##<< numeric vector (blocks): number of accepted steps for each chain
@@ -1189,7 +1221,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	# first three arguments relate to current state (stored in chainState in twDEMCBlockInt)
 	X				##<< numeric matrix: current location of chains rows: parameters, columns: chains
 	,logDenCompX	##<< numeric matrix: result of calls to density functions from previous step
-	,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
+    ,intermediatesChains = lapply(1:nsChain, function(iChain){ list()}  )  ##<< list(nChain) intermediate states 
+    ,parUpdateDen	##<< for each parameter/density combination: is the density up to date from previous step
 	,xStep 			##<< array rows: difference vectors in parameter space, cols: steps, zdim: chains
 	,rExtra			##<< numeric matrix: row: step within thinning interval, col: chain
 	,tempDenCompSteps	##<< numeric array:  (nGenThin x nResComp x nsPop)
@@ -1245,7 +1278,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		iChain0 <- (i-1) - iStep0*nsChain   #((i-1) %% nChain)	 
 		isPop <-(iChain0 %/% nChainPop)+1
 		#args <-c( prevRes[c("xC", "logDenCompC", "parUpdateDenC")],
-		args <-c( prevRes[1:3] 
+		args <-c( prevRes[1:4] 
 			,list( step=xStep[,1+iStep0,1+iChain0 ,drop=TRUE]
 				, rExtra=rExtra[1+iStep0,1+iChain0 ,drop=TRUE]
 				#, tempGlobalC=tempGlobalSteps[iStep0+1,isPop ,drop=TRUE]
@@ -1260,6 +1293,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	res0 <- lapply(1:nsChain,function(iChain){list(
 				xC=X[,iChain,drop=TRUE]
 				,logDenCompC=logDenCompX[,iChain,drop=TRUE]
+                ,intermediates= intermediatesChains[[iChain]] 
 				,parUpdateDenC=adrop(parUpdateDen[,,iChain,drop=FALSE],3)
 			)})
 	# all chains of first step, all chains of second step, ...
@@ -1272,8 +1306,9 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		X[,iChain] <- resChain$xC
 		logDenCompX[,iChain] <- resChain$logDenCompC
 		parUpdateDen[,,iChain] <- resChain$parUpdateDenC
+        intermediatesChains[[iChain]] <- resChain$intermediates
 	}
-	
+	#
 	# record the proposals, their density results and their acceptance for each generation in thinning interval
 	Y <- NULL
 	if( any(isRecordProposalsPop) ){
@@ -1292,7 +1327,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			} # iStep
 		} #iPop
 	}
-	
+	#
 	# record acceptance rate
 	# need cbind because sapply will produce a vector instead of a matrix for only one block
 	acceptedStates <- do.call( cbind, lapply( res, "[[", "accepted" )) # need to be stacked by chains but steps is last dim 
@@ -1300,12 +1335,12 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	accepted <- apply(acceptedM,c(1,2),sum)
 	dimnames(accepted) = list(blocks=NULL, chains=NULL)
 	#accepted <- matrix(0.25*remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$ctrl$thin	, nrow=length(res[[1]]$accepted), ncol=nChain )
-	
+	#
 	##value<< list with components
 	resDo <- list(	##describe<< 
 		X=X							##<< matrix current position, column for each chain
 		, logDenCompX=logDenCompX	##<< matrix: result components of fLogDen current position, column for each chain 
-		#, logDenX=logDenX			##<< vector current logDen of chains
+        , intermediatesChains = lapply(1:nsChain, function(iChain){ list()}  )  ##<< list(nChain) intermediate results for current state  
 		, parUpdateDen=parUpdateDen	##<< numeric matrix (par x den x chain): for each parameter/density combination: is the density up to date
 		, accepted=accepted			##<< numeric matrix (blocks x chains): number of accepted steps for each chain
 		, Y=Y 						##<< numeric matrix (steps x 2+params+result): accepted, rLogDen, parms, and all fLogDen result components for each proposal
@@ -1315,15 +1350,25 @@ attr(twDEMCBlockInt,"ex") <- function(){
 .updateBlocksTwDEMC <- function(
 	### One step of updating all blocks for one chain (called remotely)
 	xC				##<< current state
-	,logDenCompC	##<< result of calls to density functions from previous step
-	,parUpdateDenC	##<< for each parameter/density combination: is the density up to date from previous step
+	,logDenCompC	##<< result of calls to density functions of current state
+    ,intermediatesC=list()  ##<< intermediate results of current state
+	,parUpdateDenC	##<< matrix (nPar x nDen): FALSE: logDenCompC is not uptodate and needs recalculation
+        ## (because depends on parameters that was updated against other density)
 	,step			##<< proposed step
 	,rExtra			##<< adjustment of Metropolis state
-	#,tempGlobalC			##<< current global temperature for given population
 	,tempDenCompC	##<< numeric vector of length(logDenCompC): current temperature for each result component
 	,pAcceptC		##<< numeric vector (nBlock) current acceptance rates of the blocks
 	,iPop			##<< population in total array of populations
-	,argsUpdateBlocksTwDEMC	##<< further arguments that do not change between calls (exported and handled by remoteWrapper)
+	,argsUpdateBlocksTwDEMC	= list( ##<< further arguments that do not change between calls. 
+            ## These can be transferred by sfExport once and are handled by sfRemoteWrapper.
+            ##describe<< 
+            argsFUpdateBlocks=list()    ##<< list(nBlock) arguments for each block: dInfo, block 
+            ,nBlock=1                   ##<< scalar integer: the number of blocks
+            ,upperParBoundsPop          ##<< upper parameter bounds
+            ,lowerParBoundsPop          ##<< lower parameter bounds          
+            ,returnIntermediate=TRUE    ##<< boolean whether to return the intermediate: set to FALSE if its a big result that is fast calculated and should not transferred across processes
+            ##end<<
+            )
 ){
 	if( !all(is.finite(pAcceptC)))
 		stop(".updateBlocksTwDEMC: encountered non-finited pAcceptC")
@@ -1332,8 +1377,6 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	acceptedBlock <- numeric(a$nBlock) 
 	xP <- xC		# place for recording proposal
 	logDenCompP <- logDenCompC # place for recording density results for proposal
-    #
-    intermediates <- list()     # initially empty
 	#
     #recover()
 	#iBlock<-1
@@ -1353,13 +1396,13 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		## the accepted state is out of date, and needs to be recalculated.
 		##}}
 		if( blockArgs$requiresUpdatedDen && !all( parUpdateDenC[blockArgs$dInfoPos,cd] ) ){
-            # intermediate state may have been calculated
-            blockArgs$argsFLogDen$intermediate <- if( usesIntermediate )  intermediates[[blockArgs$intermediate]] else NULL
+            # intermediate state may have been calculated, no need of recalculation
+            blockArgs$argsFLogDen$intermediate <- if( usesIntermediate )  intermediatesC[[blockArgs$intermediate]] else NULL
             # here do not allow for internal rejection
             logDenCompC[blockArgs$resCompPos] <- tmp <- blockArgs$fLogDenScale * do.call( blockArgs$fLogDen, c(list(xC[cd]), blockArgs$argsFLogDen) )	# evaluate logDen
 			parUpdateDenC[blockArgs$dInfoPos,cd] <- TRUE
             if( usesIntermediate ){
-                intermediates[[ blockArgs$intermediate]] <- attr(tmp,"intermediate") 
+                intermediatesC[[ blockArgs$intermediate]] <- attr(tmp,"intermediate") 
             } 
 		}	
 		# make sure to use names different from already existing in argsFUpdateBlocks[[iBlock]]
@@ -1388,7 +1431,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 			parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the update parameters
 			if( 0 != length(resUpdate$logDenCompC) ){				
                 if( usesIntermediate) 
-                    intermediates[[ blockArgs$intermediate]] <- attr(resUpdate$logDenCompC,"intermediate")  # update the intermediate
+                    intermediatesC[[ blockArgs$intermediate]] <- attr(resUpdate$logDenCompC,"intermediate")  # update the intermediate
                 logDenCompC[ blockArgs$resCompPos  ] <- logDenCompP[ blockArgs$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
 				parUpdateDenC[blockArgs$dInfoPos,cu] <- TRUE	# if density has been calculated, indicate that it is up to date 
             }
@@ -1403,7 +1446,8 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	resUpdate <- list( ##describe <<
 		xC=xC						##<< numeric vecotr: current accepted state
 		,logDenCompC=logDenCompC	##<< numeric vector: result components of fLogDen for current position
-		,parUpdateDenC=parUpdateDenC			##<< integer vector: logDensity that recently updated parameter at given index
+        ,intermediatesC=if( isTRUE(argsUpdateBlocksTwDEMC$returnIntermediate) ) intermediatesC else list()   ##<< the list of intermediate results of current state
+        ,parUpdateDenC=parUpdateDenC			##<< integer vector: logDensity that recently updated parameter at given index
 		,accepted=acceptedBlock		##<< numeric vector: acceptance of each block (0: not, 1: did, (0..1): DRstep)
 		,xP=xP						##<< numeric vector: result components of fLogDen for proposal
         #,intermediate

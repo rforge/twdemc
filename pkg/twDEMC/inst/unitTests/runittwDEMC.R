@@ -77,7 +77,12 @@ test.goodStartSeqData <- function(){
 	test_int.goodStartSeqData.plot2d()
 }
 
-test_int.goodStartSeqData.plot2d <- function(){
+test.goodStartSeqDataLB <- function(){
+    #mtrace(test_int.goodStartSeqData.plot2d)
+    test_int.goodStartSeqData.plot2d(useLoadBalancing=TRUE)
+}
+
+test_int.goodStartSeqData.plot2d <- function(useLoadBalancing=FALSE){
 	lmDummy <- lm( obs ~ xval, weights=1/sdObs^2)		# results without priors
 	(.expTheta <- coef(lmDummy))
 	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
@@ -104,8 +109,8 @@ test_int.goodStartSeqData.plot2d <- function(){
 	res <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
-		,controlTwDEMC=list(thin=8, useLoadBalancing=TRUE )		
-		,debugSequential=TRUE
+		,controlTwDEMC=list(thin=8, useLoadBalancing=useLoadBalancing )		
+		#,debugSequential=TRUE
 		,doRecordProposals=TRUE
 	))
 	#str(res)
@@ -494,10 +499,10 @@ i_nnertest.probUpDir <- function(){
 		xval=xval
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
-	
+	#
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	dim(Zinit)
-	
+	#
 	res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
 			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop,
@@ -505,19 +510,19 @@ i_nnertest.probUpDir <- function(){
 		controlTwDEMC = list(probUpDir=0.8)
 	))
 	str(res)
-	
+	#
 	rescoda <- as.mcmc.list(res) 
 	suppressWarnings({	#glm fit in summary
 	(.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
 	(.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
 	})
-	
+	#
 	# 1/2 orders of magnitude around prescribed sd for theta
 	.pop=1
 	for( .pop in seq(along.with=.popsd) ){
 		checkMagnitude( sdTheta, .popsd[[.pop]] )
 	}
-	
+	#
 	# check that thetaTrue is in 95% interval 
 	.pthetaTrue <- sapply(1:2, function(.pop){
 			pnorm(thetaTrue, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
@@ -536,7 +541,8 @@ test.ofMulti <- function(){
             thresholdCovar=thresholdCovar
             , thetaPrior=thetaMean
             , invCovarTheta=sdTheta^2
-         )            
+            , twTwoDenEx=twTwoDenEx1
+    )            
     #
     .nPop=2
     .nChainPop=4
@@ -580,7 +586,16 @@ test.ofMulti <- function(){
 }
 
 test.ofMultiIntermediate <- function(){
-    # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
+    int.ofMultiIntermediate( loadBalancing=FALSE )
+}
+
+test.ofMultiIntermediateLB <- function(){
+    int.ofMultiIntermediate( loadBalancing=TRUE )
+}
+
+
+int.ofMultiIntermediate <- function(loadBalancing=FALSE){
+     # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
     data(twTwoDenEx1)
     thresholdCovar = 0.3	# the true value
     #thresholdCovar = 0		# the effective model that glosses over this threshold
@@ -591,6 +606,7 @@ test.ofMultiIntermediate <- function(){
             thresholdCovar=thresholdCovar
             , thetaPrior=thetaMean
             , invCovarTheta=sdTheta^2
+            , twTwoDenEx=twTwoDenEx1
     )            
     #
     .nPop=2
@@ -599,6 +615,7 @@ test.ofMultiIntermediate <- function(){
     #
     .nGen=256
     #undebug(denRichPrior)
+    .remoteDumpfileBasename="dump_twDEMC_ofMultiIntermediate"
     resa <- concatPops( resBlock <- twDEMCBlock( 
                     ZinitPops
                     , nGen=.nGen 
@@ -611,8 +628,9 @@ test.ofMultiIntermediate <- function(){
                             ,b=list(dInfoPos="dRich", compPos="b")
                     )
                     ,nPop=.nPop
-                    ,controlTwDEMC=list(thin=8)		
+                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
                     #,debugSequential=TRUE
+                    ,remoteDumpfileBasename = .remoteDumpfileBasename
                     ,doRecordProposals=TRUE
             ))
     #plot( as.mcmc.list(resa), smooth=FALSE)
@@ -633,6 +651,12 @@ test.ofMultiIntermediate <- function(){
                 pnorm(thetaMean, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
             })
     checkInterval( .pthetaTrue ) 
+}
+
+.tmp.f <- function(){
+    .remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
+    load(.remoteDumpfile)
+    debugger(get(.remoteDumpfileBasename))    
 }
 
 
