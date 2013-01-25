@@ -14,7 +14,7 @@
   \item{ylab}{
 }
 }
-\details{\code{\link{ggplotChainPopMoves}} gives nicer results, but this functions i faster.}
+\details{\code{ggplotChainPopMoves} in twDEMCPlot gives nicer results, but this functions i faster.}
 
 
 \author{Thomas Wutzler}

@@ -17,7 +17,6 @@
 \item{ integrate over all others but 1 column: this method  } 
 \item{ integrate over all others but 2 column: \code{\link{marginals2d}}  } 
 \item{ integrate over all others but 3 column: \code{\link{marginals3d}}  } 
-\item{ plotting a 2D kernel density estimate: \code{\link{plot2DKDMarginals}}  } 
 }}
 \value{numeric vector with each item representing application of fAgg to x[,intCol]
 and dimnames equal to means of the classes}

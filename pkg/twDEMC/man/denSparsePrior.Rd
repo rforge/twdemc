@@ -2,7 +2,7 @@
 \alias{denSparsePrior}
 \title{denSparsePrior}
 \description{Same as denSpace but returning two components: prior and misfit}
-\usage{denSparsePrior(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
+\usage{denSparsePrior(theta, twTwoDenEx, theta0 = twTwoDenEx$thetaTrue, 
     thetaPrior = NULL, invCovarTheta = NULL, intermediate = list(), 
     ...)}
 \arguments{
@@ -18,12 +18,13 @@
   \item{\dots}{
 }
 }
-
+\details{Used for demonstrating usage of intermediate results.
+See test case \code{ofMultiIntermediate} in file unitTests/runittwDEMC.R}
 
 
 \author{Thomas Wutzler}
 
 
 
-
+\seealso{\code{\link{denRichPrior}}}
 

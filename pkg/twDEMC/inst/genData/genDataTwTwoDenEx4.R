@@ -1,38 +1,16 @@
-.mod2Pred <- function(
-	### example model giving two predictions that can be compared to different observations
-	theta	##<< model parameters a and b
-	, xSparce	##<< numeric vector of sparce input/output relationship 
-	, xRich		##<< numeric vector of rich input/output relationship
-	, thresholdCovar=0	##<< model structural deficiency
-){
-   ##details<< model output y1 represents a longterm observations
-   ## It is based on longterm average of xRich instead of detailed values
-   ## \cr Model output y1 represents a short measurement campaing. 
-   ## During this campaing xSparce does not vary but detailed measurements of xRich are utilized 
-   ## \cr In the short-term relation, the model may simulate a detailed threshold in the covariate
-   ## or abstract from those details by thresholdCovar=0.
-
-   ##value<< list with model predictions
-   list( ##describe<<
-	   	# with the following line, bias of theta[2] fully leaks into estimate of a
-		#y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich))	##<< theta[1]*x1 + theta[2]*8
-		y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich)/10)	##<< theta[1]*x1 + theta[2]*mean(xRich)/10
-		,y2 = as.numeric(theta[1]*xSparce[1] + theta[2]*pmax(0,xRich-thresholdCovar) ) 		 
-	) ##end<<
-}
-
+# moved modTwTwoDenEx1 to R/denSparceRichBoth.R so that docu is generated
 
 set.seed(0815)
 twTwoDenEx1 <- within( list(), {
-		fModel <- .mod2Pred
+		fModel <- modTwTwoDenEx1
 		thetaA <- 1
 		xSparce <- c(1,runif(9,min=0.5,max=1.5))  # only 10 observations
 		xRich <- runif(1000,min=.7,max=1)  	 # 1000 observations	
 		# parameter b is an effective parameter 
 		thetaTrue <- c( a=thetaA, b=2 )
-		obsTrue <- .mod2Pred( thetaTrue, xSparce=xSparce,xRich=xRich
+		obsTrue <- modTwTwoDenEx1( thetaTrue, xSparce=xSparce,xRich=xRich
 			, thresholdCovar=0.3)
-		obsBiased <- .mod2Pred( thetaTrue, xSparce=xSparce,xRich=xRich)		
+		obsBiased <- modTwTwoDenEx1( thetaTrue, xSparce=xSparce,xRich=xRich)		
 		sdObsTrue <- sdObs <- list( 
 			 y1=mean(obsTrue$y1)*0.06
 			,y2=mean(obsTrue$y2)*0.02 )

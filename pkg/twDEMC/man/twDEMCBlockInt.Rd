@@ -2,17 +2,16 @@
 \alias{twDEMCBlockInt}
 \title{twDEMCBlockInt}
 \description{Differential Evolution Markov Chain with blocked parameter update}
-\usage{twDEMCBlockInt(pops = list(list(parms, nGen = 12, TProp = NULL, 
+\usage{twDEMCBlockInt(pops = list(list(parms = list(), nGen = 12, TProp = NULL, 
     X = NULL, logDenCompX = NULL, spaceInd = 1, upperParBounds = numeric(0), 
     lowerParBounds = numeric(0), splits = numeric(0))), dInfos = list(list(fLogDen = NULL, 
-    xC = xC, logDenCompC = logDenCompC, parUpdateDenC = parUpdateDenC, 
-    compPosDen = 1:nrow(pops[[1]]$parms), argsFLogDen = list(), 
-    intResComp = vector("integer", 0), fLogDenScale = 1, intermediate = "modOutput")), 
-    blocks = list(list(dInfoPos = 1, compPos = dInfos[[1]]$compPosDen, 
-        fUpdateBlock = updateBlockTwDEMC, argsFUpdate = list(), 
-        requiresUpdatedDen = TRUE)), TSpec = matrix(1, ncol = 2, 
-        nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), m0 = numeric(0), 
-    nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
+    xC = c(), logDenCompC = c(), parUpdateDenC = c(), compPosDen = 1:nrow(pops[[1]]$parms), 
+    argsFLogDen = list(), intResComp = vector("integer", 0), 
+    fLogDenScale = 1, intermediate = "modOutput")), blocks = list(list(dInfoPos = 1, 
+    compPos = dInfos[[1]]$compPosDen, fUpdateBlock = updateBlockTwDEMC, 
+    argsFUpdate = list(), requiresUpdatedDen = TRUE)), TSpec = matrix(1, 
+    ncol = 2, nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), 
+    m0 = numeric(0), nGen = integer(0), spacePop = 1:nPop, controlTwDEMC = list(), 
     debugSequential = FALSE, remoteDumpfileBasename = NULL, fDiscrProp = NULL, 
     argsFDiscrProp = list(), doRecordProposals = FALSE, progressOutput = ".")}
 \arguments{
@@ -107,9 +106,9 @@ In order to improve localization, less parameters or more chains per population 
 }}
 
 \describe{ \item{intermediate results}{
-Different density functions can share intermediate results, so that they do not need to be recomputed.
-For example two densities can be based on the same model output for given parameters, but compare different
-predictions against different observations. If for a given parameter vector, the model output has been
+Different density functions can share intermediate results, so that these do not need to be recomputed.
+For example two densities can be based on the same model predictions for given parameters, but compare different
+subsets of the predictions against different observations. If for a given parameter vector, the model output has been
 computed in one density, it does not need to be recomputed in the second density function.
 
 This is an advanced option. Care must be taken that the intermediate is really the same between
@@ -118,9 +117,11 @@ densities.
 Description of both densities should specify the same identifier string in argument \code{dInfo$intermediate}. 
 The densities should return the model output in attribute "intermediate" with the result vector of logDensity
 components. \code{twDEMC} ensures that this result is provided with argument \code{intermediate}
-in another call. If the parameters have changed, an empty list will be given with this argument.
+in another call to the density function. 
+If the parameters have changed, an empty list will be given with this argument.
 
 For an example see test case \code{ofMultiIntermediate} in file unitTests/runittwDEMC.R.
+Using densities \code{\link{denSparsePrior}} and \code{\link{denRichPrior}}. 
 
 When using parallel execution on multiple cores, the transfer of very big intermediates can cause
 performance issues. Use argument \code{controlTwDEMC$returnIntermediate=FALSE} to ensure that 
@@ -232,7 +233,7 @@ if( FALSE ){
 	load(.remoteDumpfile)
 	debugger(get(.remoteDumpfileBasename))
 	# choose last step (18)
-	require(debug)
+	#require(debug)
 	fDen <- remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen
 	mtrace(fDen); remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen <- fDen
 	do.call(remoteFun, c(remoteFunArgs, list(...)))	

@@ -48,10 +48,11 @@ marginals1d <- function(
 	## \item{ integrate over all others but 1 column: this method  } 
 	## \item{ integrate over all others but 2 column: \code{\link{marginals2d}}  } 
 	## \item{ integrate over all others but 3 column: \code{\link{marginals3d}}  } 
-	## \item{ plotting a 2D kernel density estimate: \code{\link{plot2DKDMarginals}}  } 
 	##}
+    # moved to plot package
 	#? \item{ plotting a 2D marginal distribution: \code{\link{plotMarginal2D}}  } 
-	
+    # \item{ plotting a 2D kernel density estimate: \code{\link{plot2DKDMarginals}}  } 
+    
 	xcuts <- cutQuantiles(x[,vars],g=n, levels.mean=TRUE)
 	tmp <- list(xcuts); names(tmp) <- dimnames	
 	#cagg <- tapply( x[,intCol], tmp, fAgg )

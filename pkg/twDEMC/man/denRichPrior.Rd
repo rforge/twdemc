@@ -2,7 +2,7 @@
 \alias{denRichPrior}
 \title{denRichPrior}
 \description{Example of using two different logDensity functions: density of data-rich observations}
-\usage{denRichPrior(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
+\usage{denRichPrior(theta, twTwoDenEx, theta0 = twTwoDenEx$thetaTrue, 
     thetaPrior = NULL, invCovarTheta = NULL, intermediate = list(), 
     ...)}
 \arguments{
@@ -25,5 +25,5 @@
 
 
 
-
+\seealso{\code{\link{denSparsePrior}}}
 

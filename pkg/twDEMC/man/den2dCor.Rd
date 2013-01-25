@@ -49,15 +49,15 @@ head(sort(luden,dec=TRUE))
 ##------------------ do an MCMC run
 (.expTheta <- c(a=0,b=0) )
 (.expCovTheta <- diag(c(a=2,b=2)) )		
-.nPops=2
-Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChains=4*.nPops, nPops=.nPops)
+.nPop=2
+Zinit <- initZtwDEMCNormal( .expTheta, .expCovTheta, nChainPop=4, nPop=.nPop)
 #mtrace(twDEMCBlockInt)
 
-den2dCorTwDEMC <- twDEMCBatch(Zinit, nGen=500, fLogDen=den2dCor, nPops=.nPops )
-den2dCorTwDEMC <- twDEMCBatch(den2dCorTwDEMC, nGen=1000)
+den2dCorTwDEMC <- twDEMCBlock(Zinit, nGen=500, dInfos=list(d1=list(fLogDen=den2dCor)), nPop=.nPop )
+den2dCorTwDEMC <- twDEMCBlock(den2dCorTwDEMC, nGen=1000)
 
 plot( thinN(as.mcmc.list(den2dCorTwDEMC)))
-matplot( den2dCorTwDEMC$pAccept, type="l" )
+matplot( concatPops(den2dCorTwDEMC)$pAccept[,1,], type="l" )
 pps <- pps0 <- stackChains(thin(den2dCorTwDEMC,start=300))
 ss <- ss0 <- pps[,-1]
 #plot( ss[,1], ss[,2] )

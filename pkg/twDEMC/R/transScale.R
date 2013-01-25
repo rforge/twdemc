@@ -3,13 +3,13 @@
 }
 
 ### Distribution supported by transScale
-##describe<< 
 twVarDistrLevels <- as.factor( c(
-		norm="norm"				##<< normal distribution
+          ##describe<< 
+         norm="norm"				##<< normal distribution
 		,lognorm="lognorm"		##<< log-normal distribution
 		,logitnorm="logitnorm")	##<< logit-normal distribution
+        ##end<<
 )
-##end<<
 
 twVarDistrVec <- function(
 	### create a factor level with given variable names

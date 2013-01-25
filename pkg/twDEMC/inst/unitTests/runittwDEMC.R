@@ -772,7 +772,7 @@ test.dump <- function(){
 		debugger(get(.remoteDumpfileBasename))
 		#choose last column (18)
 		#interactively execute commands from body of doDEMCStep
-		require(debug)
+		#require(debug)
 		mtrace(remoteFun)
 		do.call(remoteFun, c(remoteFunArgs, list(...)))
 	}

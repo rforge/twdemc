@@ -2,9 +2,9 @@
 \alias{denBoth}
 \title{denBoth}
 \description{Example of using two different logDensity functions: comparison of combining denSparse and denRich into one function.}
-\usage{denBoth(theta, twTwoDenEx = twTwoDenEx1, weights = c(1, 1, 1), 
-    theta0 = twTwoDenEx$thetaTrue, thetaPrior = NULL, invCovarTheta = NULL, 
-    modTwoDenExCache = NULL, ...)}
+\usage{denBoth(theta, twTwoDenEx, weights = c(1, 1, 1), theta0 = twTwoDenEx$thetaTrue, 
+    thetaPrior = NULL, invCovarTheta = NULL, modTwoDenExCache = NULL, 
+    ...)}
 \arguments{
   \item{theta}{
 }
@@ -30,6 +30,6 @@
 
 \examples{
 data(twTwoDenEx1)
-denBoth(twTwoDenEx1$thetaTrue)
-denBoth(twTwoDenEx1$thetaTrue, thresholdCovar = 0.3)
+denBoth(twTwoDenEx1$thetaTrue, twTwoDenEx1)
+denBoth(twTwoDenEx1$thetaTrue, twTwoDenEx1, thresholdCovar = 0.3)
 }

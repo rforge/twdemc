@@ -2,8 +2,8 @@
 \alias{denSparse}
 \title{denSparse}
 \description{Example of using two different logDensity functions: density of sparce observations}
-\usage{denSparse(theta, twTwoDenEx = twTwoDenEx1, theta0 = twTwoDenEx$thetaTrue, 
-    intermediate = NULL, ...)}
+\usage{denSparse(theta, twTwoDenEx, theta0 = twTwoDenEx$thetaTrue, intermediate = NULL, 
+    ...)}
 \arguments{
   \item{theta}{
 }

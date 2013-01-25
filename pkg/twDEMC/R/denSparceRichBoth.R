@@ -1,3 +1,30 @@
+
+modTwTwoDenEx1 <- function(
+        ### example model giving two predictions that can be compared to different observations
+        theta	##<< model parameters a and b
+        , xSparce	##<< numeric vector of sparce input/output relationship 
+        , xRich		##<< numeric vector of rich input/output relationship
+        , thresholdCovar=0	##<< model structural deficiency
+){
+    ##details<< model output y1 represents a longterm observations
+    ## It is based on longterm average of xRich instead of detailed values
+    ## \cr Model output y1 represents a short measurement campaing. 
+    ## During this campaing xSparce does not vary but detailed measurements of xRich are utilized 
+    ## \cr In the short-term relation, the model may simulate a detailed threshold in the covariate
+    ## or abstract from those details by thresholdCovar=0.
+    
+    ##value<< list with model predictions
+    list( ##describe<<
+            # with the following line, bias of theta[2] fully leaks into estimate of a
+            #y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich))	##<< theta[1]*x1 + theta[2]*8
+            y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich)/10)	##<< theta[1]*x1 + theta[2]*mean(xRich)/10
+            ,y2 = as.numeric(theta[1]*xSparce[1] + theta[2]*pmax(0,xRich-thresholdCovar) ) 		 
+    ) ##end<<
+}
+
+
+
+
 denSparse <- function(
 	### Example of using two different logDensity functions: density of sparce observations
 	theta		

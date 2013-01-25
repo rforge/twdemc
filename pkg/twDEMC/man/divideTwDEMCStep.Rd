@@ -13,7 +13,7 @@
   \item{m0}{minimum number of samples in step for extending runs}
   \item{nRowsMin}{number of rows in sub to sample at minimum, must contain enough samples for robust estimation of mean log-Density of subspace}
   \item{nRowsMinMax}{number of rows in sub to include as maximum mcNewMinN}
-  \item{minPSub}{minimum proportion of a subsample in splitting´}
+  \item{minPSub}{minimum proportion of a subsample in splitting}
   \item{TEnd}{numeric vector (nResComp) target temperature}
   \item{\dots}{further arguments to \code{\link{twDEMCBlockInt}}, such as TEnd}
 }

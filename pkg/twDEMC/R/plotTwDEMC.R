@@ -45,7 +45,7 @@ plotChainPopMoves <-function(
 	, ylab="LogDensity"
 ){
 	##details<< 
-	## \code{\link{ggplotChainPopMoves}} gives nicer results, but this functions i faster.
+	## \code{ggplotChainPopMoves} in twDEMCPlot gives nicer results, but this functions i faster.
 	
 	##seealso<<  
 	## \code{\link{plotThinned.mcmc.list}}
@@ -62,7 +62,7 @@ plotChainPopMoves <-function(
 	points(rLogDen2, pch=c(as.character(1:9),LETTERS), col="red")
 	arrows( 1:length(rLogDen1),rLogDen1,1:length(rLogDen1),rLogDen2, length=0.1)
 	### the logDensity of the last fifth of all the populations
-	if( doSort) sort(rLogDen2, decr=TRUE) else rLogDen2
+	if( doSort) sort(rLogDen2, decreasing=TRUE) else rLogDen2
 }
 
 .tmp.f <- function(){

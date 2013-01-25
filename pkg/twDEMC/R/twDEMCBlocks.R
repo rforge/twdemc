@@ -723,7 +723,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 		load(.remoteDumpfile)
 		debugger(get(.remoteDumpfileBasename))
 		# choose last step (18)
-		require(debug)
+		#require(debug)
 		fDen <- remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen
 		mtrace(fDen); remoteFunArgs$argsUpdateBlocksTwDEMC$argsFUpdateBlocks[[1]]$fLogDen <- fDen
 		do.call(remoteFun, c(remoteFunArgs, list(...)))	
@@ -1199,7 +1199,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
     # record the proposals, their density results and their acceptance for each generation in thinning interval
     parNames <- names(a$X)
     resCompNames <- names(a$logDenCompX)
-    if( is.null(resCompNames) ) resCompNames <- paste("lDen",seq_along(res[[1]]$logDenCompP),sep="") 
+    if( is.null(resCompNames) ) resCompNames <- paste("lDen",seq_along(a$logDenCompX),sep="") 
     tmp <- c(parNames,paste("accepted",seq_along(a$pAcceptPar),sep=""),resCompNames)
     Y <- array( NA_real_, dim=c(nStep=nStep,comp=length(tmp)), dimnames=list(steps=NULL,comp=tmp) )			
     #
@@ -1233,7 +1233,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
             X=prevRes$xC			    ##<< vector (nParm) current position
             , logDenCompX=prevRes$logDenCompC	##<< vector (nResComp): result components of fLogDen current position 
             , intermediatesX=if( ctrl$returnIntermediate ) ##<< list: intermediate results for current position 
-                    prevRes$intermediatesC else lapply(1:nChain, function(iChain){list()})	 
+                    prevRes$intermediatesC else list()	 
             #, logDenX=logDenX			##<< vector current logDen of chains
             , parUpdateDen=prevRes$parUpdateDenC	##<< numeric matrix (par x den): for each parameter/density combination: is the density up to date
             , accepted=colSums(acceptedSteps)			##<< numeric vector (blocks): number of accepted steps for each chain
