@@ -23,7 +23,6 @@ Within the bin the values are aggregated. By default the mean is calculated.
 There are several plotting methods related to twDEMC run. \itemize{
 \item{ TODO: link methods  } 
 \item{ the Gelman criterion: this method  } 
-\item{ the theorectical minimum logDen-Value for significant model difference : \code{\link{getRLogDenQuantile}}  } 
 }}
 
 
@@ -31,7 +30,7 @@ There are several plotting methods related to twDEMC run. \itemize{
 
 
 
-\seealso{\code{\link{twDEMCInt}}}
+\seealso{\code{\link{twDEMCBlockInt}}}
 \examples{
 data(twdemcEx1)
 sample <- stackChains(twdemcEx1)

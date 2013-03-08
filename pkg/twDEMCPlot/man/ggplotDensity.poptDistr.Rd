@@ -18,7 +18,7 @@
 
 
 \seealso{\code{\link{plotMarginal2D}}
-\code{\link{twDEMCInt}}}
+\code{\link{twDEMCBlockInt}}}
 \examples{
 parmsBounds = do.call( rbind,list(		# mode and upper bound
 	A0 = c(10,15)		

@@ -21,7 +21,7 @@
 
 
 \seealso{\code{\link{plotMarginal2D}}
-\code{\link{twDEMCInt}}}
+\code{\link{twDEMCBlockInt}}}
 \examples{
 data(twdemcEx1)  # from package twDEMC
 res <- concatPops(twdemcEx1)

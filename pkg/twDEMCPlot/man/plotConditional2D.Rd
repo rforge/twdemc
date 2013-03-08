@@ -23,5 +23,5 @@
 
 
 \seealso{\code{\link{plotMarginal2D}}
-\code{\link{twDEMCInt}}}
+\code{\link{twDEMCBlockInt}}}
 

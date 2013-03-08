@@ -8,7 +8,7 @@ ggplotChainPopMoves <- function(
 	# ggplotChainPopMoves
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
@@ -151,7 +151,7 @@ ggplotDensity.twDEMC <- function(
 ){
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	#
 	nPop = 	ncol(res$temp)
 	nChainsPop = ncol(res$rLogDen)%/%nPop
@@ -210,11 +210,14 @@ ggplotDensity.twDEMCPops <- function(
         ,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
         ,doDispLogDen=TRUE	##<< include density of LogDensitys
         ,idInfo=names(res$dInfos)[1]
-        ,nSamplesPop=500      ##<< thin to about these number of samples within each population  
+        ,nSamplesPop=500      ##<< thin to about these number of samples within each population
+        ,popNames=as.character(seq_along(res$pops)) ##<< character vector (nPop): names of the populations displayed in colour legend
+        ,popCols=scale_colour_hue(1:.nPop)$palette(.nPop)   ##<< colors of the populations
+        ,legendTitle="Populations"
 ){
     ##seealso<<  
     ## \code{\link{plotMarginal2D}}
-    ## \code{\link{twDEMCInt}}
+    ## \code{\link{twDEMCBlockInt}}
     #
     nPop = 	length(res$pops)
     # one chain per population
@@ -246,23 +249,30 @@ ggplotDensity.twDEMCPops <- function(
     }
     tmpDs4 <- structure( reshape2::melt(resM2Pops) , names=c("cases","parms","value","pops"))
     tmpDs4$pops <- as.factor(tmpDs4$pops)
+    .nPop <- length(levels(tmpDs4$pops))
     #
     p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aes(x=value,colour=pops))#+ ylim(0,1) +#, colour=pops, fill=pops
             theme(axis.title.x = element_blank())
     #print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
     if( 0 < length(poptDistr) ){
-        .nPop <- length(levels(tmpDs4$pops))
-        cols <- c("gray40",scale_colour_hue(1:.nPop)$palette(.nPop)   )
-        names(cols) <- c("prior",as.character(1:.nPop))
+        #1:.nPop
         p2 <- p1+ 
-                stat_prior(aes(y=..priorScaledOpt..,parName=parms,colour="prior",ymax=1) #, position="identity"
+                stat_prior(aes(y=..priorScaledOpt..,parName=parms,linetype="prior",ymax=1) #, position="identity"
                         #,data=tmpDs3	#will confuse the x-ranges
                         ,poptDistr=poptDistr2,doTransOrig = doTransOrig
-                        ,size=0.8,linetype="twodash")+
-                scale_colour_manual("Populations",values=cols )
+                        ,size=I(0.8)
+                        #,linetype=I("twodash")
+                        , colour="gray40"
+                        ) 
     }
+    #cols <- structure( c("gray40",popCols  ), names=c("prior",seq_along(res$pops)) )
+    cols <- structure( popCols  , names=seq_along(res$pops) )
+    lts <- structure( c("twodash", rep("solid",nPop) ), names=c("prior",seq_along(res$pops)) )
     p3 <- p2 + stat_density(aes(y=..scaled..,ymax=1), geom="line", position = "identity")+
             facet_wrap(~parms, scales="free_x") +
+            #scale_colour_manual(legendTitle,values=cols, labels=c(popNames,"prior") )+
+            scale_colour_manual(legendTitle,values=cols, labels=popNames )+
+            scale_linetype_manual("",values=lts, labels=c("prior",popNames) )+
             theme()
     #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
     #		facet_wrap(~parms, scales="free")
@@ -287,7 +297,7 @@ ggplotDensity.poptDistr <- function(
 ){
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
-	## \code{\link{twDEMCInt}}
+	## \code{\link{twDEMCBlockInt}}
 	
 	pRange = c(pMin,1-pMin)
 	pNames <- rownames(parDistr) 
