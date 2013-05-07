@@ -11,11 +11,11 @@
 	attach(twLinreg1)
 	ex1c <- concatPops(twdemcEx1)
 	suppressWarnings( rm( list=names(ex1c) ) )
-	attach(ex1c)
+	#attach(ex1c)
 }
 
 .tearDown <- function(){
-	detach( ex1c )
+	#detach( ex1c )
 	detach( twLinreg1 )
 }
 
@@ -223,6 +223,7 @@ test.badStartSeqData <- function(){
 }
 
 test.badStartSeqData1D <- function(){
+    set.seed(0815)
 	lmDummy <- lm( obs-theta0["a"] ~ xval-1, weights=1/sdObs^2)		# results without priors
 	theta1d <- theta0["b"]
 	(.expTheta <- coef(lmDummy))
@@ -593,8 +594,12 @@ test.ofMultiIntermediateLB <- function(){
     int.ofMultiIntermediate( loadBalancing=TRUE )
 }
 
+test.ofMultiIntermediateCond <- function(){
+    int.ofMultiIntermediate( loadBalancing=FALSE, useConditionalProposal=TRUE )
+}
 
-int.ofMultiIntermediate <- function(loadBalancing=FALSE){
+
+int.ofMultiIntermediate <- function(loadBalancing=FALSE, useConditionalProposal=FALSE){
      # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
     data(twTwoDenEx1)
     thresholdCovar = 0.3	# the true value
@@ -615,7 +620,7 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE){
     #
     .nGen=128
     #undebug(denRichPrior)
-    .remoteDumpfileBasename="dump_twDEMC_ofMultiIntermediate"
+    .remoteDumpfileBasename="tmp/dump_twDEMC_ofMultiIntermediate"
     resa <- concatPops( resBlock <- twDEMCBlock( 
                     ZinitPops
                     , nGen=.nGen 
@@ -628,7 +633,7 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE){
                             ,b=list(dInfoPos="dRich", compPos="b")
                     )
                     ,nPop=.nPop
-                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
+                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing, useConditionalProposal=useConditionalProposal)		
                     #,debugSequential=TRUE
                     ,remoteDumpfileBasename = .remoteDumpfileBasename
                     ,doRecordProposals=TRUE
@@ -653,7 +658,102 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE){
     checkInterval( .pthetaTrue ) 
 }
 
+test.ofMultiIntermediateConsistency <- function(){
+    # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
+    loadBalancing=FALSE
+    data(twTwoDenEx1)
+    #
+    thresholdCovar = 0.3	# the true value
+    #thresholdCovar = 0		# the effective model that glosses over this threshold
+    thetaMean <- twTwoDenEx1$thetaTrue
+    sdTheta <- (thetaMean*0.3)
+    #thetaMean[2] - sdTheta[2]  #1.1
+    denSparsePriorConst <- function(theta,...){     
+        # usually only a updated against this density, make it fail for some values of b
+        ret <- denSparsePrior(theta,...)
+        if( theta[2] < 1.5) ret[] <- NA
+        ret
+    }
+    #
+    argsFLogDen <- list(
+            thresholdCovar=thresholdCovar
+            , thetaPrior=thetaMean
+            , invCovarTheta=sdTheta^2
+            , twTwoDenEx=twTwoDenEx1
+    )            
+    #
+    .nPop=2
+    .nChainPop=4
+    ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
+    #
+    .nGen=128
+    #undebug(denRichPrior)
+    .remoteDumpfileBasename="tmp/dump_twDEMC_ofMultiIntermediateConsistency"
+    checkException( resa <- concatPops( resBlock <- twDEMCBlock( 
+                    ZinitPops
+                    , nGen=.nGen 
+                    ,dInfos=list(
+                            dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                    )
+                    ,blocks = list(
+                            a=list(dInfoPos="dSparse", compPos="a")
+                            ,b=list(dInfoPos="dRich", compPos="b")
+                    )
+                    ,nPop=.nPop
+                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
+                    #,debugSequential=TRUE
+                    ,remoteDumpfileBasename = .remoteDumpfileBasename
+                    ,doRecordProposals=TRUE
+            )))
+    #
+    denRichPriorConst <- function(theta,...){     
+        # make denRich also return -Inf so that those states are not accepted
+        ret <- denRichPrior(theta,...)
+        if( theta[2] < 1.5) ret[] <- NA
+        ret
+    }
+    #
+    resa <- concatPops( resBlock <- twDEMCBlock( 
+                            ZinitPops
+                            , nGen=.nGen 
+                            ,dInfos=list(
+                                    dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                                    ,dRich=list(fLogDen=denRichPriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            )
+                            ,blocks = list(
+                                    a=list(dInfoPos="dSparse", compPos="a")
+                                    ,b=list(dInfoPos="dRich", compPos="b")
+                            )
+                            ,nPop=.nPop
+                            ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
+                            #,debugSequential=TRUE
+                            ,remoteDumpfileBasename = .remoteDumpfileBasename
+                            ,doRecordProposals=TRUE
+                    ))
+    #plot( as.mcmc.list(resa), smooth=FALSE)
+    rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
+    #
+    #i=1
+    (.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+    (.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+    # 1/2 orders of magnitude around prescribed sd for theta
+    # no true sdTheta
+    #.pop=1
+    #for( .pop in seq(along.with=.popsd) ){
+    #    checkMagnitude( sdTheta, .popsd[[.pop]] )
+    #}
+    #
+    # check that thetaTrue is in 95% interval 
+    .pthetaTrue <- sapply(1:2, function(.pop){
+                pnorm(thetaMean, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+            })
+    checkInterval( .pthetaTrue ) 
+}
+
+
 .tmp.f <- function(){
+    .remoteDumpfile <- paste(".rda",sep="")
     .remoteDumpfile <- paste(.remoteDumpfileBasename,".rda",sep="")
     load(.remoteDumpfile)
     debugger(get(.remoteDumpfileBasename))    
@@ -683,12 +783,14 @@ test.dump <- function(){
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
 	#dim(Zinit)
 	
-	body <- expression( res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
-		nPop=.nPop,
+	body <- expression( 
+      res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100
+		,dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+		,nPop=.nPop
 		#fLogDenScale=-1/2,
-		debugSequential=TRUE
-	)))
+		#debugSequential=TRUE
+	))
+    )
 	checkException( eval(body))
 
 	suppressWarnings(dir.create("tmp"))
@@ -699,33 +801,21 @@ test.dump <- function(){
 	unlink(.remoteDumpfile)
 	checkTrue( !file.exists(.remoteDumpfile))
 	#mtrace(twDEMCBlockInt)
+    isParallel <- sfParallel() 
+    if( !isParallel ) sfInit(TRUE,2)    # remote dumpfile only created in parallel mode
 	body <- expression( 
-		res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
-			nPop=.nPop,
-			remoteDumpfileBasename=.remoteDumpfileBasename,
-			#fLogDenScale=-1/2,
-			debugSequential=TRUE
-		)
-	))
-	checkException( eval(body))
-	checkTrue( file.exists(.remoteDumpfile))
-
-	#same in parallel mode
-	unlink(.remoteDumpfile)
-	checkTrue( !file.exists(.remoteDumpfile))
-	body <- expression( 
-		res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100, 
-			dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
-			nPop=.nPop,
-			remoteDumpfileBasename=.remoteDumpfileBasename
+		res <-  concatPops(resBlock <- twDEMCBlock( Zinit, nGen=100 
+			,dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+			,nPop=.nPop
+			,remoteDumpfileBasename=.remoteDumpfileBasename
 			#fLogDenScale=-1/2,
 			#debugSequential=TRUE
 		))
 	)
 	checkException( eval(body))
-	checkTrue( file.exists(.remoteDumpfile))
-	
+    if( !isParallel ) sfStop()
+    checkTrue( file.exists(.remoteDumpfile))
+
 	# deprecated: dump on Metropolis step (provided initial X and logDenX)
 	# because fLogDen is evaluated at least once in twDEMC before invoking .doDEMCSteps
 	.tmp.f <- function(){

@@ -31,7 +31,7 @@ rows: number of cases in xProp	}
 \seealso{\code{\link{twDEMCBlockInt}}}
 \examples{
 data(twdemcEx1)
-xProp <- stackChains(twdemcEx1$parms)
+xProp <- stackChains(twdemcEx1)[,-1]
 
 data(twLinreg1)
 attach( twLinreg1 )
@@ -44,6 +44,4 @@ res <- twCalcLogDenPar(logDenGaussian,xProp
 	xval=xval
 )
 str(res)
-resM <- matrix(res$logDen, ncol=dim(twdemcEx1$parms)[3])
-str(resM)
 }

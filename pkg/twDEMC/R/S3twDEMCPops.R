@@ -118,7 +118,6 @@ attr( getNGen.twDEMCPops, "ex") <- function(){
 	data(twdemcEx1)
 	getNGen(twdemcEx1)
 	getNSamples(twdemcEx1)
-	getNSamplesPop(twdemcEx1)
 	getNSamplesSpace(twdemcEx1)
 	twdemcEx1$thin
 	getNPops(twdemcEx1)
@@ -380,7 +379,7 @@ setMethodS3("subsetF","twDEMCPops", function(
 		,fKeep	##<< function(pop) returning an boolean matrix (nStep x nChain) of cases to keep
 			##<< ,alternatively returning an integer matrix (niStep x nChain) with the indices to keep
 			##<< ,alternatively returning an integer or boolean vector, that is applied to each chain
-		,...
+		,...    ##<< further arguments to fKeep
 	){
 		#subsetF.twDEMCPops
 		##details<< The samples are redistributed across chains
@@ -390,7 +389,7 @@ setMethodS3("subsetF","twDEMCPops", function(
 				if( nrow(pop$parms) == 0){
 					pop # no rows to apply fKeep to
 				}else{		
-					boKeep <- fKeep(pop)
+					boKeep <- fKeep(pop,...)
 					if( is.matrix(boKeep) ){
 						# create a subset population for each chain
 						.subSamplesChain <- lapply( 1:nChainPop, function(iChain){
@@ -444,9 +443,6 @@ attr(subsetTail.twDEMCPops,"ex") <- function(){
 	plot( as.mcmc.list(res), smooth=FALSE )
 	getNSamples(twdemcEx1)
 	getNSamples(res)
-	
-	# special case: no rows in one pop of twdemcEx1
-	twdemcEx1$pops[[2]] <- .subsetTwDEMCPop
 }
 
 
@@ -548,7 +544,7 @@ setMethodS3("stackChains","twDEMCPops", function(
 	){
 		# stackChains.twDEMCPops
 		##seealso<<   
-		## \code{\link{stackPopsInSpace}}, \code{\link{subset.twDEMCPops}} 
+		## \code{\link{stackPopsInSpace.twDEMCPops}}, \code{\link{subset.twDEMCPops}} 
 		cPop <- combineTwDEMCPops(x$pops)$pop
 		cArr <- abind( cPop$logDen, cPop$parms, along=2)
 		res <- stackChains.array( cArr )
@@ -615,13 +611,14 @@ attr(thin.twDEMCPops,"ex") <- function(){
 	}
 	data(twdemcEx1)
 	x <- twdemcEx1
-	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1), nGenBurnin=twdemcEx1$nGenBurnin )
+	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1) )
 	
-	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin)	# removing burnin period
-	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#15 sample describing 70 generations
+    .nGenBurnin <- max(getNGen(twdemcEx1))-50
+	thinned <- thin(twdemcEx1, start=.nGenBurnin)	# removing burnin period
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned) )	#13 sample describing 48 generations
 	
-	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin, newThin=10)	
-	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#8 samples describing 70 generations
+	thinned <- thin(twdemcEx1, start=.nGenBurnin, newThin=8)	
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#7 samples describing 48 generations
 }
 
 

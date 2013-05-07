@@ -15,5 +15,5 @@
 
 
 
-\seealso{\code{\link{stackPopsInSpace}}, \code{\link{subset.twDEMCPops}} }
+\seealso{\code{\link{stackPopsInSpace.twDEMCPops}}, \code{\link{subset.twDEMCPops}} }
 \examples{FALSE}

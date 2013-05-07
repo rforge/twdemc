@@ -8,4 +8,4 @@ Description: Parallel version of a DEMC differential evolution markov chain. DEM
 License: GPL-2
 LazyLoad: yes
 Depends: R (>= 1.8.0), MASS, twSnowfall, twMisc, coda, logitnorm, mvtnorm
-Suggests: lattice, ggplot2
+Suggests: RUnit, lattice, ggplot2, reshape

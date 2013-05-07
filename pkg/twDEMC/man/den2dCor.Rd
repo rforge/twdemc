@@ -1,7 +1,11 @@
 \name{den2dCor}
 \alias{den2dCor}
 \title{den2dCor}
-\description{Example of log-Unnormalized Density function with changing correlation and scales in variances }
+\description{Example of log-Unnormalized Density function with changing correlation and scales in variances 
+a ~ N( theta[1], sigmaA )
+b ~ N( theta[2], f(a) )
+
+With f(a) exponentially decreasing with increasing a}
 \usage{den2dCor(theta, muA = 0.8, sigmaA = 1, cb = 1/4, cDen = 0)}
 \arguments{
   \item{theta}{named numeric vector with components "a" and "b"}

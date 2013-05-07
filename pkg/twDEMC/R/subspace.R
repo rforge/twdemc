@@ -224,8 +224,8 @@ findSplit <- function(
 attr(findSplit,"ex") <- function(){
 	#twUtestF(findSplit) # there are unit tests for this function
 	data(den2dCorEx)
-	ss1 <- ss <- stackChains(thin(den2dCorTwDEMC, start=300))[,-1]
-	#mtrace(findSplit)
+    ss1 <- ss <- stackChains(thin(den2dCorEx$mcBulk, start=300))[,-1]
+    #mtrace(findSplit)
 	(res <- res0 <- findSplit(ss1))	# returns before checking slope angles
 	(res <- res1 <- findSplit(ss1, rVarCrit=Inf))	# find slope angles
 	

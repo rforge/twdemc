@@ -44,7 +44,9 @@ that are used for internal Metropolis decisions}
 \item{fLogDenScale}{scalar multiplied to the result of fLogDen
 allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity}
 \item{intermediate}{string: identifier in list of intermediate results that are shared between densities. See details.}
-}}
+}
+
+list describing the logDensities, see \code{\link{twDEMCBlockInt}}}
   \item{blocks}{list of parameter blocks, each block is a list with entries\describe{
 \item{dInfoPos}{name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters}
 \item{compPos}{names or index of the parameter components to be updated}
@@ -72,22 +74,35 @@ an unnormalized probability density.
 It is invoked usually by (\code{\link{twDEMCBlock.array}} or \code{\link{twDEMCBlock.twDEMCPops}})
 
 \describe{ \item{recognized control parameters in \code{controlTwDEMC}: }{\describe{
-\item{thin}{thinning interval}
-\item{F}{related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult}
-\item{pSnooker}{probability of a snooker update (others parallel updates)}
-\item{pGamma1}{probability of jumping to state of another chain (different modes)}
-\item{epsMult}{>0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update}
-\item{epsAdd}{>0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update.}
-\item{pAcceptWindowWidth}{number of generations back over which the acceptance rate is calculated}
-\item{probUpDir}{probability of direction between two states of increasing Density (increase during burin may accelerate convergence)}
-\item{initialAcceptanceRate}{numeric matrix (nBlock x nChains) initially assumed acceptance rate. Used to calculate the number of generations backwards to sample from}
-\item{DRgamma}{factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step}
-\item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR)}
-\item{pIndStep}{independent state about after on average about those number of 1.5 accepted steps}
-\item{nPastGen}{factor for determining the number of recent past states to sample during burnin. It is multiplied by the number of parameters. Past generations are calculated by deviding by the number of chains per population}
+\item{thin}{thinning interval, Default: 4}
+\item{F}{related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult, Default: 2.38}
+\item{pSnooker}{probability of a snooker update (others parallel updates), Default 0.1}
+\item{pGamma1}{probability of jumping to state of another chain (different modes), Default 0.1}
+\item{epsMult}{>0 gives d-dimensional variation around gamma.
+It adds scaled uncorrelated noise to the proposal. Default: 0.2 \cr 
+Its advantage over eps.add is 
+that its effect scales with the differences of vectors in the population whereas eps.add does not. 
+if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr 
+A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector 
+from parallel update }
+\item{epsAdd}{>0 is needed to ensure that all positions in the space can be reached.
+For targets without gaps, it can set small or even to 0. Default 0 \cr 
+sd of normally distributed error added to proposal by parallel or snooker update. }
+\item{pAcceptWindowWidth}{number of thinning intervals back over which the acceptance rate is calculated Default 8}
+\item{probUpDir}{probability of direction between two states of increasing Density, Default 0.5
+\cr Increasing this during burin may accelerate convergence}
+\item{initialAcceptanceRate}{numeric matrix (nBlock x nChains) initially assumed acceptance rate. Default 0.25
+\cr Used to calculate the number of generations backwards to sample from}
+\item{DRgamma}{factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step, Default 0}
+\item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR), Default 0.15}
+\item{pIndStep}{assume state to be independent, after on average about those number of accepted steps, Default 1.5}
+\item{nPastGen}{factor for determining the number of recent past states to sample during burnin. Default 10
+It is multiplied by the number of parameters. Past generations are calculated 
+by deviding by the number of chains per population}
 \item{useLoadBalancing}{if set to TRUE, submits each step separaetely to a free node, else each node gets an entire chain process}
 \item{freeMasterNode}{if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}}}
 \item{returnIntermediates}{set to FALSE if intermediate result is large and transferring it between slaves slowes down calculation}
+\item{useConditionalProposal}{if set to TRUE, poposal steps are generated conditional of the state of the other blocks}
 }
 
 }}
@@ -99,7 +114,7 @@ All the results of fLogDen for the initial state must be finite.
 }}
 
 \describe{ \item{Acceptance rate}{
-The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth generations. \cr
+The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thinning intervals. \cr
 If acceptance rates drops to low values, this might be because of bad localization
 ,i.e the requirement to use states from more distant past.
 In order to improve localization, less parameters or more chains per population are required.
@@ -155,73 +170,9 @@ updates of all blocks, the intermediate will then be the empty list initially.
 \seealso{\code{\link{calcDEMCTemp}}
 \code{\link{logDenGaussian}}}
 \examples{
+    # see unit test 
+    # twUtestF("twDEMCPops","distinctLogDen")
 data(twLinreg1); attach( twLinreg1 ) 
-
-.nPop=2
-Zinit <- ZinitPops <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChains=4*.nPop, nPop=.nPop)
-pops <- list(
-	pop1 <- list(
-		Zinit = ZinitPops[1:3,,1:4,drop=FALSE]	# the first population with less initial conditions
-		,nGen=10
-	),
-	pop2 <- list(
-		Zinit = ZinitPops[,,5:8,drop=FALSE]	# the first population with less initial conditions
-		,nGen=15
-	)
-)
-#tmp <- .checkPop(pops[[1]])
-
-# both blocks compare the same model against the same observations
-blockDefault <- list(
-	fLogDen=logDenGaussian
-	,resCompNames=c("obs","parms")
-	,argsFLogDen = list(
-		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
-		obs=obs,				### vector of data to compare with
-		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
-		xval=xval
-	)
-)
-# first block updates only parameter a, second block updates only parameter b
-# contrary to this example, correlated parameters should not be distributed across blocks
-blocks <- list(
-	blockA = within(blockDefault,{
-			compPos="a"
-			argsFLogDen <- c( argsFLogDen, list(
-					thetaPrior= thetaTrue["a"]	### the prior estimate of the parameters
-					,invCovarTheta = invCovarTheta[1,1,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
-					,blockIndices=1
-				)) 
-		})
-	,blockB = within(blockDefault,{
-			compPos="b"
-			argsFLogDen <- c( argsFLogDen, list(
-					thetaPrior= thetaTrue["b"]	### the prior estimate of the parameters
-					,invCovarTheta = invCovarTheta[2,2,drop=FALSE]	### the inverse of the Covariance of the prior parameter estimates
-					,blockIndices=2
-				)) 
-		})
-)
-#tmp <- .checkBlock(blocks[[2]],parNames=c("a","b"))
-block <- blocks[[2]] 
-block <- blocks[[1]] 
-#mtrace(logDenGaussian)
-(tmp <- do.call( logDenGaussian, c(list(pops[[1]]$Zinit[1,,1]), block$argsFLogDen) ))
-
-
-#mtrace(twDEMCBlockInt)
-#mtrace(updateBlockTwDEMC)
-res <- twDEMCBlockInt( pops=pops, blocks=blocks, nGen=60)
-str(res[[2]])
-#plot(res[[2]]$temp)
-
-# load the restart file and continue
-load( file=restartFilename )	# variable resRestart.twDEMC
-getNGen(resRestart.twDEMC)		# 48, last thinnging interval (each thin=4) before 50
-res2 <- twDEMCBatch(resRestart.twDEMC)	# continue without needing to respecify parameters
-getNGen(res2)					# 60 as nGen
-res3 <- twDEMCBatch(res2, nGen=100)	    # continue even further without needing to respecify parameters
-getNGen(res3)					# 100 as nGen
 
 # tracing error in remote session:
 # Provide argument \code{remoteDumpfileBasename="dumpFile"}
@@ -240,7 +191,5 @@ if( FALSE ){
 	# go()
 	# qqq()
 }
-
-detach()
 
 }

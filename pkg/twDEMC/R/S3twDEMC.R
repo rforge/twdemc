@@ -168,7 +168,7 @@ attr( getNGen.twDEMC, "ex") <- function(){
 	getNChains(twdemcEx1)
 	getNChainsPop(twdemcEx1)
 	getNParms(twdemcEx1)
-	getNBlocks(twdemcEx2)
+	getNBlocks(twdemcEx1)
 }
 
 setMethodS3("getNBlocks","twDEMC", function( 
@@ -385,13 +385,14 @@ setMethodS3("thin","twDEMC", function(
 attr(thin.twDEMC,"ex") <- function(){
 	data(twdemcEx1)
 	x <- twdemcEx1
-	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1), nGenBurnin=twdemcEx1$nGenBurnin )
+	c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1) )
 
-	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin)	# removing burnin period
-	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#15 sample describing 70 generations
+    .nGenBurnin <- max(getNGen(twdemcEx1))-70
+	thinned <- thin(twdemcEx1, start=.nGenBurnin)	# removing burnin period
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#18 sample describing 68 generations
 
-	thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin, newThin=10)	
-	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#8 samples describing 70 generations
+	thinned <- thin(twdemcEx1, start=.nGenBurnin, newThin=8)	
+	c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#9 samples describing 64 generations
 }
 #tw
 

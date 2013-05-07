@@ -8,8 +8,7 @@
   \item{fKeep}{function(pop) returning an boolean matrix (nStep x nChain) of cases to keep
 << ,alternatively returning an integer matrix (niStep x nChain) with the indices to keep
 << ,alternatively returning an integer or boolean vector, that is applied to each chain}
-  \item{\dots}{
-}
+  \item{\dots}{further arguments to fKeep}
 }
 \details{The samples are redistributed across chains}
 

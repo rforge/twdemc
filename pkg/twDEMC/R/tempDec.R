@@ -85,7 +85,7 @@ setMethodS3("calcTemperatedLogDenChains","twDEMC", function(
 		,...
 	){
 		#calcTemperatedLogDenChains.twDEMC
-		calcTemperatedLogDenChains.array( x$resLogDen, temp )
+		calcTemperatedLogDenChains.array( x$resLogDen, temp, ... )
 	})
 
 

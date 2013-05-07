@@ -28,7 +28,7 @@ data(twdemcEx1)
 sample <- stackChains(twdemcEx1)
 #res <- marginals2d(sample,vars=c("kY","kO"),n=10)
 res <- marginals2d(sample,vars=c("a","b"),n=10)
-if( require(lattice) ){
-	levelplot( value~a*b, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
-}
+    if( require(lattice) && require(reshape) ){
+        levelplot( value~a*b, data=melt(res), col.regions=rev(heat.colors(100)), xlab=names(dimnames(res))[1], ylab=names(dimnames(res))[2] )
+    }
 }

@@ -9,3 +9,8 @@ syntax: regexp
 ^tmp$
 syntax: glob
 .svn
+
+syntax: glob
+*-Ex.pdf
+syntax: regexp
+\.rda$

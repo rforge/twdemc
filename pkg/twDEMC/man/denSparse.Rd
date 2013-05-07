@@ -1,7 +1,7 @@
 \name{denSparse}
 \alias{denSparse}
 \title{denSparse}
-\description{Example of using two different logDensity functions: density of sparce observations}
+\description{Example of using two different logDensity functions: density of Sparse observations}
 \usage{denSparse(theta, twTwoDenEx, theta0 = twTwoDenEx$thetaTrue, intermediate = NULL, 
     ...)}
 \arguments{

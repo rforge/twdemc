@@ -34,7 +34,6 @@ see }
 data(twdemcEx1)
 getNGen(twdemcEx1)
 getNSamples(twdemcEx1)
-getNSamplesPop(twdemcEx1)
 getNSamplesSpace(twdemcEx1)
 twdemcEx1$thin
 getNPops(twdemcEx1)

@@ -5,7 +5,7 @@
 \usage{twDEMCSACont(mc, nGen = 512, nObs, ..., m0 = calcM0twDEMC(getNParms(mc), 
     getNChainsPop(mc)), controlTwDEMC = list(), debugSequential = FALSE, 
     restartFilename = NULL, ctrlBatch = list(nGenBatch = m0 * 
-        controlTwDEMC$thin * 5, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
+        controlTwDEMC$thin * 8, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
         TMax = numeric(0), TDecProp = 0.9), ctrlConvergence = list(maxRelTChangeCrit = 0.025, 
         maxLogDenDriftCrit = 0.3, gelmanCrit = 1.4, critSpecVarRatio = 20, 
         dumpfileBasename = NULL))}
@@ -36,7 +36,17 @@
 \item{dumpfileBasename}{scalar string: filename to dump stack before stopping. May set to "recover"}
 }}
 }
+\details{\describe{\item{diagnostics}{
+in resulting twDEMC an entry diagnostics is returned. Its a list with diagnostics after each batch.
+Its components have been calculated on the last halv of the chains.\describe{
+\item{T0}{Temperature (variance inflation factor) scaled for one observation minus one}
+\item{maxGelmanDiagPops}{maximum of within population gelman diagnostics}
+\item{gelmanDiag}{gelman diag calculated between populations}
+\item{maxSpecVarRatio}{ratio of spectral density to sample Variance (max over all parameters). This is a measure that increases with autocorrelation.
+Last components represent the average logDensity of the last 8th of the chains.}
+}
 
+}}}
 
 
 \author{Thomas Wutzler}

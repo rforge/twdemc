@@ -6,6 +6,12 @@ den2dCor <- function(
 	#,cb=1e-900	##<< multiplier for density in b
 	,cDen=0
 ){
+    ##description<<
+    ## a ~ N( theta[1], sigmaA )
+    ## b ~ N( theta[2], f(a) )
+    ##
+    ## With f(a) exponentially decreasing with increasing a
+    #
 	a <- theta[1]
 	b <- theta[2]
 	lda <- ((a-muA)/sigmaA)^2

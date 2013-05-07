@@ -1,17 +1,17 @@
 modDenBoth <- function(
 	theta
-	,twTwoDenEx1=twTwoDenEx1 ##<< list with components rich and sparce 
+	,twTwoDenEx1=twTwoDenEx1 ##<< list with components rich and Sparse 
 ){
 	theta[1] * x[,1] +
 }
 
 denBoth <- function(
 	theta
-	,twTwoDenEx1=twTwoDenEx1 ##<< list with components rich and sparce 
+	,twTwoDenEx1=twTwoDenEx1 ##<< list with components rich and Sparse 
 ){
 	obsRich <- with( twTwoDenEx1$rich, logDenGaussian(theta, fModel=fModel, obs=obs, invCovar=varObs, xval=xval ))
-	obsSparce <- with( twTwoDenEx1$sparce, logDenGaussian(theta, fModel=fModel, obs=obs, invCovar=varObs, xval=xval ))
-	obsRich["obs"] + obsSparce["obs"]
+	obsSparse <- with( twTwoDenEx1$Sparse, logDenGaussian(theta, fModel=fModel, obs=obs, invCovar=varObs, xval=xval ))
+	obsRich["obs"] + obsSparse["obs"]
 	### the misfit: scale *( t(tmp.diffObs) %*% invCovar %*% tmp.diffObs + t(tmp.diffParms) %*% invCovarTheta %*% tmp.diffParms )
 }
 
@@ -53,19 +53,19 @@ dInfos0 <- dInfox <- list(
 				xval=rich$xval
 			)
 		})
-	,sparce = within(dInfoDefault,{
+	,Sparse = within(dInfoDefault,{
 			argsFLogDen = list(
-				fModel=sparce$fModel,		### the model function, which predicts the output based on theta 
-				obs=sparce$obs,			### vector of data to compare with
-				invCovar=sparce$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
-				xval=sparce$xval
+				fModel=Sparse$fModel,		### the model function, which predicts the output based on theta 
+				obs=Sparse$obs,			### vector of data to compare with
+				invCovar=Sparse$varObs,		### do not constrain by data, the inverse of the Covariance of obs (its uncertainty)
+				xval=Sparse$xval
 			)
 		})
 	,both = list( fLogDen=denBoth, argsFLogDen = list(twTwoDenEx1=twTwoDenEx1) )
 )
 #mtrace(logDenGaussian)
 do.call( logDenGaussian, c(list(theta=rich$theta0), dInfos0$rich$argsFLogDen))
-do.call( logDenGaussian, c(list(theta=sparce$theta0), dInfos0$sparce$argsFLogDen))
+do.call( logDenGaussian, c(list(theta=Sparse$theta0), dInfos0$Sparse$argsFLogDen))
 do.call( denBoth, c(list(theta=rich$theta0), dInfos0$both$argsFLogDen))
 
 

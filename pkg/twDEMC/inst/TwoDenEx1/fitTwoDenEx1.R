@@ -3,6 +3,7 @@ require(reshape)
 sfInit(parallel=TRUE, cpus=2)
 set.seed(0815)
 # moved densities to denSparseRichBoth.R
+# see genData&genDataTwTowDenEx.R
 
 
 
@@ -15,7 +16,7 @@ set.seed(0815)
 	# subtract the effect of parameter b
 	obsOffset <- twTwoDenEx$obs$y1 - theta[2]*mean(twTwoDenEx$xRich)/10
 	# fit a linear model without offset to obtain mean and sd of the slope, i.e. parameter theta1
-	lm1 <- lm( obsOffset ~ twTwoDenEx$xSparce -1 )
+	lm1 <- lm( obsOffset ~ twTwoDenEx$xSparse -1 )
 	meanA <- coef(lm1)[1]
 	sdA <- sqrt(vcov(lm1)[1,1])
 	# do a random draw
@@ -32,7 +33,7 @@ attr(.updateTwoDenA,"ex") <- function(){
 	.updateTwoDenA( twTwoDenEx1$thetaTrue )
 }
 .tmp.f <- function(){
-	plot( obsOffset ~ twTwoDenEx$xSparce )
+	plot( obsOffset ~ twTwoDenEx$xSparse )
 	abline(lm1)
 	xGrid <- meanA + 2*sdA*seq(-1,1,length.out=31)
 	plot( dnorm(xGrid, mean=meanA, sd=sdA) ~ xGrid )
@@ -49,7 +50,7 @@ attr(.updateTwoDenA,"ex") <- function(){
 		argsFUpdateBlock$argsFLogDen$thresholdCovar
 	} else 0
 	# subtract the effect of parameter b
-	obsOffset <- twTwoDenEx$obs$y2 - theta[1]*pmax(0,twTwoDenEx$xSparce[1])
+	obsOffset <- twTwoDenEx$obs$y2 - theta[1]*pmax(0,twTwoDenEx$xSparse[1])
 	# fit a linear model without offset to obtain mean and sd of the slope, i.e. parameter theta1
 	lm1 <- lm( obsOffset ~ I(twTwoDenEx$xRich-thresholdCovar) -1 )
 	meanB <- coef(lm1)[1]
@@ -143,7 +144,7 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-1],2,quantile, probs=c(0.025,0.5,0.975) ))
 # both biased downwards
 
-pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+pred <- pred1 <- with( twTwoDenEx1, fModel(thetaBest, xSparse=xSparse, xRich=xRich) )
 plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # seems very good
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # far off 
 
@@ -166,7 +167,7 @@ twTwoDenEx1$thetaTrue
 # still biased downwards
 
 
-pred <- pred2 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+pred <- pred2 <- with( twTwoDenEx1, fModel(thetaBest, xSparse=xSparse, xRich=xRich) )
 plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # not as good but ok
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # still no relation 
 
@@ -199,7 +200,7 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-1],2,quantile, probs=c(0.025,0.5,0.975) ))
 # still biased downwards
 
-pred <- pred2b <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+pred <- pred2b <- with( twTwoDenEx1, fModel(thetaBest, xSparse=xSparse, xRich=xRich) )
 plot( pred$y2, twTwoDenEx1$obs$y2 ); abline(0,1) # mismatch evident
 plot( pred$y1, twTwoDenEx1$obs$y1 ); abline(0,1) # at least some relation 
 
@@ -253,7 +254,7 @@ twTwoDenEx1$thetaTrue
 (.qq <- apply(ss[,-(1)],2,quantile, probs=c(0.025,0.5,0.975) ))
 # a a bit biased upwards (effect of b)
 
-pred <- pred3a <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich) )
+pred <- pred3a <- with( twTwoDenEx1, fModel(thetaBest, xSparse=xSparse, xRich=xRich) )
 plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes clear
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
 
@@ -287,7 +288,7 @@ twTwoDenEx1$thetaTrue
 plot(density(stackChains(res3a)[,"a"]), xlim=c(0.8,1.2))
 lines( density(stackChains(res3)[,"a"]), col="red")
 
-pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest, xSparce=xSparce, xRich=xRich,thresholdCovar=thresholdCovar) )
+pred <- pred3 <- with( twTwoDenEx1, fModel(thetaBest, xSparse=xSparse, xRich=xRich,thresholdCovar=thresholdCovar) )
 plot( pred$y2 ~ twTwoDenEx1$obs$y2 ); abline(0,1) # here the mismatch becomes clear
 plot( pred$y1 ~ twTwoDenEx1$obs$y1 ); abline(0,1) # not super but relation existing 
 
@@ -307,7 +308,7 @@ denCol <- rgb(
 	,twRescale(ss[bo,"dSparse"])
 )
 plot( ss[bo,"b"] ~ ss[bo,"a"], col=denCol, xlab="a", ylab="b")
-# red (rich) increases with higher b along the valley, blue (sparce) constaines a
+# red (rich) increases with higher b along the valley, blue (Sparse) constaines a
 
 if( require(rgl) )
     plot3d( ss[bo,"a"], ss[bo,"b"], lDen[bo], col=denCol )
@@ -403,7 +404,7 @@ print(pb + theme(legend.position = "none") , vp = viewport(layout.pos.row=2,layo
 		ssThin <- ss[round(seq(1,nrow(ss),length.out=.nSample)),]
 		#i <- .nSample
 		for( i in 1:.nSample){
-			pred <-  twTwoDenEx1$fModel(ssThin[i,], xSparce=twTwoDenEx1$xSparce, xRich=twTwoDenEx1$xRich, thresholdCovar=thresholdCovar) 
+			pred <-  twTwoDenEx1$fModel(ssThin[i,], xSparse=twTwoDenEx1$xSparse, xRich=twTwoDenEx1$xRich, thresholdCovar=thresholdCovar) 
 			y1M[i,,scen] <- pred$y1
 			y2M[i,,scen] <- pred$y2
 		}

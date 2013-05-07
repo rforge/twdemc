@@ -50,7 +50,7 @@ twCalcLogDenPar <- function(
 }
 attr(twCalcLogDenPar,"ex") <- function(){
 	data(twdemcEx1)
-	xProp <- stackChains(twdemcEx1$parms)
+	xProp <- stackChains(twdemcEx1)[,-1]
 	
 	data(twLinreg1)
 	attach( twLinreg1 )
@@ -63,7 +63,99 @@ attr(twCalcLogDenPar,"ex") <- function(){
 		xval=xval
 	)
 	str(res)
-	resM <- matrix(res$logDen, ncol=dim(twdemcEx1$parms)[3])
-	str(resM)
 }
+
+.twCalcLogDens <- function( 
+     ### calculating all densities for given proposal (called remotely from \code{\link{twCalcLogDensPar}})
+     x				    ##<< numeric vector (nParm)
+    ,dInfos				##<< list describing the logDensities, see \code{\link{twDEMCBlockInt}}
+){
+    intermediates <- list()
+    #recover()
+    #dInfo <- dInfos[[1]]
+    #dInfo <- dInfos[[2]]
+    #dInfo <- dInfos[[3]]
+    LpL <- list()
+    for( dInfo in dInfos){
+        iName <- dInfo$intermediate
+        if( !is.null(iName) ) dInfo$argsFLogDen$intermediate <- intermediates[[iName]]       # set the intermediate
+        Lp <- dInfo$fLogDenScale * do.call( dInfo$fLogDen, c( list(x), dInfo$argsFLogDen ))
+        if( !is.null(iName) ) intermediates[[ iName ]] <- attr(Lp, "intermediate")
+        LpL[[ length(LpL)+1 ]] <- structure( as.numeric(Lp), names=names(Lp) )  # drop all other attributes on storing
+    }
+    #names(LpL) <- NULL  # prevent recreating names in c
+    # need to return the full list instead of vector, because number of components is important
+    ### List with entry for ech logDensity: numeric vector: result components of the logDensity
+    LpL    
+}
+
+
+twCalcLogDensPar <- function(
+        ### Invokes all fLogDens with proposal in a parallel way, taking care of intermediates between densities
+        dInfos				##<< list describing the logDensities, see \code{\link{twDEMCBlockInt}}
+        ,xProp				##<< numeric matrix (nCases x nParm) of proposals 
+        ,debugSequential=FALSE	##<< see \code{\link{sfFArgsApplyLB}}
+        ,remoteDumpfileBasename=NULL	##<< see \code{\link{sfRemoteWrapper}}
+){
+    ##seealso<< 
+    ## \code{\link{twDEMCBlockInt}}, \code{\link{twCalcLogDenPar}}
+    #
+    ##details<<
+    ## Does not take care of internal components: provides no argument logDenPrev
+    #
+    # complete dInfos$fLogDenScale
+    #iInfo <- 1
+    for( iInfo in seq_along(dInfos) )
+        if( is.null(dInfos[[iInfo]]$fLogDenScale) ) dInfos[[iInfo]]$fLogDenScale <- 1
+    if( nrow(xProp)==0 ){
+        stop("twCalcLogDensPar: encountered empty parameter matrix. Cannot infor result component names.")
+    } else if( nrow(xProp)==1 ){
+        # degenrate case of only one row
+        x <- xProp[1,]
+        LpVecL <- .twCalcLogDens( x, dInfos=dInfos )
+        LpVec <- do.call(c,LpVecL)
+        Lp <- matrix( LpVec, nrow=1, dimnames=list(NULL, names(LpVec) ) )
+        .logDen <- sum(LpVec)
+    }else{
+        # more than one row
+        Lpl <- if( debugSequential || !sfParallel() ){
+            Lpl <- (apply( xProp, 1, .twCalcLogDens, dInfos=dInfos ))
+            #row <- Lpl[[1]]
+        }else{
+            if( length(remoteDumpfileBasename) ){
+                # for debugging use RemoteWrapper to write dumpfile
+                Lpl <- (sfApply( xProp,1, sfRemoteWrapper, remoteFun=.twCalcLogDens
+                                , dInfos = dInfos
+                                , remoteDumpfileBasename=remoteDumpfileBasename )
+                )
+            }else{
+                # no need of remote wrapper, which is faster 
+                Lpl <- (sfApply( xProp,1, .twCalcLogDens, dInfos = dInfos ))
+            }
+        }
+        LpVecL <- Lpl[[1]]
+        Lpt <- sapply( Lpl, function(row){ do.call(c,row)} )
+        if( !is.matrix(Lpt) ){
+            # degenerate case of returning only one component, hence Lpt is a vector
+            Lp <-  matrix(Lpt, ncol=1, dimnames=list(NULL,names(dInfos)) )
+            .logDen <- Lpt
+        } else{
+            # several rows
+            Lp <- t(Lpt) 
+            .logDen <- rowSums(Lp)
+        } 
+    }
+    #LpVecL is one result of call to .twCalcLogDens a list with components  
+    LpPos <- rep(seq_along(LpVecL), sapply(LpVecL,length) )
+    list( logDen=.logDen, logDenComp=Lp, logDenCompPos=LpPos)
+    ### List with the following items \describe{
+    ### \item{logDen}{numeric vector: for each state: the sum of logDens over all components, multiplied by fLogDenScale}
+    ### \item{logDenComp}{numeric matrix: return components of fLogDen, one row for each state, columns: components }
+    ### \item{logDenCompPos}{integer vector (nDenComp): index of the densitiy that provides the component }
+    ### }
+}
+attr(twCalcLogDensPar,"ex") <- function(){
+    # see test function twCalcLogDensPar in test case twCalcLogDenPar
+}
+
 

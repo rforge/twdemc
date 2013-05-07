@@ -33,11 +33,12 @@ if( FALSE ){
 }
 data(twdemcEx1)
 x <- twdemcEx1
-c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1), nGenBurnin=twdemcEx1$nGenBurnin )
+c( nGen=getNGen(twdemcEx1), thin=twdemcEx1$thin, nSample=getNSamples(twdemcEx1) )
 
-thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin)	# removing burnin period
-c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#15 sample describing 70 generations
+    .nGenBurnin <- max(getNGen(twdemcEx1))-50
+thinned <- thin(twdemcEx1, start=.nGenBurnin)	# removing burnin period
+c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned) )	#13 sample describing 48 generations
 
-thinned <- thin(twdemcEx1, start=twdemcEx1$nGenBurnin, newThin=10)	
-c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#8 samples describing 70 generations
+thinned <- thin(twdemcEx1, start=.nGenBurnin, newThin=8)	
+c( nGen=getNGen(thinned), thin=thinned$thin, nSample=getNSamples(thinned), nGenBurnin=thinned$nGenBurnin )	#7 samples describing 48 generations
 }

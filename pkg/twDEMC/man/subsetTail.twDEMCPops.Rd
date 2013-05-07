@@ -23,7 +23,4 @@ res <- subsetTail(twdemcEx1)
 plot( as.mcmc.list(res), smooth=FALSE )
 getNSamples(twdemcEx1)
 getNSamples(res)
-
-# special case: no rows in one pop of twdemcEx1
-twdemcEx1$pops[[2]] <- .subsetTwDEMCPop
 }

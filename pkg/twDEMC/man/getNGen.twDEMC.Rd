@@ -36,5 +36,5 @@ getNPops(twdemcEx1)
 getNChains(twdemcEx1)
 getNChainsPop(twdemcEx1)
 getNParms(twdemcEx1)
-getNBlocks(twdemcEx2)
+getNBlocks(twdemcEx1)
 }

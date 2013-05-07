@@ -2,23 +2,23 @@
 modTwTwoDenEx1 <- function(
         ### example model giving two predictions that can be compared to different observations
         theta	##<< model parameters a and b
-        , xSparce	##<< numeric vector of sparce input/output relationship 
+        , xSparse	##<< numeric vector of Sparse input/output relationship 
         , xRich		##<< numeric vector of rich input/output relationship
         , thresholdCovar=0	##<< model structural deficiency
 ){
     ##details<< model output y1 represents a longterm observations
     ## It is based on longterm average of xRich instead of detailed values
     ## \cr Model output y1 represents a short measurement campaing. 
-    ## During this campaing xSparce does not vary but detailed measurements of xRich are utilized 
+    ## During this campaing xSparse does not vary but detailed measurements of xRich are utilized 
     ## \cr In the short-term relation, the model may simulate a detailed threshold in the covariate
     ## or abstract from those details by thresholdCovar=0.
     
     ##value<< list with model predictions
     list( ##describe<<
             # with the following line, bias of theta[2] fully leaks into estimate of a
-            #y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich))	##<< theta[1]*x1 + theta[2]*8
-            y1 = as.numeric(theta[1]*xSparce + theta[2]*mean(xRich)/10)	##<< theta[1]*x1 + theta[2]*mean(xRich)/10
-            ,y2 = as.numeric(theta[1]*xSparce[1] + theta[2]*pmax(0,xRich-thresholdCovar) ) 		 
+            #y1 = as.numeric(theta[1]*xSparse + theta[2]*mean(xRich))	##<< theta[1]*x1 + theta[2]*8
+            y1 = as.numeric(theta[1]*xSparse + theta[2]*mean(xRich)/10)	##<< theta[1]*x1 + theta[2]*mean(xRich)/10
+            ,y2 = as.numeric(theta[1]*xSparse[1] + theta[2]*pmax(0,xRich-thresholdCovar) ) 		 
     ) ##end<<
 }
 
@@ -26,7 +26,7 @@ modTwTwoDenEx1 <- function(
 
 
 denSparse <- function(
-	### Example of using two different logDensity functions: density of sparce observations
+	### Example of using two different logDensity functions: density of Sparse observations
 	theta		
 	,twTwoDenEx#=twTwoDenEx1
 	,theta0=twTwoDenEx$thetaTrue
@@ -34,8 +34,8 @@ denSparse <- function(
 	,...
 ){
 	theta0[names(theta)] <- theta
-	#pred <- .memoize1( modTwoDenExCache, theta, { twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...) })
-    pred <- twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...) 
+	#pred <- .memoize1( modTwoDenExCache, theta, { twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) })
+    pred <- twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) 
     misfit <- twTwoDenEx$obs$y1 - pred$y1
 	-1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2)
 }
@@ -66,10 +66,10 @@ denSparsePrior <- function(
                     sum(tmp.diffParms^2 / invCovarTheta )	# assume invCovar to be independent variances
             } else 0
     if( !length(intermediate) ){
-        intermediate$pred <- twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...)
+        intermediate$pred <- twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)
     }
     misfit <- twTwoDenEx$obs$y1 - intermediate$pred$y1
-    ret <- -1/2 * c( parmsSparce=logDenPropParms , obsSparce=  sum((misfit/twTwoDenEx$sdObs$y1)^2) )
+    ret <- -1/2 * c( parmsSparse=logDenPropParms , obsSparse=  sum((misfit/twTwoDenEx$sdObs$y1)^2) )
     attr(ret,"intermediate") <- intermediate
     ret
 }
@@ -84,8 +84,8 @@ denRich <- function(
     ,...
 ){
 	theta0[names(theta)] <- theta
-	#pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)})
-    pred <- twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich,...)
+	#pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich,...)})
+    pred <- twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich,...)
     misfit <- twTwoDenEx$obs$y2 - pred$y2
 	-1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2)
 }
@@ -112,7 +112,7 @@ denRichPrior <- function(
                     sum(tmp.diffParms^2 / invCovarTheta )	# assume invCovar to be independent variances
             } else 0
     if( !length(intermediate) ){
-        intermediate$pred <- twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...)
+        intermediate$pred <- twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)
     } 
     misfit <- twTwoDenEx$obs$y2 - intermediate$pred$y2
     ret <- -1/2 * c( parmsRich=logDenPropParms , obsRich=  sum((misfit/twTwoDenEx$sdObs$y2)^2) )
@@ -139,7 +139,7 @@ denBoth <- function(
 				sum(tmp.diffParms^2 / invCovarTheta)	# assume invCovar to be independent variances
 		} else 0
 	theta0[ names(theta) ] <- theta
-	pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparce=twTwoDenEx$xSparce, xRich=twTwoDenEx$xRich, ...)})
+	pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)})
 	misfit <- twTwoDenEx$obs$y1 - pred$y1
 	d1 <- sum((misfit/twTwoDenEx$sdObs$y1)^2)
 	misfit <- twTwoDenEx$obs$y2 - pred$y2
