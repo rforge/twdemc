@@ -13,8 +13,5 @@ c14Constants <- list(
 	,fmAtm=cbind(yr=delta14Catm[,"yr"], fm14C=delta2FM(delta14Catm[,"delta14C"]))	##<< fraction modern of the athmosphere
 )
 
-### function of Fraction modern of the atmosphere for year given as a real number
-fmAtmosphere <- approxfun( c14Constants$fmAtm[,"yr"], c14Constants$fmAtm[,"fm14C"], rule=2)
-
 save(c14Constants, fmAtmosphere, file=file.path("data","c14Constants.RData"))
 

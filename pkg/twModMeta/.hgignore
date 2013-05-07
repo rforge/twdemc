@@ -2,3 +2,7 @@
 syntax: regexp
 ^\.RData$
 ^\.project$
+syntax: regexp
+^src-i386$
+syntax: regexp
+^src-x64$

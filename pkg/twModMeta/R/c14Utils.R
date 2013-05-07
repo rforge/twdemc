@@ -71,7 +71,10 @@ decayIR14C <- function( # Applying radiactive decay
 }
 attr(decayIR14C,"ex") <- function(){
 	yr=seq(-10000,2000,length.out=30)
+    data(c14Constants)  # defaults arguments in iR0 and yr0
 	plot( decayIR14C(yr)~yr )
 }
 
+### function of Fraction modern of the atmosphere for year given as a real number
+fmAtmosphere <- { data(c14Constants); approxfun( c14Constants$fmAtm[,"yr"], c14Constants$fmAtm[,"fm14C"], rule=2) }
 

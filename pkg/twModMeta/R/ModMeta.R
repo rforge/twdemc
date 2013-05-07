@@ -1,9 +1,11 @@
 twCreateModMeta <- function(
 	### Creating meta-information about rows (stateVars), isotopes (columns), and additonal outputs. 
 	rowNames, 		##<< character vector: names of the state variables 
-	csts, 	  		##<< list of character vectors: correponding to isotopes
-	iRUnits=1, 	  	##<< numeric vector of units for different isotopes, ensuring equal magnitudes to avoid numerical errors (see details)\cr
-	auxGroups=list() ##<< namegroup (character) -> columnNames (character vector): column names of auxiliary outputs 
+	csts, 	  		##<< list of character vectors: for each element, the isotopes are listed. 
+        ##<< Each first entry should be the reference with isotopic ratio of one (e.g. c12 or n15)
+	iRUnits=1, 	  	##<< numeric vector of units for different isotopes, 
+        ##<< ensuring equal magnitudes to avoid numerical errors (see details)\cr
+	auxGroups=list() ##<< mapping namegroup (character) -> columnNames (character vector): column names of auxiliary outputs 
 ){
 	if( !is.vector(rowNames) ) 	stop("rowNames must be a vector of character strings of at least length one.")
 	if( !(is.character(rowNames)) ) stop("rowNames must be a vector of character strings of at least length one.")
@@ -19,6 +21,10 @@ twCreateModMeta <- function(
 			matrixTemplate <- matrix( 0.0, nrow=nRow, ncol=nCol, dimnames=list(pools=rowNames, compartments=colNames) )
 		})
 	names(res$matrixTemplate) <- res$elementNames
+    ##details<< 
+    ## Based on the given basic arguments, derived information is stored within the meta-information data structure.
+    ## So that this derived information does not need to be recalculated at different places. 
+    
 	##details<< \describe{\item{iRUnits}{ 
 	## By default all units are 1.
 	## If names are not given, is is assumed that order corresponds to colNames
@@ -58,7 +64,10 @@ twCreateModMeta <- function(
 
 twSetModMetaAuxGroups <- function(
 	### Setting auxiliare output items in modMeta.
-	modMeta, auxGroupsNew, auxGroupsSolve=list() ){
+	modMeta                 ##<< the data-structure (result of \code{\link{twCreateModMeta}}) to modify
+    , auxGroupsNew          ##<< mapping namegroup (character) -> columnNames (character vector): column names of auxiliary outputs
+    , auxGroupsSolve=list() ##<< same format as auxGroups, but pertaining to outputs calculated after integrating the model 
+){
 	res <- within(modMeta,{
 			auxGroups <- auxGroupsNew			#grouping names of auxiliary outputs for assigning vectors
 			auxOutputNames <- as.character(unlist(auxGroups))
@@ -68,7 +77,12 @@ twSetModMetaAuxGroups <- function(
 			auxGroupsExt <- c( auxGroups, auxGroupsSolve )
 			auxGroupsExtNames <-  as.character(unlist(auxGroupsExt))
 		})
-	### ModMeta (result of \code{\link{twCreateModMeta}}) adjusted for auxGroups, ausOutputnames, auxOutputTemplate, and nAux.
+	### modified modMeta, adjusted for auxGroups, auxOutputnames, auxOutputTemplate, and nAux.
+    ### In addition the following elements are added:
+    ### \itemize{
+    ###    \item auxGroupsExt: auxGroups + auxGroupsSolve
+    ###    \item auxGroupsExtNames: flat character vector of auxiliary output names
+    ### } 
 }
 #mtrace(twSetModMetaAuxGroups)
 
@@ -86,64 +100,9 @@ attr(twModElementNames,"ex") <- function(){
 	twModElementNames(c("Y","O"),mmd$csts$cis)
 }
 
-DLLfuncTest <- function (
-	### Adjustment of \code{\link[deSolve]{DLLfunc}}, that does not coerce parms to double vector.
-	func, times, y, parms, dllname, initfunc = dllname, 
-	rpar = NULL, ipar = NULL, nout = 0, outnames = NULL, forcings = NULL, 
-	initforc = NULL, fcontrol = NULL) 
-{
-	if (!is.numeric(y)) 
-		stop("`y' must be numeric")
-	n <- length(y)
-	if (!is.null(times) && !is.numeric(times)) 
-		stop("`times' must be NULL or numeric")
-	if (!is.null(outnames)) 
-		if (length(outnames) != nout) 
-			stop("length outnames should be = nout")
-	ModelInit <- NULL
-	Outinit <- NULL
-	flist <- list(fmat = 0, tmat = 0, imat = 0, ModelForc = NULL)
-	Ynames <- attr(y, "names")
-	if (is.null(dllname) || !is.character(dllname)) 
-		stop("`dllname' must be a name referring to a dll")
-	if (!is.null(initfunc)) 
-		if (is.loaded(initfunc, PACKAGE = dllname, type = "") || 
-			is.loaded(initfunc, PACKAGE = dllname, type = "Fortran")) {
-			ModelInit <- getNativeSymbolInfo(initfunc, PACKAGE = dllname)$address
-		}
-		else if (initfunc != dllname && !is.null(initfunc)) 
-			stop(paste("cannot integrate: initfunc not loaded ", 
-					initfunc))
-	if (is.null(initfunc)) 
-		initfunc <- NA
-	#if (!is.null(forcings)) 
-#		flist <- checkforcings(forcings, times, dllname, initforc, 
-#			TRUE, fcontrol)
-	if (!is.character(func)) 
-		stop("`func' must be a *name* referring to a function in a dll")
-	if (is.loaded(func, PACKAGE = dllname)) {
-		Func <- getNativeSymbolInfo(func, PACKAGE = dllname)$address
-	}
-	else stop(paste("cannot run DLLfunc: dyn function not loaded: ", 
-				func))
-	dy <- rep(0, n)
-	storage.mode(y) <- storage.mode(dy) <- "double"
-	out <- .Call("call_DLL", y, dy, as.double(times[1]), Func, 
-		ModelInit, parms, as.integer(nout), as.double(rpar), 
-		as.integer(ipar), as.integer(1), flist, PACKAGE = "deSolve")
-	vout <- if (nout > 0) 
-			out[(n + 1):(n + nout)]
-		else NA
-	out <- list(dy = out[1:n], var = vout)
-	if (!is.null(Ynames)) 
-		names(out$dy) <- Ynames
-	if (!is.null(outnames)) 
-		names(out$var) <- outnames
-	return(out)
-}
 
 initStateModMeta <- function(
-	### Creating initial state variables for Basic Colimitation submodel.
+	### Creating initial state variables for Basic carbon nitrogen cycling model.
 	xc12 		
 	### numeric vector: 12C mass for each pool \cr
 	### If names are given these must comprise code{modMeta$rowNames}.
@@ -156,7 +115,7 @@ initStateModMeta <- function(
 	### For others be aware of the adjusted units to avoid bigger numerical errors.
 	### If it is a vector (nIsotopes), the same atomic ratio is assumed for all pools   
 	### If colnames/names are given they comprise code{modMeta$colNames}
-	### Default 1 is added for columns c12 and n15.
+	### Default 1 is added for columns c12 and n15 (first columen in modMeta$csts$cis or $nis repectively if not given with iR.
 	,modMeta	##<< model meta information, see \code{\link{modMetaICBMDemo}}
 ){
 	# check arguments
@@ -169,16 +128,18 @@ initStateModMeta <- function(
 	if( !is.null(rownames(iR))) iR <- iR[rowNamesSOM,,drop=FALSE]	#permute rows 
 	if( (modMeta$nRow) != nrow(iR) ) stop("iR must contain a row for each state variable.")
 	#
-	if( is.null(colnames(iR)) ) colnames(iR) <- modMeta$colNames else{
+    n15 <- modMeta$csts$nis[1]
+    if( is.null(colnames(iR)) ) colnames(iR) <- modMeta$colNames else{
 		c12 <- modMeta$csts$cis[1]
-		if( !(c12 %in% colnames(iR)) ) iR <- cbind(iR,structure(1.0,names=c12))	#add default entry for c12
-		n15 <- modMeta$csts$nis[1]
-		if( !(n15 %in% colnames(iR)) ) iR <- cbind(iR,structure(1.0,names=n15))
+		if( !(c12 %in% colnames(iR)) ) iR <- {tmp <- cbind(iR,1.0); colnames(tmp) <- c(colnames(iR),c12); tmp }	#add default entry for c12
+		if( length(n15) && !(n15 %in% colnames(iR)) ) iR <- {tmp <- cbind(iR,1.0); colnames(tmp) <- c(colnames(iR),n15); tmp }	#add default entry for n15
 	}
 	iRcis <- iR[,modMeta$csts$cis,drop=FALSE]				#extract carbon and permute 
 	if( length(na.omit(modMeta$csts$cis)) != ncol(iRcis) ) stop("iR must contain a value for each carbon isotope.")
-	iRnis <- iR[,modMeta$csts$nis,drop=FALSE]
-	if( length(na.omit(modMeta$csts$nis)) != ncol(iRnis) ) stop("iR must contain a value for each nitrogen isotope.")
+    if( length(n15) ){
+    	iRnis <- iR[,modMeta$csts$nis,drop=FALSE]
+    	if( length(na.omit(modMeta$csts$nis)) != ncol(iRnis) ) stop("iR must contain a value for each nitrogen isotope.")
+    }
 	#
 	if( length(na.omit(cn)) == 1)		#repeat for each row
 		cn <- rep(cn,length(rowNamesSOM))
@@ -188,15 +149,21 @@ initStateModMeta <- function(
 	#initialize the state variables
 	x <- modMeta$matrixTemplate
 	x[ rowNamesSOM ,modMeta$csts$cis] <- xc12*iRcis
-	xn15<-rep(0,length(xc12)) 
-	xn15[xc12!=0 & cn!=0] <- (xc12/cn)[xc12!=0 & cn!=0]
-	x[ rowNamesSOM, modMeta$csts$nis] <- xn15*iRnis
+    if( length(n15) ){
+    	xn15<-rep(0,length(xc12)) 
+    	xn15[xc12!=0 & cn!=0] <- (xc12/cn)[xc12!=0 & cn!=0]
+    	x[ rowNamesSOM, modMeta$csts$nis] <- xn15*iRnis
+    }
 	x
 	### Numeric matrix (nPool, nIsotopes) of state variable mass.
 }
+attr( initStateModMeta, "ex") <- function(){
+    mm <- modMetaICBMDemo()
+    
+}
 
 twStateMatODERes <- function(
-	### returns the matrix of state variables for an ode output corresponding to modMeta
+	### converting a state in vector format to matrix (for deSolve output corresponding to modMeta)
 	out			##<< result of ode to model of matrix statevariables
 	,iSteps		##<< integer vector index of outputs
 	,modMeta	##<< description of the model

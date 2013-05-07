@@ -3,6 +3,7 @@
 modMetaICBMDemo <- function(
 ### Creating Meta-information for ICBMDemo.
 ){
+    data(c14Constants)
 	##seealso<< \code{\link{twCreateModMeta}}, \code{\link{twSetModMetaAuxGroups}}
 	modMeta <- twCreateModMeta(
 		rowNames =  c('Y','O','R')
@@ -22,7 +23,7 @@ modMetaICBMDemo <- function(
 		,respO = paste("respO",modMeta$csts$c,sep="_") 	
 		#,dxSums = paste("dxSums",modMeta$csts$c,sep="_")	#sum across all c compartments
 	)
-	auxGroupsSolve <- list(
+	auxGroupsSolve <- list(     # additional outputs calculated from the state in solve function after integrating the model
 		cStock = "cStock"								#sum over 12C of all SOM pools 
 		,F14C = paste("F14C",modMeta$rowNames,sep="_")	#fraction modern of soil carbon pools 			
 		,F14CT = "F14CT"					#fraction modern of entire soil (mixing model across pools) 			
