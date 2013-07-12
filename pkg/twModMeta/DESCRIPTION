@@ -5,8 +5,9 @@ Date: 2011-05-05
 Author: Thomas Wutzler
 Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
 Description: Support for array based state variables in ODE.
-License: GPL-2
+License: GPL (>=2)
 LazyLoad: yes
-Depends: R (>= 2.15.1), abind, deSolve, utils 
+Depends: R (>= 2.15.1), utils, deSolve
+Imports:  abind
 Suggests: RUnit 
 

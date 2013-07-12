@@ -171,7 +171,7 @@ twStateMatODERes <- function(
 	#iSteps=1
 	#iSteps=1:3
 	#iStep=1
-	res <- abind( lapply( iSteps, function(iStep){
+	res <- abind::abind( lapply( iSteps, function(iStep){
 		matrix( out[iStep,2:(modMeta$nCol*modMeta$nRow+1)], nrow=modMeta$nRow )
 	}), rev.along=0 )
 	dimnames(res) <- c( modMeta[c("rowNames","colNames")], list(outStep=NULL) )
