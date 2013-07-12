@@ -7,7 +7,7 @@
     lowerParBounds = numeric(0), splits = numeric(0))), dInfos = list(list(fLogDen = NULL, 
     xC = c(), logDenCompC = c(), parUpdateDenC = c(), compPosDen = 1:nrow(pops[[1]]$parms), 
     argsFLogDen = list(), intResComp = vector("integer", 0), 
-    fLogDenScale = 1, intermediate = "modOutput")), blocks = list(list(dInfoPos = 1, 
+    intermediate = "modOutput", nObs = c())), blocks = list(list(dInfoPos = 1, 
     compPos = dInfos[[1]]$compPosDen, fUpdateBlock = updateBlockTwDEMC, 
     argsFUpdate = list(), requiresUpdatedDen = TRUE)), TSpec = matrix(1, 
     ncol = 2, nrow = 1, dimnames = list(NULL, c("T0", "TEnd"))), 
@@ -41,9 +41,8 @@ See details.}
 \item{argsFLogDen}{further arguments passed to fLogDen}
 \item{intResComp}{integer or character vector: indices or names of results components of fLogDen
 that are used for internal Metropolis decisions}
-\item{fLogDenScale}{scalar multiplied to the result of fLogDen
-allows using functions of negative LogDensity (-1) or Gaussian misfit function (-1/2) instead of logDensity}
 \item{intermediate}{string: identifier in list of intermediate results that are shared between densities. See details.}
+\item{nObs}{integer vector (nRespComp): number of observations for each result component, used in control of overfitting}
 }
 
 list describing the logDensities, see \code{\link{twDEMCBlockInt}}}
@@ -99,10 +98,9 @@ sd of normally distributed error added to proposal by parallel or snooker update
 \item{nPastGen}{factor for determining the number of recent past states to sample during burnin. Default 10
 It is multiplied by the number of parameters. Past generations are calculated 
 by deviding by the number of chains per population}
-\item{useLoadBalancing}{if set to TRUE, submits each step separaetely to a free node, else each node gets an entire chain process}
-\item{freeMasterNode}{if set to TRUE, no job is submitted to first node, so that this node can dispatch jobs without waiting,, see \code{\link[twSnowfall]{sfFArgsApplyDep}}}
-\item{returnIntermediates}{set to FALSE if intermediate result is large and transferring it between slaves slowes down calculation}
-\item{useConditionalProposal}{if set to TRUE, poposal steps are generated conditional of the state of the other blocks}
+\item{returnIntermediates}{set to FALSE if intermediate result is large and transferring it between slaves slows down calculation}
+\item{useConditionalProposal}{if set to TRUE, poposal steps are generated conditional on the state of the other blocks}
+\item{controlOverfittingMinNObs}{scalar positive integer: minimum number of observations where bias is controlled. Need at least about 20 observations to work.}
 }
 
 }}
@@ -118,6 +116,19 @@ The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thi
 If acceptance rates drops to low values, this might be because of bad localization
 ,i.e the requirement to use states from more distant past.
 In order to improve localization, less parameters or more chains per population are required.
+}}
+
+\describe{ \item{Overfitting control}{
+Cost, i.e. -2*logDensity, below the number of observations indicates an overfitting to a data stream.
+
+By supplying the number of observations for one result component with \code{dInfo$nObs} one can 
+activate the control for this overfitting. This works only, however, if there are enough observations. 
+The minimum numbe of observations where overfitting control is activated is given with 
+\code{ctrl$controlOverfittingMinNObs}. By setting this to Infinity, no overfitting control is applied.
+
+With overfitting control, there is a lower bound for the cost of one result compoent 
+, i.e. an upper bound of the corresponding \code{dInfo$fLogDen} result component. Values above this   
+bound are decreased to this value. 
 }}
 
 \describe{ \item{intermediate results}{

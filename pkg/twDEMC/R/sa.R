@@ -33,6 +33,7 @@ attr(calcBaseTemp,"ex") <- function(){
     calcBaseTemp( .T, .nObs[names(.T)], TFix=c(parms=1) )
 }
 
+#trace(calcStreamTemp, recover)  #untrace(calcStreamTemp)
 calcStreamTemp <- function(
     ### scale base temperature to given number of observations.
     tempBase    ##<< numeric scalar: The temperature, i.e. variance inflation factor, for a single observation.
@@ -189,7 +190,7 @@ twDEMCSA <- function(
 			Zinit <- Zinit0
 			logDenDS <- logDenDS0
 		}else if( m0FiniteFac < 0.05 ){
-			stop("twDEMCSA: less than 5% finite solutions in initial exploration. Check setup.")
+			stop(paste("twDEMCSA: less than 5% finite solutions in initial exploration (",m0FiniteFac,"). Check setup."),sep="")
 		}else if( m0FiniteFac > 0.9 ){
 			sumLogDen0 <- rowSums(logDenDS0)
 			Zinit <- replaceZinitNonFiniteLogDens( Zinit0, sumLogDen0 )
@@ -230,8 +231,12 @@ twDEMCSA <- function(
 			tmp <- matrix(1:nrow(ss12), ncol=ncolZ)
 			Zinit <- abind( lapply( 1:ncolZ, function(i){ ss12[ tmp[,i], ,drop=FALSE]}), rev.along=0 )
 			logDenDS <- logDenDS12
-		} # end generating nonfinite Zinit
-	# now the legnth of resComp is known (colnames(logDenDS)), so check the TFix and TMax parameters
+	} # end generating nonfinite Zinit
+    #
+    # apply overfitting correction?
+    # No need here because Temperature would be set to 1 for corrected and noncorredted values
+    #       
+	# now the length of resComp is known (colnames(logDenDS)), so check the TFix and TMax parameters
 	if( 0==length(colnames(logDenDS)) ) 
 		colnames(logDenDS) <- paste("den",1:ncol(logDenDS), sep="")
     iNoNames <- which( "" == colnames(logDenDS) )
@@ -423,11 +428,11 @@ maxLogDenT <- logDenT[iBest, ]
 ss <- stackChains(mcE$parms)
 (thetaBest <- ss[iBest, ])
 (.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(10,100))] )
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparse"],c(10,100))] )
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsRich"],c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(rowSums(logDenT),c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(logDenT[,"obsSparse"],c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(logDenT[,"obsRich"],c(10,100))] )
 plot( ss[,"a"], ss[,"b"], col=rgb(
-		twRescale(logDenT[,"obsSparse"]),0, twRescale(logDenT[,"obsRich"]) ))
+		twMisc::twRescale(logDenT[,"obsSparse"]),0, twMisc::twRescale(logDenT[,"obsRich"]) ))
 apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
 
 # density of parameters
@@ -476,6 +481,7 @@ twDEMCSACont <- function(
 		, gelmanCrit=1.4			##<< do not change Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value
 		, critSpecVarRatio=20		##<< if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces
 		, dumpfileBasename=NULL		##<< scalar string: filename to dump stack before stopping. May set to "recover"
+        , maxThin=0                 ##<< scalar positive integer: maximum thinning interval. If not 0 then thinning is increased on too high spectral density 
 		##end<<
 	)
 ){
@@ -524,7 +530,7 @@ twDEMCSACont <- function(
 		matplot( mc0$parms[,"a",], type="l" )
 		matplot( mc0$parms[1:20,"b",], type="l" )
 		bo <- 1:10; iPop=1
-		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparse",iPop],c(10,100))] )
+		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twMisc::twRescale(mc0$resLogDen[bo,"parmsSparse",iPop],c(10,100))] )
 	}
 	# sum nObs within density
 	iDens <- seq_along(mc$dInfos)
@@ -566,8 +572,8 @@ twDEMCSACont <- function(
         #iPop <- 4
         gelmanDiagPops <- sapply( 1:getNPops(resEnd), function(iPop){
              mcl <- as.mcmc.list( subPops(resEnd,iPop) )
-             tmp<-gelman.diag(mcl)
-             if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]
+             tmp <- try(gelman.diag(mcl), silent=TRUE)
+             if( inherits(tmp,"try-error")) 999 else if(length(tmp$mpsrf)) tmp$mpsrf else tmp$psrf[1]
          })
         maxGelmanDiagPops <- max(gelmanDiagPops)
         T0 <- calcBaseTemp(TCurr, nObs[names(TCurr)], TFix=ctrlT$TFix, iNonFixTemp=iNonFixTemp)-1
@@ -597,11 +603,26 @@ twDEMCSACont <- function(
         rownames( resSparse$diagnostics ) <- NULL
         ## Last components represent the average logDensity of the last 8th of the chains.
         ##details<< }}
+        #
+        ##details<< \describe{\item{Adaptive thinning interval}{ 
+        ##  If spectral variance is larger than its critical ratio \code{ctrlConvergence$critSpecVarRatio}
+        ##  then thinning interval needs to be increased.
+        ##  If doubling the thinning interval is not larger than \code{ctrlConvergence$maxThin} then a new batch 
+        ##  with higher thinning is attempted. Else the SADEMC quits with reporting an error with return values component \code{failureMsg}. 
+        ##}}
         if( any(specVarRatio > ctrlConvergence$critSpecVarRatio) ){
-            res <- resSparse
-            res$failureMsg <- paste("twDEMCSACont: too much autocorrelation (specVarRatio=",signif(max(specVarRatio),3),"). Try using divideTwDEMC or higher thinning interval",sep=")")
-            print(res$failureMsg)
-            break
+            newThin <- resSparse$thin * 2
+            if( length(ctrlConvergence$maxThin) && (ctrlConvergence$maxThin > 0) && (newThin <= ctrlConvergence$maxThin) ){
+                # increase thinning interval instead of reporting error
+                print(paste("twDEMCSACont: too much autocorrelation (specVarRatio=",signif(max(specVarRatio),3),"). Increasing thinning interval to ",newThin,sep=""))
+                resSparse <- thin(resSparse, newThin )
+                controlTwDEMC$thin <- newThin
+            }else{
+                res <- resSparse
+                res$failureMsg <- paste("twDEMCSACont: too much autocorrelation (specVarRatio=",signif(max(specVarRatio),3),"). Try using divideTwDEMC or higher thinning interval",sep=")")
+                print(res$failureMsg)
+                break
+            }
         }
         # must calc TEnd and TEnd0
         if(  !inherits(gelmanDiagRes,"try-error") && 
@@ -652,7 +673,14 @@ twDEMCSACont <- function(
                 finishEarlyMsg <- paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2)
                         ,"% and no drift in logDensity (lden=",paste(signif(lDenLastPart,3),collapse=","),"). Finishing early.",sep="") 
 				print( finishEarlyMsg)
-				break
+                print(paste("gelmanDiagPops=",signif(gelmanDiagRes,2)
+                                ," max(gelmanDiagPop)=",signif(maxGelmanDiagPops,2)
+                                ," max(specVarRatio)=",signif(max(specVarRatio),2)
+                                ," T0=",signif(T0,2)
+                                ," logDen=",paste(signif(lDenLastPart,3),collapse=",")
+                                #," T=",paste(signif(TCurr,2),collapse=",")
+                                , sep=""))
+                break
 			}
 			# slower TDecrease to avoid Temperatues that are not supported by other datastreams
             TEnd0 <- T0 - ctrlT$TDecProp*(T0-TEnd0) 

@@ -31,8 +31,7 @@ twdemcEx1 <-  twDEMCBlock( Zinit, nGen=.nGen
 	,controlTwDEMC=list(thin=.thin)
 	#,nGenBurnin=.nGenBurnin
 	, TSpec=cbind( T0=c(obs=.T0, parms=1), TEnd=1)
-	#fLogDenScale=1		#default scale of logDenGaussian is already -1/2
-	,doRecordProposals = TRUE
+	, doRecordProposals = TRUE
 )
 str(twdemcEx1)
 

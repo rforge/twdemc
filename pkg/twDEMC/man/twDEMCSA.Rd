@@ -142,11 +142,11 @@ maxLogDenT <- logDenT[iBest, ]
 ss <- stackChains(mcE$parms)
 (thetaBest <- ss[iBest, ])
 (.qq <- apply(ss,2,quantile, probs=c(0.025,0.5,0.975) ))
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(rowSums(logDenT),c(10,100))] )
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsSparse"],c(10,100))] )
-plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twRescale(logDenT[,"obsRich"],c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(rowSums(logDenT),c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(logDenT[,"obsSparse"],c(10,100))] )
+plot( ss[,"a"], ss[,"b"], col=rainbow(100)[twMisc::twRescale(logDenT[,"obsRich"],c(10,100))] )
 plot( ss[,"a"], ss[,"b"], col=rgb(
-		twRescale(logDenT[,"obsSparse"]),0, twRescale(logDenT[,"obsRich"]) ))
+		twMisc::twRescale(logDenT[,"obsSparse"]),0, twMisc::twRescale(logDenT[,"obsRich"]) ))
 apply( apply( logDenT, 2, quantile, probs=c(0.1,0.9) ),2, diff )
 
 # density of parameters

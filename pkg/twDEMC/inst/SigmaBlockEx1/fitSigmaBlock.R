@@ -183,7 +183,7 @@ updateSigma2 <- function(
 ### \item{tempC}{global temperature}
 ### \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
 ### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
-### \item{argsFLogDen, fLogDenScale}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
+### \item{argsFLogDen}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
 ### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
 ### \item{ctrl$DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
 ### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }

@@ -276,7 +276,7 @@ calcCorrParsDfMat <- function(parms, normpopt){
 	qplot(x, geom="density") + stat_function(fun = dnorm, colour="red") 	
 }
 
-setMethodS3("transOrigPopt","twDEMC", function( 
+R.methodsS3::setMethodS3("transOrigPopt","twDEMC", function( 
 		### Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.
 		vtwdemc, 
 		### list of class twDEMC with $parms in transformed scale 
@@ -306,7 +306,7 @@ setMethodS3("transOrigPopt","twDEMC", function(
 
 
 # link on ?twDEMC, better delete resulting twDEMC.Rd
-setMethodS3("twDEMC","default", function( 
+R.methodsS3::setMethodS3("twDEMC","default", function( 
 		### Initialize and call \code{\link{twDEMCBlockInt}}. 
 		Zinit, ##<< initial population: a numeric array (d x M0 x Npop) or an object of class twDEMC  
 		...	   ##<< further arguments to \code{\link{twDEMCBlockInt}}

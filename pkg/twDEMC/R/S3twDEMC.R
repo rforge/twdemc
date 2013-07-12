@@ -1,6 +1,6 @@
 #	(tres <- twUtestF("S3twDEMC")) #thin, subset, subChains, combinePops
 
-setMethodS3("subChains","twDEMC", function( 
+R.methodsS3::setMethodS3("subChains","twDEMC", function( 
 		### Condenses an twDEMC List to the chains iChains e.g \code{1:4}.
 		x, iChains=NULL, iPops=NULL, 
 		nPop=NULL, ##<< number of populations in x
@@ -134,7 +134,7 @@ attr(time2iSample,"ex") <- function(){
 
 
 
-setMethodS3("getNGen","twDEMC", function( 
+R.methodsS3::setMethodS3("getNGen","twDEMC", function( 
 		### Extract the number of completed generations in res
 		res	##<< object of class twDEMC
 		,... 
@@ -171,7 +171,7 @@ attr( getNGen.twDEMC, "ex") <- function(){
 	getNBlocks(twdemcEx1)
 }
 
-setMethodS3("getNBlocks","twDEMC", function( 
+R.methodsS3::setMethodS3("getNBlocks","twDEMC", function( 
 		### Extracts the number of blocks 
 		x	##<< object of class twDEMC
 		,... 
@@ -186,7 +186,7 @@ setMethodS3("getNBlocks","twDEMC", function(
 	})
 
 
-setMethodS3("getNPops","twDEMC", function( 
+R.methodsS3::setMethodS3("getNPops","twDEMC", function( 
 		### Extracts the number of populations
 		res	##<< object of class twDEMC
 		,... 
@@ -206,7 +206,7 @@ setMethodS3("getNPops","twDEMC", function(
 		### integer, number of populations in twDEMC
 	})
 
-setMethodS3("getNChains","twDEMC", function( 
+R.methodsS3::setMethodS3("getNChains","twDEMC", function( 
 		### Extracts the number of chains
 		res	##<< object of class twDEMC
 		,... 
@@ -220,7 +220,7 @@ setMethodS3("getNChains","twDEMC", function(
 		### integer, number of chains in twDEMC
 	})
 
-setMethodS3("getNChainsPop","twDEMC", function( 
+R.methodsS3::setMethodS3("getNChainsPop","twDEMC", function( 
 		### Extracts the number of chains per population
 		res	##<< object of class twDEMC
 		,... 
@@ -234,7 +234,7 @@ setMethodS3("getNChainsPop","twDEMC", function(
 		### integer, number of chains per population in twDEMC
 	})
 
-setMethodS3("getNParms","twDEMC", function( 
+R.methodsS3::setMethodS3("getNParms","twDEMC", function( 
 		### Extracts the number of parameters, i.e. the dimension of the parameter vector
 		res	##<< object of class twDEMC
 		,... 
@@ -248,7 +248,7 @@ setMethodS3("getNParms","twDEMC", function(
 		### integer, number of parameters in twDEMC
 	})
 
-setMethodS3("getNSamples","twDEMC", function( 
+R.methodsS3::setMethodS3("getNSamples","twDEMC", function( 
 		### Extracts the number of s
 		res	##<< object of class twDEMC
 		,... 
@@ -263,7 +263,7 @@ setMethodS3("getNSamples","twDEMC", function(
 		### integer, number of samples in twDEMC
 	})
 
-setMethodS3("getCurrentTemp","twDEMC", function( 
+R.methodsS3::setMethodS3("getCurrentTemp","twDEMC", function( 
 		### Get the Temperature, i.e. cost reduction factor of the last sample
 		x	##<< object of class twDEMCPops
 		,... 
@@ -281,7 +281,7 @@ setMethodS3("getCurrentTemp","twDEMC", function(
 
 
 
-#setMethodS3("as.mcmc.list","twDEMC", function( 
+#R.methodsS3::setMethodS3("as.mcmc.list","twDEMC", function( 
 as.mcmc.list.twDEMC <- function( 
 	### Converts list of type twDEMC (result of \code{\link{twDEMC}}) to coda's \code{mcmc.list}. 
 	x,				##<< the output of \code{\link{twDEMC}}) run
@@ -312,7 +312,7 @@ as.mcmc.list.twDEMC <- function(
 #mtrace(as.mcmc.list.twDEMC)
 
 
-setMethodS3("subset","twDEMC", function( 
+R.methodsS3::setMethodS3("subset","twDEMC", function( 
 	### Condenses an twDEMC result object to the cases boKeep.
 	x 			##<< twDEMC object
 	,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
@@ -335,7 +335,7 @@ setMethodS3("subset","twDEMC", function(
 })
 #mtrace(subset.twDEMC)
 
-setMethodS3("thin","twDEMC", function( 
+R.methodsS3::setMethodS3("thin","twDEMC", function( 
 	### Reduces the rows of an twDEMC object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.
 	x, ##<< the twDEMC list to thin 
 	newThin=x$thin, ##<< finite numeric scalar: the target thinning factor, must be positive multiple of x$thin 
@@ -398,7 +398,7 @@ attr(thin.twDEMC,"ex") <- function(){
 
 
 
-setMethodS3("combinePops","twDEMC", function( 
+R.methodsS3::setMethodS3("combinePops","twDEMC", function( 
 	### Combine several populations to one big population consiting of more chains.
 	x		##<< first twDEMC object
 	, ...	##<< more twDEMC objects
@@ -440,7 +440,7 @@ setMethodS3("combinePops","twDEMC", function(
 #mtrace(combinePops.twDEMC)
 
 
-setMethodS3("stackChains","array", function( 
+R.methodsS3::setMethodS3("stackChains","array", function( 
 	### Combine MarkovChains of result population of twDEMC. 
 	Zinit,
 	...
@@ -458,7 +458,7 @@ setMethodS3("stackChains","array", function(
 #stackChains(Zinit)
 
 #(tres <- twUtestF(combinePops,"test.stackChains"))
-setMethodS3("stackChains","twDEMC", function( 
+R.methodsS3::setMethodS3("stackChains","twDEMC", function( 
 	### Combine MarkovChains of a twDEMC to a matrix. 
 	x
 	,omitBurnin=FALSE	##<< if TRUE, then burnin of each chain is omitted before stacking
@@ -486,7 +486,7 @@ setMethodS3("stackChains","twDEMC", function(
 	### Matrix with first attributes$nBlock columns the logDensity logDen and the remaining columns the variables.
 })
 
-setMethodS3("stackChains","mcmc.list", function( 
+R.methodsS3::setMethodS3("stackChains","mcmc.list", function( 
 	### Combine list of MarkovChains to one big matrix.
 	mcmcList,
 	...
@@ -601,11 +601,12 @@ attr(popApplyTwDEMC,"ex") <- function(){
 	str(tmp)
 	#stack param columns by population
 	str(ex1c$parms)	#26 cases, 2 parameters, 2*4=8 chains
-	tmp <- popApplyTwDEMC( ex1c$parms, nPop=nPop, function(x){ abind(twListArrDim(x),along=1) })
+	tmp <- popApplyTwDEMC( ex1c$parms, nPop=nPop, function(x){ 
+                abind::abind(twMisc::twListArrDim(x),along=1) })
 	all.equal( c(nrow(ex1c$parms)*4, 2,2), dim(tmp))
 }
 
-setMethodS3("stackChainsPop","twDEMC", function( 
+R.methodsS3::setMethodS3("stackChainsPop","twDEMC", function( 
 		### Combine MarkovChains of each population of a twDEMC. 
 		x
 		,...
@@ -616,9 +617,9 @@ setMethodS3("stackChainsPop","twDEMC", function(
 		## \code{\link{subChains.twDEMC}}
 		# stack logDen for each population
 		nPop = getNPops(x)
-		logDen <- popApplyTwDEMC( x$logDen, nPop=nPop, function(x){ abind(twListArrDim(x),along=1) })
+		logDen <- popApplyTwDEMC( x$logDen, nPop=nPop, function(x){ abind(twMisc::twListArrDim(x),along=1) })
 		#logDen <- popApplyTwDEMC( x$logDen, nPop=nPop, as.vector )
-		parms <- popApplyTwDEMC( x$parms, nPop=nPop, function(x){ abind(twListArrDim(x),along=1) })		
+		parms <- popApplyTwDEMC( x$parms, nPop=nPop, function(x){ abind(twMisc::twListArrDim(x),along=1) })		
 		res <- abind(logDen,parms,along=2)
 		attr(res,"nBlock") <- ncol(logDen)
 		res
@@ -634,7 +635,7 @@ attr(stackChainsPop.twDEMC,"ex") <- function(){
 	(tmp1 <- head(res[,,1]))
 }
 
-setMethodS3("thinN","mcmc.list", function( 
+R.methodsS3::setMethodS3("thinN","mcmc.list", function( 
 	### Thin x so that each chain consists of about nThinnedRecords
 	x		##<< object to be thinned and plotted (mcmc.list)
 	,nThinnedRecords=100	##<< number of records in thinned object
@@ -651,7 +652,7 @@ setMethodS3("thinN","mcmc.list", function(
 
 .tmp.f <- function(){
 	#not adapted to block sampling yet
-	setMethodS3("replacePops","twDEMC", function( 
+	R.methodsS3::setMethodS3("replacePops","twDEMC", function( 
 			### replaces several populations by other ones
 			x
 			,xNew

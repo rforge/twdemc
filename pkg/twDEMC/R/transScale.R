@@ -19,7 +19,7 @@ twVarDistrVec <- function(
 	### a named vector intiialized by factor "norm"
 }
 
-setMethodS3("transOrigPopt","default", function( 
+R.methodsS3::setMethodS3("transOrigPopt","default", function( 
 		### Transform vectors from normal to original scale.
 	normpopt	##<< numerical vector/array with values at transformed, i.e. normal, scale
 	,poptDistr=parDistr[names(normpopt),"trans"]
@@ -105,7 +105,7 @@ attr(transOrigPopt.default,"ex") <- function(){
 	points( denOrig2 ~ dOrigGrid, col="blue" )
 }
 
-setMethodS3("transNormPopt","default", function( 
+R.methodsS3::setMethodS3("transNormPopt","default", function( 
 		### Transform vectors from original to normal scale.
 		popt 
 		### numerical vector/array with values at untransformed scale
@@ -135,7 +135,7 @@ setMethodS3("transNormPopt","default", function(
 	})	
 #mtrace(transOrigPopt)
 
-setMethodS3("transOrigPopt","matrix", function( 
+R.methodsS3::setMethodS3("transOrigPopt","matrix", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each column of \code{normopt}.
 	normpopt 
 		### numerical matrx with values at transformed, i.e. normal, scale
@@ -172,7 +172,7 @@ setMethodS3("transOrigPopt","matrix", function(
 	popt
 })
 
-setMethodS3("transOrigPopt","array", function( 
+R.methodsS3::setMethodS3("transOrigPopt","array", function( 
 		### Applies \code{\link{transOrigPopt.default}} to each column, i.e. variable, of \code{normopt}.
 		normpopt 
 		### numerical array with values at transformed, i.e. normal, scale
@@ -202,7 +202,7 @@ setMethodS3("transOrigPopt","array", function(
 
 
 #twUtest(transOrigPopt, "test.transCoda" )
-setMethodS3("transOrigPopt","mcmc.list", function( 
+R.methodsS3::setMethodS3("transOrigPopt","mcmc.list", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each entry of \code{normopt}.
 	normpopt
 	### numerical matrx with values at transformed, i.e. normal, scale
@@ -219,7 +219,7 @@ setMethodS3("transOrigPopt","mcmc.list", function(
 })
 
 
-setMethodS3("transOrigPopt","twDEMC", function( 
+R.methodsS3::setMethodS3("transOrigPopt","twDEMC", function( 
 	### Applies \code{\link{transOrigPopt.default}} to each column of parameters in \code{vtwdemc}.
 	normpopt
 	### numerical matrx with values at transformed, i.e. normal, scale

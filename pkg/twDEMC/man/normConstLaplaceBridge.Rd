@@ -30,8 +30,8 @@ corr[1,2] <- corr[2,1] <- 0.49
 Sigma = diag(sd, nrow=length(sd)) \%*\% corr \%*\% diag(sd,nrow=length(sd)) 
 n <- 1000
 cTrue <- 10
-sample <- rmvnorm(n,mean=mu,sigma=Sigma)
-fLogPost <- function(theta){ log(cTrue) + dmvnorm(theta,mean=mu,sigma=Sigma, log=TRUE)}
+sample <- mvtnorm::rmvnorm(n,mean=mu,sigma=Sigma)
+fLogPost <- function(theta){ log(cTrue) + mvtnorm::dmvnorm(theta,mean=mu,sigma=Sigma, log=TRUE)}
 logPostSample <- fLogPost(sample)
 (CMW <- exp(normConstLaplaceBridge( sample, logPostSample, logPostSample )) )
 

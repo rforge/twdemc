@@ -87,7 +87,7 @@ calcM0twDEMC <- function(
 	### length of each chain so that each population is initialized with 8*nPar cases 
 }
 
-setMethodS3("initZtwDEMCSub","matrix", function(
+R.methodsS3::setMethodS3("initZtwDEMCSub","matrix", function(
 	### generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a matrix
 	x					##<< the mcmc matrix to subsample (nCases x nParms) 
 	,... 
@@ -115,7 +115,7 @@ attr(initZtwDEMCSub.matrix,"ex") <- function(){
 	.nPop=2
 	.nPar=length(theta0)
 	Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
-	ss <- do.call( rbind, twListArrDim( Zinit))	#stack the chains 
+	ss <- do.call( rbind, twMisc::twListArrDim( Zinit))	#stack the chains 
 	ZinitSub <- initZtwDEMCSub(ss, nChainPop=.nChainPop, nPop=.nPop)
 	head(Zinit[,,1])
 	all.equal(dim(Zinit),dim(ZinitSub))
@@ -123,7 +123,7 @@ attr(initZtwDEMCSub.matrix,"ex") <- function(){
 	detach()
 }
 
-setMethodS3("initZtwDEMCSub","twDEMC", function(
+R.methodsS3::setMethodS3("initZtwDEMCSub","twDEMC", function(
 	### generates an appropriate initial sample of parameter vectors for twDEMC from subsampling a previous result
 	vtwdemc	##<< the twDEMC list to subsample 
 	,...	## other parameters passed to initZtwDEMCSub.default, e.g. m0 
@@ -138,7 +138,7 @@ setMethodS3("initZtwDEMCSub","twDEMC", function(
 })
 
 
-setMethodS3("initZtwDEMCExt","matrix", function( 
+R.methodsS3::setMethodS3("initZtwDEMCExt","matrix", function( 
 	### subsampling and extending twDEMC with new variables
 	Zinit1		##<< the matrix to subsample (nCases x nParms)
 	,...
@@ -178,7 +178,7 @@ setMethodS3("initZtwDEMCExt","matrix", function(
 	## \code{\link{initZtwDEMCNormal}}
 })
 
-setMethodS3("initZtwDEMCExt","twDEMC", function( 
+R.methodsS3::setMethodS3("initZtwDEMCExt","twDEMC", function( 
 	 ### subsampling and extending twDEMC with new variables
 	vtwdemc	##<< the twDEMC list to subsample 
 	,...		##<< e.g. m0

@@ -11,7 +11,7 @@
 }
 \details{Does not take care of internal components: provides no argument logDenPrev}
 \value{List with the following items \describe{
-\item{logDen}{numeric vector: for each state: the sum of logDens over all components, multiplied by fLogDenScale}
+\item{logDen}{numeric vector: for each state: the sum of logDens over all components}
 \item{logDenComp}{numeric matrix: return components of fLogDen, one row for each state, columns: components }
 \item{logDenCompPos}{integer vector (nDenComp): index of the densitiy that provides the component }
 }}

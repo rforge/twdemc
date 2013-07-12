@@ -35,6 +35,7 @@ tmp <- popApplyTwDEMC( ex1c$logDen[,1,], nPop=nPop, as.vector )
 str(tmp)
 #stack param columns by population
 str(ex1c$parms)	#26 cases, 2 parameters, 2*4=8 chains
-tmp <- popApplyTwDEMC( ex1c$parms, nPop=nPop, function(x){ abind(twListArrDim(x),along=1) })
+tmp <- popApplyTwDEMC( ex1c$parms, nPop=nPop, function(x){ 
+                abind::abind(twMisc::twListArrDim(x),along=1) })
 all.equal( c(nrow(ex1c$parms)*4, 2,2), dim(tmp))
 }

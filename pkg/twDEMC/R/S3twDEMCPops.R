@@ -1,5 +1,5 @@
 #----------------------------------- subset ---------------
-setMethodS3("subset","twDEMCPops", function( 
+R.methodsS3::setMethodS3("subset","twDEMCPops", function( 
 		### Condenses an twDEMCPops result object to the cases boKeep.
 		x 			##<< twDEMCPops object
 		,boKeep		##<< either logical vector or numeric vector of indices of cases to keep
@@ -84,7 +84,7 @@ attr(subset.twDEMCPops,"ex") <- function(){
 
 
 
-setMethodS3("getNGen","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNGen","twDEMCPops", function( 
 		### Extract the number of completed generations in res
 		x	##<< object of class twDEMCPops
 		,... 
@@ -127,7 +127,7 @@ attr( getNGen.twDEMCPops, "ex") <- function(){
 	getNBlocks(twdemcEx1)
 }
 
-setMethodS3("getNPops","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNPops","twDEMCPops", function( 
 		### Extracts the number of populations
 		x	##<< object of class twDEMCPops
 		,... 
@@ -141,7 +141,7 @@ setMethodS3("getNPops","twDEMCPops", function(
 		### integer, number of populations in twDEMCPops
 	})
 
-setMethodS3("getNChains","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNChains","twDEMCPops", function( 
 		### Extracts the number of chains
 		x	##<< object of class twDEMCPops
 		,... 
@@ -155,7 +155,7 @@ setMethodS3("getNChains","twDEMCPops", function(
 		### integer, number of chains in twDEMCPops
 	})
 
-setMethodS3("getNChainsPop","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNChainsPop","twDEMCPops", function( 
 		### Extracts the number of chains per population
 		x	##<< object of class twDEMCPops
 		,... 
@@ -169,7 +169,7 @@ setMethodS3("getNChainsPop","twDEMCPops", function(
 		### integer, number of chains per population in twDEMCPops
 	})
 
-setMethodS3("getNParms","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNParms","twDEMCPops", function( 
 		### Extracts the number of parameters, i.e. the dimension of the parameter vector
 		x	##<< object of class twDEMCPops
 		,... 
@@ -183,7 +183,7 @@ setMethodS3("getNParms","twDEMCPops", function(
 		### integer, number of parameters in twDEMCPops
 	})
 
-setMethodS3("getNSamples","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNSamples","twDEMCPops", function( 
 		### Extracts the number of samples
 		x	##<< object of class twDEMCPops
 		,... 
@@ -199,7 +199,7 @@ setMethodS3("getNSamples","twDEMCPops", function(
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
-setMethodS3("getNSamplesSpace","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNSamplesSpace","twDEMCPops", function( 
 		### Extracts the number of samples summed over population within one space
 		x	##<< object of class twDEMCPops
 		,... 
@@ -220,7 +220,7 @@ setMethodS3("getNSamplesSpace","twDEMCPops", function(
 	})
 
 
-setMethodS3("getSpacesPop","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getSpacesPop","twDEMCPops", function( 
 		### Extracts the space replicate that each population belongs to.
 		x	##<< object of class twDEMCPops
 		,... 
@@ -235,7 +235,7 @@ setMethodS3("getSpacesPop","twDEMCPops", function(
 		### integer vector (nPop): index of the replicated space.
 	})
 
-setMethodS3("getNSpaces","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNSpaces","twDEMCPops", function( 
 		### Extracts the number of space replicates.
 		x	##<< object of class twDEMCPops
 		,... 
@@ -251,7 +251,7 @@ setMethodS3("getNSpaces","twDEMCPops", function(
 	})
 
 
-setMethodS3("getNBlocks","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getNBlocks","twDEMCPops", function( 
 		### Extracts the number of samples
 		x	##<< object of class twDEMCPops
 		,... 
@@ -266,7 +266,7 @@ setMethodS3("getNBlocks","twDEMCPops", function(
 		### integer vector: number of samples in each population of twDEMCPops
 	})
 
-setMethodS3("getCurrentTemp","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getCurrentTemp","twDEMCPops", function( 
 		### Get the Temperature, i.e. cost reduction factor of the last sample
 		x	##<< object of class twDEMCPops
 		,... 
@@ -293,7 +293,7 @@ setMethodS3("getCurrentTemp","twDEMCPops", function(
 	lapply(pops, function(pop){ pop[c("upperParBounds","lowerParBounds","splits")] })
 }
 
-setMethodS3("getParBoundsPop","twDEMCPops", function( 
+R.methodsS3::setMethodS3("getParBoundsPop","twDEMCPops", function( 
 		### Extracts lower or upper ParBounds
 		x	##<< object of class twDEMCPops
 		,... 
@@ -314,7 +314,7 @@ setMethodS3("getParBoundsPop","twDEMCPops", function(
 
 
 #------------------------ concatPops -------------------------------------
-setMethodS3("concatPops","twDEMCPops", function( 
+R.methodsS3::setMethodS3("concatPops","twDEMCPops", function( 
 	### Concatenates all the chains of all subpopulations to one matrix of call \code{twDEMC}.
 	x
 	,... 
@@ -373,7 +373,7 @@ attr(concatPops,"ex") <- function(){
 	}
 }
 
-setMethodS3("subsetF","twDEMCPops", function( 
+R.methodsS3::setMethodS3("subsetF","twDEMCPops", function( 
 		### keeps only cases within population which evaluate to TRUE for a given function.
 		x		##<< object of class twDEMCPops
 		,fKeep	##<< function(pop) returning an boolean matrix (nStep x nChain) of cases to keep
@@ -424,7 +424,7 @@ attr(subsetF.twDEMCPops,"ex") <- function(){
 	getNSamples(res)
 }
 
-setMethodS3("subsetTail","twDEMCPops", function( 
+R.methodsS3::setMethodS3("subsetTail","twDEMCPops", function( 
 		### discards the first part of all the chains
 		x		##<< object of class twDEMCPops
 		,pKeep=0.5	##<< the percentage of the samples to keep 
@@ -466,7 +466,7 @@ attr(subsetTail.twDEMCPops,"ex") <- function(){
 	newPop
 }
 
-setMethodS3("subPops","twDEMCPops", function( 
+R.methodsS3::setMethodS3("subPops","twDEMCPops", function( 
 		### Condenses an twDEMCPops List to given population indices or space replicates
 		x
 		, iPops 		##<< integer vector listing those spaceInd to keep
@@ -487,7 +487,7 @@ setMethodS3("subPops","twDEMCPops", function(
 
 
 
-setMethodS3("squeeze","twDEMCPops", function(
+R.methodsS3::setMethodS3("squeeze","twDEMCPops", function(
 	### Reduces the rows of populations so that all populations have the same number of samples. 
 	x, ##<< the twDEMCPops list to thin 
 	...,
@@ -537,7 +537,7 @@ attr(squeeze.twDEMCPops,"ex") <- function(){
 	} 
 }
 
-setMethodS3("stackChains","twDEMCPops", function( 
+R.methodsS3::setMethodS3("stackChains","twDEMCPops", function( 
 		### Combine logLik and parms of MarkovChains of a twDEMCPops object to one matrix. 
 		x
 		,...				##<< not used 
@@ -551,7 +551,7 @@ setMethodS3("stackChains","twDEMCPops", function(
 		### Matrix with first nDen columns the logDensity logDen and the remaining columns the variables.
 	})
 
-setMethodS3("thin","twDEMCPops", function( 
+R.methodsS3::setMethodS3("thin","twDEMCPops", function( 
 		### Reduces the rows of an twDEMCPops object (list returned by \code{\link{twDEMCBlockInt}}) to correspond to a thinning of \code{newThin}.
 		x, ##<< the twDEMCPops list to thin 
 		newThin=x$thin, ##<< finite numeric scalar: the target thinning factor, must be positive multiple of x$thin
@@ -622,7 +622,7 @@ attr(thin.twDEMCPops,"ex") <- function(){
 }
 
 
-#setMethodS3("as.mcmc.list","twDEMCPops", function( 
+#R.methodsS3::setMethodS3("as.mcmc.list","twDEMCPops", function( 
 as.mcmc.list.twDEMCPops <- function( 
 	### Converts list of type twDEMCPops (result of \code{\link{twDEMCBlockInt}}) to coda's \code{mcmc.list}. 
 	x				##<< the output of \code{\link{twDEMCBlockInt}}) run
@@ -976,7 +976,7 @@ attr(combineTwDEMCPops,"ex") <- function(){
 	
 }
 
-setMethodS3("stackPopsInSpace","twDEMCPops", function( 
+R.methodsS3::setMethodS3("stackPopsInSpace","twDEMCPops", function( 
 		### Combine populations for subspaces to bigger populations 
 		x
 		,...	##<< arguments passed \code{\link{combineTwDEMCPops}} such as \code{mergeMethod=stack/slice/random}
@@ -1009,7 +1009,7 @@ attr(stackPopsInSpace.twDEMCPops,"ex") <- function(){
 	plot( as.mcmc.list(stackPopsInSpace( den2dCorEx$mcSubspaces0,mergeMethod="slice" )), smooth=FALSE )
 }
 
-setMethodS3("stackPops","twDEMCPops", function( 
+R.methodsS3::setMethodS3("stackPops","twDEMCPops", function( 
 		### Combine all populations (across subspaces) to one big population 
 		x
 		,...	##<< arguments passed \code{\link{combineTwDEMCPops}} such as \code{mergeMethod=stack/slice/random}
@@ -1061,7 +1061,7 @@ setMethodS3("stackPops","twDEMCPops", function(
 	newPop
 }
 
-setMethodS3("stackChainsPop","twDEMCPops", function( 
+R.methodsS3::setMethodS3("stackChainsPop","twDEMCPops", function( 
 		### Combine MarkovChains of each population of a twDEMC to a single chain.
 		x
 		,mergeMethod="stack"

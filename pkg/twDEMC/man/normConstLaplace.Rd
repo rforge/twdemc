@@ -27,9 +27,9 @@ corr[1,2] <- corr[2,1] <- 0.49
 Sigma = diag(sd, nrow=length(sd)) \%*\% corr \%*\% diag(sd,nrow=length(sd)) 
 n <- 1000
 cTrue <- 10
-sample <- rmvnorm(n,mean=mu,sigma=Sigma)
-fPost <- function(theta){ cTrue* dmvnorm(theta,mean=mu,sigma=Sigma, log=FALSE)}
-fLogPost <- function(theta){ log(cTrue) + dmvnorm(theta,mean=mu,sigma=Sigma, log=TRUE)}
+sample <- mvtnorm::rmvnorm(n,mean=mu,sigma=Sigma)
+fPost <- function(theta){ cTrue* mvtnorm::dmvnorm(theta,mean=mu,sigma=Sigma, log=FALSE)}
+fLogPost <- function(theta){ log(cTrue) + mvtnorm::dmvnorm(theta,mean=mu,sigma=Sigma, log=TRUE)}
 exp(normConstLaplace( sample, fLogPost ))
 
 #normd <- cov.rob(sample)

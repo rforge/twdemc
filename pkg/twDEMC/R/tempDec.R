@@ -1,5 +1,5 @@
 
-setMethodS3("calcTemperatedLogDen","default", function(
+R.methodsS3::setMethodS3("calcTemperatedLogDen","default", function(
 	### Rescale Log-Densities by given Temperatures
 	x			##<< numeric matrix (nStep x nResComp): logDensities for each component at each step
 	,temp		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
@@ -49,7 +49,7 @@ attr(calcTemperatedLogDen,"ex") <- function(){
 	all.equal( .exp, logDenT )
 }
 
-setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
+R.methodsS3::setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
 	### Rescale Log-Densities by given Temperatures
 	x							##<< object of class twDEMCPops
 	,temp=getCurrentTemp(x)		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
@@ -59,7 +59,7 @@ setMethodS3("calcTemperatedLogDen","twDEMCPops", function(
 	calcTemperatedLogDen(logDen,temp,...)
 })
 
-setMethodS3("calcTemperatedLogDenChains","array", function(
+R.methodsS3::setMethodS3("calcTemperatedLogDenChains","array", function(
 		### Rescale Log-Densities by given Temperatures within chains
 		x					##<< numeric matrix (nStep x nResComp x nChain), e.g. pop$resLogDen
 		,temp				##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor
@@ -78,7 +78,7 @@ setMethodS3("calcTemperatedLogDenChains","array", function(
 	})
 
 
-setMethodS3("calcTemperatedLogDenChains","twDEMC", function(
+R.methodsS3::setMethodS3("calcTemperatedLogDenChains","twDEMC", function(
 		### Rescale Log-Densities by given Temperatures within chains
 		x							##<< object with entry resLogDen, a numeric matrix (nStep x nResComp x nChain), e.g. twDEMC or pop in twDEMCPops
 		,temp=getCurrentTemp(x)		##<< numeric vector (nResComp): Temperature, i.e. cost reduction factor

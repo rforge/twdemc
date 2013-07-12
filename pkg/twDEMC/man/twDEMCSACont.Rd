@@ -8,7 +8,7 @@
         controlTwDEMC$thin * 8, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
         TMax = numeric(0), TDecProp = 0.9), ctrlConvergence = list(maxRelTChangeCrit = 0.025, 
         maxLogDenDriftCrit = 0.3, gelmanCrit = 1.4, critSpecVarRatio = 20, 
-        dumpfileBasename = NULL))}
+        dumpfileBasename = NULL, maxThin = 0))}
 \arguments{
   \item{mc}{result of twDEMCBlock}
   \item{nGen}{overall number of generations to add (within one batch provide ctrlBatch$nGenBatch)}
@@ -34,6 +34,7 @@
 \item{gelmanCrit}{do not change Temperature, if variance between chains is too high, i.e. Gelman Diag is above this value}
 \item{critSpecVarRatio}{if proprotion of spectral Density to Variation is higher than this value, signal problems and resort to subspaces}
 \item{dumpfileBasename}{scalar string: filename to dump stack before stopping. May set to "recover"}
+\item{maxThin}{scalar positive integer: maximum thinning interval. If not 0 then thinning is increased on too high spectral density}
 }}
 }
 \details{\describe{\item{diagnostics}{
@@ -46,6 +47,13 @@ Its components have been calculated on the last halv of the chains.\describe{
 Last components represent the average logDensity of the last 8th of the chains.}
 }
 
+}}
+
+\describe{\item{Adaptive thinning interval}{ 
+If spectral variance is larger than its critical ratio \code{ctrlConvergence$critSpecVarRatio}
+then thinning interval needs to be increased.
+If doubling the thinning interval is not larger than \code{ctrlConvergence$maxThin} then a new batch 
+with higher thinning is attempted. Else the SADEMC quits with reporting an error with return values component \code{failureMsg}. 
 }}}
 
 

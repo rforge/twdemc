@@ -77,12 +77,7 @@ test.goodStartSeqData <- function(){
 	test_int.goodStartSeqData.plot2d()
 }
 
-test.goodStartSeqDataLB <- function(){
-    #mtrace(test_int.goodStartSeqData.plot2d)
-    test_int.goodStartSeqData.plot2d(useLoadBalancing=TRUE)
-}
-
-test_int.goodStartSeqData.plot2d <- function(useLoadBalancing=FALSE){
+test_int.goodStartSeqData.plot2d <- function(){
 	lmDummy <- lm( obs ~ xval, weights=1/sdObs^2)		# results without priors
 	(.expTheta <- coef(lmDummy))
 	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
@@ -109,7 +104,7 @@ test_int.goodStartSeqData.plot2d <- function(useLoadBalancing=FALSE){
 	res <-  concatPops( resBlock <- twDEMCBlock( Zinit, nGen=.nGen, 
 		dInfos=list(list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
 		nPop=.nPop
-		,controlTwDEMC=list(thin=8, useLoadBalancing=useLoadBalancing )		
+		,controlTwDEMC=list(thin=8 )		
 		#,debugSequential=TRUE
 		,doRecordProposals=TRUE
 	))
@@ -153,6 +148,38 @@ test_int.goodStartSeqData.plot2d <- function(useLoadBalancing=FALSE){
 			pnorm(.expTheta, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
 		})
 	checkInterval( .pthetaTrue ) 
+    
+    
+    # repeat with control for overfitting
+    resCO <-  concatPops( resBlockCO <- twDEMCBlock( Zinit, nGen=.nGen, 
+                    dInfos=list( list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen, nObs=c(obs=length(obs),parms=0)) ),
+                    nPop=.nPop
+                    ,controlTwDEMC=list(thin=8,  controlOverfittingMinNObs=20)		
+                    #,debugSequential=TRUE
+                    ,doRecordProposals=TRUE
+            ))
+    rescoda <- as.mcmc.list(resCO) 
+    plot(rescoda, smooth=FALSE)
+    #str(summary(rescoda))
+    suppressWarnings({	
+                summary(rescoda)$statistics[,"Mean"]
+                summary(rescoda)$statistics[,"SD"]
+                thetaTrue
+                sdTheta
+                (.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+                (.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+            })
+    
+    # 1/2 orders of magnitude around prescribed sd for theta
+    .pop=1
+    for( .pop in seq(along.with=.popsd) ){
+        checkMagnitude( .expSdTheta, .popsd[[.pop]] )
+    }
+    # check that thetaTrue is in 95% interval 
+    .pthetaTrue <- sapply(1:2, function(.pop){
+                pnorm(.expTheta, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+            })
+    checkInterval( .pthetaTrue ) 
 }
 
 test.badStartSeqData <- function(){
@@ -587,19 +614,19 @@ test.ofMulti <- function(){
 }
 
 test.ofMultiIntermediate <- function(){
-    int.ofMultiIntermediate( loadBalancing=FALSE )
-}
-
-test.ofMultiIntermediateLB <- function(){
-    int.ofMultiIntermediate( loadBalancing=TRUE )
+    int.ofMultiIntermediate()
 }
 
 test.ofMultiIntermediateCond <- function(){
-    int.ofMultiIntermediate( loadBalancing=FALSE, useConditionalProposal=TRUE )
+    int.ofMultiIntermediate( useConditionalProposal=TRUE )
+}
+
+test.ofMultiIntermediateControlOverfit <- function(){
+    int.ofMultiIntermediate( controlOverfitting=TRUE )
 }
 
 
-int.ofMultiIntermediate <- function(loadBalancing=FALSE, useConditionalProposal=FALSE){
+int.ofMultiIntermediate <- function(useConditionalProposal=FALSE, controlOverfitting=FALSE){
      # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
     data(twTwoDenEx1)
     thresholdCovar = 0.3	# the true value
@@ -612,8 +639,7 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE, useConditionalProposal=
             , thetaPrior=thetaMean
             , invCovarTheta=sdTheta^2
             , twTwoDenEx=twTwoDenEx1
-    )            
-    #
+    )    
     .nPop=2
     .nChainPop=4
     ZinitPops <- with(twTwoDenEx1, initZtwDEMCNormal( thetaMean*1.5, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop))
@@ -625,19 +651,25 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE, useConditionalProposal=
                     ZinitPops
                     , nGen=.nGen 
                     ,dInfos=list(
-                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
-                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx", nObs=c("parmsSparse"=0, "obsSparse"=10 ))
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx", nObs=c("parmsRich"=0, "obsRich"=1000 ))
                     )
                     ,blocks = list(
                             a=list(dInfoPos="dSparse", compPos="a")
                             ,b=list(dInfoPos="dRich", compPos="b")
                     )
                     ,nPop=.nPop
-                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing, useConditionalProposal=useConditionalProposal)		
+                    ,controlTwDEMC=list(thin=8, useConditionalProposal=useConditionalProposal, controlOverfittingMinNObs=if(controlOverfitting) 10 else Inf )		
                     #,debugSequential=TRUE
                     ,remoteDumpfileBasename = .remoteDumpfileBasename
                     ,doRecordProposals=TRUE
             ))
+    if( controlOverfitting ){
+        checkTrue( all(resa$resLogDen[,"obsSparse",] <= -5) )    # not across upper bound of logDen
+        checkTrue( all(resa$resLogDen[,"obsRich",] <= -500) )    # not across upper bound of logDen
+    }
+    # summary( resa$resLogDen[,"obsSparse",] )
+    #head(resa$resLogDen[,,5])
     #plot( as.mcmc.list(resa), smooth=FALSE)
     rescoda <- as.mcmc.list(thin(resa,start=.nGen%/%2)) 
     #
@@ -659,8 +691,7 @@ int.ofMultiIntermediate <- function(loadBalancing=FALSE, useConditionalProposal=
 }
 
 test.ofMultiIntermediateConsistency <- function(){
-    # testing multiple log-Density functions using intermediate results of each other (argument intermediate to dInfos)
-    loadBalancing=FALSE
+    # testing error handling on altering current state by different cost function to yield nonFininite logDen
     data(twTwoDenEx1)
     #
     thresholdCovar = 0.3	# the true value
@@ -689,7 +720,9 @@ test.ofMultiIntermediateConsistency <- function(){
     .nGen=128
     #undebug(denRichPrior)
     .remoteDumpfileBasename="tmp/dump_twDEMC_ofMultiIntermediateConsistency"
-    checkException( resa <- concatPops( resBlock <- twDEMCBlock( 
+    sfExport("denSparsePrior")      # used in denSparsePriorConst
+    checkException( 
+            resa <- concatPops( resBlock <- twDEMCBlock( 
                     ZinitPops
                     , nGen=.nGen 
                     ,dInfos=list(
@@ -701,11 +734,12 @@ test.ofMultiIntermediateConsistency <- function(){
                             ,b=list(dInfoPos="dRich", compPos="b")
                     )
                     ,nPop=.nPop
-                    ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
+                    ,controlTwDEMC=list(thin=8)		
                     #,debugSequential=TRUE
                     ,remoteDumpfileBasename = .remoteDumpfileBasename
                     ,doRecordProposals=TRUE
-            )))
+            ))
+    )
     #
     denRichPriorConst <- function(theta,...){     
         # make denRich also return -Inf so that those states are not accepted
@@ -714,6 +748,7 @@ test.ofMultiIntermediateConsistency <- function(){
         ret
     }
     #
+    sfExport("denRichPrior")      # used in denRichPriorConst
     resa <- concatPops( resBlock <- twDEMCBlock( 
                             ZinitPops
                             , nGen=.nGen 
@@ -726,7 +761,7 @@ test.ofMultiIntermediateConsistency <- function(){
                                     ,b=list(dInfoPos="dRich", compPos="b")
                             )
                             ,nPop=.nPop
-                            ,controlTwDEMC=list(thin=8, loadBalancing=loadBalancing)		
+                            ,controlTwDEMC=list(thin=8)		
                             #,debugSequential=TRUE
                             ,remoteDumpfileBasename = .remoteDumpfileBasename
                             ,doRecordProposals=TRUE
@@ -765,18 +800,30 @@ t_est.doAppendPrevLogDen <- function(){
 	# same as goodStartSeq, but with extending former runs
 }
 
-test.dump <- function(){
+.test.dump <- function(){
 	# test of creating a dump file on remote error
 	# same as goodStartPrior with changed fModel
+    # problem: fModel is evaluated in sequential mode before going to parallel execution, so cant test
 	.nPop=2
 	argsFLogDen <- list(
-		fModel=function(parms){ stop("test throwing an error")},		### the model function, which predicts the output based on theta 
+#		fModel={
+#            iInvoc=0
+#            function(parms){ 
+#                iInvoc <<- iInvoc+1
+#                if( iInvoc %% 10 == 0 )
+#                    stop(paste("test throwing an error, iInvoc=",iInvoc,sep=""))
+#                c(iInvoc=iInvoc)
+#            }
+#        },		### throws an error every 10 invocations using a closure
+        fModel = function(parms){ stop(paste("test throwing an error",sep="")) },
 		obs=obs,			### vector of data to compare with
 		invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
 		thetaPrior = thetaTrue,	### the prior estimate of the parameters
 		invCovarTheta = invCovarTheta	### the inverse of the Covariance of the prior parameter estimates
 		#xval=xval
 	)
+    #argsFLogDen$fModel()
+    # sfClusterApply(1, argsFLogDen$fModel )  # does not work with closures
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
 	.nChainPop=4
@@ -812,6 +859,7 @@ test.dump <- function(){
 			#debugSequential=TRUE
 		))
 	)
+    eval(body)
 	checkException( eval(body))
     if( !isParallel ) sfStop()
     checkTrue( file.exists(.remoteDumpfile))
@@ -1080,7 +1128,7 @@ t_est.goodStartSeqMultiTemp <- function(){
 	checkInterval( .pthetaTrue ) 
 }
 
-test.fLogDenScale <- function(){
+.test.fLogDenScale <- function(){
 	# same as goodStart sequence but with logDens function returning cost instead of logDensity
 	.nPop=2
 	argsFLogDen <- list(

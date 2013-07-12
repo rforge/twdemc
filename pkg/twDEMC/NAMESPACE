@@ -2,6 +2,15 @@ import(coda)			#thin generic
 
 exportPattern("^[^\\.]")	#exports all variables that do not start with a period.
 
+importFrom(abind, abind, adrop)
+importFrom(twMisc, cutQuantiles, twWhichColsEqual, twMergeSequences, twLogSumExp, twMergeLists, "vectorElements<-", twListArrDim, twRescale )  
+importFrom(snowfall,  sfApply, sfLapply,  sfParallel, sfExport, sfLibrary )
+importFrom(twSnowfall,  sfRemoteWrapper, sfFArgsApplyLB, sfSimplifyLBResult, sfApplyMatrixLB )
+importFrom(mvtnorm, rmvnorm, dmvnorm )
+importFrom(MASS, cov.rob )
+
+
+
 S3method(as.mcmc.list,twDEMC)
 S3method(combinePops,twDEMC)
 S3method(getNChains,twDEMC)

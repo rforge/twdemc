@@ -553,7 +553,7 @@ checkProblemsSpectral <- function(
 
 .tmp.f <- function(){
 	# TODO update implementation for Pops and Blocks
-setMethodS3("divideTwDEMCBatch","default", function( 
+R.methodsS3::setMethodS3("divideTwDEMCBatch","default", function( 
 	### iteratively run batches using divideTwDEMCBatch
 	x						##<< numeric array: rows:steps, col:parameters including logLik, 3: independent populations
 	, ...					##<< further arguments to \code{\link{divideTwDEMC}}

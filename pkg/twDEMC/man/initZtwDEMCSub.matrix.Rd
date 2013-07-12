@@ -29,7 +29,7 @@ attach( twLinreg1 )
 .nPop=2
 .nPar=length(theta0)
 Zinit <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=.nChainPop, nPop=.nPop)
-ss <- do.call( rbind, twListArrDim( Zinit))	#stack the chains 
+ss <- do.call( rbind, twMisc::twListArrDim( Zinit))	#stack the chains 
 ZinitSub <- initZtwDEMCSub(ss, nChainPop=.nChainPop, nPop=.nPop)
 head(Zinit[,,1])
 all.equal(dim(Zinit),dim(ZinitSub))
