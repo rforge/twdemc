@@ -214,6 +214,7 @@ ggplotDensity.twDEMCPops <- function(
         ,popNames=as.character(seq_along(res$pops)) ##<< character vector (nPop): names of the populations displayed in colour legend
         ,popCols=scale_colour_hue(1:.nPop)$palette(.nPop)   ##<< colors of the populations
         ,legendTitle="Populations"
+        ,parmsBounds=NULL	##<< numeric vector (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)
 ){
     ##seealso<<  
     ## \code{\link{plotMarginal2D}}
@@ -277,7 +278,14 @@ ggplotDensity.twDEMCPops <- function(
     #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
     #		facet_wrap(~parms, scales="free")
     #p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
-    p5 <- p3 + xlab("Parameter") + ylab("Scaled posterior density")
+    p5 <- p4 <- p3 + xlab("Parameter") + ylab("Scaled posterior density")
+    if( 0 < length(parmsBounds) ){
+        if( !is.matrix(parmsBounds) ) parmsBounds <- matrix(parmsBounds,ncol=1, dimnames=list(names(parmsBounds),NULL))
+        tmpDs5 <- reshape2::melt(parmsBounds[parNames,,drop=FALSE])
+        colnames(tmpDs5) <- c("parms","quantile","value")
+        if( doTransOrig ) tmpDs5$value <- transOrigPopt(tmpDs5$value, poptDistr2$trans)
+        p5 <- p4 + geom_vline(aes(xintercept=value), tmpDs5, color="black")
+    }
     p5
 }
 attr( ggplotDensity.twDEMCPops, "ex") <- function(){
@@ -285,6 +293,7 @@ attr( ggplotDensity.twDEMCPops, "ex") <- function(){
     res <- twdemcEx1
     ggplotDensity.twDEMCPops( res )
     ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE )
+    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, parmsBounds=res$dInfos[[1]]$argsFLogDen$thetaPrior )  # indicate the prior mean    
 }
 
 

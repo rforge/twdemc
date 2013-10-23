@@ -5,7 +5,8 @@
 \usage{ggplotDensity.twDEMCPops(res, poptDistr = NULL, pMin = 0.05, 
     doTransOrig = FALSE, doDispLogDen = TRUE, idInfo = names(res$dInfos)[1], 
     nSamplesPop = 500, popNames = as.character(seq_along(res$pops)), 
-    popCols = scale_colour_hue(1:.nPop)$palette(.nPop), legendTitle = "Populations")}
+    popCols = scale_colour_hue(1:.nPop)$palette(.nPop), legendTitle = "Populations", 
+    parmsBounds = NULL)}
 \arguments{
   \item{res}{the twDEMCPops object whose densities to plot}
   \item{poptDistr}{parameter Distributions for the prior, usually \code{poptDistr <- \link{twConstrainPoptDistr}(poptNames,HamerParameterPriors$parDistr )}}
@@ -19,6 +20,7 @@
   \item{popCols}{colors of the populations}
   \item{legendTitle}{
 }
+  \item{parmsBounds}{numeric vector (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)}
 }
 
 
@@ -34,4 +36,5 @@ data(twdemcEx1)  # from package twDEMC
 res <- twdemcEx1
 ggplotDensity.twDEMCPops( res )
 ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE )
+ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, parmsBounds=res$dInfos[[1]]$argsFLogDen$thetaPrior )  # indicate the prior mean    
 }
