@@ -214,7 +214,10 @@ ggplotDensity.twDEMCPops <- function(
         ,popNames=as.character(seq_along(res$pops)) ##<< character vector (nPop): names of the populations displayed in colour legend
         ,popCols=scale_colour_hue(1:.nPop)$palette(.nPop)   ##<< colors of the populations
         ,legendTitle="Populations"
-        ,parmsBounds=NULL	##<< numeric vector (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)
+        ,parNames = colnames(res$pops[[1]]$parms)   ##<< names of the parameters to plot
+        ,parmsBounds=NULL	##<< list <- colour -> numeric matrix (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)
+        ,parmsBoundsLt="dashed"
+        ,themeOpts=theme()
 ){
     ##seealso<<  
     ## \code{\link{plotMarginal2D}}
@@ -224,7 +227,6 @@ ggplotDensity.twDEMCPops <- function(
     # one chain per population
     resPops <- lapply( 1:nPop, function(iPop){ stackChainsPop(subPops(res,iPop=iPop)) })
     resPopsI <- resPops[[1]]
-    parNames <- colnames(resPopsI$pops[[1]]$parms)
     # thin result to about 500 cases per constrainted population, to save calculation time and retrieve matrix
     resMPops <- lapply(resPops, function(mPopsI){
                 stackChains(
@@ -248,12 +250,19 @@ ggplotDensity.twDEMCPops <- function(
             resM2Pops[[iPop]][,-1] <- transOrigPopt(resM2Pops[[iPop]][,-1], poptDistr2$trans)
         }
     }
-    tmpDs4 <- structure( reshape2::melt(resM2Pops) , names=c("cases","parms","value","pops"))
+    tmpDs4 <- structure( reshape2::melt(resM2Pops), names=c("cases","parms","value","pops"))
     tmpDs4$pops <- as.factor(tmpDs4$pops)
+    # reorder parms factor (may not be sorted alphabetically)
+    reorderFactor <- function (x, newLevels){
+        levelMap <- match(levels(x), as.factor(newLevels))
+        factor(newLevels[levelMap[x]], levels = newLevels)
+    }
+    tmpDs4$parms <- reorderFactor(tmpDs4$parms, .colNames)
     .nPop <- length(levels(tmpDs4$pops))
     #
-    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aes(x=value,colour=pops))#+ ylim(0,1) +#, colour=pops, fill=pops
-            theme(axis.title.x = element_blank())
+    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aes(x=value,colour=pops))+   #+ ylim(0,1) +#, colour=pops, fill=pops
+            themeOpts+      # need to give theme_bw before giving any other theme()
+            theme(axis.title.x = element_blank()) 
     #print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
     if( 0 < length(poptDistr) ){
         #1:.nPop
@@ -280,11 +289,15 @@ ggplotDensity.twDEMCPops <- function(
     #p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
     p5 <- p4 <- p3 + xlab("Parameter") + ylab("Scaled posterior density") + theme(axis.text.y = element_blank(), axis.ticks.y=element_blank())
     if( 0 < length(parmsBounds) ){
-        if( !is.matrix(parmsBounds) ) parmsBounds <- matrix(parmsBounds,ncol=1, dimnames=list(names(parmsBounds),NULL))
-        tmpDs5 <- reshape2::melt(parmsBounds[parNames,,drop=FALSE])
-        colnames(tmpDs5) <- c("parms","quantile","value")
-        if( doTransOrig ) tmpDs5$value <- transOrigPopt(tmpDs5$value, poptDistr2$trans)
-        p5 <- p4 + geom_vline(aes(xintercept=value), tmpDs5, color="black")
+        if( !is.list(parmsBounds) ) parmsBounds <- list( black = parmsBounds )
+        for( coli in names(parmsBounds) ){
+            pBi <- parmsBounds[[coli]] 
+            if( !is.matrix(pBi) ) pBi <- matrix(pBi,ncol=1, dimnames=list(names(pBi),NULL))
+            tmpDs5 <- reshape2::melt(pBi[parNames,,drop=FALSE])
+            colnames(tmpDs5) <- c("parms","quantile","value")
+            if( doTransOrig ) tmpDs5$value <- transOrigPopt(tmpDs5$value, poptDistr2$trans)
+            p5 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color=coli, linetype=parmsBoundsLt)
+        }
     }
     p5
 }
@@ -293,7 +306,10 @@ attr( ggplotDensity.twDEMCPops, "ex") <- function(){
     res <- twdemcEx1
     ggplotDensity.twDEMCPops( res )
     ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE )
-    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, parmsBounds=res$dInfos[[1]]$argsFLogDen$thetaPrior )  # indicate the prior mean    
+    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, parmsBounds=res$dInfos[[1]]$argsFLogDen$thetaPrior )  # indicate the prior mean
+    cols <- c("red","blue")
+    pBs <- structure( list(matrix(c(9,11,4.7, 5.2),byrow=TRUE,ncol=2,dimnames=list( c("a","b"),NULL))), names=cols[2])
+    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, popCols=cols, parmsBounds=pBs )
 }
 
 
