@@ -278,7 +278,7 @@ ggplotDensity.twDEMCPops <- function(
     #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
     #		facet_wrap(~parms, scales="free")
     #p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
-    p5 <- p4 <- p3 + xlab("Parameter") + ylab("Scaled posterior density")
+    p5 <- p4 <- p3 + xlab("Parameter") + ylab("Scaled posterior density") + theme(axis.text.y = element_blank(), axis.ticks.y=element_blank())
     if( 0 < length(parmsBounds) ){
         if( !is.matrix(parmsBounds) ) parmsBounds <- matrix(parmsBounds,ncol=1, dimnames=list(names(parmsBounds),NULL))
         tmpDs5 <- reshape2::melt(parmsBounds[parNames,,drop=FALSE])
