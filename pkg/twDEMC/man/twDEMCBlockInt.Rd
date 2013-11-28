@@ -100,7 +100,7 @@ It is multiplied by the number of parameters. Past generations are calculated
 by deviding by the number of chains per population}
 \item{returnIntermediates}{set to FALSE if intermediate result is large and transferring it between slaves slows down calculation}
 \item{useConditionalProposal}{if set to TRUE, poposal steps are generated conditional on the state of the other blocks}
-\item{controlOverfittingMinNObs}{scalar positive integer: minimum number of observations where bias is controlled. Need at least about 20 observations to work.}
+\item{controlOverfittingMinNObs}{scalar positive integer: minimum number of observations where bias is controlled. Need at least about 20 observations to work. Default Inf says no bias correction.}
 }
 
 }}
@@ -124,7 +124,7 @@ Cost, i.e. -2*logDensity, below the number of observations indicates an overfitt
 By supplying the number of observations for one result component with \code{dInfo$nObs} one can 
 activate the control for this overfitting. This works only, however, if there are enough observations. 
 The minimum numbe of observations where overfitting control is activated is given with 
-\code{ctrl$controlOverfittingMinNObs}. By setting this to Infinity, no overfitting control is applied.
+\code{ctrl$controlOverfittingMinNObs}. By setting this to Infinity (default), no overfitting control is applied.
 
 With overfitting control, there is a lower bound for the cost of one result compoent 
 , i.e. an upper bound of the corresponding \code{dInfo$fLogDen} result component. Values above this   

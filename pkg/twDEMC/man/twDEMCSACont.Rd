@@ -4,8 +4,8 @@
 \description{continuing simulated annealing DEMC based on previous result}
 \usage{twDEMCSACont(mc, nGen = 512, nObs, ..., m0 = calcM0twDEMC(getNParms(mc), 
     getNChainsPop(mc)), controlTwDEMC = list(), debugSequential = FALSE, 
-    restartFilename = NULL, ctrlBatch = list(nGenBatch = m0 * 
-        controlTwDEMC$thin * 8, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
+    restartFilename = NULL, ctrlBatch = list(nSamplesBatch = m0 * 
+        8, pThinPast = 0.5), ctrlT = list(TFix = numeric(0), 
         TMax = numeric(0), TDecProp = 0.9), ctrlConvergence = list(maxRelTChangeCrit = 0.025, 
         maxLogDenDriftCrit = 0.3, gelmanCrit = 1.4, critSpecVarRatio = 20, 
         dumpfileBasename = NULL, maxThin = 0))}
@@ -19,7 +19,7 @@
   \item{debugSequential}{set to TRUE to avoid parallel execution, good for debugging}
   \item{restartFilename}{filename to write intermediate results to}
   \item{ctrlBatch}{list of arguments controlling batch executions\describe{
-\item{nGenBatch}{number of generations for one call to twDEMCStep
+\item{nSamplesBatch}{number of samples for one call to twDEMCStep (multiplied by thin to get generations)
 << default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples}
 \item{pThinPast}{in each batch thin the past to given fraction before appending new results}
 }}
@@ -49,7 +49,7 @@ Last components represent the average logDensity of the last 8th of the chains.}
 
 }}
 
-\describe{\item{Adaptive thinning interval}{ 
+\describe{\item{Adaptive thinning interval (\code{maxThin})}{ 
 If spectral variance is larger than its critical ratio \code{ctrlConvergence$critSpecVarRatio}
 then thinning interval needs to be increased.
 If doubling the thinning interval is not larger than \code{ctrlConvergence$maxThin} then a new batch 

@@ -136,6 +136,8 @@ twDEMCSA <- function(
             warning("twDEMCSA: continueing previous run, but with differnt argument dInfos")
             thetaPrior$args$dInfos <- dInfos   # overwrite
         }
+        thetaPrior$failureMsg <- NULL       # clear previous return messages
+        thetaPrior$finishEarly <- NULL
         ret <- if( 0!=length(thetaPrior$args$ctrlBatch) &&
 				   0!=length(thetaPrior$args$ctrlBatch$useSubspaceAdaptation) &&	
 				   thetaPrior$args$ctrlBatch$useSubspaceAdaptation 
@@ -173,7 +175,7 @@ twDEMCSA <- function(
     #---------- calculate logDensity of initial components
 	ss <- stackChains(Zinit0)
     #print("before twCalcLogDensPar"); recover()
-    cat("Calculating logDensity for ", length(ss)," initial states.\n")
+    cat("Calculating logDensity for ", length(ss)," initial states for m0=",m0,"rows per population.\n")
     logDenDS0 <- (tmp <- twCalcLogDensPar(dInfos, ss, remoteDumpfileBasename=remoteDumpfileBasename))$logDenComp
     #	logDenL_old <- lapply( dInfos, function(dInfo){
     #		resLogDen <- twCalcLogDenPar( dInfo$fLogDen, ss, argsFLogDen=dInfo$argsFLogDen)$logDenComp
@@ -285,7 +287,7 @@ twDEMCSA <- function(
     }
     ctrlT$TMax[iNonFixTemp] <- pmin(ifelse(is.finite(ctrlT$TMax),ctrlT$TMax, Inf), ifelse(is.finite(temp0),temp0,Inf) )[iNonFixTemp]		# decrease TMax  
     #if( any(temp0 > 8)) stop("twDEMCSA: encountered too high temperature.")	
-	print(paste("initial T=",paste(signif(temp0,2),collapse=",")," for ",min(nGen, ctrlBatch$nGen0)," generations","    ", date(), sep="") )
+    print(paste("initial T=",paste(signif(temp0,2),collapse=",")," for ",min(nGen, ctrlBatch$nGen0)," generations","    ", date(), sep="") )
 	#if( sum(temp0 > 1) == 0){ dump.frames("parms/debugDump",TRUE); stop("twDEMCSA: no temperature > 0") }	
 	#
 	ret <- res0 <-  res <- twDEMCBlock( Zinit
@@ -317,9 +319,10 @@ twDEMCSA <- function(
 		bo <- 1:10; iPop=1
 		plot( mc0$parms[bo,"a",iPop], mc0$parms[bo,"b",iPop], col=rainbow(100)[twRescale(mc0$resLogDen[bo,"parmsSparse",iPop],c(10,100))] )
 	}
-	print(paste("finished initial ",ctrlBatch$nGen0," out of ",nGen," gens.    ", date(), sep="") )
+    print(paste("finished initial ",ctrlBatch$nGen0," out of ",nGen," gens.    ", date(), sep="") )
 	#
-	if( nGen > ctrlBatch$nGen0 ){
+    #if( nGen > ctrlBatch$nGen0 ){
+    if( TRUE ){     # need to call Continue to return proper diagnostics
 		#nObsLocal <- nObs 
 		ret <- if( ctrlBatch$useSubspaceAdaptation ){
 			divideTwDEMCSACont( mc=res0, nGen=nGen-ctrlBatch$nGen0, nObs=nObs
@@ -364,6 +367,7 @@ mcp <-  twDEMCSA(
         , dInfos=list(den1=list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
         , nPop=.nPop                                        # number of independent populations
         , controlTwDEMC=list(thin=4)                        # see twDEMCBlockInt for all the tuning options
+        , ctrlConvergence=list(maxThin=32)                  # adaptiv increase of thinning interval, if spectal density gets to large
         , ctrlT=list(TFix=c(parms=1))                       # do nott use increase T for priors
         , nObs=c(parms=1,obs=length(argsFLogDen$obs))       # number of observations used in temperature calculation
 )
@@ -387,9 +391,18 @@ invCovarTheta <- (thetaPrior*0.3)^2		# given as independent variances for faster
 thresholdCovar = 0.3	# the true value used to generate the observations
 thresholdCovar = 0		# the effective model that glosses over this threshold
 
+#str(twTwoDenEx1)
+nObs <- c( parmsSparse=1, obsSparse=length(twTwoDenEx1$obs$y1), parmsRich=1, obsRich=length(twTwoDenEx1$obs$y2) )
+
 dInfos=list(
-	dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
-	,dRich=list(fLogDen=denRichPrior, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+	dSparse=list(fLogDen=denSparsePrior
+        , argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)
+        , nObs=nObs[c("parmsSparse","obsSparse")]
+        )
+	,dRich=list(fLogDen=denRichPrior
+        , argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)
+        , nObs=nObs[c("parmsRich","obsRich")]
+        )
 )
 blocks = list(
 	a=list(dInfoPos="dSparse", compPos="a")
@@ -399,8 +412,6 @@ blocks = list(
 names(do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen)))
 names(do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen)))
 
-#str(twTwoDenEx1)
-nObs <- c( parmsSparse=1, obsSparse=length(twTwoDenEx1$obs$y1), parmsRich=1, obsRich=length(twTwoDenEx1$obs$y2) )
 
 #trace(twDEMCSACont, recover )
 #trace(twDEMCSA, recover )
@@ -409,7 +420,10 @@ res <- res0 <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, n
 	, ctrlT=list( TFix=c(parmsSparse=1,parmsRich=1) )   # no increased Temperature for priors
 	, ctrlBatch=list( nGenBatch=256 )
 	, debugSequential=TRUE
-    , controlTwDEMC = list(DRgamma=0.1)             # use Delayed rejection
+    , controlTwDEMC = list(
+           DRgamma=0.1                          # use Delayed rejection
+           #,controlOverfittingMinNObs = 20      # use overfitting control (for obsRich), recommended on using single density 
+    )
 	#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 )
 res <- twDEMCSA( res0, nGen=2*256 )	# extend the former run
@@ -460,7 +474,8 @@ twDEMCSACont <- function(
 	#
 	, ctrlBatch = list(				##<< list of arguments controlling batch executions
 		##describe<< 
-		nGenBatch=m0*controlTwDEMC$thin*8		##<< number of generations for one call to twDEMCStep
+        nSamplesBatch=m0*8          ##<< number of samples for one call to twDEMCStep (multiplied by thin to get generations)
+		#nGenBatch=m0*controlTwDEMC$thin*8		##<< number of generations for one call to twDEMCStep
         #nGenBatch=m0*controlTwDEMC$thin*3		##<< number of generations for one call to twDEMCStep
         ##<< default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		#, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
@@ -542,11 +557,12 @@ twDEMCSACont <- function(
 	nObsDen <- sapply( iDens, function(iDen){ sum( nObs[iCompsNonFixDen[[iDen]] ]) })
 	TCurr <- getCurrentTemp(mc)
 	iBatch=1
-	nBatch <- ceiling( nGen/ctrlBatch$nGenBatch )
-	for(iBatch in (1:nBatch)){
+    nGenDone <- 0       # tracking the generations already done
+	#nBatch <- ceiling( nGen/(ctrlBatch$nSamplesBatch*controlTwDEMC$thin) )
+	while( nGenDone < nGen){
 		if((0 < length(restartFilename)) && is.character(restartFilename) && restartFilename!=""){
 			resRestart.twDEMCSA = res #avoid variable confusion on load by giving a longer name
-			resRestart.twDEMCSA$iBatch <- iBatch	# also store updated calculation of burnin time
+			resRestart.twDEMCSA$nGenDone <- nGenDone	# also store updated calculation of burnin time
 			resRestart.twDEMCSA$args <- argsFEval	# also store updated calculation of burnin time
 			save(resRestart.twDEMCSA, file=restartFilename)
 			cat(paste("Saved resRestart.twDEMCSA to ",restartFilename,"\n",sep=""))
@@ -604,7 +620,7 @@ twDEMCSACont <- function(
         ## Last components represent the average logDensity of the last 8th of the chains.
         ##details<< }}
         #
-        ##details<< \describe{\item{Adaptive thinning interval}{ 
+        ##details<< \describe{\item{Adaptive thinning interval (\code{maxThin})}{ 
         ##  If spectral variance is larger than its critical ratio \code{ctrlConvergence$critSpecVarRatio}
         ##  then thinning interval needs to be increased.
         ##  If doubling the thinning interval is not larger than \code{ctrlConvergence$maxThin} then a new batch 
@@ -667,7 +683,7 @@ twDEMCSACont <- function(
             #if( (max(relTChange) <= maxRelTChange) ) recover()
 			#trace(isLogDenDrift, recover )
             # may finish early, but do at least one batch
-			if( (iBatch != 1) && (max(relTChange) <= ctrlConvergence$maxRelTChangeCrit) && !.resDrift ){
+			if( (nGenDone != 0) && (max(relTChange) <= ctrlConvergence$maxRelTChangeCrit) && !.resDrift ){
 				#res <- resSparse
                 # keep original res
                 finishEarlyMsg <- paste("twDEMCSA: Maximum Temperture change only ",signif(max(relTChange)*100,2)
@@ -697,7 +713,7 @@ twDEMCSACont <- function(
                 ," logDen=",paste(signif(lDenLastPart,3),collapse=",")
                 #," T=",paste(signif(TCurr,2),collapse=",")
             , sep=""))
-        .nGenBatch <- min( ctrlBatch$nGenBatch,  nGen - (iBatch-1)*ctrlBatch$nGenBatch )
+        .nGenBatch <- min( ctrlBatch$nSamplesBatch*controlTwDEMC$thin,  nGen - nGenDone )
         print(paste("doing ",.nGenBatch," generations to TEnd0=",signif(TEnd0,2)
                             ,", TEnd=",paste(signif(TEnd,2),collapse=","),sep="") )
         res1 <- res <- twDEMCBlock( resSparse
@@ -711,7 +727,8 @@ twDEMCSACont <- function(
 			,...
 		)
 		TCurr <- getCurrentTemp(res)
-		print(paste("finished ",iBatch*ctrlBatch$nGenBatch," out of ",nGen," gens.   ", date(), sep="") )
+        nGenDone <- nGenDone + .nGenBatch
+		print(paste("finished ",nGenDone," out of ",nGen," gens.   ", date(), sep="") )
 	}
 	res$TGlobal <- max(getCurrentTemp(res)[unlist(iCompsNonFixDen)])
 	res$args <- argsFEval
@@ -847,7 +864,7 @@ twDEMCSACont <- function(
 	nObs <- c( parmsSparse=1, obsSparse=length(twTwoDenEx1$obs$y1), logDen1=length(twTwoDenEx1$obs$y2) )
 	
 	#trace(twDEMCSA, recover )
-	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, debugSequential=TRUE, ctrlBatch=list(nGenBatch=256) )
+	resPops <- res <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, nObs=nObs, debugSequential=TRUE, ctrlBatch=list(nSamplesBatch=64) )
 	# continue run for 512 generations
 	res <- twDEMCSA( res, 512 )
 	
@@ -1090,7 +1107,7 @@ twDEMCSACont <- function(
 		, nObs=.nObs
 		,nGen=2*512
 		, ctrlBatch=list( 
-			nGenBatch=512 
+			nSamplesBatch=512/4 
 			, useSubspaceAdaptation=TRUE
 		)
 		, debugSequential=TRUE

@@ -78,6 +78,7 @@ mcp <-  twDEMCSA(
         , dInfos=list(den1=list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
         , nPop=.nPop                                        # number of independent populations
         , controlTwDEMC=list(thin=4)                        # see twDEMCBlockInt for all the tuning options
+        , ctrlConvergence=list(maxThin=32)                  # adaptiv increase of thinning interval, if spectal density gets to large
         , ctrlT=list(TFix=c(parms=1))                       # do nott use increase T for priors
         , nObs=c(parms=1,obs=length(argsFLogDen$obs))       # number of observations used in temperature calculation
 )
@@ -101,9 +102,18 @@ invCovarTheta <- (thetaPrior*0.3)^2		# given as independent variances for faster
 thresholdCovar = 0.3	# the true value used to generate the observations
 thresholdCovar = 0		# the effective model that glosses over this threshold
 
+#str(twTwoDenEx1)
+nObs <- c( parmsSparse=1, obsSparse=length(twTwoDenEx1$obs$y1), parmsRich=1, obsRich=length(twTwoDenEx1$obs$y2) )
+
 dInfos=list(
-	dSparse=list(fLogDen=denSparsePrior, argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
-	,dRich=list(fLogDen=denRichPrior, argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta))
+	dSparse=list(fLogDen=denSparsePrior
+        , argsFLogDen=list(thresholdCovar=thresholdCovar, twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)
+        , nObs=nObs[c("parmsSparse","obsSparse")]
+        )
+	,dRich=list(fLogDen=denRichPrior
+        , argsFLogDen=list(thresholdCovar=thresholdCovar,twTwoDenEx=twTwoDenEx1, theta0=thetaPrior, thetaPrior=thetaPrior, invCovarTheta=invCovarTheta)
+        , nObs=nObs[c("parmsRich","obsRich")]
+        )
 )
 blocks = list(
 	a=list(dInfoPos="dSparse", compPos="a")
@@ -113,8 +123,6 @@ blocks = list(
 names(do.call( dInfos$dSparse$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dSparse$argsFLogDen)))
 names(do.call( dInfos$dRich$fLogDen, c(list(theta=twTwoDenEx1$theta0),dInfos$dRich$argsFLogDen)))
 
-#str(twTwoDenEx1)
-nObs <- c( parmsSparse=1, obsSparse=length(twTwoDenEx1$obs$y1), parmsRich=1, obsRich=length(twTwoDenEx1$obs$y2) )
 
 #trace(twDEMCSACont, recover )
 #trace(twDEMCSA, recover )
@@ -123,7 +131,10 @@ res <- res0 <- twDEMCSA( thetaPrior, covarTheta, dInfos=dInfos, blocks=blocks, n
 	, ctrlT=list( TFix=c(parmsSparse=1,parmsRich=1) )   # no increased Temperature for priors
 	, ctrlBatch=list( nGenBatch=256 )
 	, debugSequential=TRUE
-    , controlTwDEMC = list(DRgamma=0.1)             # use Delayed rejection
+    , controlTwDEMC = list(
+           DRgamma=0.1                          # use Delayed rejection
+           #,controlOverfittingMinNObs = 20      # use overfitting control (for obsRich), recommended on using single density 
+    )
 	#, restartFilename=file.path("tmp","example_twDEMCSA.RData")
 )
 res <- twDEMCSA( res0, nGen=2*256 )	# extend the former run

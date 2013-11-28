@@ -1,12 +1,12 @@
 Package: twDEMC
 Title: parallel DEMC 
-Version: 0.9.209
-Date: 2013-07-12
+Version: 0.9.212
+Date: 2013-09-17
 Author: Thomas Wutzler
 Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
 Description: Parallel version of a DEMC differential evolution markov chain. DEMC is a variant of MCMC monte carlo markov chain.
 License: GPL (>=2)
 LazyLoad: yes
-Depends: R (>= 1.8.0), coda, logitnorm
+Depends: R (>= 3.0.0), coda, logitnorm
 Imports: MASS, twSnowfall, twMisc, mvtnorm, snowfall, abind
 Suggests: RUnit, lattice, ggplot2, reshape
