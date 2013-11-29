@@ -17,9 +17,9 @@ divideTwDEMCSACont <- function(
 		##describe<< 
 		#nGenBatch=max(64*controlTwDEMC$thin,m0*(1/ctrlSubspaces$minPSub)*4)		##<< number of generations for one call to twDEMCStep
 		nGenBatch=m0*(1/2/ctrlSubspaces$minPSub)*controlTwDEMC$thin*2		##<< number of generations for one call to twDEMCStep
-		    ## \cr Default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
+		    ## , Default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples
 		, nSampleMin=32				##<< minimum number of samples in each population within batch so that calculation of average density is stable
-            ## \cr Default: 32
+            ## , Default: 32
 		, pThinPast=0.5				##<< in each batch thin the past to given fraction before appending new results
 	##end<<
 	)	

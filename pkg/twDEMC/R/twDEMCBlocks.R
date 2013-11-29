@@ -19,7 +19,7 @@ twDEMCBlockInt <- function(
 			##describe<< 
 			fLogDen=NULL                    ##<< \code{function(theta, ...)} calculates a vector of logDensities 
 			    ## corresponding to different data streams of parameter vector theta 
-			    ## \cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
+			    ## , or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
 			,xC=c()						    ##<< numeric vector: current accepted state
 			,logDenCompC=c()	            ##<< numeric vector: result components of fLogDen for current position
 			,parUpdateDenC=c()          	##<< integer vector: logDensity that recently updated parameter at given index			
@@ -39,7 +39,7 @@ twDEMCBlockInt <- function(
 			dInfoPos=1		##<< name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters
 			, compPos=dInfos[[1]]$compPosDen	##<< names or index of the parameter components to be updated
 			, fUpdateBlock=updateBlockTwDEMC	##<< function to update the parameters.
-			## \cr It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
+			## , It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
 			## as described in \code{\link{updateBlockTwDEMC}}
 			, argsFUpdate=list()	    ##<< further arguments passed to fUpdate
 			, requiresUpdatedDen=TRUE	##<< if fUpdateBlock does not depend on current density result, then set this to FALSE and save some calculation time 
@@ -87,20 +87,20 @@ twDEMCBlockInt <- function(
 		,pSnooker= 0.1	##<< probability of a snooker update (others parallel updates), Default 0.1
 		,pGamma1 = 0.1	##<< probability of jumping to state of another chain (different modes), Default 0.1
 		,epsMult =0.2	##<< >0 gives d-dimensional variation around gamma. 
-            ## It adds scaled uncorrelated noise to the proposal. Default: 0.2 \cr 
+            ## It adds scaled uncorrelated noise to the proposal. Default: 0.2 , 
             ## Its advantage over eps.add is 
             ## that its effect scales with the differences of vectors in the population whereas eps.add does not. 
-            ## if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr 
+            ## if the variance of a dimensions is close to 0, eps.mult gives smaller changes. , 
             ## A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector 
             ## from parallel update 
 		,epsAdd = 0	   	##<< >0 is needed to ensure that all positions in the space can be reached. 
-            ## For targets without gaps, it can set small or even to 0. Default 0 \cr 
+            ## For targets without gaps, it can set small or even to 0. Default 0 , 
             ## sd of normally distributed error added to proposal by parallel or snooker update. 
 		,pAcceptWindowWidth = 8 ##<< number of thinning intervals back over which the acceptance rate is calculated Default 8
 		,probUpDir=0.5 	##<< probability of direction between two states of increasing Density, Default 0.5 
-            ## \cr Increasing this during burin may accelerate convergence
+            ## , Increasing this during burin may accelerate convergence
 		,initialAcceptanceRate=0.25	##<< numeric matrix (nBlock x nChains) initially assumed acceptance rate. Default 0.25 
-            ## \cr Used to calculate the number of generations backwards to sample from
+            ## , Used to calculate the number of generations backwards to sample from
 		,DRgamma=0		##<< factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step, Default 0
 		,minPCompAcceptTempDecr=0.15  ##<< if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR), Default 0.15
 		,pIndStep = 1.5 ##<< assume state to be independent, after on average about those number of accepted steps, Default 1.5
@@ -365,7 +365,7 @@ twDEMCBlockInt <- function(
 	pAcceptMinPops <- apply(pAcceptPops,2,min)	# minimum of acceptance rate across blocks for each population
 	nGenBackPops <- pmin(M0Pops,ceiling(ctrl$gInd * pmax(1,ctrl$pIndStep/(pAcceptMinPops * ctrl$thin))))	#number of genrations to select states from for each population, ctrl$gInd is multiplied by number of rows for one step depending on acceptance rate and thinning but at least one  
 	##details<< \describe{ \item{Acceptance rate}{
-	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thinning intervals. \cr
+	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thinning intervals. ,
 	## If acceptance rates drops to low values, this might be because of bad localization
 	## ,i.e the requirement to use states from more distant past.
 	## In order to improve localization, less parameters or more chains per population are required.
@@ -1697,7 +1697,7 @@ R.methodsS3::setMethodS3("twDEMCBlock","array", function(
 		, upperParBounds = vector("list",nPop)
 		### list of named numeric vectors: giving upper parameter bounds for each population 
 		### for exploring subspaces of the limiting distribution, see details
-		### \cr Alternatively a single numeric vector can be supplied, which is replicated for each population.
+		### , Alternatively a single numeric vector can be supplied, which is replicated for each population.
 		, lowerParBounds = vector("list",nPop)
 	### similar to upperParBounds
 	){
@@ -1837,10 +1837,10 @@ R.methodsS3::setMethodS3("twDEMCBlock","twDEMCPops", function(
 		if( 0 == length(argsList$TSpec) ){
             ##details<< \describe{\item{TSpec}{ 
             ## If TSpec is not explicitly given as an array for \code{\link{twDEMCBlockInt}} it is constructed as follows:
-            ## \cr If TEnd is given use it to explicitely define end Temperature for all data streams.
-            ## \cr If TEnd0 is given calculate TEnd for all data streams by scaling for number of observations (see \code{\link{calcStreamTemp}}).
-            ## \cr If TStart0 is given calcualte TCurr for all data streams 
-            ## \cr else use current Temperature of streams in x as starting temperature
+            ## , If TEnd is given use it to explicitely define end Temperature for all data streams.
+            ## , If TEnd0 is given calculate TEnd for all data streams by scaling for number of observations (see \code{\link{calcStreamTemp}}).
+            ## , If TStart0 is given calcualte TCurr for all data streams 
+            ## , else use current Temperature of streams in x as starting temperature
             ## }}
             if( (!missing(TStart0)) || (!missing(TEnd0)) ){
                 if( missing(nObs) || missing(TFix) ) stop("twDEMCBlock.twDEMCPops: if TStart0 or TENd0 are specified, one needs to specify nObs and TFix too.")

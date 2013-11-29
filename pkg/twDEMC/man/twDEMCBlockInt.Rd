@@ -31,7 +31,7 @@ For exploring subspaces of the limiting distribution, see details}
   \item{dInfos}{named list of used density functions. Each entry is a list with components\describe{
 \item{fLogDen}{\code{function(theta, ...)} calculates a vector of logDensities
 corresponding to different data streams of parameter vector theta 
-\cr or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}}
+, or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}}
 \item{xC}{numeric vector: current accepted state}
 \item{logDenCompC}{numeric vector: result components of fLogDen for current position}
 \item{parUpdateDenC}{integer vector: logDensity that recently updated parameter at given index
@@ -50,7 +50,7 @@ list describing the logDensities, see \code{\link{twDEMCBlockInt}}}
 \item{dInfoPos}{name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters}
 \item{compPos}{names or index of the parameter components to be updated}
 \item{fUpdateBlock}{function to update the parameters.
-\cr It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
+, It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
 as described in \code{\link{updateBlockTwDEMC}}}
 \item{argsFUpdate}{further arguments passed to fUpdate}
 \item{requiresUpdatedDen}{if fUpdateBlock does not depend on current density result, then set this to FALSE and save some calculation time}
@@ -78,20 +78,20 @@ It is invoked usually by (\code{\link{twDEMCBlock.array}} or \code{\link{twDEMCB
 \item{pSnooker}{probability of a snooker update (others parallel updates), Default 0.1}
 \item{pGamma1}{probability of jumping to state of another chain (different modes), Default 0.1}
 \item{epsMult}{>0 gives d-dimensional variation around gamma.
-It adds scaled uncorrelated noise to the proposal. Default: 0.2 \cr 
+It adds scaled uncorrelated noise to the proposal. Default: 0.2 , 
 Its advantage over eps.add is 
 that its effect scales with the differences of vectors in the population whereas eps.add does not. 
-if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr 
+if the variance of a dimensions is close to 0, eps.mult gives smaller changes. , 
 A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector 
 from parallel update }
 \item{epsAdd}{>0 is needed to ensure that all positions in the space can be reached.
-For targets without gaps, it can set small or even to 0. Default 0 \cr 
+For targets without gaps, it can set small or even to 0. Default 0 , 
 sd of normally distributed error added to proposal by parallel or snooker update. }
 \item{pAcceptWindowWidth}{number of thinning intervals back over which the acceptance rate is calculated Default 8}
 \item{probUpDir}{probability of direction between two states of increasing Density, Default 0.5
-\cr Increasing this during burin may accelerate convergence}
+, Increasing this during burin may accelerate convergence}
 \item{initialAcceptanceRate}{numeric matrix (nBlock x nChains) initially assumed acceptance rate. Default 0.25
-\cr Used to calculate the number of generations backwards to sample from}
+, Used to calculate the number of generations backwards to sample from}
 \item{DRgamma}{factor for reducing step length [0..1) in delayed rejection step, 0 means no DR step, Default 0}
 \item{minPCompAcceptTempDecr}{if acceptance rate drops below minPCompAcceptTempDecr+0.02 times this level, employ delayed rejection (DR), Default 0.15}
 \item{pIndStep}{assume state to be independent, after on average about those number of accepted steps, Default 1.5}
@@ -112,7 +112,7 @@ All the results of fLogDen for the initial state must be finite.
 }}
 
 \describe{ \item{Acceptance rate}{
-The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thinning intervals. \cr
+The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth thinning intervals. ,
 If acceptance rates drops to low values, this might be because of bad localization
 ,i.e the requirement to use states from more distant past.
 In order to improve localization, less parameters or more chains per population are required.

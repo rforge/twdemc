@@ -20,10 +20,10 @@
 
 \describe{\item{TSpec}{ 
 If TSpec is not explicitly given as an array for \code{\link{twDEMCBlockInt}} it is constructed as follows:
-\cr If TEnd is given use it to explicitely define end Temperature for all data streams.
-\cr If TEnd0 is given calculate TEnd for all data streams by scaling for number of observations (see \code{\link{calcStreamTemp}}).
-\cr If TStart0 is given calcualte TCurr for all data streams 
-\cr else use current Temperature of streams in x as starting temperature
+, If TEnd is given use it to explicitely define end Temperature for all data streams.
+, If TEnd0 is given calculate TEnd for all data streams by scaling for number of observations (see \code{\link{calcStreamTemp}}).
+, If TStart0 is given calcualte TCurr for all data streams 
+, else use current Temperature of streams in x as starting temperature
 }}}
 
 

@@ -6,14 +6,14 @@ calcBaseTemp <- function(
     temp        ##<< numeric vector (nResultComp): temperature, i.e. variance inflation factor
     , nObs      ##<< integer vector (nResultComp): number of observations
     , TFix=rep( NA_real_, length(temp))       ##<< numeric vector (nResultComp): fixed temperature for components, non-finite for those with varying temperature
-        ## \cr alternatively a named vector listing only the components with fixed temperatures (temp must have names then too)
+        ## , alternatively a named vector listing only the components with fixed temperatures (temp must have names then too)
     , iNonFixTemp=which(!is.finite(TFix))     ##<< integer vector: index of result components, which Temperature is fixed 
 ){
     ##seealso<< \link{calcStreamTemp}, \link{twDEMC}
     ##details<<
     ## The Temperature, i.e. variance inflation factor, scales with the number of observations by
     ## T = 1 + (T0 - 1) * n.  
-    ## \cr A common base temperature is the maximium across calculated stream base temperatures
+    ## A common base temperature is the maximium across calculated stream base temperatures
     if( length(nObs) != length(temp) )
         nObs <- nObs[names(temp)]
     if( length(TFix) != length(temp) ){
@@ -76,7 +76,7 @@ calcStreamTemp <- function(
 twDEMCSA <- function(
 	### simulated annealing DEMC 
 	thetaPrior			##<< vector of parameters, point estimate
-        ##<< \cr alternatively array with initial states, as returned by \code{\link{initZtwDEMCNormal}}
+        ##<< , alternatively array with initial states, as returned by \code{\link{initZtwDEMCNormal}}
 	,covarTheta			##<< the a prior covariance of parameters
 	,nGen=512			##<< number of generations 
 	,nObs				##<< integer vector (names resComp) specifying the number of observations for each result component
@@ -1261,8 +1261,8 @@ isLogDenDrift <- function(
     attr( ret, "resTTest") <- tres
     attr( ret, "logDenComp") <- colMeans(ds4)       # average logDensity of all components of last quarter
     ##value<< TRUE if any of the logDensities are a significantly greater in the fourth quantile compared to the first quantile of the samples
-    ## \cr attribute \code{resTTest}: numeric maxtrix (logDenStart, logDenEnd, pTTest x nDInfo )
-    ## \cr attribute \code{logDenComp}: numeric vector (nResComp): average logDenT of all components of last quater
+    ## , attribute \code{resTTest}: numeric maxtrix (logDenStart, logDenEnd, pTTest x nDInfo )
+    ## , attribute \code{logDenComp}: numeric vector (nResComp): average logDenT of all components of last quater
     ret
 }
 attr(isLogDenDrift,"ex") <- function(){

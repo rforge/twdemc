@@ -12,8 +12,8 @@
 \details{Because of large sample sizes, very small differences may be significantly different.
 Use argument minDiff to specify below which difference a significant difference is not regarded as drift.}
 \value{TRUE if any of the logDensities are a significantly greater in the fourth quantile compared to the first quantile of the samples
-\cr attribute \code{resTTest}: numeric maxtrix (logDenStart, logDenEnd, pTTest x nDInfo )
-\cr attribute \code{logDenComp}: numeric vector (nResComp): average logDenT of all components of last quater}
+, attribute \code{resTTest}: numeric maxtrix (logDenStart, logDenEnd, pTTest x nDInfo )
+, attribute \code{logDenComp}: numeric vector (nResComp): average logDenT of all components of last quater}
 
 \author{Thomas Wutzler}
 

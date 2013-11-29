@@ -63,11 +63,11 @@ twDEMCBlockInt <- function(
 	
 	##    correspondens parameters and symbols in paper
 	##    \tabular{cc}{
-	##     d$chains       \tab N \cr
-	##     d$parms          \tab d \cr
-	##     gamma_par     \tab gamma \cr
-	##     gamma_snooker \tab gamma \cr
-	##     M0            \tab M0 \cr
+	##     d$chains       \tab N ,
+	##     d$parms          \tab d ,
+	##     gamma_par     \tab gamma ,
+	##     gamma_snooker \tab gamma ,
+	##     M0            \tab M0 ,
 	##     mZ          	 \tab M 
 	##	  }
 	
@@ -91,8 +91,8 @@ twDEMCBlockInt <- function(
 		F = 2.38, 		##<< related to multiplicative error (F2=F/sqrt(2*Npar), see eps.mult 
 		pSnooker= 0.1,	##<< probability of a snooker update (others parallel updates)
 		pGamma1 = 0.1,	##<< probability of jumping to state of another chain (different modes)
-		epsMult =0.2,	##<< >0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. \cr A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update 
-		epsAdd = 0,	   	##<< >0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. \cr sd of normally distributed error added to proposal by parallel or snooker update. 
+		epsMult =0.2,	##<< >0 gives d-dimensional variation around gamma. It adds scaled uncorrelated noise to the proposal. Its advantage over eps.add is that its effect scales with the differences of vectors in the population whereas eps.add does not. if the variance of a dimensions is close to 0, eps.mult gives smaller changes. , A uniformly distributed error, i.e. F2*runif(1+-epsMult*prop) multiplied to difference vector from parallel update 
+		epsAdd = 0,	   	##<< >0 is needed to ensure that all positions in the space can be reached. For targets without gaps, it can set small or even to 0. , sd of normally distributed error added to proposal by parallel or snooker update. 
 		thin = 4, 	   	##<< thinning interval	 
 		T0=1, Tend=1, 	##<< initial and end Temperature to flatten the density surface, for each population
 		pAcceptWindowWidth = 100, ##<< number of generations back over which the acceptance rate is calculated
@@ -107,13 +107,13 @@ twDEMCBlockInt <- function(
 	## Argument logDenCompX holds the current logDens for those components of return of fLogDen that are handled internally in fLogDen.
 	## These will not be regarded in the sum over components Metropolis step in twDEMC.
 	## Rather the components of the last accepted step are passed to fLogDen as second argument togheter with the current temperature as third argument.
-	## \cr 
+	## , 
 	## The rownames of the numeric matrix must correspond to components of result of fLogDen.
 	## The number of columns must correspond to the number of chains
-	## \cr 
+	## , 
 	## Alternatively one can just specify a character vector of return components that are handled internally in the objective function.
 	## Then a proper matrix of logDenCompX will be initialized to -Inf, i.e. accepting the next step
-	## \cr 
+	## , 
 	## A proper initial value for logDenCompX that handels component parms and assures that the step is not rejected
 	## because of the initial parameters is:
 	## \code{logDenCompX=matrix(-Inf, nrow=1, ncol=.nChains, dimnames=list("parms",NULL))}
@@ -190,7 +190,7 @@ twDEMCBlockInt <- function(
 	
 	##details<< \describe{ \item{Acceptance rate}{
 	## The acceptance rate is tracked for each chain across ctrl$pAcceptWindowWidth generations.
-	## \cr If acceptance rates drops to low values, this might be because of bad localization
+	## , If acceptance rates drops to low values, this might be because of bad localization
 	## ,i.e the requirement to use states from more distant past.
 	## In order to improve localization, less parameters or more chains per population are required.
 	## }}

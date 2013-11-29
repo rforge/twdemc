@@ -11,9 +11,9 @@
 }
 \details{model output y1 represents a longterm observations
 It is based on longterm average of xRich instead of detailed values
-\cr Model output y1 represents a short measurement campaing. 
+, Model output y1 represents a short measurement campaing. 
 During this campaing xSparse does not vary but detailed measurements of xRich are utilized 
-\cr In the short-term relation, the model may simulate a detailed threshold in the covariate
+, In the short-term relation, the model may simulate a detailed threshold in the covariate
 or abstract from those details by thresholdCovar=0.}
 \value{list with model predictions
 \item{y1}{theta[1]*x1 + theta[2]*mean(xRich)/10

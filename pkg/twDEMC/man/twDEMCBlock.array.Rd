@@ -13,7 +13,7 @@
   \item{logDenCompX}{numeric matrix (nResComp x nChains) initial state}
   \item{upperParBounds}{list of named numeric vectors: giving upper parameter bounds for each population 
 for exploring subspaces of the limiting distribution, see details
-\cr Alternatively a single numeric vector can be supplied, which is replicated for each population.}
+, Alternatively a single numeric vector can be supplied, which is replicated for each population.}
   \item{lowerParBounds}{similar to upperParBounds}
 }
 

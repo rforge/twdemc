@@ -11,7 +11,7 @@
     ctrlSubspaces = list())}
 \arguments{
   \item{thetaPrior}{vector of parameters, point estimate
-<< \cr alternatively array with initial states, as returned by \code{\link{initZtwDEMCNormal}}}
+<< , alternatively array with initial states, as returned by \code{\link{initZtwDEMCNormal}}}
   \item{covarTheta}{the a prior covariance of parameters}
   \item{nGen}{number of generations}
   \item{nObs}{integer vector (names resComp) specifying the number of observations for each result component

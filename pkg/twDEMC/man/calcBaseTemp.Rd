@@ -8,12 +8,12 @@
   \item{temp}{numeric vector (nResultComp): temperature, i.e. variance inflation factor}
   \item{nObs}{integer vector (nResultComp): number of observations}
   \item{TFix}{numeric vector (nResultComp): fixed temperature for components, non-finite for those with varying temperature
-\cr alternatively a named vector listing only the components with fixed temperatures (temp must have names then too)}
+, alternatively a named vector listing only the components with fixed temperatures (temp must have names then too)}
   \item{iNonFixTemp}{integer vector: index of result components, which Temperature is fixed}
 }
 \details{The Temperature, i.e. variance inflation factor, scales with the number of observations by
 T = 1 + (T0 - 1) * n.  
-\cr A common base temperature is the maximium across calculated stream base temperatures}
+A common base temperature is the maximium across calculated stream base temperatures}
 \value{numeric scalar: The temperature, i.e. variance inflation factor, for a single observation.}
 
 \author{Thomas Wutzler}

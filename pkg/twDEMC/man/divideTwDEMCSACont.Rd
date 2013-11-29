@@ -28,9 +28,9 @@ minimum number of samples in step for extending runs}
   \item{restartFilename}{filename to write intermediate results to}
   \item{ctrlBatch}{list of arguments controlling batch executions\describe{
 \item{nGenBatch}{number of generations for one call to twDEMCStep
-\cr Default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples}
+, Default: set in a way that on average each population (assuming half are significant) is appended by 2*m0 samples}
 \item{nSampleMin}{minimum number of samples in each population within batch so that calculation of average density is stable
-\cr Default: 32}
+, Default: 32}
 \item{pThinPast}{in each batch thin the past to given fraction before appending new results}
 }}
   \item{ctrlT}{list of arguments controlling Temperature decrease\describe{
