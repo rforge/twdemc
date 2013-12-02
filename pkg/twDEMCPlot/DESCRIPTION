@@ -7,6 +7,6 @@ Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
 Description: Plotting routines supplementing the twDEMC package
 License: GPL-2
 LazyLoad: yes
-Depends: R (>= 1.10.0), twDEMC, ggplot2
-Imports: reshape2, proto
+Depends: R (>= 1.10.0), twDEMC, ggplot2, proto
+Imports: reshape2
 Suggests: testthat, np
