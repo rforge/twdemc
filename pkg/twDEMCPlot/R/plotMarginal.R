@@ -151,7 +151,6 @@ plot2DKDMarginals <- function(
                 dss[sample.int(nrow(dss),3),]
             }else
                 dss
-    sfLibrary(np)
     tmpf <- function(i, dssbw, ...){
         #generate different starting values
         set.seed(i*1000)
@@ -160,6 +159,7 @@ plot2DKDMarginals <- function(
     }
     #mtrace(tmpf)
     #tmpf(1, formula=form, dssbw=dssbw, bwtype=bwtype ,tol=tol, ftol=ftol)
+    sfLibrary(np)
     bw3L <- sfLapply( 1:4, tmpf, formula=form, dssbw=dssbw, bwtype=bwtype ,tol=tol, ftol=ftol)			
     fval <- sapply(bw3L,"[","fval")
     #sapply(bw3L,"[","bw")
@@ -195,11 +195,13 @@ plot2DKDMarginals <- function(
     if( 0==length(bandwidth) ) bandwidth<-bw3$bw
     tmp2 <- twApply2DMesh(dsPred[,-1],FUN=tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bandwidth;tmp}), dims=dims, label=colnames(dsPred)[1] )
     #tmp2 <- twPlot2DFun( dsPred[,2], dsPred[,3], tmpf, argsFUN=list(bws={tmp<-bw3;tmp$bw=bandwidth;tmp}), dims=dim[1], ydiv=dim[2], col=rev(heat.colors(20)), xlab=bw3$xnames[1], ylab=bw3$xnames[2],key.title=title(sub=paste(colnames(dsPred)[1],"\n",sep="")) )
-    names(dimnames(tmp2)) <- bw3$xnames
-    attr(tmp2,"bws") <- bw3
+    #names(dimnames(tmp2)) <- bw3$xnames
+    tmp2$bandwidth <- bw3$bandwidth
     plot(tmp2, ...)
     return(invisible(tmp2))
-    ### Matrix of predictions for the grid.
+    ### Value of \code{\link{twApply2DMesh}}. 
+    ### - may be used with \code{\link{plot.twApply2DMesh}} from package twMisc - the side effect of this method.
+    ### Additional entry \code{bandwidth}, the result of bandwidth calculation \code{\link{npregbw}}.
 }
 attr(plot2DKDMarginals,"ex") <- function(){
     .tmp.f <- function(){
@@ -216,23 +218,23 @@ attr(plot2DKDMarginals,"ex") <- function(){
         
         # kernel density regression estimate
         #mtrace(plot2DKDMarginals)
-        rl <- sample0[,"rLogDen"]
+        rl <- sample0[,1]
         set.seed(0815)
         sample0b <- cbind(sample0, rLogDen2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
-        plot( rLogDen2 ~ rLogDen, sample0b)
+        plot( rLogDen2 ~ dInfo1, sample0b)
         plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogDen2"],c(1,20)))] )
         #refit disturbed sample
         tmp2 <- tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20  )
-        attributes(tmp2)$bws$bandwidth
+        tmp2$bandwidth$x
         # the bandwidth seems to be underestimated for the second dimension, repeat with higher bandwidth
-        #tmp3 <- plot2DKDMarginals( rLogDen ~ a+b, sample0b, dim=20, bandwidth=30  )
+        #tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20, bandwidth=30  )
         #refine plot
         plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="LogDensity", contour=TRUE )
     }
 }
 
 plot3DKDMarginals <- function(
-        ### Evaluates the Kernel-density regression on a grid and displays a figure.
+        ### Evaluates the Kernel-density regression on a grid and displays a rgl-figure.
         form	##<< formula of regression e.g. rLogDen~tvrY+tvrO+biasLitterLeaf
         ,ds		##<< dataframe or matrix with column names corresponding to variables in the formula
         ,probs=c(0.2,0.5,0.75,0.95)		##<< the percentiles at which to plot contour surfaces for the response variable
@@ -240,10 +242,10 @@ plot3DKDMarginals <- function(
         ,...		##<< further argument to \code{\link{plot.twApply3DMesh}}
         ,dims=8	##<< vector of points across predictor space within each dimension: scales bad: n=prod(dims)~dims[1]^3  
         ,bandwidth = NULL	 ##<< integer vector: bandwidth for each dimension
+            ### see adaptive bandwidth of npreg.
+            ### about Records to include for estimating bandwidth.
+            ### If only one value is supplied, then it is repeated for each predictor
         ,knotSpacing = "quantile"	##<< see argument in \code{\link{twApply3DMesh}}
-        ### see adaptive bandwidth of npreg.
-        ### about Records to include for estimating bandwidth.
-        ### If only one value is supplied, then it is repeated for each predictor
         ,nSampleBandwidth=500 ##<< the sample size to estimate the bandwidth
         ,nSample=1000		##<< sample used for interpolation
         ### The larger the sample, the longer it takes
@@ -343,9 +345,10 @@ attr(plot3DKDMarginals,"ex") <- function(){
         y <- c(rnorm(n/2,.5,.5), rnorm(n/2,-.5,.5)) 
         zz <- rnorm(n,.5,.5)
         
-        plot(tmp <- twApply3DMesh(x,y,zz,f, nSample=1000, dims=10))	# just the points
+        require("twMiscRgl")   # for plotting the original function, instead of the kernel-density re-estimate 
+        plot(tmp <- twApply3DMesh(x,y,zz,f, nSample=1000, dims=10))	# just the points (nSample dominates over dims)
         plot(tmp, probs=seq(0.5, 0.95, len=4))
-        tmpObs <- attributes(tmp)$sample
+        tmpObs <- tmp$sample
         tmpObs$f2 <- tmpObs$f + rnorm(nrow(tmpObs),sd=0.025)
         plot(tmpObs$f2~tmpObs$f)
         plot3d( tmpObs, col=rev(heat.colors(20))[round(twRescale(tmpObs$f2,c(1,20)))]  )
@@ -353,9 +356,10 @@ attr(plot3DKDMarginals,"ex") <- function(){
         #reestimate density from disturbed sample
         # kernel density regression estimate
         #mtrace(plot3DKDMarginals)
+        #sfInit(TRUE,cpus=2); sfLibrary(np)
         tmp2 <- plot3DKDMarginals( f2 ~ x+y+zz, tmpObs, dims=10, nSampleBandwidth=500  )
-        tmp2b <- tmp2; attr(tmp2b,"sample")<-NULL; plot(tmp2b)	# show the mesh instead of the example
-        plot(tmp2, probs=c(0.25,0.5,0.75,0.9), nDrawPoints=0)		#add contours
+        tmp2b <- tmp2; tmp2b$sample<-NULL; plot(tmp2b)	# show the mesh instead of the sample
+        plot(tmp2, probs=c(0.25,0.5,0.75,0.9), nDrawPoints=0)		#contours only
     }
 }
 

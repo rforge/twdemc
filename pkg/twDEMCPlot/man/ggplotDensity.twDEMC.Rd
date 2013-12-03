@@ -10,8 +10,7 @@
   \item{pMin}{if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes}
   \item{doTransOrig}{if TRUE, parameters are translated to original scale}
   \item{doDispLogDen}{include density of LogDensitys}
-  \item{idInfo}{
-}
+  \item{idInfo}{vector of column (names or indices) used to constrain the sample (logDen > pMin), defaults to first column}
 }
 
 

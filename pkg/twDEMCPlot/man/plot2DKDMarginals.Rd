@@ -27,7 +27,9 @@ the sample size to estimate the bandwidth and the marginal}
 }
 \details{Uses package snowfall to split calculation to subprocesses.
 Requires package np loaded in cluster (sfLibrary(np))}
-\value{Matrix of predictions for the grid.}
+\value{Value of \code{\link{twApply2DMesh}}. 
+- may be used with \code{\link{plot.twApply2DMesh}} from package twMisc - the side effect of this method.
+Additional entry \code{bandwidth}, the result of bandwidth calculation \code{\link{npregbw}}.}
 
 \author{Thomas Wutzler}
 
@@ -49,16 +51,16 @@ Requires package np loaded in cluster (sfLibrary(np))}
     
     # kernel density regression estimate
     #mtrace(plot2DKDMarginals)
-    rl <- sample0[,"rLogDen"]
+    rl <- sample0[,1]
     set.seed(0815)
     sample0b <- cbind(sample0, rLogDen2 = rl+rnorm(length(rl),sd=diff(range(rl))/4 ))
-    plot( rLogDen2 ~ rLogDen, sample0b)
+    plot( rLogDen2 ~ dInfo1, sample0b)
     plot( sample0b[,c("a","b")], col=rev(heat.colors(20))[round(twRescale(sample0b[,"rLogDen2"],c(1,20)))] )
     #refit disturbed sample
     tmp2 <- tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20  )
-    attributes(tmp2)$bws$bandwidth
+    tmp2$bandwidth$x
     # the bandwidth seems to be underestimated for the second dimension, repeat with higher bandwidth
-    #tmp3 <- plot2DKDMarginals( rLogDen ~ a+b, sample0b, dim=20, bandwidth=30  )
+    #tmp3 <- plot2DKDMarginals( rLogDen2 ~ a+b, sample0b, dim=20, bandwidth=30  )
     #refine plot
     plot(tmp3, xlab="Intercept a", ylab="Slope b", zlab="LogDensity", contour=TRUE )
 }

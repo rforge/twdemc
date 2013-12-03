@@ -12,8 +12,8 @@ ggplotChainPopMoves <- function(
 	
 	iGen <- cbind( floor(c(0,1/5)*nrow(resB$rLogDen))+1, floor(c(4/5,1)*nrow(resB$rLogDen)) )
 	iLabel <- apply(iGen,2,function(iGeni){paste(range(iGeni), collapse=" to ")}) 
-	tmp1 <- reshape2::melt(resB$rLogDen[iGen[1,1]:iGen[2,1],]); tmp1$pos="from"
-	tmp2 <- reshape2::melt(resB$rLogDen[iGen[1,2]:iGen[2,2],]); tmp2$pos="to"
+	tmp1 <- melt(resB$rLogDen[iGen[1,1]:iGen[2,1],]); tmp1$pos="from"
+	tmp2 <- melt(resB$rLogDen[iGen[1,2]:iGen[2,2],]); tmp2$pos="to"
 	
 	dfLogDen2 <- rbind(tmp1,tmp2)
 	dfLogDen2$Pop <- iChains[dfLogDen2$X2]  #(dfLogDen2$X2-1) %% ncol(resB$temp) +1
@@ -147,16 +147,15 @@ ggplotDensity.twDEMC <- function(
 	,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
 	,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
 	,doDispLogDen=TRUE	##<< include density of LogDensitys
-    ,idInfo=names(res$dInfos)[1]
+    ,idInfo=names(res$dInfos)[1]    ##<< vector of column (names or indices) used to constrain the sample (logDen > pMin), defaults to first column
 ){
 	##seealso<<  
 	## \code{\link{plotMarginal2D}}
 	## \code{\link{twDEMCBlockInt}}
 	#
-	nPop = 	ncol(res$temp)
-	nChainsPop = ncol(res$rLogDen)%/%nPop
-	#thin result to about 500 cases per constrainted population, to save calculation time
-	resT <- resT0 <- thin(res, newThin=max(1,floor((nrow(res$rLogDen)*res$thin*nChainsPop*(1-pMin))/500.0)%/%res$thin)*res$thin )
+	nChainsPop = getNChainsPop(res)
+	#thin result to about maximum 500 cases per constrainted population, to save calculation time
+	resT <- resT0 <- thin(res, newThin=max(1,floor((getNSamples(res)*res$thin*nChainsPop*(1-pMin))/500.0)%/%res$thin)*res$thin )
 	if( 0 < length(poptDistr) )
 		poptDistr2 <- twConstrainPoptDistr(rownames(resT0$parms),poptDistr )	#also used for prior
 	if( doTransOrig ){
@@ -164,16 +163,21 @@ ggplotDensity.twDEMC <- function(
 		resT <- transOrigPopt.twDEMC(resT0,poptDistr2$trans)
 	}
 	# each population one single chain
-    m <- stackChainsPop( resT )
-    mA <- stackChains(m)    # all samples
-    # remove cases with 
-    m <- m[ m[,idInfo] >=  quantile(m[,idInfo],pMin) ,   ]
+    m0 <- stackChainsPop( resT )
+    # order LogDensities in each chain
+    orderLogDen <- if( length(idInfo)==1) order(m0[,idInfo, ]) else t(aaply(m0, 3, orderLogDen, length(idInfo) ))
+    # omit the cases with lowest logDen
+    nOmit <- round(nrow(m0)*(pMin))
+    m <- aaply( m0, 3, function(m1){
+                oL <- orderLogDen(m1, length(idInfo))
+                m2 <- m1[oL[-(1:nOmit)],]
+            })
     # pick columns
     .colNames <- c( {if(doDispLogDen) idInfo else NULL}, colnames(res$parms) )
-	tmpDs4 <- structure( reshape2::melt(m[,.colNames]), names=c("pops","parms","value"))
+	tmpDs4 <- structure( melt(m[,,.colNames]), names=c("pops","rec","parms","value"))
 	tmpDs4$pops <- as.factor(tmpDs4$pops)
 	#
-	p1 <- p2 <- ggplot(tmpDs4,aes(x=value))+ ylim(0,1) +#, colour=pops, fill=pops
+	p1 <- p2 <- ggplot(tmpDs4,aes(x=value, colour=pops))+ #ylim(0,1) +#, colour=pops, fill=pops
 		theme(axis.title.x = element_blank())
 	#print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
 	if( 0 < length(poptDistr) ){
@@ -187,7 +191,8 @@ ggplotDensity.twDEMC <- function(
 				,size=0.8,linetype="twodash")+
 			scale_colour_manual("Populations",cols )
 	}
-	p3 <- p2 + stat_density(aes(y=..scaled..,colour=pops,ymax=1), geom="line")+
+    #p3 <- p2 + stat_density(aes(y=..scaled..,colour=pops,ymax=1), geom="line")+
+    p3 <- p2 + stat_density(aes(y=..scaled..), geom="line", position="identity")+
 		facet_wrap(~parms, scales="free_x") +
         theme()
 	#p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
@@ -209,7 +214,7 @@ ggplotDensity.twDEMCPops <- function(
         ,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
         ,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
         ,doDispLogDen=TRUE	##<< include density of LogDensitys
-        ,idInfo=names(res$dInfos)[1]
+        #,idInfo=names(res$dInfos)[seq_along(res$dInfos)]    ##<< the names of logDen for applying pMin 
         ,nSamplesPop=500      ##<< thin to about these number of samples within each population
         ,popNames=as.character(seq_along(res$pops)) ##<< character vector (nPop): names of the populations displayed in colour legend
         ,popCols=scale_colour_hue(1:.nPop)$palette(.nPop)   ##<< colors of the populations
@@ -223,7 +228,7 @@ ggplotDensity.twDEMCPops <- function(
     ## \code{\link{plotMarginal2D}}
     ## \code{\link{twDEMCBlockInt}}
     #
-    nPop = 	length(res$pops)
+    nPop = 	getNPops(res)
     # one chain per population
     resPops <- lapply( 1:nPop, function(iPop){ stackChainsPop(subPops(res,iPop=iPop)) })
     resPopsI <- resPops[[1]]
@@ -236,11 +241,14 @@ ggplotDensity.twDEMCPops <- function(
                     ))
             })
     # pick columns
-    .colNames <- c( {if(doDispLogDen) idInfo else NULL}, parNames )
+    #.colNames <- c( {if(doDispLogDen) idInfo else NULL}, parNames )
+    .colNames <- c( {if(doDispLogDen) names(res$dInfos) else NULL}, parNames )
     # omit the cases of very low density
-    #minDen <- quantile( do.call( c, lapply(resMPops,"[",,idInfo)), pMin)
-    resM2Pops <- lapply( resMPops, function(m){
-                m[ m[,idInfo] >=  quantile(m[,idInfo],pMin) ,  .colNames ]      # better for each pop separately
+    # m1 <- resMPops[[1]]
+    resM2Pops <- lapply( resMPops, function(m1){
+                nOmit <- round( nrow(m1) * pMin )
+                oL <- orderLogDen(m1, length(res$dInfos))
+                m2 <- m1[oL[-(1:nOmit)],]
             })
     if( 0 < length(poptDistr) )
         poptDistr2 <- twConstrainPoptDistr(parNames,poptDistr )	#also used for prior
@@ -250,7 +258,8 @@ ggplotDensity.twDEMCPops <- function(
             resM2Pops[[iPop]][,-1] <- transOrigPopt(resM2Pops[[iPop]][,-1], poptDistr2$trans)
         }
     }
-    tmpDs4 <- structure( reshape2::melt(resM2Pops), names=c("cases","parms","value","pops"))
+    tmpDs4 <- structure( melt(resM2Pops), names=c("cases","parms","value","pops"))
+    tmpDs4 <- subset(tmpDs4, parms %in% .colNames)
     tmpDs4$pops <- as.factor(tmpDs4$pops)
     # reorder parms factor (may not be sorted alphabetically)
     reorderFactor <- function (x, newLevels){
@@ -293,7 +302,7 @@ ggplotDensity.twDEMCPops <- function(
         for( coli in names(parmsBounds) ){
             pBi <- parmsBounds[[coli]] 
             if( !is.matrix(pBi) ) pBi <- matrix(pBi,ncol=1, dimnames=list(names(pBi),NULL))
-            tmpDs5 <- reshape2::melt(pBi[parNames,,drop=FALSE])
+            tmpDs5 <- melt(pBi[parNames,,drop=FALSE])
             colnames(tmpDs5) <- c("parms","quantile","value")
             if( doTransOrig ) tmpDs5$value <- transOrigPopt(tmpDs5$value, poptDistr2$trans)
             p5 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color=coli, linetype=parmsBoundsLt)
@@ -305,11 +314,14 @@ attr( ggplotDensity.twDEMCPops, "ex") <- function(){
     data(twdemcEx1)  # from package twDEMC
     res <- twdemcEx1
     ggplotDensity.twDEMCPops( res )
-    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE )
+    ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, popNames=c("scen 1","scen 2"), legendTitle="Scenarios" )
     ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, parmsBounds=res$dInfos[[1]]$argsFLogDen$thetaPrior )  # indicate the prior mean
     cols <- c("red","blue")
     pBs <- structure( list(matrix(c(9,11,4.7, 5.2),byrow=TRUE,ncol=2,dimnames=list( c("a","b"),NULL))), names=cols[2])
     ggplotDensity.twDEMCPops( res, doDispLogDen=FALSE, popCols=cols, parmsBounds=pBs )
+    
+    #data(twTwoDenEx1); res <- subsetTail(int.ofMultiIntermediate())    # in runittwDEMC.R  # to test multiple cost 
+    
 }
 
 
@@ -332,7 +344,7 @@ ggplotDensity.poptDistr <- function(
 			if(doTransOrig) transOrigPopt(qNorm, parDistr$trans[iPar]) else qNorm
 		}))
 	dimnames(qRange)<-list(parms=pNames, iRec=NULL)
-	tmpDs4 <- reshape2::melt(qRange)
+	tmpDs4 <- melt(qRange)
 	p1 <- p2 <- ggplot(tmpDs4,aes(x=value),geom="blank")+ #, colour=pops, fill=pops
 		theme(axis.title.x = element_blank())
 	p2 <- p1 + facet_wrap(~parms, scales="free_x") 
@@ -340,7 +352,7 @@ ggplotDensity.poptDistr <- function(
 	p4 <- p2 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=parDistr,doTransOrig=doTransOrig)
 	p5 <- p6 <- p4 + xlab("Parameter") + ylab("Scaled density")
 	if( 0 < length(parmsBounds) ){
-		tmpDs5 <- reshape2::melt(parmsBounds[pNames,])
+		tmpDs5 <- melt(parmsBounds[pNames,])
 		colnames(tmpDs5) <- c("parms","quantile","value")
 		if( !doTransOrig ) tmpDs5$value <- transNormPopt(tmpDs5$value, parDistr[as.character(tmpDs5$parms),"trans"])
 		p6 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color="blue") 
