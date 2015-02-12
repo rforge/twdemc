@@ -2,50 +2,22 @@
 
 R.methodsS3::setMethodS3("subChains","twDEMC", function( 
 		### Condenses an twDEMC List to the chains iChains e.g \code{1:4}.
-		x, iChains=NULL, iPops=NULL, 
-		nPop=NULL, ##<< number of populations in x
-		... 
+		x               ##<< the twDEMC object to select chains from
+        , iChains=NULL  ##<< integer vector: the chains to select
+        , iPops=NULL    ##<< integer vector: the populations, whose chains should be selected
+		, nPop=getNPops(x)     ##<< number of populations in x
+		,...                    ##<< not used
 		, doKeepBatchCall=FALSE	##<< wheter to retain the batch call attribute of x
 ){
 		##seealso<<   
 		## \code{\link{twDEMC}}
 		
-		##details<< 
-		## There are several methods access properties a result of an \code{\link{twDEMCBlockInt}}, i.e.
-		## an object of class \code{twDEMC} \itemize{
-		## \item{ number of generations: \code{\link{getNGen.twDEMC}}  } 
-		## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMC}}  } 
-		## \item{ number of chains: \code{\link{getNChains.twDEMC}}  } 
-		## \item{ number of populations: \code{\link{getNPops.twDEMC}}  } 
-		## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMC}}  } 
-		## \item{ number of parameters: \code{\link{getNParms.twDEMC}}  } 
-		## \item{ thinning interval: \code{res$thin}  } 
-		##}
-		##
-		## There are several methods to transform or subset the results of an \code{\link{twDEMCBlockInt}} run. \itemize{
-		## \item{ select chains or sub-populations: this method  } 
-		## \item{ thin all the chains: \code{\link{thin.twDEMC}}  } 
-		## \item{ select subset of cases: \code{\link{subset.twDEMC}}  }
-		## \item{ combine several twDEMC results to a bigger set of populations \code{\link{combinePops.twDEMC}}  }
-		## \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMC}}  } 
-		##}
-		##
-		## There are several methods utilize the functions of the coda package. \itemize{
-		## \item{ convert an twDEMC to a coda mcmc.list \code{\link{as.mcmc.list.twDEMC}}  } 
-		## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
-		## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
-		## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
-		##}
-		#? 		## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
-
-
 		# To help re-initializing the arguments to fLogDen \itemize{
 		# \item{ transforming parameters \code{\link{subsetArgsFLogDen}}  }}
 		#
 		
 		##details<< 
-		## Alternatively to specification of iChains, one can specify a vector of populations and the total number of populations.
-		if( is.null(nPop) ) nPop=getNPops(x)
+		## Alternatively to specification of \code{iChains}, one can specify a vector of populations and the total number of populations.
 		nChainPop = getNChainsPop(x)
 		res <- x
 		if( !is.null(iPops)){
@@ -66,8 +38,51 @@ R.methodsS3::setMethodS3("subChains","twDEMC", function(
 			res$Y <- x$Y[,,iChains, drop=FALSE]
 		res$thin <- x$thin
 		if(!doKeepBatchCall) attr(res,"batchCall") <- NULL
-		res
-		### a list of class twDEMC (see \code{\link{twDEMCBlockInt}})
+        ##value<< A list of class twDEMC (see \code{\link{twDEMCBlockInt}}).
+        res
+        
+        ##details<< 
+        ## \describe{ \item{The twDEMC class}{
+        ## The \code{twDEMC} class represents MCMC results with all chains having the same length. 
+        ## This is usually a result by a call to \code{\link{concatPops.twDEMCPops}}.
+        ## It holds the same results as the \code{twDEMCPops} class, except that the entries in \code{pops} list are concatenated by chain.  
+        ## \itemize{
+        ## \item parms: array (nStep, nParm, nChain) of parameter samples
+        ## \item temp: matrix (nStep, nResComp ) of temperature, one collumn for each logDensity components
+        ## \item parms: array (nStep, nBlock, nChain) acceptance rate
+        ## \item resLogDen: array (nStep, nResComp, nChain) results of logDensities
+        ## \item logDen: array (nStep, nBlock, nChain) sum across logDensity components for each block
+        ## \item Y: array (lastUnthinnedSteps, nParm+nBlock+nResComp, nChain) of parameters, acceptance per block and result components of latest unthinned steps 
+        ## }
+        ##
+        ## There are several methods access properties, i.e.
+        ## an object of class \code{twDEMC} \itemize{
+        ## \item{ number of generations: \code{\link{getNGen.twDEMC}}  } 
+        ## \item{ number of samples (only one sample each thinning inteval): \code{\link{getNSamples.twDEMC}}  } 
+        ## \item{ number of chains: \code{\link{getNChains.twDEMC}}  } 
+        ## \item{ number of populations: \code{\link{getNPops.twDEMC}}  } 
+        ## \item{ number of chains per population: \code{\link{getNChainsPop.twDEMC}}  } 
+        ## \item{ number of parameters: \code{\link{getNParms.twDEMC}}  } 
+        ## \item{ thinning interval: \code{res$thin}  } 
+        ##}
+        ##
+        ## There are several methods to transform or subset: \itemize{
+        ## \item{ select chains or sub-populations: this method  } 
+        ## \item{ thin all the chains: \code{\link{thin.twDEMC}}  } 
+        ## \item{ select subset of cases: \code{\link{subset.twDEMC}}  }
+        ## \item{ combine several twDEMC results to a bigger set of populations \code{\link{combinePops.twDEMC}}  }
+        ## \item{ stack all the results of all chains to one big matrix \code{\link{stackChains.twDEMC}}  } 
+        ##}
+        ##
+        ## There are several methods utilize the functions of the coda package. \itemize{
+        ## \item{ convert an twDEMC to a coda mcmc.list \code{\link{as.mcmc.list.twDEMC}}  } 
+        ## \item{ applying a function to all of the chains: \code{\link{mcmcListApply}}  }
+        ## \item{ stack all the results of all chains to one big matrix: \code{\link{stackChains.mcmc.list}}  } 
+        ## \item{ transforming parameters \code{\link{transOrigPopt.mcmc.list}}  } 
+        ## }
+        ##}}
+        #? 		## \item{ plotting a subset of the chains and cases: \code{\link{plotThinned.mcmc.list}}  } 
+        
 	})
 #mtrace(subChains.twDEMC)
 

@@ -1,5 +1,6 @@
 data(twLinreg1)
 
+
 denSigmaEx1Obs <- function(
 	### unnormalized log density for observations for given parameters
 	theta				 ##<< named numeric vector a,b,logSigma2
@@ -8,7 +9,7 @@ denSigmaEx1Obs <- function(
 	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
 	resid <- pred - twLinreg$obs
 	varObs <- exp(theta[3])
-	-1/2 * sum(resid^2)/varObs
+	structure(-1/2 * sum(resid^2)/varObs, names="obs") 
 }
 attr(denSigmaEx1Obs,"ex") <- function(){
 	data(twLinreg1)
@@ -95,15 +96,16 @@ attr(denSigmaEx1SigmaInvX,"ex") <- function(){
 
 
 
-logSigma2 <- 2*log( mean(twLinreg1$sdObs) )		# expected sigma2
+logSigma2 <- log( mean(twLinreg1$sdObs^2) )		# expected sigma2
 logSigma2 <- logSigma2+2	# bad starting conditions: assume bigger variance
-varLogSigma2=2#var( 2*log(twLinreg1$sdObs) )		# variance for initialization
+varLogSigma2=0.8*logSigma2#var( 2*log(twLinreg1$sdObs) )		# variance for initialization
 
 lmDummy <- with(twLinreg1, lm( obs ~ xval, weights=1/sdObs^2))		# results without priors
 (.expTheta <- coef(lmDummy))
 (.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
 (.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("a","b")) )
 
+#sfInit(parallel=TRUE, cpus=2); sfLibrary(twDEMC) # rinvchisq
 
 .nPop=2
 .nChainPop=4
@@ -120,8 +122,8 @@ do.call( denSigmaEx1Sigma, c(list(theta=theta0)) )
 #mtrace(twDEMCBlockInt)
 resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
 		dInfos=list(
-			dObs=list(fLogDen=denSigmaEx1Obs)
-			,dSigma=list(fLogDen=denSigmaEx1Sigma)
+			dObs=list(fLogDen=denSigmaEx1Obs, argsFLogDen=list(twLinreg=twLinreg1))
+			,dSigma=list(fLogDen=denSigmaEx1Sigma, argsFLogDen=list(twLinreg=twLinreg1))
 		)
 		,blocks=list(
 			bObs=list(dInfoPos="dObs", compPos=c("a","b"))
@@ -129,7 +131,7 @@ resa1 <- resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen,
 		)
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
-		,debugSequential=TRUE
+		#,debugSequential=TRUE
 		,doRecordProposals=TRUE
 	))
 #str(resBlock$pops[[1]])
@@ -169,59 +171,146 @@ checkInterval( .pthetaTrue )
 
 
 #---------- now replace metropolis sampling of sigma by direct parameter sampling
-
-updateSigma2 <- function( 
-	### update Sigma by sampling from a scaled inverse Chi-square distribution 
-	theta				##<< numeric vector: current state that is used in density function of the block
-	,argsFUpdateBlock
-	,twLinreg=twLinreg1
-### further argument provided for generating the update  \describe{
-### \item{compPosInDen}{ positions of the dimensions in x that are updated in this block}
-### \item{step}{proposed jump}
-### \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
-### \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
-### \item{tempC}{global temperature}
-### \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
-### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
-### \item{argsFLogDen}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
-### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
-### \item{ctrl$DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
-### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
-### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
-### \item{fCalcComponentTemp}{ functiont to calculate temperature of result components, (way of transporting calcComponentTemp to remote process) }
-### }
-){
-	pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
-	resid <- pred - twLinreg$obs
-	n <- length(pred)
-	v <- sum( resid^2 ) / n
-	sigma2 <- rinvchisq( 1, n, v )
-	##value<< list with components
-	list(	##describe<<
-		accepted=1			##<< boolean scalar: if step was accepted
-		, xC=log(sigma2)	##<< numeric vector: components of position in parameter space that are being updated
-	)	##end<<
-	#})
+# see updateSigmaByGibbsSamplingInvchisq in invchisq.R
+#fResidDummyModel <- function(theta, twLinreg=twLinreg1){
+fResidDummyModel <- function(theta, twLinreg){
+    pred <- twLinreg$fModel(theta,twLinreg$xval)
+    resid <- pred - twLinreg$obs
 }
+
+
+updateSigmaByGibbsSamplingInvchisq( twLinreg1$theta0, fResid=fResidDummyModel, twLinreg=twLinreg1)
+
+
 
 .nGen=128
 #.nGen=16
 #mtrace(twDEMCBlockInt)
 #mtrace(.updateBlocksTwDEMC)
+#trace(fResidDummyModel, recover)       #untrace(fResidDummyModel)
+#trace(updateSigmaByGibbsSamplingInvchisq, recover)       #untrace(updateSigmaByGibbsSamplingInvchisq)
+#sfInit(parallel=TRUE, cpus=2)
 resa2 <-  resa <- concatPops( resBlock <- twDEMCBlock( ZinitPops, nGen=.nGen, 
 		dInfos=list(
-			dObs=list(fLogDen=denSigmaEx1Obs, compPosDen=c("a","b","logSigma2"))
-		)
+			dObs=list(fLogDen=denSigmaEx1Obs, compPosDen=c("a","b","logSigma2"), argsFLogDen=list(twLinreg=twLinreg1))
+            #,dSigma=list(fLogDen=function(theta){1}, compPosDen=c("a","b","logSigma2"))
+        )
 		,blocks=list(
-			bObs=list(dInfoPos="dObs", compPos=c("a","b"))
-			,bSigma=list(dInfoPos="dObs", compPos=c("logSigma2"), fUpdateBlock=updateSigma2, requiresUpdatedDen=FALSE)
-		)
+			bObs=list(compPos=c("a","b"), dInfoPos="dObs" )
+            ,bSigma=list(compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+                       argsFUpdate=list(fResid=fResidDummyModel, twLinreg=twLinreg1) 
+                    )
+        )
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		
 		,debugSequential=TRUE
-		,doRecordProposals=TRUE
 	))
-plot( as.mcmc.list(resa), smooth=FALSE )
+#plot( as.mcmc.list(resa), smooth=FALSE )
+res <- thin(resa, start=64)
+plot( rescoda <- as.mcmc.list(res), smooth=FALSE )
+
+plot( rescoda <- as.mcmc.list(thin(resa1,start=64)), smooth=FALSE )
+
+
+.tmp.f <- function(){
+    .count <- 0
+    tmpf <- function(...){
+        .count <<- .count +1
+        dummyTwDEMCModel(...)
+    }
+    twLinreg1$fModel <- tmpf
+    # excute twDEMCSA   
+    .count      # 2200 compared to 6400 calls of the forward function with using intermediate
+}
+
+.tmp.f2 <- function(){
+    .count <- 0
+    #fModelOrig <- twTwoDenEx1$fModel
+    tmpf <- function(...){
+        .count <<- .count +1
+        fModelOrig(...)
+    }
+    twTwoDenEx1$fModel <- tmpf
+    # excute twDEMCSA   
+    .count      # 2200 compared to 6400 calls of the forward function with using intermediate
+}
+
+
+
+# using twDEMCSA for simpler usage 
+#trace(twCalcLogDensPar, recover)       #untrace(twCalcLogDensPar)
+#trace(denSigmaEx1Obs, recover)       #untrace(denSigmaEx1Obs)
+#denSigmaEx1Obs(c(theta0,logSigma2=logSigma2), twLinreg=twLinreg1 )
+.count <- 0
+resa3 <-  resa <- concatPops( resBlock <- twDEMCSA( 
+                theta=c(twLinreg1$theta0,logSigma2=logSigma2), 
+                covarTheta=diag(c(twLinreg1$sdTheta^2,varLogSigma2)),
+                dInfos=list(
+                        dObs=list(fLogDen=denSigmaEx1Obs, 
+                                argsFLogDen=list(twLinreg=twLinreg1), 
+                                compPosDen=c("a","b","logSigma2"))
+                ),
+                blocks=list(
+                        bObs=list(compPos=c("a","b"), dInfoPos="dObs" ),
+                        bSigma=list( compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+                                argsFUpdate=list(fResid=fResidDummyModel, twLinreg=twLinreg1))
+                ),
+                nObs=c(obs=length(twLinreg1$obs)),
+                ctrlT=list(TBaseInit=1, TEndFixed=1)
+))
+.count
+
+
+#------------------------------- with intermediate -------------------------------
+
+denSigmaEx1ObsIntermediate <- function(
+        ### unnormalized log density for observations for given parameters
+        theta				 ##<< named numeric vector a,b,logSigma2
+        ,intermediate = list()  
+        ,twLinreg=twLinreg1  ##<< list with components xval and obs 
+){
+    # the predictions by the forward model are an intermediate retuls that can be reused
+    if( !length(intermediate) ){
+        intermediate <- twLinreg$fModel(theta,twLinreg$xval)
+    } 
+    pred <- intermediate
+    resid <- pred - twLinreg$obs
+    varObs <- exp(theta[3])
+    structure(-1/2 * sum(resid^2)/varObs, names="obs", intermediate=intermediate) 
+}
+
+fResidDummyModelIntermediate <- function(theta, intermediate=list(), twLinreg){
+    if( !length(intermediate) ){
+        intermediate <- twLinreg$fModel(theta,twLinreg$xval)
+    } 
+    pred <- intermediate
+    resid <- structure(pred - twLinreg$obs, intermediate=intermediate)
+}
+
+.count <- 0
+resa4 <-  resa <- concatPops( resBlock <- twDEMCSA( 
+    theta=c(twLinreg1$theta0,logSigma2=logSigma2), 
+    covarTheta=diag(c(twLinreg1$sdTheta^2,varLogSigma2)),
+    dInfos=list(
+        dObs=list(fLogDen=denSigmaEx1ObsIntermediate,
+            argsFLogDen=list(twLinreg=twLinreg1),
+            compPosDen=c("a","b","logSigma2")
+        )
+    ),
+    blocks=list(
+        bObs=list(compPos=c("a","b"), dInfoPos="dObs", 
+            intermediateId="fModel"
+        ),
+        bSigma=list(compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+            argsFUpdate=list(fResid=fResidDummyModelIntermediate, twLinreg=twLinreg1), 
+            intermediateId="fModel"
+        )
+    ),
+    nObs=c(obs=length(twLinreg1$obs)),
+    ctrlT=list(TBaseInit=1, TEndFixed=1),
+))
+.count
+#plot( as.mcmc.list(resa), smooth=FALSE )
 res <- thin(resa, start=64)
 plot( rescoda <- as.mcmc.list(res), smooth=FALSE )
 

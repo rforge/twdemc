@@ -1,0 +1,232 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Using parameter blocks)}
+-->
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(out.extra='style="display:block; margin: auto"'
+    #, fig.align="center"
+    , fig.width=4.3, fig.height=3.2, dev.args=list(pointsize=10)
+    )
+knit_hooks$set(spar = function(before, options, envir) {
+    if (before){
+        par( las=1 )                   #also y axis labels horizontal
+        par(mar=c(2.0,3.3,0,0)+0.3 )  #margins
+        par(tck=0.02 )                          #axe-tick length inside plots             
+        par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
+     }
+})
+```
+
+Using parameter blocks
+======================
+
+This vignette details the sampling of different subsets, i.e. blocks, of the parameter vector by different log-Density functions. The background is described in Wutzler & Carvalhais 2014 (doi: 10.1002/2014jg002650).
+
+The used model and snythethic observations data are provided with data set `twTwoDenEx1`. 
+```{r results='hide'}
+library(twDEMC)
+data(twTwoDenEx1)
+set.seed(0815)      # for reproducable results
+```
+
+The example model and data 
+--------------------------
+
+```{r eval=FALSE}
+twTwoDenEx1$fModel = function(
+        theta           ##<< model parameters a and b
+        , xSparse       ##<< numeric vector of Sparse input/output relationship 
+        , xRich         ##<< numeric vector of rich input/output relationship
+        , thresholdCovar=0      ##<< model structural deficiency
+){
+    list( 
+            y1 = as.numeric(theta[1]*xSparse + theta[2]*mean(xRich)/10) 
+            ,y2 = as.numeric(theta[1]*xSparse[1] + theta[2]*pmax(0,xRich-thresholdCovar) )               
+    ) 
+}
+```
+
+To give some meaning to this artificial example, model output `y1` may represents a sparse (n=10) series of annual observations. It uses all covariates `xSparse` but is based solely on a long-term average of fast changing covariate `xRich`. Model output `y2` may represent a short measurement campaign, during which much information was collected (n=1000). During this campaign, the output varies with covariate `xRich` but `xSparse` is assumed to be constant during the campaign.  
+
+The synthetic observations in `twTwoDenEx1` have been generated with parameter `thresholdCovar=0.3`. However, in order to demonstrate some effects of using a slighly biased model, this parameter is assumed to be zero during the model inversion. 
+
+```{r results='hide'}
+ #thresholdCovar = 0.3    # the true value
+thresholdCovar = 0      # the effective biased model that glosses over this threshold
+```
+
+The log-Density functions 
+-------------------------
+
+The first parameter, `a` (`theta[1]`), is more closely related to one observation stream `y1` and the other model parameter, `b`  (`theta[2]`), is more closely related to the other observation stream `y2`. Here, the two parameters will be calibrated by different observation data streams.
+The first density is based on the misfit to the sparse observations `y1` only. Similarly, the second density is based on the rich observations `y2` only.    
+
+```{r }
+denSparse <- function( theta, twTwoDenEx=twTwoDenEx1, ... ){
+    pred <- twTwoDenEx$fModel(theta, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) 
+    misfit <- twTwoDenEx$obs$y1 - pred$y1
+    structure( -1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2), names='y1' )
+}
+
+denRich <- function( theta, twTwoDenEx=twTwoDenEx1, ... ){
+    pred <- twTwoDenEx$fModel(theta, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) 
+    misfit <- twTwoDenEx$obs$y2 - pred$y2
+    structure( -1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2), names='y2' )
+}
+```
+
+The description of used densities to in argument `dInfos` of `twDEMCSA` has to include two entries.
+```{r eval=FALSE, tidy=FALSE}
+    dInfos=list(
+        dSparse=list(fLogDen=denSparse,
+             argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+             thresholdCovar=thresholdCovar)),
+        dRich=list(fLogDen=denRich, 
+             argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+             thresholdCovar=thresholdCovar))
+    )
+```
+
+
+Information on blocks and Sampling the posterior
+------------------------------------------------
+
+Argument `blocks` of function `twDEMCSA` describes which parameter are updated by which block-update functions. By default, the Metropolis-rule is based on a single density for all parameters. The following specification tells to use Metropolis-update rule but with different densities for the two parameter blocks (each consisting of a single parameter). The identifiers given by dInfoPos must correspond to list entries in log-Density specification `dInfos`.  
+
+```{r eval=FALSE, tidy=FALSE}
+    blocks = list(
+        a=list(compPos="a", dInfoPos="dSparse"),
+        b=list(compPos="b", dInfoPos="dRich")
+    )
+```
+
+With these specifications the simulated annealing and the sampling of the converged chains at target temperature can be performed, plot the progress, and assess the properties of the posterior parameter from the sample.
+
+```{r sa1, cache=TRUE, results='hide', tidy=FALSE }
+resBlock <- resBlock0 <- twDEMCSA(
+        theta=twTwoDenEx1$thetaTrue, 
+        covarTheta=diag((twTwoDenEx1$thetaTrue*0.3)^2),
+        dInfos=list(
+            dSparse=list(fLogDen=denSparse,
+                argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+                thresholdCovar=thresholdCovar)),
+            dRich=list(fLogDen=denRich, 
+                argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+                thresholdCovar=thresholdCovar))
+        ),
+        blocks = list(
+            a=list(compPos="a", dInfoPos="dSparse"),
+            b=list(compPos="b", dInfoPos="dRich")
+        ),
+        nObs = c( y1=length(twTwoDenEx1$obs$y1),
+                  y2=length(twTwoDenEx1$obs$y2) ),
+        nGen=2048
+    )
+    
+resConv <- twDEMCBlock( resBlock0, nGen=ceiling(256 * resBlock$thin / getNChains(resBlock)), extendRun=FALSE )    
+```
+```{r plotCoda,spar=TRUE}
+plot(as.mcmc.list(resBlock), smooth=FALSE)
+ # plot(as.mcmc.list(resConv), smooth=FALSE)
+ss <- stackChains(resConv)
+summary(ss)
+```
+
+What are the best parameter estimates?
+--------------------------------------
+
+The two data streams are conflicting giving the somewhat biased model. Therefore, the two pdfs `dSparse` and `dRich` peak at different locations in parameter space. The color code of the following figure ranks the samples by different criteria.
+
+```{r plotRanks,spar=TRUE, fig.width=7.5, fig.height=1.7}
+oldPar <- par(mfrow=c(1,5), par(mar=c(2.0,3.3,2.0,0)+0.3 ) )
+colh <- heat.colors(nrow(ss))
+plot( b ~ a, data=as.data.frame(ss[ rev(order(ss[,"dSparse"])),])
+    , col=colh, main="rank dSparse" )
+plot( b ~ a, data=as.data.frame(ss[ rev(order(ss[,"dRich"])),])
+    , col=colh, main="rank dRich" )
+plot( b ~ a, data=as.data.frame(ss[ rev(order(rowSums(ss[,c("dSparse","dRich")]))),])
+    , col=colh, main="rank sum" )
+plot( b ~ a, data=as.data.frame(ss[ rev(order(rowSums(apply(ss[,c("dSparse","dRich")],2,rank)) )),])
+    , col=colh, main="sum ranks" )
+plot( b ~ a, data=as.data.frame(ss[ orderLogDen(ss),])
+    , col=colh, main="min ranks" )
+```
+
+The right plot shows that the sparse data stream effectively constrains parameter a. The second plot shows that the rich data stream constrains a combination of both parameters with best parameters having very low values of a.  
+The third plot shows that the influcence of the sparse data stream is negligible in the sum of the two densities.
+Only with the last two plots, the color code roughly matches the density of the sample. 
+
+Instead of ranking the sum of the densities, the sum or the minimum of both density ranks is a good criterion for determining the best parameters based on given set of densities. The last criterion is implemented in function `orderLogDen`.        
+
+
+Better performance by reusing information across blocks
+-------------------------------------------------------
+
+Note that the forward model `twTwoDenEx$fModel` is called from both blocks in respective log-Density-functions `denSparse` and  `denRich`. Often, running the forward model is computationally expensive, so it would be wise to save unnecessary runs.
+E.g. when block b changes parameter b, the log-Density of block a needs to be recalculated with updated parameter b. However, the corresponding model forward model run has already been performed in block b. This information should be transferred to block a.  
+
+The package provides a way of transferring intermediate results that are in common between blocks. Blocks can communicate the intermediate results by attaching an attribute `intermediate` to its return value. This will then be provided to other block update functions with argument `intermediate`. 
+If several blocks share an intermediate result, care must be taken, that the intermediate is updated, each time when parameters for the forward run have changed. E.g., the Metropolis update function will provide a NULL intermediate to the density function after proposing a new set of parameters.
+
+The updated log-Density function of the parameters and the updated residual function read:
+
+
+```{r }
+denSparseInt <- function( theta, intermediate=list(), twTwoDenEx=twTwoDenEx1, ... ){
+    if( !length(intermediate) ){
+        intermediate <- twTwoDenEx$fModel(theta, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) 
+    }
+    pred <- intermediate  
+    misfit <- twTwoDenEx$obs$y1 - pred$y1
+    structure( -1/2 * sum((misfit/twTwoDenEx$sdObs$y1)^2), names='y1', intermediate=intermediate )
+}
+
+denRichInt <- function( theta, intermediate=list(), twTwoDenEx=twTwoDenEx1, ... ){
+    if( !length(intermediate) ){
+        intermediate <- twTwoDenEx$fModel(theta, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...) 
+    }
+    pred <- intermediate  
+    misfit <- twTwoDenEx$obs$y2 - pred$y2
+    structure( -1/2 * sum((misfit/twTwoDenEx$sdObs$y2)^2), names='y2', intermediate=intermediate )
+}
+```
+
+Note the additional function argument `intermediate`, and the attachment as an attribute to the result of the function.
+In order to tell `twDEMCSA` which intermediates need to be exchanged, specify the same entry `intermediateId` in the blocks descriptions. 
+
+```{r sa1Int, cache=TRUE, results='hide', tidy=FALSE }
+resBlock <- resBlockInt <- twDEMCSA(
+        theta=twTwoDenEx1$thetaTrue, 
+        covarTheta=diag((twTwoDenEx1$thetaTrue*0.3)^2),
+        dInfos=list(
+            dSparse=list(fLogDen=denSparseInt,
+                argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+                thresholdCovar=thresholdCovar)),
+            dRich=list(fLogDen=denRichInt, 
+                argsFLogDen=list(twTwoDenEx=twTwoDenEx1,
+                thresholdCovar=thresholdCovar))
+        ),
+        blocks = list(
+            a=list(compPos="a", dInfoPos="dSparse", intermediateId="resFModel"),
+            b=list(compPos="b", dInfoPos="dRich", intermediateId="resFModel")
+        ),
+        nObs = c( y1=length(twTwoDenEx1$obs$y1),
+                  y2=length(twTwoDenEx1$obs$y2) ),
+        nGen=2048
+    )
+    
+resConvInt <- twDEMCBlock( resBlockInt, extendRun=FALSE, 
+                nGen=ceiling(256 * resBlock$thin / getNChains(resBlock)))    
+```
+
+During the sampling of the converged chains, only about 2000 of the 3000 calls to the forward functions are required compared to not reusing the intermediate result. 
+
+```{r}
+ssInt <- stackChains(resConvInt)
+summary(ssInt)
+```
+
+
+

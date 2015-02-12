@@ -1,8 +1,10 @@
 import(coda)			#thin generic
+import(logitnorm)       # to satisfy R CMD check
 
 exportPattern("^[^\\.]")	#exports all variables that do not start with a period.
 
 importFrom(abind, abind, adrop)
+importFrom(plyr, ddply, alply)
 importFrom(twMisc, cutQuantiles, twWhichColsEqual, twMergeSequences, twLogSumExp, twMergeLists, "vectorElements<-", twListArrDim, twRescale )  
 importFrom(snowfall,  sfApply, sfLapply,  sfParallel, sfExport, sfLibrary )
 importFrom(twSnowfall,  sfRemoteWrapper, sfFArgsApplyLB, sfSimplifyLBResult, sfApplyMatrixLB )

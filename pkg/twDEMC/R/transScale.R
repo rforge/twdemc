@@ -2,28 +2,19 @@
 	twUtestF(transOrigPopt)
 }
 
-### Distribution supported by transScale
-twVarDistrLevels <- as.factor( c(
-          ##describe<< 
-         norm="norm"				##<< normal distribution
-		,lognorm="lognorm"		##<< log-normal distribution
-		,logitnorm="logitnorm")	##<< logit-normal distribution
-        ##end<<
-)
-
 twVarDistrVec <- function(
 	### create a factor level with given variable names
 	varNames	##<< character vector
 ){
-	structure( rep(twVarDistrLevels[1], length(varNames)), names=varNames )
-	### a named vector intiialized by factor "norm"
+	structure( rep("norm", length(varNames)), names=varNames )
+	### a named factorvector initialized by level "norm"
 }
 
 R.methodsS3::setMethodS3("transOrigPopt","default", function( 
 		### Transform vectors from normal to original scale.
 	normpopt	##<< numerical vector/array with values at transformed, i.e. normal, scale
 	,poptDistr=parDistr[names(normpopt),"trans"]
-		### character vector/array of kind of transformation ("lognorm"/"logitnorm")
+		### character vector/array of kind of distribution/transformation (e.g. "norm","lognorm","logitnorm")
 		### values with other characters indicate no transformation
 		### positions must match the positions in normpopt
 	,parDistr 
@@ -34,9 +25,16 @@ R.methodsS3::setMethodS3("transOrigPopt","default", function(
 	# transOrigPopt.default
 	
 	##seealso<<
-	## \code{\link{twVarDistrLevels}}
 	## \code{\link{twDEMCBlockInt}}
 	## \code{\link{transNormPopt.default}}
+    
+    ##details<< 
+    ## Often it is practical to work approximately normally distributed variables and specify mu and sigma parameters. 
+    ## By simple transformations this applied for other distributions as well.
+    ## For variables strictly greater than zero, the logNormal distribution can be applied.
+    ## For variables bounded between zero and 1 the logitNormal distribution can be applied.
+    ## 
+    ## The values in \code{poptDistr} that are currently supported are: "norm", "lognorm", and "logitnorm"
 	
 	##details<< 
 	## This generic method is provided for in several forms for first argument. \itemize{

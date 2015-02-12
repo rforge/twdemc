@@ -129,6 +129,8 @@ denBoth <- function(
 	,thetaPrior = NULL		##<< the prior estimate of the parameters
 	,invCovarTheta = NULL	##<< the inverse of the Covariance of the prior parameter estimates
     ,modTwoDenExCache=NULL          ##<< environment to cache results of model prediction for given theta
+    ,sdSparse=twTwoDenEx$sdObs$y1   ##<< standard deviation of sparse observations
+    ,sdRich=twTwoDenEx$sdObs$y2     ##<< standard deviation of rich observations
     ,...
 ){
 	logDenPropParms <- if( !is.null(thetaPrior) ){
@@ -139,11 +141,12 @@ denBoth <- function(
 				sum(tmp.diffParms^2 / invCovarTheta)	# assume invCovar to be independent variances
 		} else 0
 	theta0[ names(theta) ] <- theta
-	pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)})
-	misfit <- twTwoDenEx$obs$y1 - pred$y1
-	d1 <- sum((misfit/twTwoDenEx$sdObs$y1)^2)
+	#pred <- .memoize1( modTwoDenExCache, theta, {twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)})
+    pred <- twTwoDenEx$fModel(theta0, xSparse=twTwoDenEx$xSparse, xRich=twTwoDenEx$xRich, ...)
+    misfit <- twTwoDenEx$obs$y1 - pred$y1
+	d1 <- sum((misfit/sdSparse)^2)
 	misfit <- twTwoDenEx$obs$y2 - pred$y2
-	d2 <- sum((misfit/twTwoDenEx$sdObs$y2)^2)
+	d2 <- sum((misfit/sdRich)^2)
 	db <- -1/2 * c(parms=logDenPropParms, y1=d1,y2=d2)*weights
 	db
 }

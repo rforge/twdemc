@@ -108,6 +108,7 @@ twCalcLogDensPar <- function(
         # degenrate case of only one row
         x <- xProp[1,]
         LpVecL <- .twCalcLogDens( x, dInfos=dInfos )
+        #iInfo=1
         LpVec <- do.call(c,LpVecL)
         Lp <- matrix( LpVec, nrow=1, dimnames=list(NULL, names(LpVec) ) )
         .logDen <- sum(LpVec)
@@ -132,7 +133,7 @@ twCalcLogDensPar <- function(
         Lpt <- sapply( Lpl, function(row){ do.call(c,row)} )
         if( !is.matrix(Lpt) ){
             # degenerate case of returning only one component, hence Lpt is a vector
-            Lp <-  matrix(Lpt, ncol=1, dimnames=list(NULL,names(dInfos)) )
+            Lp <-  matrix(Lpt, ncol=1 )
             .logDen <- Lpt
         } else{
             # several rows
@@ -140,7 +141,12 @@ twCalcLogDensPar <- function(
             .logDen <- rowSums(Lp)
         } 
     }
-    #LpVecL is one result of call to .twCalcLogDens a list with components  
+    #LpVecL is one result of call to .twCalcLogDens a list with components
+    dInfoNames <- if( length(names(dInfos))  ) names(dInfos) else paste("d",seq_along(dInfos),sep="")
+    resCompNames <- do.call( c ,lapply( seq_along(dInfos), function(iInfo){
+                .getResFLogDenNames(LpVecL[[iInfo]], logDenName=dInfoNames[iInfo])
+            }  ))
+    colnames(Lp) <- resCompNames
     LpPos <- rep(seq_along(LpVecL), sapply(LpVecL,length) )
     list( logDen=.logDen, logDenComp=Lp, logDenCompPos=LpPos)
     ### List with the following items \describe{

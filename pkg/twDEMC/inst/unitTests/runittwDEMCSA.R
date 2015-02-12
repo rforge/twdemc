@@ -1,3 +1,70 @@
+test.simple <- function(){
+    data(twLinreg1)
+    
+# collect all the arguments to the logDensity in a list (except the first argument of changing parameters)    
+    argsFLogDen <- with( twLinreg1, list(
+                    fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
+                    obs=obs,			    ### vector of data to compare with
+                    invCovar=invCovar,		### the inverse of the Covariance of obs (its uncertainty)
+                    thetaPrior = thetaTrue,	### the prior estimate of the parameters
+                    invCovarTheta = invCovarTheta,	### the inverse of the Covariance of the prior parameter estimates
+                    xval=xval
+            ))
+    do.call( logDenGaussian, c(list(theta=twLinreg1$theta0),argsFLogDen))
+    do.call( logDenGaussian, c(list(theta=twLinreg1$thetaTrue),argsFLogDen))    # slightly largere misfit than nObs/2=15, underestimated sdObs
+    
+    .nGen=200
+    .nPop=2
+    mcp <-  twDEMCSA( 
+            theta=twLinreg1$theta0, covarTheta=diag(twLinreg1$sdTheta^2)       # to generate initial population
+            , nGen=.nGen
+            , dInfos=list(den1=list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+            , nPop=.nPop                                        # number of independent populations
+            , controlTwDEMC=list(thin=4)                        # see twDEMCBlockInt for all the tuning options
+            , ctrlConvergence=list(maxRelTChangeCrit=0.1)       # ok if T changes less than 10% 
+            , ctrlT=list(TFix=c(parms=1))                       # do not use increased temperature for priors
+            , nObs=c(obs=length(argsFLogDen$obs))               # number of observations used in temperature calculation
+    )
+#mcp <- twDEMCSA( mcp, nGen=2000) 
+    mcp <- twDEMCSA( mcp, nGen=1400)     # continue run (for real do more generations, not converged yet)
+    rescoda <- as.mcmc.list(subsetTail(mcp))
+    
+    .expSdTheta <- twLinreg1$sdTheta
+    .expTheta <- twLinreg1$thetaTrue
+    suppressWarnings({	
+                summary(rescoda)$statistics[,"Mean"]
+                summary(rescoda)$statistics[,"SD"]
+                .expTheta
+                .expSdTheta
+                (.popmean <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"Mean"]}))
+                (.popsd <- lapply(list(p1=1:4,p2=5:8),function(i){summary(rescoda[i])$statistics[,"SD"]}))
+            })
+    
+    # 1/2 orders of magnitude around prescribed sd for theta
+    .pop=1
+    for( .pop in seq(along.with=.popsd) ){
+        checkMagnitude( .expSdTheta, .popsd[[.pop]] )
+    }
+    
+    # check that thetaTrue is in 95% interval 
+    .pthetaTrue <- sapply(1:2, function(.pop){
+                pnorm(.expTheta, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
+            })
+    checkInterval( .pthetaTrue ) 
+    
+    #---------- decrease towards temperature 1
+    (.T <- getCurrentTemp(mcp))
+    .nObs <- c(parms=getNParms(mcp), obs=length(mcp$dInfos[[1]]$argsFLogDen$obs))
+    calcBaseTemp( .T, .nObs[names(.T)], TFix=c(parms=1) )       # 15% bias inferred
+    mcp0 <-  twDEMCSA( 
+            theta=mcp
+            , nGen=800
+            , ctrlT=list(TFix=c(parms=1), TEndFixed=1)                       # do not use increased temperature for priors
+    )
+    TBase0 <- calcBaseTemp( getCurrentTemp(mcp0), .nObs[names(.T)], TFix=c(parms=1) ) -1
+    checkTrue( TBase0 < 1e-4 )
+}
+
 test.ofMultiIntermediate <- function(){
     loadBalancing=FALSE
     # same as in test case twDEMC, but here check that parallel calculation of initial logDen
@@ -30,12 +97,12 @@ test.ofMultiIntermediate <- function(){
                     , nObs=nObs
                     , nGen=2*.nGen 
                     ,dInfos=list(
-                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
-                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen)
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen)
                     )
                     ,blocks = list(
-                            a=list(dInfoPos="dSparse", compPos="a")
-                            ,b=list(dInfoPos="dRich", compPos="b")
+                            a=list( compPos="a", dInfoPos="dSparse", intermediateId="modTwoDenEx")
+                            ,b=list(compPos="b", dInfoPos="dRich",  intermediateId="modTwoDenEx")
                     )
                     ,nPop=.nPop
                     ,controlTwDEMC=list(thin=2, loadBalancing=loadBalancing)

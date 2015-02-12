@@ -1,0 +1,113 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Simple example of inverting a model based on a single cost function}
+-->
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(out.extra='style="display:block; margin: auto"'
+    #, fig.align="center"
+    , fig.width=4.3, fig.height=3.2, dev.args=list(pointsize=10)
+    )
+knit_hooks$set(spar = function(before, options, envir) {
+    if (before){
+        par( las=1 )                   #also y axis labels horizontal
+        par(mar=c(2.0,3.3,0,0)+0.3 )  #margins
+        par(tck=0.02 )                          #axe-tick length inside plots             
+        par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
+     }
+})
+```
+
+Simple example of inverting a model based on a single cost function
+===================================================================
+
+Preparing the misfit function (logDensity)
+------------------------------------------
+
+First, the library and the example data is loaded.
+```{r results='hide'}
+library(twDEMC)
+data(twLinreg1) 
+set.seed(0815)      # for reproducable results
+```
+ 
+The simple example model is just a linear regression. The model functions takes two arguments, a vector `theta` with entries "a" and "b", and a vector `xval` with the values of the predictor. The output is a vector of predictions. 
+```{r }
+dummyTwDEMCModel 
+```
+
+In order to calculate the model-data misfit one can use cost function `logDenGaussian` and provide the information on observations and their uncertainty and, optionally, the prior information on parameters in an argument list. For this example these are all provided with  list `twLinreg1`.
+The cost function can then be called with additional parameter vector as the first argument.
+The return value lists all the components of the misfit, or more precisely the log-Density = -1/2 misfit. Here `obs` is the misfit to
+the single data stream of observations, `parms` is the misfit to the prior information on the parameters.
+
+```{r }
+argsFLogDen <- with( twLinreg1, list(
+        fModel=dummyTwDEMCModel,        ### the model function, which predicts the output based on theta 
+        obs=obs,                        ### vector of data to compare with
+        invCovar=invCovar,              ### the inverse of the Covariance of obs (its uncertainty)
+        thetaPrior = thetaTrue,         ### the prior estimate of the parameters
+        invCovarTheta = invCovarTheta,  ### the inverse of the Covariance of the prior parameter estimates
+        xval=xval                       ### further arguments to the model, here the vector of predictors
+))
+do.call( logDenGaussian, c( list(theta=c(a=10.8,b=5.2)), argsFLogDen ))
+```
+
+Specifying the cost function and its additional arguments, is the main ingredient for fitting the model. Here, only a
+single block of parameters is optimized. Therefore, there is only one entry in the list of logDensity functions:
+```{r eval=FALSE}
+dInfos=list(den1=list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen))
+```
+
+Performing the simulated annealing
+----------------------------------
+
+For the generation of an initial population, a mean and covariance for the parameters need to be specified. Other parameters control the temperature decrease. The number of observations in each data stream needs to be specified.
+```{r twDEMCSA, cache=TRUE}
+mcPops <-  twDEMCSA( 
+        dInfos=list(den1=list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen)),
+        theta=twLinreg1$theta0, covarTheta=diag(twLinreg1$sdTheta^2),       # for generating an initial population
+        ctrlT=list(TFix=c(parms=1)),                       # do not use increased temperature for priors
+        nObs=c(obs=length(argsFLogDen$obs))               # number of records in observation data stream(s)
+)
+```
+During the sampling, some information on the progress is displayed. The sampling is ended before reaching the maximum number of steps, because Temperature change is negligible and convergence diagnostics are ok. 
+
+The resulting object is of class `twDEMCPops`. To plot the sample, it can be converted to a standard `mcmc.list` object
+```{r plotCoda,spar=TRUE}
+rescoda <- as.mcmc.list(mcPops)
+plot(rescoda, smooth=FALSE)
+```
+
+Sampling the converged chains
+-----------------------------
+
+If there is a decrease in temperature or a visible burnin period, the converged chains need to be sampled at the current temperature by function `twDEMCBlock.twDEMCPops`.
+One needs to specify the number of generations. If one wants, e.g., 256 samples, one has to regard the thinning interval (only after a number of generations a value is stored to avoid autocorrelation of the sample). Note also that nPops times nChains are sampled in parallel.     
+```{r mcPopsConv, cache=TRUE, results='hide'}
+mcPopsConv <- twDEMCBlock( mcPops, nGen=ceiling(256 * mcPops$thin / getNChains(mcPops)), extendRun=FALSE )
+```
+
+The actual parameter samples as an array across chains can be obtained by function `stackChains`. Each row is a sampled parameter vector. The first column reports their log-Density.
+```{r }
+ss <- stackChains(mcPopsConv)
+summary(ss)
+```
+
+The estimate of target aggregated temperature `T0` has high uncertainty. If one can assume that the the model structural error is negligible, then Temperature can be decreased to 1.
+```{r mcPopsT1, cache=TRUE, results='hide'}
+ # decrease Temp to exponentially to 1
+mcPopsT1 <- twDEMCBlock( mcPops, TEnd = 1, nGen=ceiling(256 * mcPops$thin / getNChains(mcPops)) )         
+ # sample at this temperature
+mcPopsT1Conv <- twDEMCBlock( mcPopsT1, nGen=ceiling(256 * mcPops$thin / getNChains(mcPops)), extendRun=FALSE )      
+summary( stackChains(mcPopsT1Conv) )   # difference to mcPopsConv negligible 
+```
+
+
+
+
+
+
+  
+

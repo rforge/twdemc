@@ -14,3 +14,16 @@ syntax: glob
 *-Ex.pdf
 syntax: regexp
 \.rda$
+syntax: regexp
+^vignettes/.*(html|\.md)$
+syntax: regexp
+^inst/doc/cache$
+syntax: regexp
+^inst/doc/figure$
+
+syntax: regexp
+^vignettes/cache$
+syntax: regexp
+^vignettes/figure$
+syntax: regexp
+^inst/develop/ClusterControlFlow\.pdf$

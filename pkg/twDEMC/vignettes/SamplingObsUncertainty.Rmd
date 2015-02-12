@@ -1,0 +1,221 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Using a parameter block based on Gibbs sampling instead of Metropolis}
+-->
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(out.extra='style="display:block; margin: auto"'
+    #, fig.align="center"
+    , fig.width=4.3, fig.height=3.2, dev.args=list(pointsize=10)
+    )
+knit_hooks$set(spar = function(before, options, envir) {
+    if (before){
+        par( las=1 )                   #also y axis labels horizontal
+        par(mar=c(2.0,3.3,0,0)+0.3 )  #margins
+        par(tck=0.02 )                          #axe-tick length inside plots             
+        par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
+     }
+})
+```
+
+Sampling observation uncertainty
+================================
+
+This vignette details the sampling parameters, when observation uncertainty is unknown and needs to be estimated from the fit.
+The statistical background is described in Gelman et al., 2003, p.51: "Estimating variance of a Gaussian distribution with known mean". Here, just the model-data residual need to be provided to the block-update function `updateSigmaByGibbsSamplingInvchisq`, which does all that is required. 
+
+The model and the data are the same as in the basic example (see vignette), unless here we assume observation uncertainty is unknown
+and that is constant across all observations.
+
+```{r results='hide'}
+library(twDEMC)
+data(twLinreg1) 
+set.seed(0815)      # for reproducible results
+```
+
+Preparing the log-Density function
+----------------------------------
+
+For simplicity, here, we do not regard parameter priors, but just report the log-Likelihood of observations, given the the model parameters. For formula is derived from assuming Gaussian distribution of observation errors. It returns only one value for this observation data stream.
+The third parameter is the logarithm of the estimated variance of the Gaussian observational errors. 
+ 
+```{r }
+denSigmaEx1Obs <- function(
+    theta                ##<< named numeric vector a,b,logSigma2
+    ,twLinreg=twLinreg1  ##<< list with components fModel, xval, and obs 
+){
+    pred <- twLinreg$fModel(theta[1:2],twLinreg$xval)
+    resid <- pred - twLinreg$obs
+    varObs <- exp(theta["logSigma2"])
+    structure(-1/2 * sum(resid^2)/varObs, names="obs")          
+}
+```
+
+Since there are no other unspecified arguments besides the parameters, the list of logDensity functions is straightforward.
+Note, that it also depends on the variance parameter. The default value to argument twLinreg is specified too, so that it 
+works also in a parallel execution without explicitly loading the data set in each remote process.  
+
+```{r eval=FALSE}
+    dInfos=list(
+        dObs=list(fLogDen=denSigmaEx1Obs, argsFLogDen=list(twLinreg=twLinreg1), compPosDen=c("a","b","logSigma2"))
+    )
+```
+ 
+
+Preparing the block update descriptions 
+---------------------------------------
+
+In addition to the first block of parameters of linear regression coefficients (parameters a and b), we have an additional parameter block consisting of the observation variance sigma. 
+
+The first block for the regression parameters uses the Metropolis update rule. Hence its  information on parameter blocks `blocks` in `twDEMCBlockInt` just needs to reference the used logDensity function in `dInfos`.
+Note, however that only two of the three parameters of the logDensity function are updated.
+
+```{r eval=FALSE}
+    bObs=list(compPos=c("a","b"), dInfoPos="dObs" )
+```
+
+For the second block a direct Gibbs type sampling from an Inverse Chi-Square distribution is used. 
+Hence, here a block-update function `fUpdateBlock = function(xC, argsFUpdateBlock,...)` 
+different from the default Metropolis update is specified.
+The function `updateSigmaByGibbsSamplingInvchisq` is already provided by this package. 
+Only some further arguments are required. In the case of no prior information the only further argument 
+is a function that calculates model-data residuals for given parameter values. 
+
+```{r }
+fResidDummyModel <- function(theta, twLinreg=twLinreg1){
+    pred <- twLinreg$fModel(theta,twLinreg$xval)
+    resid <- pred - twLinreg$obs
+}
+```
+
+Eventually, the second entry in the blocks list reads:
+
+```{r eval=FALSE, tidy=FALSE}
+    bSigma=list( compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+              argsFUpdate=list(fResid=fResidDummyModel, twLinreg=twLinreg1))
+```
+
+Sampling the posterior
+----------------------
+
+The estimation of target temperature in simulated annealing can not be used here, because it depends on known variance of the observations. Instead, the starting and end target temperatures are prescribed. 
+
+```{r sa1, cache=TRUE, results='hide', tidy=FALSE }
+logSigma2 <- log( mean(twLinreg1$sdObs^2) )     # expected sigma2
+varLogSigma2=0.8*logSigma2                      # variance for initialization
+
+resBlock <- twDEMCSA( 
+    theta=c(twLinreg1$theta0,logSigma2=logSigma2), 
+    covarTheta=diag(c(twLinreg1$sdTheta^2,varLogSigma2)),
+    dInfos=list(
+        dObs=list(fLogDen=denSigmaEx1Obs, 
+                argsFLogDen=list(twLinreg=twLinreg1), 
+                compPosDen=c("a","b","logSigma2"))
+    ),
+    blocks=list(
+        bObs=list(compPos=c("a","b"), dInfoPos="dObs" ),
+        bSigma=list( compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+                argsFUpdate=list(fResid=fResidDummyModel, twLinreg=twLinreg1))
+    ),
+    nObs=c(obs=length(twLinreg1$obs)),
+    ctrlT=list(TBaseInit=1, TEndFixed=1)
+)
+```
+
+```{r ,spar=TRUE}
+plot( as.mcmc.list(resBlock), smooth=FALSE )
+```
+
+After an initial burnin period, the estimate of the variance quickly converges.
+
+
+Better performance by reusing information across blocks
+-------------------------------------------------------
+
+Note that the forward model `twLinreg$fModel` is called from both blocks: in the likelihood-function `denSigmaEx1Obs` 
+and in the residual function `fResidDummyModel`. Often, running the forward model is computationally expensive, 
+so it would be wise to save unnecessary runs. The forward runs from block `bObs` 
+should be reused in block `bSigma`. And after updating the variance, 
+the result from `bSigma` should be reused in the other block when recalculating the likelihood of the regression parameters.
+
+The package provides a way of transferring intermediate results that are common across several blocks. 
+Density function `denSigmaEx1Obs` can communicate the results of its forward runs by attaching 
+an attribute `intermediate` to its result. This will then be provided to other block functions as argument `intermediate`. 
+If several blocks share an intermediate result, care must be taken, 
+that the intermediate is updated, each time when parameters for the forward run have changed. 
+E.g., the Metropolis update function will provide a NULL intermediate to the density function when calling it with a new set of parameters.
+
+The updated log-Density function of the parameters and the updated residual function then reads:
+
+```{r }
+denSigmaEx1ObsIntermediate <- function(
+        ### unnormalized log density for observations for given parameters
+        theta                ##<< named numeric vector a,b,logSigma2
+        ,intermediate = list()  
+        ,twLinreg=twLinreg1  ##<< list with components xval and obs 
+){
+    # the predictions by the forward model are an intermediate retuls that can be reused
+    if( !length(intermediate) ){
+        intermediate <- twLinreg$fModel(theta,twLinreg$xval)
+    } 
+    pred <- intermediate
+    resid <- pred - twLinreg$obs
+    varObs <- exp(theta[3])
+    structure(-1/2 * sum(resid^2)/varObs, names="obs", intermediate=intermediate) 
+}
+
+fResidDummyModelIntermediate <- function(theta, intermediate=list(), twLinreg){
+    if( !length(intermediate) ){
+        intermediate <- twLinreg$fModel(theta,twLinreg$xval)
+    } 
+    pred <- intermediate
+    resid <- structure(pred - twLinreg$obs, intermediate=intermediate)
+}
+```
+
+Note the additional function argument `intermediate`, and the attachment as an attribute to the result of the function.
+In order to tell `twDEMCSA` which intermediates need to be exchanged, specify the same entry `intermediateId` in the 
+corresponding blocks descriptions. 
+
+```{r SAIntermediate, results='hide', tidy=FALSE}
+resBlock <- twDEMCSA( 
+    theta=c(twLinreg1$theta0,logSigma2=logSigma2), 
+    covarTheta=diag(c(twLinreg1$sdTheta^2,varLogSigma2)),
+    dInfos=list(
+        dObs=list(fLogDen=denSigmaEx1ObsIntermediate,
+            argsFLogDen=list(twLinreg=twLinreg1),
+            compPosDen=c("a","b","logSigma2")
+        )
+    ),
+    blocks=list(
+        bObs=list(compPos=c("a","b"), dInfoPos="dObs", 
+            intermediateId="fModel"
+        ),
+        bSigma=list(compPos=c("logSigma2"), fUpdateBlock=updateSigmaByGibbsSamplingInvchisq,
+            argsFUpdate=list(fResid=fResidDummyModelIntermediate, twLinreg=twLinreg1), 
+            intermediateId="fModel"
+        )
+    ),
+    nObs=c(obs=length(twLinreg1$obs)),
+    ctrlT=list(TBaseInit=1, TEndFixed=1),
+)
+```
+
+```{r ,spar=TRUE}
+plot( as.mcmc.list(resBlock), smooth=FALSE )
+```
+
+
+
+   
+
+ 
+
+
+
+
+
+
+  
+

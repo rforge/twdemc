@@ -1,4 +1,6 @@
 #generating a typical twDEMC result
+set.seed(0815)
+
 .nPop=2
 .nChainPop=4
 .thin=4

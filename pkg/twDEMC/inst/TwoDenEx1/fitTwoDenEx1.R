@@ -236,8 +236,8 @@ resa <- resa3a <- concatPops( resBlock <- twDEMCBlock(
 			dBoth=list(fLogDen=denBoth, argsFLogDen=list(thresholdCovar=thresholdCovar))
 		)
 		,blocks = list(
-			a=list(compPos="a", fUpdateBlock=.updateTwoDenA, requiresUpdatedDen=FALSE)
-			,b=list(compPos="b", fUpdateBlock=.updateTwoDenB, requiresUpdatedDen=FALSE)
+			a=list(compPos="a", fUpdateBlock=.updateTwoDenA, useMetropolisUpdate=FALSE)
+			,b=list(compPos="b", fUpdateBlock=.updateTwoDenB, useMetropolisUpdate=FALSE)
 		)
 		,nPop=.nPop
 		,controlTwDEMC=list(thin=4)		

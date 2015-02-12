@@ -21,6 +21,7 @@
 
 
 .tmp.f <- function(){
+    trace( updateBlockTwDEMC, recover )     # untrace(updateBlockTwDEMC)
 	mtrace(logDenGaussian)
 	mtrace(twCalcLogDenPar)
 	mtrace(.doDEMCStep)
@@ -52,24 +53,6 @@
 	
 	
 	
-}
-
-test.twCalcLogDenPar <- function(){
-	ex1c <- concatPops(twdemcEx1)
-	xProp <- stackChains(ex1c$parms)
-	#mtrace(twCalcLogDenPar)
-	str(res <- twCalcLogDenPar(function(x){2*x},xProp,debugSequential=TRUE))
-	
-	# with logDenCompX, vector result, providing only truncated set of parameters
-	.logDenCompX0 <- matrix(1:nrow(xProp), nrow=nrow(xProp), dimnames=list(steps=NULL,"a"))
-	.logDenCompX0[1:5, ,drop=FALSE]
-	#function must take two arguments
-	#mtrace(twCalcLogDenPar)
-	str(res <- twCalcLogDenPar(function(y1,logDenCompAcc){y1["a"]=y1["a"]*logDenCompAcc["a"]; y1},xProp,logDenCompX=.logDenCompX0, intResComp=colnames(.logDenCompX0), debugSequential=TRUE))
-	checkEquals( nrow(xProp), length(res$logDen) )
-	.exp <- xProp; .exp[,"a"] = xProp[,"a"]*.logDenCompX0[,"a"]
-	names(dimnames(.exp)) <- NULL
-	checkEquals(.exp, res$logDenComp)
 }
 
 test.goodStartSeqData <- function(){
@@ -152,9 +135,9 @@ test_int.goodStartSeqData.plot2d <- function(){
     
     # repeat with control for overfitting
     resCO <-  concatPops( resBlockCO <- twDEMCBlock( Zinit, nGen=.nGen, 
-                    dInfos=list( list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen, nObs=c(obs=length(obs),parms=0)) ),
+                    dInfos=list( list(fLogDen=logDenGaussian, argsFLogDen=argsFLogDen, maxLogDen=c(obs=-length(obs)/2,parms=0)) ),
                     nPop=.nPop
-                    ,controlTwDEMC=list(thin=8,  controlOverfittingMinNObs=20)		
+                    ,controlTwDEMC=list(thin=8)		
                     #,debugSequential=TRUE
                     ,doRecordProposals=TRUE
             ))
@@ -216,12 +199,12 @@ test.badStartSeqData <- function(){
 	))
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	rescoda <- as.mcmc.list(resa) 
-	plot(rescoda)
+	plot(rescoda, smooth=FALSE)
 	
 	#mtrace(thin.twDEMC)
 	res <- thin(resa, start=120)
 	rescoda <- as.mcmc.list(res) 
-	plot(rescoda)
+	plot(rescoda, smooth=FALSE)
 	
 	#gelman.diag(rescoda)
 	#summary(rescoda)
@@ -250,15 +233,15 @@ test.badStartSeqData <- function(){
 }
 
 test.badStartSeqData1D <- function(){
+    # common error is dropping dimensions, if of size 1 onyle: test parameter_dimension = 1
     set.seed(0815)
 	lmDummy <- lm( obs-theta0["a"] ~ xval-1, weights=1/sdObs^2)		# results without priors
 	theta1d <- theta0["b"]
 	(.expTheta <- coef(lmDummy))
-	(.expCovTheta <- vcov(lmDummy))		# a is very weak constrained, negative covariance between a an b
+	(.expCovTheta <- vcov(lmDummy))		
 	(.expSdTheta <- structure(sqrt(diag(.expCovTheta)), names=c("b")) )
 	
-	
-	.nPop=2
+    #trace(	dummyTwDEMCModel, recover )     # untrace(dummyTwDEMCModel)
 	argsFLogDen <- list(
 		fModel=dummyTwDEMCModel,		### the model function, which predicts the output based on theta 
 		obs=obs,			### vector of data to compare with
@@ -269,11 +252,18 @@ test.badStartSeqData1D <- function(){
 		,theta0=theta0
 	)
 	do.call( logDenGaussian, c(list(theta=theta1d),argsFLogDen))
-	
+    .tmp.f <- function(){
+        bs <- seq(2,8,length.out=30)
+        ll <- colSums( sapply( bs, function(b){ do.call( logDenGaussian, c(list(theta=c(b=b)),argsFLogDen)) }) )
+        plot( ll ~ bs )
+    }
+    
+    
 	#Zinit <- initZtwDEMCNormal( theta0, .expCovTheta, nChainPop=4, nPop=.nPop)
 	.sdThetaBad <- sdTheta["b"]*c(1/10)
 	.theta0Bad <- theta0["b"]*c(10)
-	Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChainPop=4, nPop=.nPop)
+    .nPop=2
+    Zinit <- initZtwDEMCNormal( .theta0Bad, diag(.sdThetaBad^2,nrow = length(.sdThetaBad)), nChainPop=4, nPop=.nPop)
 	Zinit[,,1:4] <- Zinit[,,1:4] * c(2) 
 	Zinit[,,-(1:4)] <- Zinit[,,-(1:4)] * c(0.5) 
 	#dim(Zinit)
@@ -289,6 +279,7 @@ test.badStartSeqData1D <- function(){
 		,debugSequential=TRUE
 	))
 	#str(res)
+    plot( as.mcmc.list(resa), smooth=FALSE )
 	checkEquals((.nGen%/%resa$thin)+1,nrow(resa$logDen))
 	matplot( resa$parms[,1,],type="l")
 	
@@ -431,7 +422,7 @@ test.upperParBounds <- function(){
 	)
 	#do.call( logDenGaussian, c(list(theta=theta0),argsFLogDen))
 	
-	asplit <- 10.8
+	asplit <- 10.0
 	Zinit0 <- initZtwDEMCNormal( theta0, diag(sdTheta^2), nChainPop=4, nPop=.nPop)
 	# replace all the cases with upperParBounds
 	bo.keep <- as.vector(Zinit0[,"a",]) <= asplit
@@ -651,12 +642,12 @@ int.ofMultiIntermediate <- function(useConditionalProposal=FALSE, controlOverfit
                     ZinitPops
                     , nGen=.nGen 
                     ,dInfos=list(
-                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx", nObs=c("parmsSparse"=0, "obsSparse"=10 ))
-                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx", nObs=c("parmsRich"=0, "obsRich"=1000 ))
+                            dSparse=list(fLogDen=denSparsePrior, argsFLogDen=argsFLogDen, maxLogDen=c("parmsSparse"=0, "obsSparse"=-10/2 ))
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, maxLogDen=c("parmsRich"=0, "obsRich"=-1000/2 ))
                     )
                     ,blocks = list(
-                            a=list(dInfoPos="dSparse", compPos="a")
-                            ,b=list(dInfoPos="dRich", compPos="b")
+                            a=list(compPos="a", dInfoPos="dSparse", intermediateId="modTwoDenEx")
+                            ,b=list(compPos="b", dInfoPos="dRich",  intermediateId="modTwoDenEx")
                     )
                     ,nPop=.nPop
                     ,controlTwDEMC=list(thin=8, useConditionalProposal=useConditionalProposal, controlOverfittingMinNObs=if(controlOverfitting) 10 else Inf )		
@@ -688,6 +679,7 @@ int.ofMultiIntermediate <- function(useConditionalProposal=FALSE, controlOverfit
                 pnorm(thetaMean, mean=.popmean[[.pop]], sd=.popsd[[.pop]])
             })
     checkInterval( .pthetaTrue ) 
+    resBlock
 }
 
 test.ofMultiIntermediateConsistency <- function(){
@@ -726,12 +718,12 @@ test.ofMultiIntermediateConsistency <- function(){
                     ZinitPops
                     , nGen=.nGen 
                     ,dInfos=list(
-                            dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
-                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                            dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen)
+                            ,dRich=list(fLogDen=denRichPrior, argsFLogDen=argsFLogDen)
                     )
                     ,blocks = list(
-                            a=list(dInfoPos="dSparse", compPos="a")
-                            ,b=list(dInfoPos="dRich", compPos="b")
+                            a=list( compPos="a",dInfoPos="dSparse", intermediateId="modTwoDenEx")
+                            ,b=list(compPos="b", dInfoPos="dRich",  intermediateId="modTwoDenEx")
                     )
                     ,nPop=.nPop
                     ,controlTwDEMC=list(thin=8)		
@@ -753,12 +745,12 @@ test.ofMultiIntermediateConsistency <- function(){
                             ZinitPops
                             , nGen=.nGen 
                             ,dInfos=list(
-                                    dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
-                                    ,dRich=list(fLogDen=denRichPriorConst, argsFLogDen=argsFLogDen, intermediate="modTwoDenEx")
+                                    dSparse=list(fLogDen=denSparsePriorConst, argsFLogDen=argsFLogDen)
+                                    ,dRich=list(fLogDen=denRichPriorConst, argsFLogDen=argsFLogDen)
                             )
                             ,blocks = list(
-                                    a=list(dInfoPos="dSparse", compPos="a")
-                                    ,b=list(dInfoPos="dRich", compPos="b")
+                                    a=list(compPos="a", dInfoPos="dSparse",  intermediateId="modTwoDenEx")
+                                    ,b=list(compPos="b", dInfoPos="dRich",  intermediateId="modTwoDenEx")
                             )
                             ,nPop=.nPop
                             ,controlTwDEMC=list(thin=8)		

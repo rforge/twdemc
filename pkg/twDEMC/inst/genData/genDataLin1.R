@@ -1,3 +1,5 @@
+set.seed(0815)
+
 twLinreg1 <- within( list(),{
 	fModel <- dummyTwDEMCModel
 	xval <- runif(30,min=5,max=10)

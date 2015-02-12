@@ -1,5 +1,5 @@
 twDEMCBlockInt <- function(
-	### Differential Evolution Markov Chain with blocked parameter update
+	### Parallelized differential Evolution Markov Chain with blocked parameter update
 	pops =  list( list( ##<< list of population infos for each population, each info is a list with components
 			##describe<< 
 			parms=list()		##<< list of matrices (nState x nParm  x nChain) initial states for each population see details and \code{\link{initZtwDEMCNormal}}.
@@ -15,38 +15,41 @@ twDEMCBlockInt <- function(
 			, splits=numeric(0)		##<< named numeric vector of splitting points, used to remerge divided subspaces 
 		)) 
 		##end<<  
-	, dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
+	    ,dInfos = list( list(  ##<< named list of used density functions. Each entry is a list with components
 			##describe<< 
 			fLogDen=NULL                    ##<< \code{function(theta, ...)} calculates a vector of logDensities 
 			    ## corresponding to different data streams of parameter vector theta 
 			    ## , or \code{function(theta, logDenCompX, metropolisStepTemp, ...)}
-			,xC=c()						    ##<< numeric vector: current accepted state
-			,logDenCompC=c()	            ##<< numeric vector: result components of fLogDen for current position
-			,parUpdateDenC=c()          	##<< integer vector: logDensity that recently updated parameter at given index			
-			    ## to handle first steps in Multi-step Metropolis decision internally. 
-			    ## See details.
-			, compPosDen=1:nrow(pops[[1]]$parms)	##<< index or names of the parameter components that are used in this density function 
 			, argsFLogDen=list()	                ##<< further arguments passed to fLogDen
-			, intResComp=vector("integer",0)        ##<< integer or character vector: indices or names of results components of fLogDen 
+            , compPosDen #=dInfos[[1]]$compPosDen	##<< names or index of the parameters used in with this density, defaults to all parameters
+            , intResComp=vector("integer",0)        ##<< integer or character vector: indices or names of results components of fLogDen 
 			    ## that are used for internal Metropolis decisions
 			#, TFix = vector("numeric",0) ##<< named numeric vector with Temperature for result components that have fixed temperature
-            , intermediate="modOutput"	  ##<< string: identifier in list of intermediate results that are shared between densities. See details.
-            , nObs=c()                    ##<< integer vector (nRespComp): number of observations for each result component, used in control of overfitting
+            , maxLogDen=c()               ##<< integer vector (nRespComp): maximum logDensity (=usually -1/2* number of observations) for each result component, used in control of overfitting
+            , fDiscrProp=NULL			  ##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
+            , argsFDiscrProp=list()		  ##<< further arguments to fDiscrProp
 		)) 
 		##end<< 
-	, blocks = list( list( ##<< list of parameter blocks, each block is a list with entries
+	    , blocks = list( list( ##<< list of parameter blocks, each block is a list with entries
 			##describe<< 
-			dInfoPos=1		##<< name or position to \code{fLogDenInfo}. Several blocks may share the same density but update different parameters
-			, compPos=dInfos[[1]]$compPosDen	##<< names or index of the parameter components to be updated
-			, fUpdateBlock=updateBlockTwDEMC	##<< function to update the parameters.
-			## , It must return a list with first three components xC, logDenCompC, and parUpdateDenC 
-			## as described in \code{\link{updateBlockTwDEMC}}
+            compPos = dInfos[[1]]$compPosDen	##<< names or index of the parameter components to be updated
+			, fUpdateBlock = NULL               ##<< function to update the parameters.
+			    ## It must return a list with first named components \code{accepted}, \code{xC}, and optionally \code{intermediate} 
+			    ## as described in \code{\link{updateBlockTwDEMC}}. If not specified (default), then \code{\link{updateBlockTwDEMC}} is used and \code{dInfoPos} must be specified 
 			, argsFUpdate=list()	    ##<< further arguments passed to fUpdate
-			, requiresUpdatedDen=TRUE	##<< if fUpdateBlock does not depend on current density result, then set this to FALSE and save some calculation time 
-			#, useMetropolis=TRUE	##<< TRUE, if jumps for Metropolis proposals should be generated for this block
-		))
+            , intermediateId=character(0)	  ##<< string: identifier in list of intermediate results that are shared between block udpate functions. See details.
+            , dInfoPos=1		        ##<< name or position to \code{fLogDenInfo} if using Metropolis update. 
+                ## Several blocks may share the same density but update different parameters
+        ))
 		##end<<
-	, TSpec = matrix(1, ncol=2, nrow=1, dimnames=list(NULL, c("T0","TEnd")) )
+        , stateCurrent = list(
+                ,xC=c()						    ##<< numeric vector: current accepted state
+                ,logDenCompC=c()	            ##<< numeric vector: result components of all fLogDens for current position
+                ,parUpdateDenC=c()          	##<< integer vector: logDensity that recently updated parameter at given index			
+        ## to handle first steps in Multi-step Metropolis decision internally. 
+        ## See details.
+        )
+        , TSpec = matrix(1, ncol=2, nrow=1, dimnames=list(NULL, c("T0","TEnd")) )
 		### numeric matrix (nResComp x 2): specifying Initial and End Temperature of each fLogDen result component.
 		### If only one row is specified, the Temperature is taken for all result components
 	, m0 = numeric(0)			##<< scalar integer: number of samples in initial population, if length==0 will be calculated from number of chains and number of parameters
@@ -55,8 +58,6 @@ twDEMCBlockInt <- function(
 	, controlTwDEMC = list()	##<< control parameters influencing the update and the convergens of the chains (see details)	
 	, debugSequential=FALSE 		##<< if TRUE apply is used instead of sfApply, for easier debugging
 	, remoteDumpfileBasename=NULL	##<< the basename of a dumpfile that is created on error on remote process (see example section) 
-	, fDiscrProp=NULL				##<< function applied to proposal, e.g. to round proposals to to discrete possible values function(theta,...)
-	, argsFDiscrProp=list()			##<< further arguments to fDiscrProp
 	, doRecordProposals=FALSE		##<< if TRUE then an array of each proposal together with the results of fLogDen are recorded and returned in component Y
 	, progressOutput="."			##<< output after each thinning interval
 ){
@@ -112,8 +113,8 @@ twDEMCBlockInt <- function(
         ,returnIntermediates=TRUE  ##<< set to FALSE if intermediate result is large and transferring it between slaves slows down calculation
         #,useMultiT = FALSE	##<< whether to downscale Temperature of result components during burnin
 		#moved to block,TFix = vector("numeric",0)		##<< named numeric vector: result components for which temperature shoudl not change
-        ,useConditionalProposal = FALSE ##<< if set to TRUE, poposal steps are generated conditional on the state of the other blocks
-        ,controlOverfittingMinNObs = Inf   ##<< scalar positive integer: minimum number of observations where bias is controlled. Need at least about 20 observations to work. Default Inf says no bias correction.  
+        ,useConditionalProposal = FALSE ##<< if set to TRUE, poposal steps are generated conditional on the state of the other blocks (experimental)
+        #,controlOverfittingMinNObs = Inf   ##<< scalar positive integer: minimum number of observations where bias is controlled. Need at least about 20 observations to work. Default Inf says no bias correction.  
 	)  
 	##details<< }}
 	ctrl[names(controlTwDEMC)] <- controlTwDEMC
@@ -122,11 +123,11 @@ twDEMCBlockInt <- function(
 	nPop <- length(pops)
 	iPops <- 1:nPop
 	pops <- if( 0 == length(nGen) ){
-			lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], spaceInd=spacePop[iPop] )}) # fill in default values for missing entries 
+			lapply( iPops, function(iPop){ .completePopDescription( pops[[iPop]], spaceInd=spacePop[iPop] )}) # fill in default values for missing entries 
 		}else{
 			if( length(nGen)==1) nGen=rep(nGen[1],nPop)
-			if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal nPop.")
-			lapply( iPops, function(iPop){ .checkPop( pops[[iPop]], nGen=nGen[iPop], spaceInd=spacePop[iPop])}) # fill in default values for missing entries 
+			if( length(nGen) != nPop ) stop("twDEMCBlockInt: lenght of nGen must equal the number of populations.")
+			lapply( iPops, function(iPop){ .completePopDescription( pops[[iPop]], nGen=nGen[iPop], spaceInd=spacePop[iPop])}) # fill in default values for missing entries 
 		}
 	ZinitPops <- lapply(pops,"[[","parms")
 	parNames <- colnames(ZinitPops[[1]])
@@ -136,9 +137,13 @@ twDEMCBlockInt <- function(
 	nChain <- nChainPop*nPop 
 	popChain <- rep(1:nPop,each=nChainPop)	# population for chain at given index
 	chainsPop <- lapply( iPops, function(iPop){ (iPop-1)*nChainPop+(1:nChainPop)}) # chains for given population
-	if( 0 == length(m0) ) m0 = calcM0twDEMC(nParm,nChainPop)
+    #
+    # check that have enough values for initial populations of each population
+	if( 0 == length(m0) ) m0 = calcM0twDEMC(nParm,nChainPop)    # number of samples in initial population
 	M0Pops <- sapply( ZinitPops, nrow )
 	if( any(M0Pops < 0.8*m0) ) warning(paste("twDEMCBlockInt: too few initial cases for populations",paste(which(M0Pops < m0),collapse=",")) )
+    #
+    # determine number of thinning intervals and create result arrays
 	nGenPops <- sapply( pops, "[[", "nGen")
 	nThinnedGenPops = sapply( nGenPops %/% ctrl$thin, max, 0 )	#number of thinning intervals 
 	nGenPops = nThinnedGenPops * ctrl$thin  #number of generations in this batch (do not need to move behind last thinning interval)
@@ -149,29 +154,28 @@ twDEMCBlockInt <- function(
 	upperParBoundsPop <- lapply( pops, "[[", "upperParBounds" )
 	lowerParBoundsPop <- lapply( pops, "[[", "lowerParBounds" )
     #    
-    #-- dimensions of fLogDenInfo
+    #-- dimensions of dInfo
     nDen <- length(dInfos)
     iDens <- 1:nDen
-    if( is.null(names(dInfos))) names(dInfos) <- paste("dInfo",iDens,sep="")
-    tmp <- which(names(dInfos) == "")
-    names(dInfos)[tmp] <- paste("dInfo",iDens[tmp],sep="")
-    compPosDens <- lapply(dInfos, "[[", "compPosDen") 
-    #calculate each logDen once to obtain result component names required for dInfos initialization
+    if( is.null(names(dInfos))) names(dInfos) <- paste("dInfo",iDens,sep="")    # make up names if not given
+    posInfosEmptyString <- which(names(dInfos) == "")
+    names(dInfos)[posInfosEmptyString] <- paste("dInfo",posInfosEmptyString,sep="")
+    #compPosDens <- lapply(dInfos, "[[", "compPosDen") 
+    #calculate each logDen once to obtain result component names required for proper dInfos initialization
     #dInfo <- dInfos[[1]]
-    dInfos <- lapply(dInfos, function(dInfo){
-                .resFLogDen <- .calcFLogDen(dInfo$fLogDen, xP=XChains[,1], compInt=c(), TiInt=c(), argsFLogDen=dInfo$argsFLogDen
-                        ,maxLogDen=c()
-                )
-                dInfo$resCompNames <- .getResFLogDenNames( .resFLogDen )
-                dInfo
+    resCompNamesList <- lapply(iDens, function(iInfo){
+                dInfo <- dInfos[[iInfo]]
+                .resFLogDen <- .calcFLogDen(dInfo$fLogDen, xP=XChains[,1], compInt=c(), TiInt=c()
+                    , argsFLogDen=dInfo$argsFLogDen, maxLogDen=c()  )
+                resCompNames <- .getResFLogDenNames( .resFLogDen, logDenName=names(dInfos)[iInfo] )
             })
-    #dInfo <- dInfos[[1]]
-    dInfos <- lapply(dInfos, .checkDInfo, parNames=parNames )
-    dInfos <- lapply( dInfos, .checkDInfoResCompNames, controlOverfittingMinNObs = ctrl$controlOverfittingMinNObs)      # set proper nObs and
+    for( i in seq_along(dInfos)){
+        dInfos[[i]] <- .completeDInfo( dInfos[[i]], parNames=parNames, resCompNames = resCompNamesList[[i]] )
+    }
     #
     #-- calculate positions in resCompNames of results of different blocks
     resCompNamesU <- lapply( dInfos, "[[", "resCompNames" )
-    resCompNamesUFlat <- as.vector(do.call(c, resCompNamesU))	# concatenate names
+    resCompNamesUFlat <- as.vector(do.call(c, resCompNamesU))	# concatenate result names
     nResComp <- length(resCompNamesUFlat)
     resCompPosPops <- { # list: for each dInfo: position of resCompNames in resCompNamesUFlat
         tmp.length <- sapply(resCompNamesU, length)
@@ -186,7 +190,7 @@ twDEMCBlockInt <- function(
 	#-- dimensions of blocks
 	#mtrace(.checkBlock)
     #recover()
-	blocks <- lapply( blocks, .checkBlock, dInfos=dInfos, parNames=parNames)
+	blocks <- lapply( blocks, .completeBlockInfo, dInfos=dInfos, parNames=parNames)
 	nBlock <- length(blocks)
 	iBlocks <- 1:length(blocks)
 	#block <- blocks[[1]]
@@ -204,10 +208,10 @@ twDEMCBlockInt <- function(
 	ctrl$Npar12  =(nParm - 1)/2  # factor for Metropolis ratio DE Snooker update
 	ctrl$F2 = ctrl$F/sqrt(2*nParm)
 	ctrl$F1 = 1
-	ctrl$gInd <- ctrl$nPastGen*nParm/nChainPop	#number of independent generations to sample from, similarly to M0 (usually ctrl$nPastGen=10)
-	# terBraak report that may not sample the distribution, if not using the full past
-	# but together with decreasing temperature acceptance rate drops very low
-    # hence constrain to the past during burnin
+    # terBraak report that may not sample the distribution, if not using the full past
+    # but together with decreasing temperature acceptance rate drops very low if using the full past
+    # hence constrain to recent past during burnin
+    ctrl$gInd <- ctrl$nPastGen*nParm/nChainPop	#number of independent generations to sample from, similarly to M0 (usually ctrl$nPastGen=10)
 	#
 	#-- evaluate logDen of initial states and get names of the result components (dInfo$resCompNames)
 	##details<< \describe{ \item{Initial state: \code{X}}{
@@ -248,29 +252,6 @@ twDEMCBlockInt <- function(
         )
         if( any(!is.finite(logDenRes$logDen)) )
             stop(paste("twDEMCBlockInt: non-finite logDensity of starting value ",sep=""))
-#        for( iDen in iDens ){
-#			dInfo = dInfos[[iDen]]
-#			#tmp <- dInfo$fLogDen; mtrace(tmp)
-#			#tmp2 <- do.call( tmp, c(list(XChainsMissing[,1]),dInfo$argsFLogDen))
-#			#trace(twCalcLogDenPar, recover)
-#            #(res$pops[[1]])$resLogDen[145,,1]
-#			.resLogDenPar <- twCalcLogDenPar(
-#				fLogDen=dInfo$fLogDen
-#				, xProp=t(XChainsMissing[,,drop=FALSE])
-#				, logDenCompX=numeric(0)
-#				, argsFLogDen=dInfo$argsFLogDen
-#				#no internal decisions, intResCompNames=dInfo$intResCompNames	
-#				, debugSequential=debugSequential
-#				, remoteDumpfileBasename=remoteDumpfileBasename 
-#			)
-#			if( any(!is.finite(.resLogDenPar$logDen)) )
-#				stop(paste("twDEMCBlockInt: non-finite logDensity of starting value ",sep=""))
-#			dInfos[[ iDen ]]$resCompNames <- rcNames <- .getResFLogDenNames( t(.resLogDenPar$logDenComp) ) 
-#			#dInfos[[ iDen ]]$resCompNamesUnique <- paste(rcNames,iDen,sep="_")  
-#			#dInfos[[ iDen ]]$resCompNamesUnique <- rcNames  	# keep original names
-#			logDenCompDen[[iDen]] <- .resLogDenPar$logDenComp
-#		} #iDen
-#		logDenCompXMiss <- do.call( cbind, logDenCompDen )
         #iDen <- 1
         for( iDen in seq_along(dInfos) ){
             #calculated further down, for all dInfos, not just the missing ones: dInfos[[iDen]]$resCompPos <- 
@@ -278,6 +259,8 @@ twDEMCBlockInt <- function(
             logDenCompDen[[iDen]] <- .logDenCompI <- logDenRes$logDenComp[,.resCompPosI]
         }
         logDenCompXMiss <- logDenRes$logDenComp
+        # replace statesin initial history for proposal generation  with infinite logDen by
+        # ones with finite states from other chains/populations
         #jPop <- 1
         for( jPop in seq_along(iMissingPops) ){
 			iiPop <- iMissingPops[jPop]
@@ -292,7 +275,7 @@ twDEMCBlockInt <- function(
 				t(logDenCompXMiss[iInfo,])
 		}
 	}
-    # do overfitting control on the intial logDenComp
+    #-- do overfitting control on the intial logDenComp
     maxLogDen <- structure( numeric(length(resCompNamesUFlat)), names=resCompNamesUFlat)
     #dInfo <- dInfos[[1]]
     for( dInfo in dInfos){
@@ -432,32 +415,29 @@ twDEMCBlockInt <- function(
 	# here accepted is 0: not accepted, 1: full step accepted, between DR step accepted at DRGamma
     #
     ##details<< \describe{ \item{Overfitting control}{
-    ## Cost, i.e. -2*logDensity, below the number of observations indicates an overfitting to a data stream.
+    ## Cost, i.e. -2*logDensity, below the number of observations indicates an overfitting to the data stream.
     ## 
-    ## By supplying the number of observations for one result component with \code{dInfo$nObs} one can 
-    ## activate the control for this overfitting. This works only, however, if there are enough observations. 
-    ## The minimum numbe of observations where overfitting control is activated is given with 
-    ## \code{ctrl$controlOverfittingMinNObs}. By setting this to Infinity (default), no overfitting control is applied.
+    ## By supplying a maximum logDensity for one result component with \code{dInfo$maxLogDen = -1/2*nObs} one can 
+    ## activate the control for this overfitting. This works only, however, if there are enough observations.
+    ## When a result component is based on less than about 30 observartions, one should give a maximum Densitiy of 0.
     ## 
-    ## With overfitting control, there is a lower bound for the cost of one result compoent 
-    ## , i.e. an upper bound of the corresponding \code{dInfo$fLogDen} result component. Values above this   
-    ## bound are decreased to this value. 
+    ## With overfitting control, there is an upper bound bound for the logDensity of one result compoent- 
+    ## Calculated higher logDensities indicate overfitting and are decreases to the maxLogDen value. 
     ##}}
-    # TODO: recalculate initial starting conditions subject to overfitting. 
     #
     #	
 	#-- arguments to fUpdate argument argsFUpdate that do not change within thinning interval
 	argsFUpdateDefault = list(
 		ctrl=ctrl
 		#,fCalcComponentTemp=calcComponentTemp 
-		,fDiscrProp=fDiscrProp
-		,argsFDiscrProp=argsFDiscrProp
+		#,fDiscrProp=fDiscrProp
+		#,argsFDiscrProp=argsFDiscrProp
 	)
     # construct an list for each block that includes compPos, and intResCompPos
     #block <- blocks[[1]]
 	argsFUpdateBlocks <- lapply( blocks, function(block){ 
-			dInfo <- dInfos[[block$dInfoPos]]
-			c( argsFUpdateDefault, dInfo, block
+			dInfo <- if( block$useMetropolisUpdate) dInfos[[block$dInfoPos]] else NULL
+			c( argsFUpdateDefault, dInfo=list(dInfo), block
             #, list(maxLogDen=maxLogDenL[[block$dInfoPos]]) # defined in dInfo on .checkDInfoResCompNames
 			#, list(TPropPops=TPropPops[dInfo$compPosDen,]) 
 			)
@@ -664,6 +644,22 @@ twDEMCBlockInt <- function(
 		} # length(resComp) == 1 
 	} # iDen
     
+    ##details<< \describe{ \item{subspace localized sampling}{
+    ## The covariance matix for new proposals might look very different in different locations of the parameter space.
+    ## For example, overall CO2 efflux might be composed of two parts microbial respiration and inorganic CO2 production.
+    ## that are relevant in different parts of the parameter space (governed by another parameter). The mirobial growth
+    ## rate will be very sensitive in the respiration part and is allowed to to only small jumps, while it might vary large
+    ## in the inorganic part. Hence, it might be beneficial to use different jumping proposal and different population
+    ## samples in different subspaces.
+    ##
+    ## In order to support such supspace-localized sampling XX
+    ##
+    ## When using parallel execution on multiple cores, the transfer of very big intermediates can cause
+    ## performance issues. Use argument \code{controlTwDEMC$returnIntermediate=FALSE} to ensure that 
+    ## intemediates are stored only within process boundaries. When executing the next interval or the next round of
+    ## updates of all blocks, the intermediate will then be the empty list initially.
+    ##}}
+    
     ##details<< \describe{ \item{intermediate results}{
     ## Different density functions can share intermediate results, so that these do not need to be recomputed.
     ## For example two densities can be based on the same model predictions for given parameters, but compare different
@@ -671,13 +667,16 @@ twDEMCBlockInt <- function(
     ## computed in one density, it does not need to be recomputed in the second density function.
     ##
     ## This is an advanced option. Care must be taken that the intermediate is really the same between
-    ## densities.
+    ## densities. And care must be taken that intermediate is recalculated if the parameters change on 
+    ## which the intermediate is based on.
     ##
-    ## Description of both densities should specify the same identifier string in argument \code{dInfo$intermediate}. 
-    ## The densities should return the model output in attribute "intermediate" with the result vector of logDensity
+    ## Description of both block update in argument \code{blocks} (or argument \code{dInfos} if default Metropolis is used)
+    ## should specify the same identifier string in argument \code{dInfo$intermediateId}. 
+    ## The densities or block update functions should return the model output in attribute "intermediate" 
+    ## with the result vector of logDensity
     ## components. \code{twDEMC} ensures that this result is provided with argument \code{intermediate}
-    ## in another call to the density function. 
-    ## If the parameters have changed, an empty list will be given with this argument.
+    ## in another call to the density or block update function. 
+    ## With a new parameter proposal in Metropolis update, an empty list will be given with this argument.
     ##
     ## For an example see test case \code{ofMultiIntermediate} in file unitTests/runittwDEMC.R.
     ## Using densities \code{\link{denSparsePrior}} and \code{\link{denRichPrior}}. 
@@ -687,6 +686,7 @@ twDEMCBlockInt <- function(
     ## intemediates are stored only within process boundaries. When executing the next interval or the next round of
     ## updates of all blocks, the intermediate will then be the empty list initially.
     ##}}
+    
 	
 	#-- return
     for( iPop in iPops ){
@@ -701,7 +701,7 @@ twDEMCBlockInt <- function(
 		thin=ctrl$thin		##<< thinning interval that has been used
 		,dInfos=dInfos		##<< list of information on densities (argument \code{dInfos})
 		,blocks=blocks		##<< list of information on blocks (argument \code{blocks})
-		,YPos = list(		##<< list of column positions in Y, a list with entries \describe{
+		,YPos = list(		##<< list of column positions in pops[i]$Y, a list with entries \describe{
 			##describe<<
 			accepted = nParm+iBlocks	##<< integer vector of positions of acceptance indication of block at given index
 			,resLogDen0 = nParm+nBlock 	##<< integer scalar: postion before first column of results of fLogDen
@@ -718,7 +718,7 @@ twDEMCBlockInt <- function(
 					,pAccept= pAccept[[iPop]]	    ##<< acceptance rate of chains (nStep x nChainPop)
 					,resLogDen = resLogDen[[iPop]]	##<< numeric array (steps x resComps x chains): results components of fLogDen of blocks  
 					,logDen = logDen[[iPop]]	    ##<< numberic array (steps x iDen x chains): results summed over blocks
-					,Y = YPops[[iPop]]
+					,Y = YPops[[iPop]]              ##<< numeric matrix (steps x nParam+nBlock+nResComp x chains): parms, isAccepted for each block, and all fLogDen result components for each proposal
 				)}) 
 				##end<<
 	) 
@@ -788,7 +788,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	paste(resCompNames,iBlock,sep="_")
 }
 
-.checkPop <- function(
+.completePopDescription <- function(
 	### filling default values in pop description
 	pop
 	,nGen=numeric(0)		##<< number of generations to take: overwrites settings given in pop
@@ -822,113 +822,144 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	pop	
 }
 
-.checkDInfo <- function(
-	### filling default values in logDenInfos description
-	dInfo	##<< list to be checked for entries
-	,parNames	##<< variable names that are used by this density function
+.completeDInfo <- function(
+	### filling default values in information on logDensities (dInfo)
+	dInfo	    ##<< list of information on logDensities to be checked for entries
+	,parNames	##<< string vector: names of all parameters. A subset (compPosDen) of these is required by the logDensity
+    ,resCompNames   ##<< string vector: list of names of result vector of logDensity function.
 ){
-	if( 0 == length(dInfo$fLogDen) || !is.function(dInfo$fLogDen)) stop(".checkLogDenInfo: entry fLogDen (function of log of unnomalized density) must be specified")
-	##details<< if compPosDen is not given, then assume all parameter dimensions are required	
-	if( 0 == length(dInfo$compPosDen) ) dInfo$compPosDen <- seq_along(parNames)
-	cpOrig <- dInfo$compPosDen
-	if( is.character(cpOrig) ) dInfo$compPosDen <- match(cpOrig,parNames)
+    ##details<< 
+    ## \code{dInfo} stores ample information on a log-Density function in order to 
+    ## help fast execution of calling the log-Density function and the metropolis update. However, the user 
+    ## is required to specify only minimal detail (see \code{\link{twDEMCBlockInt}}) and most of the information is 
+    ## filled in this function.
+    ## Some of the information can only be completed after the names of logDensity results are 
+    ## know after calling the function. Therefore there is a second function \code{\link{.completeDInfoResCompNames}}.
+    #
+	if( 0 == length(dInfo$fLogDen) || !is.function(dInfo$fLogDen)) 
+        stop(".checkLogDenInfo: entry fLogDen (function of log of unnomalized density) must be specified")
+    #
+	##details<<
+    ## \code{compPosDen} specifies the parameters provided to the given logDensity.
+    ## If entry compPosDen is not given, then assume all parameter dimensions are required.	
+    ## If compPosDen is given as a string vector, then it is translated to positions within 
+    ## vector of all parameter names.
+    if( 0 == length(dInfo$compPosDen) ) dInfo$compPosDen <- seq_along(parNames)
+	compPosDenOrig <- dInfo$compPosDen
+	if( is.character(compPosDenOrig) ) dInfo$compPosDen <- match(compPosDenOrig,parNames)
 	if( any(is.na(dInfo$compPosDen)) ){
-		stop(".checkLogDenInfo: some of compPosDen specified in fLogDenInfos are not in varNames of initial values.")
+		stop(".completeDInfo: some of compPosDen specified in dInfo are among parameter names (of initial values).")
 	}
+    #
 	if( 0==length(dInfo$intResComp) ) dInfo$intResComp <- vector("character",0)
 	#if( 0==length(dInfo$TFix) ) dInfo$TFix <- vector("numeric",0)
-	if( 0!=length(dInfo$TFix) ) warning("Usage of TFix is deprecated. Use TSpec with T0 and TEnd of one for given components.")
-	if( length(i <- which(!(names( dInfo) %in% c("fLogDen","xC","logDenCompC","parUpdateDenC","compPosDen","intResComp","argsFLogDen","intermediate"
+    #
+	if( 0!=length(dInfo$TFix) ) warning("Usage of TFix is deprecated. Use arguemt TSpec of twDEMCBlockInt with T0 and TEnd of one for given components.")
+    if( 0!=length(dInfo$intermediate) || 0!=length(dInfo$intermediateId) ) warning("intermediateId now must be specified with blocks.")
+    if( length(i <- which(!(names( dInfo) %in% c("fLogDen","xC","logDenCompC","parUpdateDenC","compPosDen","intResComp","argsFLogDen"
+                                                ,"fDiscrProp","argsFDiscrProp"
                                                 ,"resCompNames","resCompPos","intResCompPos","intResCompPosWithin","nObs","maxLogDen")))) )
-        stop(paste(".checkDInfo: unknown entries in dInfo:",paste(names(dInfo)[i],collapse=",") ))
-	### argument \code{fLogDenInfo} with entries fLogDen, compPosDen, intResComp defined
+        stop(paste(".completeDInfo: unknown entries in dInfo:",paste(names(dInfo)[i],collapse=",") ))
+    if( 0 != length(dInfo$nObs))
+        warning(".checkDInfoResCompNames: usage of nObs in dInfos is deprecated and not considered. Instead use: maxLogDen=-1/2*nObs")
+    #
+    dInfo$resCompNames <- resCompNames
+    #
+    if( 0 == length(dInfo$maxLogDen) ) dInfo$maxLogDen <- rep( 0, length(resCompNames) )
+    if( length(names(dInfo$maxLogDen)) ){
+        # check that all names matches the resCompNames, and sort along resCompNames
+        iM <- match( resCompNames, names(dInfo$maxLogDen) )
+        if( any(is.na(iM)) )
+            stop(paste(".checkLogDenInfo: maximum logDensitiy, maxLogDen, of observations missing for result components ",paste(resCompNames[which(is.na(iM))], collapse=","),sep="") )
+        dInfo$maxLogDen <- dInfo$maxLogDen[iM]        
+    }
+    if( length(dInfo$maxLogDen) != length(resCompNames) )
+        stop(paste("dInfo maxLogDen (length=",length(dInfo$maxLogDen),") must have same lenght as number of result components=",length(resCompNames),sep=""))
+    
+	### argument \code{dfo} with entries fLogDen, compPosDen, intResComp, resCompNames, and maxLogDen properly specified
 	dInfo
 }
 
+ 
 
-.checkDInfoResCompNames <- function(
-        ### filling default values in logDenInfos description after dInfo$resCompNames is defined
-        dInfo	##<< list to be checked for entries
-        , controlOverfittingMinNObs     ##<< see ctrl$controlOverfittingMinNObs
-){
-    resCompNames <- dInfo$resCompNames
-    if( 0 == length(dInfo$nObs) ) dInfo$nObs <- rep( 0, length(resCompNames) )
-    if( length(names(dInfo$nObs)) ){
-        # sort along parNames
-        iM <- match( resCompNames, names(dInfo$nObs) )
-        if( any(is.na(iM)) )
-            stop(paste(".checkLogDenInfo: number of observations missing for result components ",paste(resCompNames[which(is.na(iM))], collapse=","),sep="") )
-        dInfo$nObs <- dInfo$nObs[iM]        
-    }
-    if( length(dInfo$nObs) != length(resCompNames) )
-        stop(paste("dInfo nObs (length=",length(dInfo$nObs),") must have same lenght as number of result components=",length(resCompNames),sep=""))
-    boControlOverfitting <- ( dInfo$nObs >= controlOverfittingMinNObs)
-    dInfo$maxLogDen <- ifelse( boControlOverfitting, -1/2*dInfo$nObs, dInfo$nObs*0 )
-    ### argument \code{fLogDenInfo} with entries nObs and maxLogDen defined
-    dInfo
-}
-
-.checkBlock <- function(
+.completeBlockInfo <- function(
 	### filling default values in block description
 	block				##<< list to be checked for entries
 	,dInfos				##<< checked list of dInfo. See the argument in \code{\link{twDEMCBlockInt}}.
 	,parNames			##<< parameter dimension names
 ){
-	##details<< if fLogDenInfoId is not specified, assume that it uses the entry in fLogDenInfos	
-	if( 0 == length(block$dInfoPos) ) block$dInfoPos=1
-	if( 1 != length(block$dInfoPos) ) stop(".checkBlock: dInfoPos must be of length 1.")
-	lpOrig <- block$dInfoPos
-	if( is.character(lpOrig) ) block$dInfoPos <- match(lpOrig,names(dInfos))
-	if( is.na(block$dInfoPos) ){
-		stop(".checkBlock: dInfoPos specified in block are not in names of dInfos.")
-	}
-	dInfo <- dInfos[[block$dInfoPos]]
-	#
-	if( 0 == length(block$compPos) ) stop(".checkBlock: entry compPos must be specified, either as index or as variable names")
-	cpOrig <- block$compPos
-	if( is.character(cpOrig) ){
-		block$compPos <- match( cpOrig, parNames)
-	}
-	if( any(is.na(block$compPos)) ){
-		stop(".checkBlock: some of compPos specified in block are not variable names.")
-	}
-    # 
+    ##details<< 
+    ## Similar to dInfos (see \code{\link{.completeDInfo}}), there is a list with ample information on each block.
+    ## As the user is required to specify only the minimal information or information in more convenient format
+    ## The block list is checked and information is completed.
+    #
+    if( 0 == length(block$compPos) ) stop(".completeBlockInfo: entry compPos must be specified, either as indices or as variable names")
+    ##details<< 
+    ## If the user specified \code{compPos} as a character string, 
+    ## then convert it to positions within vector of all parameter
+    compPosOrig <- block$compPos
+    if( is.character(compPosOrig) ){
+        block$compPos <- match( compPosOrig, parNames)
+    }
+    if( any(is.na(block$compPos)) ){
+        i <- which(!(names(compPosOrig) %in%  parNames))
+            stop(paste(".completeBlockInfo: unknown variable names in entry compPos in block:",paste(parNames[i],collapse=",") ))
+    }
+    ##details<< 
+    ## If no other block update function is given, assume Metropolis update
+    if( 0 == length(block$useMetropolisUpdate) )
+        block$useMetropolisUpdate = (0==length(block$fUpdateBlock))
+    if( block$useMetropolisUpdate ){
+        block$fUpdateBlock <- updateBlockTwDEMC
+        dInfoPosOrig <- block$dInfoPos
+        if( 1 != length(block$dInfoPos) ) stop(".checkBlock: dInfoPos must be of length 1.")
+        if( is.character(dInfoPosOrig) ) block$dInfoPos <- match(dInfoPosOrig,names(dInfos))
+        if( is.na(block$dInfoPos) ){
+            stop(paste0(".checkBlock: specified density '",dInfoPosOrig,
+                 "' not found in names of list of density information (argument dInfos)."))
+        }
+        dInfo <- dInfos[[block$dInfoPos]]
+        #
+        # positions of parameters to update in list of parameters to logDensity function
+        block$compPosInDen <- match(block$compPos,dInfo$compPosDen ) 
+        if( any(is.na(block$compPosInDen)) ){
+            stop(".checkBlock: some of compPos specified in block are not in compPosDen of fLogDenInfo.")
+        }
+    } # useMetropolisUpdate
+    #
+    if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdateBlock must be a single function.")
+    #
     if( 0 == length(block$nStates) ){
         # number of states to choose from for proposal generations on conditional sampling
         block$nStates <- calcM0twDEMC( length(block$compPos), 1)
     }
 	#
-	block$compPosInDen <- match(block$compPos,dInfo$compPosDen ) 
-	if( any(is.na(block$compPosInDen)) ){
-		stop(".checkBlock: some of compPos specified in block are not in compPosDen of fLogDenInfo.")
-	}
-	#
-	if( 0==length(block$fUpdateBlock) ) block$fUpdateBlock <- updateBlockTwDEMC
-	if( 1!=length(block$fUpdateBlock) || !is.function(block$fUpdateBlock) ) stop(".checkBlock: fUpdateBlock must be a single function.")
-	#
-	if( 0==length(block$requiresUpdatedDen) ) block$requiresUpdatedDen <- TRUE
-	#
-	### block with entries compPos, dInfoPos, fUpdateBlock, requiresUpdatedDen definded
+	##value<< argument block with entries compPos, dInfoPos, fUpdateBlock, and useMetropolisUpdate definded
+    if( length(i <- which(!(names( block) %in% c("compPos","dInfoPos","fUpdateBlock","useMetropolisUpdate","argsFUpdate"
+                 ,"nStates","compPosInDen","intermediateId")))) )
+        stop(paste(".checkBlock: unknown entries in block:",paste(names(block)[i],collapse=",") ))
 	block
 }
 
 .getResFLogDenNames <- function(
 	### Extracting/Creating names for result components of logDenComp
-	logDenComp		##<< vector or array (vars in rows) of results of logDensity function 
+	logDenComp		##<< vector or array (vars in rows) of results of logDensity function
+    ,logDenName     ##<< name of the density 
 ){
 	##details<< 
-	## Names of the result components of fLogDen are used to ditinguish internal components.
+	## Names of the result components of fLogDen are used to distinguish internal components.
 	## If the density function does not provide names, they are created.
 	## If the density function has only one result component, the name is lost during parallel execution.
 	## Hence, a single name is also re-created, to avoid errors on checking.
-	logDenName <- "logDen"	
+    ## The created names are of the form <logDenName>_<iComp>
 	if( is.array(logDenComp)){
 		res <- rownames(logDenComp)
-		return( if( !is.null(res) ) res else paste(logDenName,1:nrow(logDenComp),sep="") )
+		return( if( !is.null(res) ) res else paste(logDenName,1:nrow(logDenComp),sep="_") )
 	}else{
 		res <- names(logDenComp)
-		return( if( !is.null(res) && length(res) > 1) res else paste(logDenName,1:length(logDenComp),sep="") )
-	}
+		#return( if( !is.null(res) && length(res) > 1) res else paste(logDenName,1:length(logDenComp),sep="") )
+        return( if( !is.null(res) ) res else paste(logDenName,1:length(logDenComp),sep="_") )
+    }
 }
 
 .sampleStatesConditional <- function(
@@ -1270,7 +1301,7 @@ attr(twDEMCBlockInt,"ex") <- function(){
         ### Perform update steps within next thinning interval for a single chain (called remotely from .updateIntervalTwDEMCParChains) 
         # first three arguments relate to current state (stored in chainState in twDEMCBlockInt)
         argsUpdateIntervalTwDEMCChain = list( ##<< argument that change across invocations of .updateIntervalTwDEMCChain
-                ## supplied as list, so that we can use sfLapply
+                ## supplied as list, so that sfLapply can be used
                 ##describe<<
         X=c()		    ##<< numeric vector: current location
         ,logDenCompX=c()##<< numeric vector: result of calls to density functions for current location
@@ -1390,79 +1421,92 @@ attr(twDEMCBlockInt,"ex") <- function(){
 	for( iBlock in seq_along(a$argsFUpdateBlocks)){
 		#block <- blocks[[iBlock]]
 		blockArgs <- a$argsFUpdateBlocks[[iBlock]] #merged the information in argsFUpdateBlocks
-        usesIntermediate <- length(blockArgs$intermediate) != 0
+        usesIntermediate <- length(blockArgs$intermediateId) != 0
         #
-		cd <- blockArgs$compPosDen # components used by the current density function
-		cu <- blockArgs$compPos	   # components to be updated in this block
-		#cuInD <- block$compPosInD 
+        argsFUpdateBlock <- c( blockArgs, list(
+                iPop=iPop   
+                , upperParBounds=a$upperParBoundsPop[[iPop]]
+                , lowerParBounds=a$lowerParBoundsPop[[iPop]]
+        ))  # will be extendend if Metropolis is used and by intermediate further down
+        #
 		##details<< \describe{}{\item{Recalculating logDensity of accepted state.}{
 		## If one of the components used by the current density function has been
 		## updated against another density function, then the current density of  
 		## the accepted state is out of date, and needs to be recalculated.
 		##}}
-		if( blockArgs$requiresUpdatedDen && !all( parUpdateDenC[blockArgs$dInfoPos,cd] ) ){
-            # intermediate state may have been calculated, no need of recalculation
-            blockArgs$argsFLogDen$intermediate <- if( usesIntermediate )  intermediatesC[[blockArgs$intermediate]] else NULL
-            # here do not allow for internal rejection
-            logDenCompC[blockArgs$resCompPos] <- tmp <- .calcFLogDen( blockArgs$fLogDen, xP, compInt=blockArgs$logDenCompC[blockArgs$intResCompPos], TiInt =  blockArgs$tempDenCompC[blockArgs$intResCompPos]
-                    ,argsFLogDen = blockArgs$argsFLogDen
-                    ,maxLogDen = blockArgs$maxLogDen
-                    )
-                    #do.call( blockArgs$fLogDen, c(list(xC[cd]), blockArgs$argsFLogDen) )	# evaluate logDen
-            #undebug(ofDalecPhen)
-            #tmp2 <- do.call(ofDalecPhen, c(list(xC[cd]), blockArgs$argsFLogDen) )	# evaluate logDen
-            if( any(!is.finite(tmp)) ){
-                dump.frames("updateBlocksTwDEMC",TRUE)
-                stop(".updateBlocksTwDEMC (25): encountered non-finite resLogDen of in chainState. Dump.frames to file updateBlocksTwDEMC.rda. Implement better consistency checks across all fLogDen.")  
-            } 
-			parUpdateDenC[blockArgs$dInfoPos,cd] <- TRUE
-            if( usesIntermediate ){
-                intermediatesC[[ blockArgs$intermediate]] <- attr(tmp,"intermediate") 
-            } 
-		}	
+        if( blockArgs$useMetropolisUpdate ){
+            dInfo <- blockArgs$dInfo
+            cd <- dInfo$compPosDen # components used by the current density function
+    		if( !all( parUpdateDenC[blockArgs$dInfoPos,cd] ) ){
+                # intermediate state may have been calculated, no need of recalculation
+                argsFLogDen <- dInfo$argsFLogDen
+                argsFLogDen$intermediate <- if( usesIntermediate ) intermediatesC[[blockArgs$intermediateId]] else NULL
+                # here do not allow for internal rejection
+                logDenCompC[dInfo$resCompPos] <- tmp <- .calcFLogDen( dInfo$fLogDen, xP, compInt=dInfo$logDenCompC[dInfo$intResCompPos], TiInt =  dInfo$tempDenCompC[dInfo$intResCompPos]
+                        ,argsFLogDen = argsFLogDen
+                        ,maxLogDen = dInfo$maxLogDen
+                        )
+                        #do.call( dInfo$fLogDen, c(list(xC[cd]), dInfo$argsFLogDen) )	# evaluate logDen
+                #undebug(ofDalecPhen)
+                #tmp2 <- do.call(ofDalecPhen, c(list(xC[cd]), dInfo$argsFLogDen) )	# evaluate logDen
+                if( any(!is.finite(tmp)) ){
+                    dump.frames("updateBlocksTwDEMC",TRUE)
+                    stop(".updateBlocksTwDEMC (25): encountered non-finite resLogDen of in chainState. Dump.frames to file updateBlocksTwDEMC.rda. Implement better consistency checks across all fLogDen.")  
+                } 
+    			parUpdateDenC[blockArgs$dInfoPos,cd] <- TRUE
+                if( usesIntermediate ){
+                    intermediatesC[[ blockArgs$intermediateId ]] <- attr(tmp,"intermediate") 
+                } 
+    		} # end if intermediate state changed
+            argsFUpdateBlock$metInfoStep <-  list(
+                    step=step
+                    , rExtra=rExtra
+                    , logDenCompC=logDenCompC[ dInfo$resCompPos  ]
+                    #, tempC=tempGlobalC
+                    , tempDenCompC=tempDenCompC[ dInfo$resCompPos ]	
+                    , pAccept=pAcceptC
+            )
+        } # end if( blockArgs$useMetropolisUpdate )
+        #
+        # intermediate may have changed in Metropolis-Block
+        argsFUpdateBlock$intermediate <- if( usesIntermediate )  intermediatesC[[blockArgs$intermediateId]] else NULL
+        argsFUpdateBlock$intermediateId <- NULL     # else this will be uses for intermediate: R bug
+        #
 		# make sure to use names different from already existing in argsFUpdateBlocks[[iBlock]]
 		# in c latter entries overwrite previous entries, so use argsFUpdateBlocks first
-        blockArgs$argsFLogDen$intermediate <- NULL      # itermediate refers to current state not for proposal
-		argsFUpdateBlock <- c( blockArgs, list(
-				step=step
-				, rExtra=rExtra
-				, logDenCompC=logDenCompC[ blockArgs$resCompPos  ]
-				#, tempC=tempGlobalC
-				, tempDenCompC=tempDenCompC[ blockArgs$resCompPos ]	
-				, pAccept=pAcceptC
-				, upperParBounds=a$upperParBoundsPop[[iPop]]
-				, lowerParBounds=a$lowerParBoundsPop[[iPop]]
-				, iPop=iPop
-			))
+        # updateBlockTwDEMC will set it to NULL for new parameter proposal
 		#resUpdate <- updateBlockTwDEMC( xC[cd], argsFUpdateBlock=argsFUpdateBlock )
-		resUpdate <- blockArgs$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )       # call the update
-		acceptedBlock[iBlock] <- resUpdate$accepted # record acceptance
-		if( !all(is.finite(resUpdate$accepted)))
+        # call the update
+        resUpdateB <- do.call( blockArgs$fUpdateBlock, c(list(xC[cd], argsFUpdateBlock=argsFUpdateBlock), argsFUpdateBlock$argsFUpdate) )
+		#resUpdate <- blockArgs$fUpdateBlock( xC[cd], argsFUpdateBlock=argsFUpdateBlock )       
+		acceptedBlock[iBlock] <- resUpdateB$accepted # record acceptance
+		if( !all(is.finite(resUpdateB$accepted)))
 			stop(".updateBlocksTwDEMC: encountered non-finited acceptance rate")
-        if( any(!is.finite(resUpdate$logDenCompC)) ){
+        if( any(!is.finite(resUpdateB$logDenCompC)) ){
             stop(".updateBlocksTwDEMC (35): encountered non-finite resLogDen in accepted state")  
         } 
-        if( resUpdate$accepted != 0){
+        cu <- blockArgs$compPos	   # components to be updated in this block
+        if( resUpdateB$accepted != 0){
 			#if( resUpdate$xC["a"] > 10.8) recover()
-			xC[cu] <- xP[cu] <- resUpdate$xC		# update the components of current state
+			xC[cu] <- xP[cu] <- resUpdateB$xC		# update the components of current state
+            if( usesIntermediate ) 
+                intermediatesC[[ blockArgs$intermediateId]] <- resUpdateB$intermediate  # update the intermediate
             #undebug(setIntermediate)
-			parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the update parameters
-			if( 0 != length(resUpdate$logDenCompC) ){				
-                if( usesIntermediate) 
-                    intermediatesC[[ blockArgs$intermediate]] <- attr(resUpdate$logDenCompC,"intermediate")  # update the intermediate
+			parUpdateDenC[,cu] <- FALSE	# indicate all density results out of date for the updated parameters
+			if( 0 != length(resUpdateB$logDenCompC) ){				
                 #if( iBlock==1 && resUpdate$logDenCompC[2] > -5) recover()
-                logDenCompC[ blockArgs$resCompPos  ] <- logDenCompP[ blockArgs$resCompPos  ] <- resUpdate$logDenCompC # update the result of the used density function
+                logDenCompC[ dInfo$resCompPos  ] <- logDenCompP[ dInfo$resCompPos  ] <- resUpdateB$logDenCompC # update the result of the used density function
 				parUpdateDenC[blockArgs$dInfoPos,cu] <- TRUE	# if density has been calculated, indicate that it is up to date 
             }
 		}else{ # not accepted
-			if( 0 != length(resUpdate$xP) ) xP[ cu  ] <- resUpdate$xP 				# proposal 		
-			if( 0 != length(resUpdate$logDenCompP) ) logDenCompP[ blockArgs$resCompPos  ] <- resUpdate$logDenCompP # density results for proposal
+			if( 0 != length(resUpdateB$xP) ) xP[ cu  ] <- resUpdateB$xP 				# proposal 		
+			if( 0 != length(resUpdateB$logDenCompP) ) logDenCompP[ dInfo$resCompPos  ] <- resUpdateB$logDenCompP # density results for proposal
             # keep with previous intermediate                
 		}
 	} #iBlock
 
 	##value<< list with components
-	resUpdate <- list( ##describe <<
+	resUpdateStep <- list( ##describe <<
 		xC=xC						##<< numeric vecotr: current accepted state
 		,logDenCompC=logDenCompC	##<< numeric vector: result components of fLogDen for current position
         ,intermediatesC= intermediatesC    ##<< the list of intermediate results of current state
@@ -1505,36 +1549,50 @@ attr(twDEMCBlockInt,"ex") <- function(){
 
 #undebug(updateBlockTwDEMC)
 updateBlockTwDEMC <- function( 
-	### Perfrom one DEMC step, function to be called in remote process.
+	### Block update function by a Metropolis decision
 	xC				##<< numeric vector: current state that is used in density function of the block
 	,argsFUpdateBlock	
 ### further argument provided for generating the update  \describe{
-### \item{compPosInDen}{ positions of the dimensions in x that are updated in this block}
-### \item{step}{proposed jump}
-### \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
-### \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
-### \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
-### \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
-### \item{argsFLogDen}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
-### \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
-### \item{ctrl$DRgamma}{ if !0 and >0 delayed Rejection (DR) (Haario06) is applied by jumping only DRgamma distance along the proposal }
-### \item{upperParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
-### \item{lowerParBounds}{ named numeric vector, see \code{\link{twDEMCBlockInt}}  }
-### \item{fCalcComponentTemp}{ functiont to calculate temperature of result components, (way of transporting calcComponentTemp to remote process) }
-### \item{maxLogDen}{ integer vector (nResComp): maximum logDensity (overfitting control, usually -1/2 nObs) }
-### \item{iPop}{ just for debugging }
+### \item{upperParBounds}{ named numeric vector, upper limits of the parameters to generate, see \code{\link{twDEMCBlockInt}}  }
+### \item{lowerParBounds}{ named numeric vector, lower limits of the parameters to generate, see \code{\link{twDEMCBlockInt}}  }
+### \item{iPop}{ the population for which the sample is generated (just for debugging) }
+### \item{intermediate}{ intermediate result for current state xC, see end of vignette on using two Densities }
 ### }
+# # # \item{fCalcComponentTemp}{ functiont to calculate temperature of result components, (way of transporting calcComponentTemp to remote process) }
 ){
-    #recover()
 	#updateBlockTwDEMC
+    #
+    ##details<< 
+    ## Function arguments above are provided to all block update functions. 
+    ## If Metropolis update is used, argument \code{argsFUpdateBlock} constains the following additional entries \describe{
+    ## \item{compPosInDen}{ positions of the dimensions in x that are updated in this block}
+    ## \item{ctrl$DRgamma}{ if given and >0 delayed Rejection (DR) (Haario06) is applied: 
+    ##      If proposal is rejected, then a second proposal is tried jumping only DRgamma distance along the proposal }
+    ## \item{dInfo}{ list on used logDensity function static troughout inversion with items \describe{
+    ##       \item{argsFLogDen}{additional arguments to fLogDen and scalar factor applied to result of fLogDen}
+    ##       \item{posLogDenInt}{the matching positions of intResCompNames within the the results components that are handled internally}
+    ##       \item{maxLogDen}{ integer vector (nResComp): maximum logDensity (overfitting control, usually -1/2 nObs) }
+    ##       \item{fDiscrProp,argsFDiscrProp}{function and additional arguments applied to xProp, e.g. to round it to discrete values}
+    ## }} 
+    ## \item{metInfoStep}{ list on current Metropolis update variable troughout inversion with items \describe{
+    ##       \item{step}{proposed jump}
+    ##       \item{rExtra}{extra portion in Metropolis decision because of selecting the jump}
+    ##       \item{logDenCompC}{numeric vector: former result of call to same fLogDen}
+    ##       \item{tempDenCompC}{numeric vector of length(logDenCompC): temperature for each density result component}
+    ## }}
+    ## }
+    #
 	##seealso<< 
 	## \code{\link{twDEMCBlockInt}}
 	## \code{.updateBlocksTwDEMC}
 	# # \code{\link{.updateBlocksTwDEMC}}
 	#attach( argsDEMCStep )
 	#stop(".doDEMCStep: stop to trace error in remote R invocation.")
-	a <- argsFUpdateBlock
-	#with( argsFUpdateBlock, {		# with produces significant performance loss
+    # collect information into a single big shorthand list for shorter code
+	a <- c(argsFUpdateBlock, argsFUpdateBlock$dInfo, argsFUpdateBlock$metInfoStep ) 
+    a$argsFLogDen$intermediate <- NULL      # intermediate refers to current state, not to new proposal 
+    #recover()
+    #with( argsFUpdateBlock, {		# with produces significant performance loss
 	boResFLogDenX <- (length(a$intResCompPos) > 0)
 	# LogDensity of accepted state
 	#La <- logDenCompC	#logDensity	components of accepted state
@@ -1593,7 +1651,7 @@ updateBlockTwDEMC <- function(
 			#nFixExt <- length(posTFixExt)
 			#nVarExt <- length(posTVarExt)
 			#nExt <- nFixExt + nVarExt
-			
+			#
 			#Metropolis step
 			#logr = (logDenPropExt+rExtra - logDenXExt) / tempC
 			logrDS10 <- (Lp[posTExt]-La[posTExt])/a$tempDenCompC[posTExt]
@@ -1640,10 +1698,6 @@ updateBlockTwDEMC <- function(
 			#if( !identical( names(Lp), names(La)) ) stop(".doDEMCStep: logDenCompC must contain the same components and the order of result of fLogDen." )
 			if( all(is.finite(Lp))){
                 #logDenP <- sum(Lp)
-				##details<< \describe{\item{internal Metropolis step}{
-				## if posLogDenInt is given, then these components of result of fLogDen are handled
-				## internally. Hence, for Metropolis step here operates only on other remaining components.
-				## }}
 				posTExt <- setdiff( seq_along(a$tempDenCompC), a$intResCompPos )		#externally handled components
 				nExt <- length(posTExt)
 				#posTFixExt <- setdiff(posTFix,posLogDenInt)		#externally handled components with fixed temperature
@@ -1663,7 +1717,7 @@ updateBlockTwDEMC <- function(
 				if(accepted != 0){
 					xC <- xP
 					#logDenC <- logDenP
-					a$logDenCompC <- Lp
+					a$logDenCompC <- Lp         # also transferres the "intermediate" attribute
 				}				
 			}
 		} # end !boOutside in DR step 
@@ -1678,7 +1732,8 @@ updateBlockTwDEMC <- function(
 		accepted=accepted			##<< boolean scalar: if step was accepted
 		, xC=xC[a$compPosInDen]		##<< numeric vector: components of position in parameter space that are being updated (if accepted then the same as xP)
 		, logDenCompC=a$logDenCompC	##<< numeric vector: result components of fLogDen for current position (if accepted then the same as logDenCompP)
-		#, logDenC =logDenC			##<< numeric vector: summed fLogDen for current accepted position
+        , intermediate=attr(a$logDenCompC,"intermediate") ##<< intermediate result of current state (if provided by logDensity) 
+        #, logDenC =logDenC			##<< numeric vector: summed fLogDen for current accepted position
 		, xP=xP[a$compPosInDen]		##<< numeric vector: components of proposal that are being 
 		, logDenCompP=Lp			##<< numeric vector: result components of fLogDen for proposal, may inlcude attr "intermediate"
 	#, logDenP=logDenP			##<< numeric vector: summed fLogDen for proposal

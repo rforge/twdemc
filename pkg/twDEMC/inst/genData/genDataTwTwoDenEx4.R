@@ -1,6 +1,6 @@
 # moved modTwTwoDenEx1 to R/denSparseRichBoth.R so that docu is generated
-
 set.seed(0815)
+
 twTwoDenEx1 <- within( list(), {
 		fModel <- modTwTwoDenEx1
 		thetaA <- 1
