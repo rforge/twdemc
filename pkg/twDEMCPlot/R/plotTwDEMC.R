@@ -223,6 +223,7 @@ ggplotDensity.twDEMCPops <- function(
         ,parmsBounds=NULL	##<< list <- colour -> numeric matrix (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)
         ,parmsBoundsLt="dashed"
         ,themeOpts=theme()
+        ,isBlackWhiteSupport=FALSE   ##<< set to TRUE to represent colored populations additionally by different linetype
 ){
     ##seealso<<  
     ## \code{\link{plotMarginal2D}}
@@ -269,14 +270,19 @@ ggplotDensity.twDEMCPops <- function(
     tmpDs4$parms <- reorderFactor(tmpDs4$parms, .colNames)
     .nPop <- length(levels(tmpDs4$pops))
     #
-    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aes(x=value,colour=pops))+   #+ ylim(0,1) +#, colour=pops, fill=pops
+    aesC <- if(isTRUE(isBlackWhiteSupport)){
+        aes(x=value,colour=pops,linetype=pops)
+    }else{
+        aes(x=value,colour=pops)
+    }
+    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aesC)+   #+ ylim(0,1) +#, colour=pops, fill=pops
             themeOpts+      # need to give theme_bw before giving any other theme()
             theme(axis.title.x = element_blank()) 
     #print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
     if( 0 < length(poptDistr) ){
         #1:.nPop
         p2 <- p1+ 
-                stat_prior(aes(y=..priorScaledOpt..,parName=parms,linetype="prior",ymax=1) #, position="identity"
+                stat_prior(aes(y=..priorScaledOpt..,parName=parms,ymax=1),linetype="twodash" #, position="identity"
                         #,data=tmpDs3	#will confuse the x-ranges
                         ,poptDistr=poptDistr2,doTransOrig = doTransOrig
                         ,size=I(0.8)
@@ -287,11 +293,14 @@ ggplotDensity.twDEMCPops <- function(
     #cols <- structure( c("gray40",popCols  ), names=c("prior",seq_along(res$pops)) )
     cols <- structure( popCols  , names=seq_along(res$pops) )
     lts <- structure( c("twodash", rep("solid",nPop) ), names=c("prior",seq_along(res$pops)) )
+    lts2 <-  structure( scales::linetype_pal()(length(popNames)), names=seq_along(popNames))
     p3 <- p2 + stat_density(aes(y=..scaled..,ymax=1), geom="line", position = "identity")+
             facet_wrap(~parms, scales="free_x") +
             #scale_colour_manual(legendTitle,values=cols, labels=c(popNames,"prior") )+
             scale_colour_manual(legendTitle,values=cols, labels=popNames )+
-            scale_linetype_manual("",values=lts, labels=c("prior",popNames) )+
+            #scale_linetype_manual("",values=lts, labels=c("prior",popNames) )+
+            scale_linetype_manual(legendTitle, values=lts2, labels=c(popNames) )+
+            #scale_linetype_discrete(legendTitle )+
             theme()
     #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
     #		facet_wrap(~parms, scales="free")
@@ -376,6 +385,121 @@ attr(ggplotDensity.poptDistr,"ex") <- function(){
 	ggplotDensity.poptDistr( parDistr, parmsBounds=parmsBounds, doTransOrig=FALSE )	
 	
 }
+
+ggplotDensitySamples <- function(
+        ### Plotting the densities for each parameter.
+        sampleList		##<< named list each with a matrix (parameters in columns)
+        ,poptDistr=NULL	##<< parameter Distributions for the prior, usually \code{poptDistr <- \link{twConstrainPoptDistr}(poptNames,HamerParameterPriors$parDistr )}
+        ,pMin=0.05		##<< if > 0, the results are constrained to quantiles of rLogDen>percMin. Can avoid extremes
+        ,doTransOrig=FALSE	##<< if TRUE, parameters are translated to original scale
+        ,doDispLogDen=TRUE	##<< include density of LogDensitys
+        #,idInfo=names(res$dInfos)[seq_along(res$dInfos)]    ##<< the names of logDen for applying pMin 
+        ,nSamplesPop=500      ##<< thin to about these number of samples within each population
+        ,popNames=names(sampleList) ##<< character vector (nPop): names of the populations displayed in colour legend
+        ,popCols=scale_colour_hue(1:.nPop)$palette(.nPop)   ##<< colors of the populations. Eiter names must match names in sampleList or unnamed and order must match
+        ,legendTitle="Scenarios"
+        ,parNames = colnames(sampleList[[1]])   ##<< names of the parameters to plot
+        ,parmsBounds=NULL	##<< list <- colour -> numeric matrix (nParm x nLines) to be plottes as lines or vector (names or rownames must hold parameter names)
+        ,parmsBoundsLt="dashed"
+        ,themeOpts=theme()
+        ,isBlackWhiteSupport=TRUE   ##<< set to FALSE to omit representing colored populations additionally by different linetype
+){
+    ##seealso<<  
+    ## \code{\link{plotMarginal2D}}
+    ## \code{\link{twDEMCBlockInt}}
+    #
+    nPop <- length(sampleList)
+    scenarioNames <- names(sampleList)
+    # thin result to about 500 cases per constrainted population, to save calculation time and retrieve matrix
+    #sample <- sampleList[[1]]
+    resMPops <- lapply(sampleList, function(sample){
+                if( nrow(sample) < nSamplesPop) return( sample )
+                iCases <- round(seq(1,nrow(sample),length.out=nSamplesPop))
+                sample[iCases, ,drop=FALSE]
+            })
+    # pick columns
+    #.colNames <- c( {if(doDispLogDen) names(res$dInfos) else NULL}, parNames )
+    .colNames <- parNames
+    # omit the cases of very low density
+    # m1 <- resMPops[[1]]
+#    resM2Pops <- lapply( resMPops, function(m1){
+#                nOmit <- round( nrow(m1) * pMin )
+#                oL <- orderLogDen(m1, length(res$dInfos))
+#                m2 <- m1[oL[-(1:nOmit)],]
+#            })
+    resM2Pops <- resMPops
+    if( 0 < length(poptDistr) )
+        poptDistr2 <- twConstrainPoptDistr(parNames,poptDistr )	#also used for prior
+    if( doTransOrig ){
+        if(0==length(poptDistr)) stop("for doTransOrig one must provide argument poptDistr")
+        for( iPop in seq_along(resM2Pops) ){
+            resM2Pops[[iPop]][,-1] <- transOrigPopt(resM2Pops[[iPop]][,-1], poptDistr2$trans)
+        }
+    }
+    tmpDs4 <- structure( melt(resM2Pops), names=c("cases","parms","value","pops"))
+    tmpDs4 <- subset(tmpDs4, parms %in% .colNames)
+    tmpDs4$pops <- factor(tmpDs4$pops, scenarioNames)   # keep same order as in list
+    # reorder parms factor (may not be sorted alphabetically)
+    reorderFactor <- function (x, newLevels){
+        levelMap <- match(levels(x), as.factor(newLevels))
+        factor(newLevels[levelMap[x]], levels = newLevels)
+    }
+    tmpDs4$parms <- reorderFactor(tmpDs4$parms, .colNames)
+    .nPop <- length(levels(tmpDs4$pops))
+    #
+    aesC <- if(isTRUE(isBlackWhiteSupport)){
+                aes(x=value,colour=pops,linetype=pops)
+            }else{
+                aes(x=value,colour=pops)
+            }
+    p1 <- p2 <- ggplot(subset(tmpDs4, TRUE),aesC)+   #+ ylim(0,1) +#, colour=pops, fill=pops
+            themeOpts+      # need to give theme_bw before giving any other theme()
+            theme(axis.title.x = element_blank()) 
+    #print(p1 + geom_density(aes(y=..scaled..,colour=pops)))
+    if( 0 < length(poptDistr) ){
+        #1:.nPop
+        p2 <- p1+ 
+                stat_prior(aes(y=..priorScaledOpt..,parName=parms,ymax=1),linetype="twodash" #, position="identity"
+                        #,data=tmpDs3	#will confuse the x-ranges
+                        ,poptDistr=poptDistr2,doTransOrig = doTransOrig
+                        ,size=I(0.8)
+                        #,linetype=I("twodash")
+                        , colour="gray40"
+                ) 
+    }
+    #cols <- structure( c("gray40",popCols  ), names=c("prior",seq_along(res$pops)) )
+    cols <- popCols
+    lts <- structure( c("twodash", rep("solid",nPop) ), names=c("prior",seq_along(resM2Pops)) )
+    lts2 <-  structure( scales::linetype_pal()(length(popNames)), names=NULL)
+    p3 <- p2 + stat_density(aes(y=..scaled..,ymax=1), geom="line", position = "identity")+
+            facet_wrap(~parms, scales="free_x") +
+            #scale_colour_manual(legendTitle,values=cols, labels=c(popNames,"prior") )+
+            scale_colour_manual(legendTitle,values=cols, labels=popNames )+
+            #scale_linetype_manual("",values=lts, labels=c("prior",popNames) )+
+            scale_linetype_manual(legendTitle, values=lts2, labels=c(popNames) )+
+            #scale_linetype_discrete(legendTitle )+
+            theme()
+    #p3 <- p2 + stat_density(aes(y=..density..,colour=pops), geom="line")+
+    #		facet_wrap(~parms, scales="free")
+    #p4 <- p3 + stat_prior(aes(y=..priorScaled..,parName=parms),poptDistr=poptDistr,col="blue",)
+    p5 <- p4 <- p3 + xlab("Parameter") + ylab("Scaled posterior density") + theme(axis.text.y = element_blank(), axis.ticks.y=element_blank())
+    if( 0 < length(parmsBounds) ){
+        if( !is.list(parmsBounds) ) parmsBounds <- list( black = parmsBounds )
+        for( coli in names(parmsBounds) ){
+            pBi <- parmsBounds[[coli]] 
+            if( !is.matrix(pBi) ) pBi <- matrix(pBi,ncol=1, dimnames=list(names(pBi),NULL))
+            tmpDs5 <- melt(pBi[parNames,,drop=FALSE])
+            colnames(tmpDs5) <- c("parms","quantile","value")
+            if( doTransOrig ) tmpDs5$value <- transOrigPopt(tmpDs5$value, poptDistr2$trans)
+            p5 <- p5 + geom_vline(aes(xintercept=value), tmpDs5, color=coli, linetype=parmsBoundsLt)
+        }
+    }
+    p5
+}
+
+
+
+
 
 
 
