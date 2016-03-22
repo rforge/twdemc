@@ -87,9 +87,9 @@ ggplotChainPopMoves <- function(
 ### ggplot2 statistics: adds columns prior and priorScaled to the output
 StatPrior <- {
 	require(ggplot2)
-	proto::proto( ggplot2:::StatDensity, {
-	objname <- "prior"
-	calculate<- function(.,data, scales, poptDistr, doTransOrig=FALSE, nGrid=30, ...){
+    ggproto( "StatPrior", ggplot2:::StatDensity, 
+	#objname <- "prior"
+    compute_group = function(.,data, scales, poptDistr, doTransOrig=FALSE, nGrid=30, ...){
 		parname <- as.character(data$parName[1])
 		#range <- scales$x$output_set()
 		range <- scales$x$range$range
@@ -124,21 +124,48 @@ StatPrior <- {
 		#	densdf$x <- transOrigPopt(xgrid,poptDistr$trans[parname])
 		densdf
 	}
-	required_aes=c("x","parName")
-})}
+	, required_aes=c("x","parName")
+)}
 #with(StatPrior, mtrace(calculate)) 
 #with(StatPrior, mtrace(calculate,F)) 
 
 
-stat_prior <- function (
-	### constructs a new StatPrior statistics based on aesthetics x and parName
-	mapping = NULL, data = NULL, geom = "line", position = "stack", 
-	adjust = 1,	poptDistr, doTransOrig=FALSE, nGrid=100, ...
-){ 
-	StatPrior$new(mapping = mapping, data = data, geom = geom, 
-		position = position, adjust = adjust, poptDistr=poptDistr, doTransOrig=doTransOrig, nGrid=nGrid, ...)
+#stat_prior <- function (
+#	### constructs a new StatPrior statistics based on aesthetics x and parName
+#	mapping = NULL, data = NULL, geom = "line", position = "stack", 
+#	adjust = 1,	poptDistr, doTransOrig=FALSE, nGrid=100, ...
+#){ 
+#	StatPrior$new(mapping = mapping, data = data, geom = geom, 
+#		position = position, params=list(adjust = adjust), poptDistr=poptDistr, doTransOrig=doTransOrig, nGrid=nGrid, ...)
+#}
+
+stat_prior <- function(mapping = NULL, data = NULL,
+        geom = "line", position = "stack",
+        ...,
+        na.rm = FALSE,
+        show.legend = NA,
+        inherit.aes = TRUE
+        ,	poptDistr, doTransOrig=FALSE, nGrid=100
+) {
+    
+    layer(
+            data = data,
+            mapping = mapping,
+            stat = StatPrior, #StatDensity,
+            geom = geom,
+            position = position,
+            show.legend = show.legend,
+            inherit.aes = inherit.aes,
+            params = list(
+                    na.rm = na.rm,
+                    poptDistr=poptDistr,
+                    doTransOrig=doTransOrig,
+                    nGrid=nGrid,
+                    ...
+            )
+    )
 }
-#stat_prior(
+
 
 ggplotDensity.twDEMC <- function(
 	### Plotting the densities for each parameter.
