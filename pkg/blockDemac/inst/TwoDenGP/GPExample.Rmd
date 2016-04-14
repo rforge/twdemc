@@ -1,0 +1,384 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Using parameter blocks)}
+-->
+
+```{r GPEx_setup, include=FALSE}
+library(knitr)
+opts_chunk$set(out.extra='style="display:block; margin: auto"'
+    #, fig.align="center"
+    , fig.width=4.6, fig.height=3.2
+    #, fig.width=6.3, fig.height=3.9 #goldener Schnitt 1.6
+    , dev.args=list(pointsize=10)
+    , dev=c('png','pdf')
+    )
+knit_hooks$set(spar = function(before, options, envir) {
+    if (before){
+        par( las=1 )                   #also y axis labels horizontal
+        par(mar=c(2.0,3.3,0,0)+0.3 )  #margins
+        par(tck=0.02 )                          #axe-tick length inside plots             
+        par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
+     }
+})
+```
+
+Basic example of modelling model discrepancy by a Gaussian Process (GP)
+=======================================================================
+
+Plotting different realizations of model error by a simple example.
+ 
+```{r results='hide'}
+#isDevelopMode <- TRUE
+if(!exists("isDevelopMode")) library(blockDemac)
+baseSize=10         # font for ggplot
+library(ggplot2)
+library(nlme)
+library(plyr)
+set.seed(0816)      # for reproducible results
+```
+
+The example model and data 
+--------------------------
+
+The process to model is a simple relationship of one output dependent on one input, y = f(x). The model is a linear regression, but the real process adds an additional periodic component. 
+
+```{r GPEx_modelDefinition, spar=TRUE}
+modLin <- function(
+        theta           ##<< model parameters a and b
+        , x             ##<< numeric vector of covariates
+){
+     as.numeric(theta[1] + theta[2]*x)
+}
+
+sdObs <- sdObsTrue <- 1
+
+predictProcess <- function(
+        theta          ##<< model parameters a and b
+        ,x             ##<< numeric vector of covariates
+){
+    modLin(theta,x)+2*sdObs*sin(x)  
+} 
+
+set.seed(0816)      # for reproducible results
+x <- seq(-0.75*pi, 4.75*pi, length.out=101)
+xPred <- pi*c(1.5,2,2.5)
+thetaTrue <- c(a=0,b=0)
+obsTrue <- predictProcess(theta=thetaTrue, x=x) 
+obs <- obsTrue  + rnorm(length(x), sd=sdObsTrue)
+
+lmSimple <- lm(obs ~ x)
+lmAutoCorr <- gls( obs ~ x, correlation = corAR1(form = ~ 1))
+
+ds <- data.frame(x=x, obsTrue=obsTrue, obs=obs, pred=fitted(lmSimple), pred2=fitted(lmAutoCorr))
+ggplot(ds, aes(x=x, y=obs)) + 
+    geom_point(col="#FF8175") +
+    #geom_line(aes(y=obsTrue), col="lightgrey") +
+    geom_line(aes(y=pred), col="darkblue", size=1) +
+    #geom_line(aes(y=pred2), col="lightblue") +
+    theme_bw(base_size=baseSize)
+    
+theta0 <- structure(coef(lmAutoCorr), names=c("a","b"))
+covarTheta0 <- diag( (theta0*0.2)^2 )    
+confint(lmSimple)
+confint(lmAutoCorr)    
+```
+
+For this simple model, the requisites for simple linear regression is violated
+and the correlation of residuals needs to be taken into account, in order not 
+overestimate the precision of the model coefficients.
+
+Also a general model inversion setting must account for model discrepancy.
+ 
+
+Generating model predictions
+----------------------------
+
+Sampling of model discrepancies requires model predictions for current parameters. Therefore, one intermediate result of model predictions is set up for each data stream. 
+
+```{r GPEx_blocksNoMd, cache=TRUE}
+    predSpec <- intermediateSpec(
+            function(theta, intermediates, xVal ){
+                modLin(theta, x=xVal) 
+            }
+            ,argsUpdateFunction=list(xVal=c(x,xPred))
+            ,parameters = c("a","b")
+            ,intermediates = character(0)  
+    )
+    pred0 <- getUpdateFunction(predSpec)( theta0, list(), c(x,xPred) )
+```
+
+First we sample parameters without accounting for model discrepancy. Note that the logDensity depends on the intermediates of the predictions.
+
+```{r GPEx_sampleNoMd, cache=TRUE, tidy=FALSE, spar=TRUE}
+logDenTheta <- function( theta, intermediates, logDensityComponents
+    ,x, obs, sdObs, ...
+){
+    misfit1 <- obs - intermediates[["pred"]][seq_along(x)]
+    structure( -1/2 * c(sum((misfit1/sdObs)^2)), names=c('y') )
+}
+resLogDenTheta0 <- logDenTheta( theta0, list(pred=pred0)
+    , x=x, obs=obs, sdObs=sdObs )
+
+bTheta0Spec <- blockSpec(c("a","b"),,    
+        new("MetropolisBlockUpdater",
+                fLogDensity=logDenTheta,
+                argsFLogDensity=list( x=x, obs=obs, sdObs=sdObs),
+                logDensityComponentNames = names(resLogDenTheta0)
+        )
+        ,intermediatesUsed=c("pred")
+)
+
+sampler <- newPopulationSampler( list(bTheta=bTheta0Spec), theta0, covarTheta0
+, nPopulation=1L
+,intermediateSpecifications=list(pred=predSpec)
+)
+samplerNoMd <- sampler <- setupAndSample(sampler, nSample=80L)
+sampleLogs <- subsetTail(getSampleLogs(sampler), 0.8)
+#plot( asMcmc(sampleLogs), smooth=FALSE )
+
+stacked <- stackChainsInPopulation(subsetTail(getSampleLogs(sampler),0.8))
+sample1 <- sampleNoMd <- t(getParametersForPopulation(stacked, 1L)[,,1L])
+#summary(sample1)
+thetaNoMd <- colMeans(sample1)
+apply(sample1, 2, quantile, probs=c(0.025,0.975))
+```
+
+Model discrepancy sampling with GP
+----------------------------------
+
+Function `compileDiscrepancyBlocksForStream` sets up additional intermediates and blocks for sampling the model discrepancies by a Gaussian process. Besides, the locations `x`, observations, and its uncertainties, it required an intermediate of model predictions, `predProcSpec`. In the following those are set up for each stream. Their names are distinguished by argument `streamSuffix`.
+
+In addition, the function requires specification of parameters of the prior knowledge of the hyperparameters of the Gaussian process.
+The parameter vector to sample is extended by two parameters for each stream. The first hyperparameter is the logarithm of correlation length `logPsi`. It is larger for higher correlated model discrepancies. The logarithm of signal variance `logSd2Discr`, expressed as a factor of observation variance, is larger for larger model discrepancies.  
+
+```{r }
+blockMdObs1 <- compileDiscrepancyBlocksForStream(x=x, obs=obs, sd2Obs=sdObs^2
+    , predProcSpec = list(pred=predSpec), streamSuffix="obs1", xPred=xPred
+    ,priorGammaPsiPars = getGammaParsFromMeanAndVariance(0.8,0.2)
+    #,sd2ObsFactor=1/3   # to prevent discrepancy variance going to zero
+    ,isUsingDataBasedSigma=TRUE     
+)
+
+namesPred <- c(blockMdObs1$namesProcessSamples )
+thetaPred <- structure( rep(1,length(namesPred)), names=namesPred)
+theta0Md <- c(thetaNoMd, logSd2Discr_obs1=0.5, logPsi_obs1=log(2), thetaPred)
+covarTheta0Md <- diag((0.2*theta0Md)^2)
+```
+
+The observations are modelled as the sum of model prediction and model discrepancy and observation uncertainty: $obs = m(\theta) + \delta + \epsilon$. 
+
+The sampling of the model parameters, now also depends on the model discrepancies at all observations. They are provided with list entry "deltaA" of intermediate "deltaA". Resampling takes place whenever predictions or a hyperparameter of the Gaussian Process changes. 
+This includes the resampling on specification of a new proposal of model parameters.  
+
+In addition to the model discrepancies, the prior probability of the magnitude of these discrepancies is provided. Hence, proposed parameters can be rejected when the corresponding model discrepancies are too high.  
+
+The Likelihood hood function of model parameters $\theta$ is modified as follows.
+
+```{r GPEx_sampleMd, cache=TRUE, spar=TRUE }
+logDenThetaMd <- function( theta, intermediates, logDensityComponents
+    ,x, obs, sdObs
+    , priorDiscrFac=length(x)/2
+    , ...
+){
+    deltaObs1 <- intermediates[["deltaA_obs1"]]$deltaA
+    misfit1 <- obs - (intermediates[["pred"]][seq_along(x)] + deltaObs1)
+    logPriorSd2DiscrObs1 <- tmp <- priorDiscrFac*intermediates$deltaA_obs1$logPriorInvGammaSd2Discr 
+    #logPriorSd2DiscrObs1 <- intermediates[["deltaA_obs1"]]$LogSqrtDetCovDelta  
+    logPriorSd2DiscrObs1 <- intermediates[["deltaA_obs1"]]$logPDeltaO
+    logPObs <- -1/2*c(sum((misfit1/sdObs)^2))
+#if( logPObs < -200 ) recover()    
+    res <- c(
+     structure(logPObs, names=c('y1') )
+        ,mdObs1=logPriorSd2DiscrObs1)
+    res
+}
+
+.tmp.f <- function(){
+    # cod for inspection while tracing logDenThetaMd
+    plot(obs ~ x)
+    points((intermediates[["predSparse"]][seq_along(xSparse)]) ~ xSparse, col="blue")
+    points((intermediates[["predSparse"]][seq_along(xSparse)] + deltaObs1) ~ xSparse, col="orange")
+    (intermediates[["predSparse"]][seq_along(xSparse)] + deltaObs1)
+}
+
+resLogDenThetaMd0 <- logDenThetaMd( theta0Md, list(pred=pred0
+    , deltaA_obs1=list(deltaA=0, logPriorInvGammaSd2Discr=-2, logPDeltaO=-2))
+    , x=x, obs=obs, sdObs=sdObs, priorDiscrFac=length(x) )
+    
+bThetaMdSpec <- blockSpec(
+    c("a","b"),,    
+    new("MetropolisBlockUpdater",
+            #logDenThetaMd,
+            fLogDensity=function(...){ logDenThetaMd(...) },    # allows tracing
+            argsFLogDensity=list( x=x, obs=obs, sdObs=sdObs
+                #, priorDiscrFac = length(x)
+                , priorDiscrFac = length(x)*1/2
+            )
+            ,logDensityComponentNames = names(resLogDenThetaMd0)
+    )
+    ,intermediatesUsed=c("pred","deltaA_obs1")
+)
+
+cSubSpace <- blockMdObs1$fConstrainingSubSpace( 
+    blockMdObs1$fConstrainingSubSpace(new("SubSpace")) )
+# know that correlation length is in the magnitude of the locations    
+cSubSpace@upperParBounds["logPsi_obs1"] <- log(pi/2)      
+
+sampler <- newPopulationSampler( 
+    blockSpecifications=c(list(bTheta=bThetaMdSpec)
+        ,blockMdObs1$blockSpecs)
+    , theta0Md, covarTheta0Md
+    , nPopulation=1L   #, nChainInPopulation=5L
+    ,intermediateSpecifications=c( blockMdObs1$intermediateSpecs)
+    ,subSpace=cSubSpace
+)
+sampler <- setupAndSample(sampler, nSample=60L)
+samplerMd <- sampler <- setupAndSample(sampler, nSample=60L)
+sampleLogs <- getSampleLogs(sampler)
+plot( asMcmc(sampleLogs), smooth=FALSE )
+
+logTail <- subsetTail(getSampleLogs(sampler),0.4)
+stacked <- stackChainsInPopulation(logTail)
+sample1 <- sampleMd <- t(getParametersForPopulation(stacked, 1L)[,,1L])
+
+thetaMd <- colMeans(sample1)[1:2]
+apply(sample1[,1:2], 2, quantile, probs=c(0.025,0.975))
+
+#aL <- (getAcceptanceTracker(sampler)@acceptanceLog["logDenLogPsi_obs1",,])
+#matplot(aL, type="l")
+```
+
+Further graphs
+--------------
+
+Predictive posterior: orange are the samples of the process (model + discrepancy).
+
+```{r GPEx_plotPosteriors, tidy=FALSE, spar=TRUE}
+    ss <- sampleMd
+    doSamplePred <- function(ss, scenario="ignore", nSample=480 ){
+        iRows <- sample.int(nrow(ss), nSample, replace=TRUE)
+        tmp <- apply( ss[iRows,1:2], 1, function(theta){
+            predMod <- modLin( theta, x=x )
+        })
+        stat <- t(apply(tmp,1,quantile,probs = c(0.025, 0.5, 0.975), names=FALSE))
+        colnames(stat) <- c("lower","median","upper")
+        res <- cbind( data.frame( scenario=scenario
+            , x =x
+            , obs = obs
+            ), as.data.frame(stat)) 
+    }
+    samplePost <- rbind( doSamplePred(sampleNoMd,"ignore"),doSamplePred(sampleMd,"GP"))    
+
+  doSamplePredProc <- function(ss, scenario="GP"){
+        tmp <- ss[,grep("^ksi_",colnames(ss))]
+        stat <- t(apply(tmp,2,quantile,probs = c(0.025, 0.5, 0.975), names=FALSE))
+        colnames(stat) <- c("lower","median","upper")
+        res <- cbind( data.frame( scenario=scenario
+            , x =xPred
+            ), as.data.frame(stat))  
+  }
+    samplePostProc <- rbind( doSamplePredProc(sampleMd,"GP"))    
+
+```
+
+```{r GPEx_plotPosteriors2, tidy=FALSE, spar=TRUE, fig.height=2}
+g1 <- ggplot( samplePost, aes(x=x ) ) +
+        geom_point(aes(y=obs), col="grey50") +  
+        #facet_wrap(~scenario, scales="free", ncol=2) +
+        facet_grid(.~scenario, scales="fixed") +  
+        geom_line(aes(y=median)) + 
+        geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
+        geom_point(data=samplePostProc, aes(y=median), col="orange") +
+        geom_errorbar(data=samplePostProc, aes(ymin=lower, ymax=upper), width=0.5, col="orange") +  
+        ylab("y") +
+ theme_bw(base_size=baseSize)
+print(g1)
+```
+
+Plotting several realizations of random error
+---------------------------------------------
+
+```{r echo=FALSE, results='hide'}
+genenrateGPSamples <- function(nSampleMD, psi, sd2Discr, iO, deltaOZ, sd2Obs, x){
+    deltaOTraining <- deltaOZ #(deltaOZ)*sd2Discr/(sd2Discr+mean(sd2Obs)) 
+    if( length(sd2Obs) == 1L ) sd2Obs <- rep(sd2Obs, length(x))
+    nO <- length(iO)
+    xO <- x[iO]
+    KOO <- sd2Discr * outer(xO, xO, .corG, psi=psi)
+    KRO <- sd2Discr * outer(x[-iO], xO, .corG, psi=psi)
+    Ky <- KOO + diag(length(xO))*sd2Obs[iO]
+    KySolved <- solve(Ky, cbind(deltaOTraining, KOO )) 
+    deltaOMu <- as.vector(KOO %*% KySolved[,1])  
+    deltaOCov <- KOO - KOO %*% KySolved[,1+1:nO]
+    deltaOCovSymm <- (deltaOCov + t(deltaOCov)) / 2
+    deltaO <- cbind( as.vector(deltaOMu), t(rmvnorm(nSampleMD, deltaOMu, deltaOCovSymm)))  # include the expected value
+    deltaA <- matrix(NA_real_, length(x), nSampleMD+1L)  
+    deltaA[iO,] <- deltaO 
+    tmp <- t(aaply(deltaO, 2, function(deltaOi){
+       deltaRMu <- KRO %*% solve(KOO, deltaOi)
+    }))
+    deltaA[-iO,] <- tmp # KRO %*% solve(Ky, deltaO) 
+    ##value<< numeric matrix (nX, nSampleMD) with each column a GP-sample
+    deltaA
+}
+```
+
+
+```{r GPEx_plotRandomFunction, tidy=FALSE, spar=TRUE}
+      #plot(density(sampleMd[,"logPsi_obs1"]))
+      #plot(density(sampleMdLargePsi[,"logSd2Discr_obs1"]))
+      sampleMdLargePsi <- subset(as.data.frame(sampleMd)
+            #, logPsi_obs1 > 0 & logPsi_obs1 < 0.1 
+            , logPsi_obs1 > -1 & logPsi_obs1 < 2 
+          & logSd2Discr_obs1 > 0.7 & logSd2Discr_obs1 < 0.9
+      )
+      thetaAndPsi <- cbind(
+sampleMdLargePsi[c(which.min(sampleMdLargePsi[,"b"]),which.max(sampleMdLargePsi[,"b"])),]
+            ,data.frame(scenario=c("flat","steep"))            
+        )
+      print(thetaAndPsi)
+      #iO <- round(seq(1,length(x),length.out=8))
+      psi0 <- mean(exp(thetaAndPsi[,"logPsi_obs1"]))
+      #trace(.computeGPTrainingLocations,recover) #untrace(.computeGPTrainingLocations)
+      iORes <- .computeGPTrainingLocations( psi0, x
+        , minXSpacing = diff(range(x))/length(x)*2
+        , maxXSpacing = diff(range(x))
+        )
+      iO <- iORes$iO
+      isO <- logical(length(x)); isO[iO] <- TRUE
+      dsTheta <- thetaAndPsi[1,, drop=FALSE]
+      nSampleMD=5L
+      #ds <- ddply( thetaAndPsi, c(.(sd2Discr),.(psi)), function(dsTheta){
+      ds <- ddply( thetaAndPsi, c(.(scenario)), function(dsTheta){
+        pred <- modLin(unlist(dsTheta[1,1:2]), x=x)
+        deltaA <- genenrateGPSamples(nSampleMD
+            #,dsTheta$psi[1], dsTheta$sd2Discr[1]
+            ,exp(dsTheta$logPsi_obs1[1]), exp(dsTheta$logSd2Discr_obs1[1])
+            ,iO, obs[iO]-pred[iO], sd2Obs=(sdObs*1.0)^2, x )
+        data.frame(x=x, obs=obs, isO=isO, yMod=pred, md=as.vector(deltaA), repl=rep(as.factor(1:(nSampleMD+1)), each=length(x)) )
+      })
+g1 <- ggplot( ds, aes(x=x, linetype=repl ) ) +
+        geom_point(aes(y=obs, col=isO, shape=isO), alpha=0.4) +  
+        #facet_wrap(~scenario, scales="free", nrow=2) +
+        facet_grid(scenario~., scales="fixed") +  
+        #facet_grid(sd2Discr~psi, scales="fixed") +  
+        geom_line(aes(y=yMod), size=0.5, col="darkblue") + 
+        geom_line(aes(y=yMod+md)) + 
+        ylab("y") +
+        theme_bw(base_size=baseSize) +
+         theme(legend.position = "none") 
+print(g1)
+
+summary(sampleMd[,"logPsi_obs1"])
+summary(exp(sampleMd[,"logPsi_obs1"]))
+g1 <- ggplot( as.data.frame(sampleMd), aes(x=logPsi_obs1 ) ) +
+        geom_density() + 
+        theme_bw(base_size=baseSize) +
+         theme(legend.position = "none") 
+print(g1)
+
+```
+
+
+
+

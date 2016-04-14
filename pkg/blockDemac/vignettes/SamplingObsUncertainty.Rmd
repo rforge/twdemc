@@ -1,0 +1,202 @@
+<!--
+%\VignetteEngine{knitr}
+%\VignetteIndexEntry{Using a parameter block based on Gibbs sampling instead of Metropolis}
+-->
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(out.extra='style="display:block; margin: auto"'
+    #, fig.align="center"
+    , fig.width=4.3, fig.height=3.2, dev.args=list(pointsize=10)
+    )
+knit_hooks$set(spar = function(before, options, envir) {
+    if (before){
+        par( las=1 )                   #also y axis labels horizontal
+        par(mar=c(2.0,3.3,0,0)+0.3 )  #margins
+        par(tck=0.02 )                          #axe-tick length inside plots             
+        par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
+     }
+})
+```
+
+Sampling observation uncertainty
+================================
+
+This vignette details the sampling of model parameters, when observation uncertainty is unknown. Uncertainty parameters are to be estimated from the fit together with other model parameters.
+The statistical background is described in Gelman et al., 2003, p.51: "Estimating variance of a Gaussian distribution with known mean". 
+
+In this example, there are two parameter blocks. One block for the parameters of the model (`a` and `b`) and another block for the parameter `logSigma2Obs` the logarithm of the unknown observation uncertainty. The first block is updated by a MetropolisBlockUpdater. The sampling of the uncertainty parameter is implemented by the BlockUpdater created by function `newInvChiSquareBlockUpdater`. 
+
+Preparing the used model and the data 
+-------------------------------------
+
+The example model is again the simple regression with two parameters, intercept `a` slope `b`. The data are the same as in the basic example (see vignette on Simple Single model), unless here we assume the variance of observation uncertainty to be unknown, but constant across all observations.
+
+Since observation uncertainty is strictly positive, the parameter is specified at the log transformed scale. In this way, the default initial population that can be specified by a Gaussian distribution.
+
+```{r results='hide'}
+#isDevelopMode<-TRUE
+if(!exists("isDevelopMode")) library(blockDemac)
+set.seed(0815)      # for reproducible results
+simpleModel <- function(theta,xval){ theta["a"] + theta["b"]*xval }
+
+sdObsTrue <- 2
+thetaTrue <- c(a=10,b=5,logSigma2Obs=log(sdObsTrue^2)) # the true parameter vector
+xval <- runif(30,min=5,max=10)  # the covariates
+obs = simpleModel(thetaTrue[c("a","b")], xval) + 
+    rnorm(length(xval), sd=sdObsTrue)
+theta0 = c(a=9,b=4,logSigma2Obs=log(2.2))       # an initial estimate
+covarTheta0 = diag(c(0.8,0.6,0.6)^2)    # spread for initial population 
+```
+
+
+
+Preparing the misfit function (logDensity) and the MetropolisUpdater
+--------------------------------------------------------------------
+The logDensity function for parameters `a` and `b` is modified compared to the simpleModelExample, so that `logSdObs` is part of the
+parameter vector, instead of an additional parameter to the function.
+```{r }
+    logDenGaussianSimpleModelWithSd <- function( theta, intermediates, logDensityComponents
+        , xval, obs
+    ){
+        predicted <- simpleModel(theta[c("a","b")], xval)
+        sigma2Obs <- exp(theta["logSigma2Obs"])
+        logDen <- c(obs= -1/2 * sum( ((predicted-obs)^2)/sigma2Obs ))
+    }
+    (testLogDenResult <- logDenGaussianSimpleModelWithSd(theta0, list(), numeric(1), xval, obs ))
+```
+
+The MetropolisBlockUpdater uses all three parameters but updates only two of them.
+Hence, we need to modify the blockSpecification by explicitly specifying the parameters to update with the first argument of `blockSpec`.
+```{r }
+bObsSpec <- blockSpec(c("a","b"),names(theta0),    
+            new("MetropolisBlockUpdater",
+                fLogDensity=logDenGaussianSimpleModelWithSd,
+                argsFLogDensity=list(xval=xval, obs=obs),
+                logDensityComponentNames = names(testLogDenResult)
+            )
+    )
+```
+
+
+Preparing the block updater for observation uncertainty.
+--------------------------------------------------------
+
+The parameter `logSigma2Obs` is updated by a Gibbs-type sampling, that is implemented by 
+an updater provided with function `newInvchisqBlockUpdater`.
+
+Instead of a logDenstiy function, here, one must provide a function that returns the residuals between prediction and observations.
+```{r }
+computeResidualsSimpleModelWithSd <- function( theta, intermediates
+    , xval, obs
+ ){
+        predicted <- simpleModel(theta[c("a","b")], xval)
+        residuals <- predicted-obs
+}
+str(testComputeResidualsResult <- computeResidualsSimpleModelWithSd(
+    theta0, list(), xval, obs ))
+    
+bSigmaSpec <- blockSpec(c("logSigma2Obs"),names(theta0),   
+      newInvchisqBlockUpdater(
+         fResid=computeResidualsSimpleModelWithSd,
+         argsFResid=list(xval=xval, obs=obs)
+      )
+)
+```
+The additional parameter `intermediates` provided to the residual function, will be used and explained below.
+
+The arguments to the residual functions in addition to the parameters `theta` are provided with argument argsFResid. Note also, that we specify the one parameter to update with the first argument to `blockSpec`.
+ 
+
+Sample and inspect results
+--------------------------
+
+The list of blockSpecifications now contains two entries for the two blocks.
+The handling of the sampling, however, corresponds to the simpleModel case.  
+
+```{r results='hide',spar=TRUE, }
+blocks <- list(bObs=bObsSpec, bSigma=bSigmaSpec)
+sampler <- newPopulationSampler( blocks, theta0, covarTheta0 )
+sampler <- setupAndSample(sampler, nSample=60L)
+
+sampleLogs <- getSampleLogs(sampler)
+plot( asMcmc(sampleLogs), smooth=FALSE )
+```
+
+For getting more information and statistics on the parameter sample, see the vignette on simple model.   
+
+Better performance by reusing information across blocks
+-------------------------------------------------------
+
+Note that the forward model `simpleModel` is called from both blocks: in the likelihood-function `logDenGaussianSimpleModelWithSd`, and in the residual function `computeResidualsSimpleModelWithSd`. Often, running the forward model is computationally expensive. 
+Hence, it would be beneficial to avoid unnecessary runs. The forward runs from block `bObs` should be reused in block `bSigma`. And when updating the variance, the model predictions do not change.
+
+The package provides a way of defining functions for intermediate results and their dependencies on parameters or other intermediate results. The blocks may depend on those intermediate results in addition to their dependencies on parameters. The package ensures that whenever parameters are set, dependent intermediate results and blocks are invalidated. Further, the package ensures that before calling block updater, required invalidated intermediates are computed. 
+
+Lets define the vector of differences between model results and observations as an intermediate result. Function `intermediateSpec` requires a function whose argument list starts with two items: the parameter vector, `theta`, and a list of requisite intermediate results, `intermediates`.  Further, one must provide values of to arguments in addition to `theta` and `intermediates`, the names of the parameters and the names of the requisite intermediate results, that this intermediate result depends on.
+
+These specifications of intermediate results are collected in a named list, where the names of the intermediates are defined. 
+
+```{r }
+model1ResSpec <- intermediateSpec(
+    function(theta, intermediates, xval, obs){
+        predicted <- simpleModel(theta[c("a","b")], xval)
+        residuals <- obs - predicted
+        return(residuals)
+    }
+    ,argsUpdateFunction=list(xval=xval, obs=obs)
+    ,parameters = c("a","b")
+    ,intermediates = character(0) # the default
+)
+intermediateSpecs <- list( model1Res = model1ResSpec )
+modelRes0 <- getUpdateFunction(model1ResSpec)(theta0, list(), xval, obs) 
+```
+
+The logDensity function and the residual function need to be modified. They do not need to calculate the model predictions any more, because these are calculated by the intermediate function.
+```{r }
+logDenGaussianSimpleModelWithSd2 <- function( theta, intermediates, logDensityComponents ){
+    residuals <- intermediates[[1]]
+    sigma2Obs <- exp(theta["logSigma2Obs"])
+    return( c(obs= -1/2 * sum( ((residuals)^2)/sigma2Obs )) )
+}
+(testLogDenResult <- logDenGaussianSimpleModelWithSd2(theta0
+    , list(model1Res=modelRes0), numeric(1) ))
+    
+computeResidualsSimpleModelWithSd2 <- function( theta, intermediates){
+    residuals <- intermediates[[1]]
+    return( residuals )
+}
+str(testComputeResidualsResult <- computeResidualsSimpleModelWithSd2(
+    theta0, list(model1Res=modelRes0) ))
+```
+
+The block specifications need to be modified to reflect that the two blocks now depend on the intermediate. This is done by supplying the names of the intermediate specifications in the list
+`intermediateSpecs` defined above to argument `intermediatesUsed`.
+ 
+```{r }
+bObsSpec2 <- blockSpec(c("a","b"),names(theta0),    
+            new("MetropolisBlockUpdater",
+                fLogDensity=logDenGaussianSimpleModelWithSd2,
+                logDensityComponentNames = names(testLogDenResult)
+            )
+            ,intermediatesUsed=c("model1Res")
+    )
+bSigmaSpec2 <- blockSpec(c("logSigma2Obs"),names(theta0),   
+            newInvchisqBlockUpdater(
+                fResid=computeResidualsSimpleModelWithSd2,
+            )
+            ,intermediatesUsed=c("model1Res")
+    )
+blocks2 <- list(bObs=bObsSpec2, bSigma=bSigmaSpec2)
+sampler <- newPopulationSampler( blocks2, theta0, covarTheta0
+    ,intermediateSpecifications=intermediateSpecs)
+    
+```
+
+Now we are ready to sample and inspect the results.
+```{r results='hide',spar=TRUE}
+sampler <- setupAndSample(sampler, nSample=60L)
+sampleLogs <- getSampleLogs(sampler)
+plot( asMcmc(sampleLogs), smooth=FALSE )
+```
+

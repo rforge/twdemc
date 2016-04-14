@@ -1,0 +1,89 @@
+Package: blockDemac
+Title: parallel DEMC with several parameter blocks
+Version: 0.9.216
+Date: 2015-03-06
+Author: Thomas Wutzler
+Maintainer: Thomas Wutzler <twutz@bgc-jena.mpg.de>
+Description: Parallel version of a DEMC differential evolution markov chain.
+    DEMC is a variant of MCMC monte carlo markov chain.
+    Different subsets, i.e. blocks, of parameter vector, can be updated
+    by different logDensity functions or different Gibbs samplers.
+License: GPL (>=2)
+LazyLoad: yes
+Depends:
+    R (>= 3.0.0),
+    methods,
+    compiler,
+    coda,
+    logitnorm,
+    parallel
+Imports:
+    MASS,
+    R.methodsS3,
+    twMisc,
+    mvtnorm,
+    abind,
+    plyr,
+    assertthat,
+    cluster
+Suggests:
+    testthat,
+    reshape,
+    knitr,
+    inlinedocs
+VignetteBuilder: knitr
+Collate:
+    'SampleLogChain.R'
+    'SampleLogChainImpl.R'
+    'StepInfo.R'
+    'DependenceIndices.R'
+    'BlockIndices.R'
+    'ChainState.R'
+    'SubSpace.R'
+    'BlockUpdater.R'
+    'BlockSpecification.R'
+    'BlockDimensions.R'
+    'BlockDimensionsImpl.R'
+    'SampleDimensions.R'
+    'SampleDimensionsImpl.R'
+    'SettingsWithDefaults.R'
+    'AcceptanceTrackerSettings.R'
+    'AcceptanceTracker.R'
+    'SampleLogPopulation.R'
+    'SampleLogs.R'
+    'DESettings.R'
+    'JumpProposer.R'
+    'DEJumpProposer.R'
+    'IntermediateSpecification.R'
+    'IntermediateUpdater.R'
+    'IntermediateUpdaters.R'
+    'BlockUpdaters.R'
+    'StepInfoRangeImpl.R'
+    'ChainSampler.R'
+    'ChainSamplerImpl.R'
+    'PopulationSampler.R'
+    'BatchSampler.R'
+    'BlockUpdaterMock.R'
+    'FunctionBasedBlockUpdater.R'
+    'GaussProcessModelDescripancy.R'
+    'MetropolisBlockUpdater.R'
+    'InternalMetropolisBlockUpdater.R'
+    'StepInfoImpl.R'
+    'den2dCor.R'
+    'fixtureChainSampler.R'
+    'fixtureLinreg1.R'
+    'fixtureMultiVariateNormalProblem.R'
+    'sampleRange.R'
+    'fixturePopulationSamplerMock.R'
+    'fixtureSampleDimensions.R'
+    'fixtureSampleLogs.R'
+    'invChiSquareBlockUpdater.R'
+    'invGamma.R'
+    'linearModelFunctionExample.R'
+    'nameSpace.R'
+    'stopDemac.R'
+    'temperatureDecreaseExponential.R'
+    'toSort.R'
+    'util.R'
+    'zz.R'
+RoxygenNote: 5.0.1
