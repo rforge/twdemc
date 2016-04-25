@@ -20,13 +20,13 @@ knit_hooks$set(spar = function(before, options, envir) {
         par(mgp=c(1.1,0.2,0) )  #positioning of axis title, axis labels, axis
      }
 })
+# genVigs("TwoDenGP")
 ```
 
 Accounting for model discrepancy
 ================================
 
 This vignette details the explicit modelling of the unknown function of model discrepancy by a Gaussian Process (GP) for two data streams.
-The plots were used in a presentation at the EGU conference, so the plotting code is a verbose. 
  
 ```{r results='hide'}
 #isDevelopMode <- TRUE
@@ -180,18 +180,19 @@ plot( obs$y1 ~ xSparse )
 lines( modTwTwoDenEx1( thetaNoMd, xSparse=xGridSparse, xRich=xGridRich, thresholdCovar=thresholdCovarBiased )$y1 ~ xGridSparse, col="blue" )
 ```
 
-Note, that the model (thresholdCovarBiased) is part of the prediction that is compared
-to the rich data stream. However, after fitting, the discrepancy is visible in the
+Note, that the threshold model bias (thresholdCovarBiased) has been introduced in the modelling of the rich data stream. However, after fitting, the discrepancy is visible in the
 sparse data stream.
 
 
 Model discrepancy sampling 
 --------------------------
 
-Function `compileDiscrepancyBlocksForStream` sets up additional intermediates and blocks for sampling the model discrepancies by a Gaussian process. Besides, the locations `x`, observations, and its uncertainties, it required an intermediate of model predictions, `predProcSpec`. In the following those are set up for each stream. Their names are distinguished by argument `streamSuffix`.
+Function `compileDiscrepancyBlocksForStream` sets up additional intermediates and blocks for sampling the model discrepancies by a Gaussian process. Besides, locations `x`, observations, and its uncertainties, it required an intermediate of model predictions, `predProcSpec`. In the following those are set up for each stream. Their names are distinguished by argument `streamSuffix`.
 
 In addition, the function requires specification of parameters of the prior knowledge of the hyperparameters of the Gaussian process.
-The parameter vector to sample is extended by two parameters for each stream. The first hyperparameter is the logarithm of correlation length `logPsi`. It is larger for higher correlated model discrepancies. The logarithm of signal variance `logSd2Discr`, expressed as a factor of observation variance, is larger for larger model discrepancies.  
+The parameter vector to sample is extended by two parameters for each stream. The first hyperparameter is the logarithm of correlation length `logPsi`. It is larger for higher correlated model discrepancies. The logarithm of signal variance `logSd2Discr`, expressed as a factor of observation variance, is larger for larger model discrepancies.
+
+We use a prior of correlation length that depends on the spread of the covariate. The prior on signal variance, `priorInvGammaSd2DiscrPars`, is kept at a default wide low-informative prior. 
 
 ```{r TwoDenGP_blocks}
 xSparseRange <- diff(range(xSparse))
@@ -209,7 +210,7 @@ blocksRich <- compileDiscrepancyBlocksForStream(x=xRich, obs=obs$y2, sd2Obs=(sdO
 )
 ```
 
-The parameter vector is extended by the hyperparameters explained above and the samples of process prediction, i.e. of the sum of model and in addition by the discrepancies at `xPred` defined above.
+The parameter vector is extended by the hyperparameters explained above. In addition we also sample process predictions, i.e. of the sum of model and discrepancy at a few locations `xPred` defined above.
 
 ```{r TwoDenGP_theta0Md}
 namesPred <- c(blocksSparse$namesProcessSamples, blocksRich$namesProcessSamples )
@@ -230,13 +231,11 @@ It is provided with list entry "SSQpred" and can be re-used.
 
 In addition to the model discrepancies, the term penalizing high model discrepancies is provided with list entry "logPDeltaO". The logDensity function adds this component as an additional term. Hence, proposed parameters can be rejected when the corresponding model discrepancies are too high.  
 
-The Likelihood hood function of model parameters $\theta$ is modified as follows.
+The Log-Density function of model parameters $\theta$ is modified as follows.
 
 ```{r TwoDenGP_logDenThetaMd}
 logDenThetaMd <- function( theta, intermediates, logDensityComponents
     ,xSparse, xRich, obs, sdObs
-    , priorDiscrFacSparse= length(xSparse)/2
-    , priorDiscrFacRich= length(xRich)/2
     , ...
 ){
     intSparse <- intermediates[["deltaA_sparse"]]
@@ -266,7 +265,7 @@ bThetaMdSpec <- blockSpec(
 )
 ```
 
-The setup of the sampling includes all the new intermediates and blocks. In addition, the subspace of sampling of the hyperparameters needs to be constrained, because with large correlation length, some matrices can become indeterminate. 
+The setup of the sampling includes all the new intermediates and blocks. In addition, the space of sampling of the hyperparameters needs to be constrained, because with large correlation length, some matrices can become indeterminate. 
 
 ```{r TwoDenGP_sampleMd, cache=TRUE, tidy=FALSE, spar=TRUE}
 cSubSpace <- blocksRich$fConstrainingSubSpace( 
@@ -341,9 +340,8 @@ Note, how model discrepancy in the sparse stream almost disappeared.
 Excursion: Starting at optimum from ignore scenario
 ------------------------------------------------
 
-Here we explore the hypothesis that the optimum of the ignore scenario still and optimum in the GP case. 
-The parameters are set initially to the ignore optimum, and it is checked that they still converge
-to the GP optimum case. 
+Here, the parameters are set initially to the ignore optimum. It is checked that they still converge
+to the GP optimum case and are not stuck in a local minimum.
 
 ```{r TwoDenGP_sampleMd_startNoMd, cache=TRUE, tidy=FALSE, spar=TRUE}
 ZinitParms <- getParametersForAllChains( subsetTail(getSampleLogs(samplerNoMd),0.4) )
@@ -482,59 +480,43 @@ Predictive posterior in faceted plots: orange are the samples of the process (mo
     )    
 ```
 
-```{r TwoDenGP_plotPosteriors2, tidy=FALSE, spar=TRUE, fig.height=3.75}
-    g1 <- ggplot( samplePost, aes(x=x ) ) +
-            geom_point(aes(y=obs), col="grey50") +  
-            facet_wrap(~stream+scenario, scales="free", ncol=2) +
-            #facet_grid(stream~scenario, scales="free_x") +  
-            geom_line(aes(y=median)) + 
-            geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
-            geom_point(data=samplePostProc, aes(y=median), col="orange") +
-            geom_errorbar(data=samplePostProc, aes(ymin=lower, ymax=upper), width=0.03, col="orange") +
-            ylab("y") +
-            theme_bw(base_size=baseSize)+
-            theme(axis.text.x = element_blank(), axis.text.y = element_blank()
-            , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())  
-    print(g1)
-```
-Repeat plotting for different streams independently, so that the scales of the graphs can match.
-
-
-```{r TwoDenGP_plotPosteriors2a, tidy=FALSE, spar=TRUE, fig.height=3.75/2}
+```{r TwoDenGP_plotPosteriors2a, tidy=FALSE, spar=TRUE, fig.height=3.75}
+    # Plotting for different streams independently, so that the <- scales of the graphs can match.
     iStream <- "yRich"
     g1 <- ggplot( subset(samplePost, stream==iStream), aes(x=x ) ) +
             geom_point(aes(y=obs), col="grey50") +  
-            facet_wrap(~stream+scenario, scales="free", ncol=2) +
+            #facet_wrap(~stream+scenario, scales="free", ncol=2) +
             facet_grid(~scenario, scales="free_x") +  
             geom_line(aes(y=median)) + 
             geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
-            #geom_point(data=subset(samplePostProc, stream==iStream), aes(y=median), col="orange") +
-            #geom_errorbar(data=subset(samplePostProc, stream==iStream), aes(ymin=lower, ymax=upper), width=0.03, col="orange") +
-            ylab("respiration rate") + xlab("Temperature") +
+            geom_point(data=subset(samplePostProc, stream==iStream), aes(y=median), col="orange") +
+            geom_errorbar(data=subset(samplePostProc, stream==iStream), aes(ymin=lower, ymax=upper), width=0.03, col="orange") +
+            #ylab("respiration rate") + xlab("Temperature") +
+            ylab("y rich") + xlab("x") +
             theme_bw(base_size=baseSize)+
+            theme(axis.title.x=element_blank()) +
             theme(axis.text.x = element_blank(), axis.text.y = element_blank()
             , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())  
-    print(g1)
     
     iStream <- "ySparse"
     g2 <- ggplot( subset(samplePost, stream==iStream), aes(x=x ) ) +
             geom_point(aes(y=obs), col="grey50") +  
-            facet_wrap(~stream+scenario, scales="free", ncol=2) +
+            #facet_wrap(~stream+scenario, scales="free", ncol=2) +
             facet_grid(~scenario, scales="free_x") +  
             geom_line(aes(y=median)) + 
             geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
-            #geom_point(data=subset(samplePostProc, stream==iStream), aes(y=median), col="orange") +
-            #geom_errorbar(data=subset(samplePostProc, stream==iStream), aes(ymin=lower, ymax=upper), width=0.03, col="orange") +
-            ylab("cumulated respiration") + xlab("Soil carbon stocks") +
+            geom_point(data=subset(samplePostProc, stream==iStream), aes(y=median), col="orange") +
+            geom_errorbar(data=subset(samplePostProc, stream==iStream), aes(ymin=lower, ymax=upper), width=0.03, col="orange") +
+            #ylab("cumulated respiration") + xlab("Soil carbon stocks") +
+            ylab("y sparse") + xlab("x") +
             theme_bw(base_size=baseSize)+
             theme(axis.text.x = element_blank(), axis.text.y = element_blank()
-            , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())  
-    print(g2)    
+            , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(2,1)))
+    print(g1, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+    print(g2, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
 ```
-
-
-
-
 
 
 Comparison of model signal variance
@@ -571,8 +553,147 @@ suppressWarnings(ggplot(ds
 xlim(0,2) +
 xlab("Model discrepancy") +     
 theme_bw(base_size=baseSize))
-
 ```
+
+
+GP-approach with gradient based optimization
+--------------------------------------------
+
+The approach of modelling discrepancy by Gaussian Processes can be also used with non-sampling settings, such as gradient based optimizers. However, the properties of the discrepancy have to be specified in advance. They cannot be estimated from the data as with the sampling based model inversion.
+
+First we perform a gradient based optimization with ignoring model discrepancy.
+A first order estimate of parameter uncertainty is obtained from the Hessian matrix at the optimum. 
+
+```{r TwoDenGP_gradIgnoreFit}
+fLogThetaIgnore <- function(theta){
+    pred <- getUpdateFunction(predSpec)( theta, list(), xSparse, xRich )
+    logDenComp <- logDenTheta( theta, list(pred=pred)
+            , xSparse=xSparse, xRich=xRich, obs=obs, sdObs=sdObs )
+    sum(logDenComp)
+}
+fLogThetaIgnore(theta0)
+res0 <- optim(theta0, fLogThetaIgnore, control =list(fnscale=-1), hessian=TRUE, method="BFGS")
+thetaBest <- res0$par
+thetaCov <- -solve(res0$hessian)
+sampleGradIgnore <- theta <- rmvnorm( 800, thetaBest, sigma=thetaCov )
+```
+
+```{r TwoDenGP_plotGradIgnore, tidy=FALSE, spar=TRUE, fig.height=3.5}
+samplePostGrad <- rbind( doSamplePred(sampleGradIgnore,"gradIgnore")  )
+g1 <- ggplot( subset(samplePostGrad), aes(x=x ) ) +
+        geom_point(aes(y=obs), col="grey50") +  
+        facet_wrap(~stream+scenario, scales="free", ncol=2) +
+        #facet_grid(~scenario, scales="free_x") +  
+        geom_line(aes(y=median)) + 
+        geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
+        #ylab("respiration rate") + xlab("Temperature") +
+        xlab("") + ylab("obs") + 
+        theme_bw(base_size=baseSize)+
+        theme(axis.text.x = element_blank(), axis.text.y = element_blank()
+                , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())
+print(g1)                
+```
+
+From the predictive posterior we see model discrepancy. Its magnitude exceeds the observation uncertainty and the correlations span the entire range of the data. Based on these observations we specify the parameters of the Gaussian process that models discrepancy. The results of the ignore-fit does not tell us in which stream the model discrepancy is. Hence, we specify the same magnitude, i.e. signal variance parameter as a factor of measurement variance, for both streams. 
+
+```{r TwoDenGP_gradGPSpec}
+# fix GP parameters: signal variance and correlation length 
+sigma2d1 <- (1.5 * sdObs$y1)^2
+sigma2d2 <- (1.5 * sdObs$y2)^2
+psi1 <- diff(range(xSparse))/3 
+psi2 <- diff(range(xRich))/3
+# fix supporting locations, here as index in covariate vector
+o1 <- seq(1, length(xSparse), length.out=4)
+o2 <- seq(1, length(xRich), length.out=4)
+# compute covariance matrix at supporing locations
+fCor <- function(x1,x2,psi){  exp(-((x1-x2)/psi)^2) }
+Kss1 <- sigma2d1 * outer( xSparse[o1], xSparse[o1], fCor, psi=psi1)
+Kss2 <- sigma2d2 * outer( xRich[o2], xRich[o2], fCor, psi=psi2)
+Kz1 <- Kss1 + diag(sdObs$y1^2, nrow=nrow(Kss1))
+Kz2 <- Kss2 + diag(sdObs$y2^2, nrow=nrow(Kss2))
+# compute covariance matrix at remaining locations
+Krs1 <- sigma2d1 * outer( xSparse[-o1], xSparse[o1], fCor, psi=psi1)
+Krs2 <- sigma2d2 * outer( xRich[-o2], xRich[o2], fCor, psi=psi2)
+```
+
+We are now ready to compute the expected model discrepancies and its Likelihood. Hence, we can use them 
+in the cost function.
+
+```{r TwoDenGP_gradGPFit}
+fLogThetaGP <- function(theta){
+    pred <- getUpdateFunction(predSpec)( theta, list(), xSparse, xRich )
+    # compute expected value of model discrepancies
+    z1 <- obs$y1 - pred$y1
+    kZ_z1 <- solve(Kz1, z1[o1])
+    delta1 <- numeric( length(pred$y1))
+    delta1[o1] <- deltaS1 <- Kss1 %*% kZ_z1  
+    delta1[-o1] <- deltaR1 <- Krs1 %*% kZ_z1
+    z2 <- obs$y2 - pred$y2
+    kZ_z2 <- solve(Kz2, z2[o2])
+    delta2 <- numeric( length(pred$y2))
+    delta2[o2] <- deltaS2 <- Kss2 %*% kZ_z2  
+    delta2[-o2] <- deltaR2 <- Krs2 %*% kZ_z2
+    # compute Likelihood of model discrepancies (penalizing large discrepancies)
+    logPDelta1 <- as.vector( -1/2* delta1[o1] %*% solve(Kss1, delta1[o1]) )    
+    logPDelta2 <- as.vector( -1/2* delta2[o2] %*% solve(Kss2, delta2[o2]) )    
+    # compute Likelihood of observations given the model and the discrepancies
+    misfit1 <- obs$y1 - (pred$y1 + delta1)
+    logPObs1 <- -1/2*sum((misfit1/sdObs$y1)^2)
+    misfit2 <- obs$y2 - (pred$y2 + delta2)
+    logPObs2 <- -1/2*sum((misfit2/sdObs$y2)^2)
+    #
+    ans <- logPObs1 + logPDelta1 + logPObs2 + logPDelta2 
+    ans
+}
+fLogThetaGP(theta0)
+resGP <- optim(theta0, fLogThetaGP, hessian=TRUE, control =list(fnscale=-1), method="BFGS" ) 
+thetaBestGP <- resGP$par
+thetaCovGP <- -solve(resGP$hessian)
+sampleGradGP <- theta <- rmvnorm( 800, thetaBestGP, sigma=thetaCovGP )
+```
+
+```{r TwoDenGP_plotGradCompare, tidy=FALSE, spar=TRUE, fig.height=3.75}
+samplePostGrad <- rbind( doSamplePred(sampleGradIgnore,"gradIgnore") , doSamplePred(sampleGradGP,"gradGP") )
+iStream <- "yRich"
+g1 <- ggplot( subset(samplePostGrad, stream==iStream), aes(x=x ) ) +
+        geom_point(aes(y=obs), col="grey50") +  
+        facet_grid(~scenario, scales="free_x") +  
+        geom_line(aes(y=median)) + 
+        geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
+        #ylab("respiration rate") + xlab("Temperature") +
+        xlab("") + ylab("y rich") + 
+        theme_bw(base_size=baseSize)+
+        theme(axis.title.x=element_blank()) +
+        theme(axis.text.x = element_blank(), axis.text.y = element_blank()
+                , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())
+iStream <- "ySparse"
+g2 <- ggplot( subset(samplePostGrad, stream==iStream), aes(x=x ) ) +
+        geom_point(aes(y=obs), col="grey50") +  
+        facet_grid(~scenario, scales="free_x") +  
+        geom_line(aes(y=median)) + 
+        geom_ribbon(aes(ymin=lower, ymax=upper), fill="blue", alpha=0.4) +
+        #ylab("cumulated respiration") + xlab("Soil carbon stocks") +
+        xlab("x") + ylab("y sparse") + 
+        theme_bw(base_size=baseSize)+
+        theme(axis.text.x = element_blank(), axis.text.y = element_blank()
+                , axis.ticks.x = element_blank(), axis.ticks.y = element_blank())  
+grid.newpage()
+pushViewport(viewport(layout = grid.layout(2,1)))
+print(g1, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(g2, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
+```
+
+When comparing the Gaussian process (GP) scenario to the ignore sceanrio, results are similar to the sampling based inversion. The estimates of the prediction uncertainty increased and the model
+discrepancy in the sparse data stream almost disappeared. 
+
+
+
+
+
+
+
+
+
 
 
 
