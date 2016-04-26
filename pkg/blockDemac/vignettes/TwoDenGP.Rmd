@@ -575,7 +575,9 @@ fLogThetaIgnore(theta0)
 res0 <- optim(theta0, fLogThetaIgnore, control =list(fnscale=-1), hessian=TRUE, method="BFGS")
 thetaBest <- res0$par
 thetaCov <- -solve(res0$hessian)
-sampleGradIgnore <- theta <- rmvnorm( 800, thetaBest, sigma=thetaCov )
+sampleGradIgnore <- if( requireNamespace("mvtnorm") ){
+  theta <- mvtnorm::rmvnorm( 800, thetaBest, sigma=thetaCov )
+}else matrix(thetaBest, nrow=5, ncol=2, byrow=TRUE)
 ```
 
 ```{r TwoDenGP_plotGradIgnore, tidy=FALSE, spar=TRUE, fig.height=3.5}
@@ -649,7 +651,9 @@ fLogThetaGP(theta0)
 resGP <- optim(theta0, fLogThetaGP, hessian=TRUE, control =list(fnscale=-1), method="BFGS" ) 
 thetaBestGP <- resGP$par
 thetaCovGP <- -solve(resGP$hessian)
-sampleGradGP <- theta <- rmvnorm( 800, thetaBestGP, sigma=thetaCovGP )
+sampleGradGP <- if( requireNamespace("mvtnorm") ){
+  theta <- mvtnorm::rmvnorm( 800, thetaBestGP, sigma=thetaCovGP )
+}else matrix(thetaBestGP, nrow=5, ncol=2, byrow=TRUE)
 ```
 
 ```{r TwoDenGP_plotGradCompare, tidy=FALSE, spar=TRUE, fig.height=3.75}

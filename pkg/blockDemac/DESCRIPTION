@@ -30,7 +30,8 @@ Suggests:
     testthat,
     reshape,
     knitr,
-    inlinedocs
+    inlinedocs,
+    mvtnorm
 VignetteBuilder: knitr
 Collate:
     'SampleLogChain.R'
